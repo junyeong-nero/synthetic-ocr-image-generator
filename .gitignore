@@ -1,3 +1,4 @@
 *.ttf
 *.pyc
-images/
+images_document/
+images_single_line/
