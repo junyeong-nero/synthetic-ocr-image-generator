@@ -5,9 +5,9 @@ from typing import List, Tuple, Dict, Any, Optional
 import logging
 
 from PIL import Image, ImageDraw, ImageFont
+from utils import read_txt
 
 logger = logging.getLogger(__name__)
-
 
 
 def draw_text_in_box(
@@ -143,21 +143,15 @@ def generate_document_images(
     font_paths = [str(path) for path in font_dir.glob("*.ttf")]
 
     if not font_paths:
-        logger.error("오류: 'fonts' 디렉토리에 .ttf 폰트 파일이 없습니다. 작업을 중단합니다.")
+        logger.error(
+            "오류: 'fonts' 디렉토리에 .ttf 폰트 파일이 없습니다. 작업을 중단합니다."
+        )
         return None
 
     # 코퍼스 텍스트 로드
-    try:
-        with open(corpus_path, "r", encoding="utf-8") as f:
-            lines = [line.strip() for line in f if line.strip()]
-        if not lines:
-            raise ValueError("코퍼스 파일이 비어있습니다.")
-    except FileNotFoundError:
-        logger.error(f"오류: '{corpus_path}' 파일을 찾을 수 없습니다. 작업을 중단합니다.")
-        return None
-    except ValueError as e:
-        logger.error(f"오류: {e} 작업을 중단합니다.")
-        return None
+    corpus = read_txt(corpus_path)
+    lines = corpus.splitlines()
+    korean_texts = [line[:20].strip() for line in lines if line.strip()]
 
     # 레이아웃 함수 리스트
     layout_functions = [

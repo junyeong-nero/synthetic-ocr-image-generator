@@ -4,7 +4,7 @@ from datasets import load_dataset
 
 
 # --------------------------------------------------------------------------
-# 1.1 텍스트 정제 함수
+# 1.1 텍스트 정제 함수 (기존과 동일)
 # --------------------------------------------------------------------------
 def clean_wiki_text(text: str) -> str:
     """위키피디아 텍스트에서 불필요한 마크업 및 특수 문자를 제거하고 정제합니다."""
@@ -26,7 +26,7 @@ def clean_wiki_text(text: str) -> str:
 
 
 # --------------------------------------------------------------------------
-# 1.2 위키피디아에서 코퍼스 파일을 생성하는 함수
+# 1.2 위키피디아에서 코퍼스 파일을 생성하는 함수 (기존과 동일)
 # --------------------------------------------------------------------------
 def create_corpus_from_wiki(output_path: str, num_sentences: int = 5000):
     """
@@ -77,3 +77,126 @@ def create_corpus_from_wiki(output_path: str, num_sentences: int = 5000):
     print(
         f"'{output_path}' 파일에 총 {len(collected_sentences):,}개의 문장을 저장했습니다."
     )
+
+
+# --------------------------------------------------------------------------
+# 1.3 [추가된 함수] 한국어 모든 문자 코퍼스를 생성하는 함수
+# --------------------------------------------------------------------------
+def create_korean_char_corpus(output_path: str):
+    """
+    한글의 초성, 중성, 종성을 조합하여 이론적으로 가능한 모든 한글 음절 문자를
+    포함하는 코퍼스 파일을 생성합니다. 개별 자음과 모음도 포함됩니다.
+
+    :param output_path: 코퍼스를 저장할 파일 경로.
+    """
+    print(f"모든 한글 문자 코퍼스 '{output_path}' 생성을 시작합니다.")
+
+    # 초성 (19개)
+    CHOSUNG = [
+        "ㄱ",
+        "ㄲ",
+        "ㄴ",
+        "ㄷ",
+        "ㄸ",
+        "ㄹ",
+        "ㅁ",
+        "ㅂ",
+        "ㅃ",
+        "ㅅ",
+        "ㅆ",
+        "ㅇ",
+        "ㅈ",
+        "ㅉ",
+        "ㅊ",
+        "ㅋ",
+        "ㅌ",
+        "ㅍ",
+        "ㅎ",
+    ]
+    # 중성 (21개)
+    JUNGSUNG = [
+        "ㅏ",
+        "ㅐ",
+        "ㅑ",
+        "ㅒ",
+        "ㅓ",
+        "ㅔ",
+        "ㅕ",
+        "ㅖ",
+        "ㅗ",
+        "ㅘ",
+        "ㅙ",
+        "ㅚ",
+        "ㅛ",
+        "ㅜ",
+        "ㅝ",
+        "ㅞ",
+        "ㅟ",
+        "ㅠ",
+        "ㅡ",
+        "ㅢ",
+        "ㅣ",
+    ]
+    # 종성 (28개, 받침 없음 '' 포함)
+    JONGSUNG = [
+        "",
+        "ㄱ",
+        "ㄲ",
+        "ㄳ",
+        "ㄴ",
+        "ㄵ",
+        "ㄶ",
+        "ㄷ",
+        "ㄹ",
+        "ㄺ",
+        "ㄻ",
+        "ㄼ",
+        "ㄽ",
+        "ㄾ",
+        "ㄿ",
+        "ㅀ",
+        "ㅁ",
+        "ㅂ",
+        "ㅄ",
+        "ㅅ",
+        "ㅆ",
+        "ㅇ",
+        "ㅈ",
+        "ㅊ",
+        "ㅋ",
+        "ㅌ",
+        "ㅍ",
+        "ㅎ",
+    ]
+
+    all_korean_chars = []
+
+    # 1. 모든 한글 음절(11,172자) 조합 생성
+    # 유니코드 한글 코드 포인트 계산: (초성 인덱스 * 21 * 28) + (중성 인덱스 * 28) + 종성 인덱스 + 0xAC00('가')
+    for i, _ in enumerate(CHOSUNG):
+        for j, _ in enumerate(JUNGSUNG):
+            for k, _ in enumerate(JONGSUNG):
+                code_point = (i * 21 * 28) + (j * 28) + k + 0xAC00
+                all_korean_chars.append(chr(code_point))
+
+    # 2. 독립적인 자음 및 모음 추가
+    all_korean_chars.extend(CHOSUNG)
+    all_korean_chars.extend(JUNGSUNG)
+
+    # 파일에 저장
+    with open(output_path, "w", encoding="utf-8") as f:
+        for char in all_korean_chars:
+            f.write(char + "\n")
+
+    total_chars = len(all_korean_chars)
+    print(f"'{output_path}' 파일에 총 {total_chars:,}개의 한글 문자를 저장했습니다.")
+    print(f"(음절: {11172:,}개, 자음: {len(CHOSUNG):,}개, 모음: {len(JUNGSUNG):,}개)")
+
+
+# --- 사용 예시 ---
+if __name__ == "__main__":
+    # 방법 1: 위키피디아에서 문장 기반 코퍼스 생성
+    create_corpus_from_wiki("data/corpus.txt", num_sentences=10000)
+
+    # 방법 2: 모든 한글 문자로 구성된 문자 기반 코퍼스 생성
+    create_korean_char_corpus("data/korean_char_corpus.txt")

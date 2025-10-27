@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, "src")
 
-from image_generator import generate_document, generate_line
+from image_generator import generate_document, generate_text
 from uploader import upload_subset_to_hub
 
 
@@ -22,7 +22,7 @@ def run_full_pipeline(
     print("=" * 50)
 
     # STEP 1: 단일 문장 이미지 생성
-    single_line_output_dir = generate_line(
+    single_line_output_dir = generate_text(
         corpus_path=corpus_path,
         num_images=num_single_images,
         output_dir=single_line_dir,
@@ -64,7 +64,7 @@ def run_full_pipeline(
 
 if __name__ == "__main__":
     # --- 공통 설정 ---
-    CORPUS_FILE_PATH = "corpus.txt"
+    CORPUS_FILE_PATH = "data/corpus.txt"
     NUM_SENTENCES_FOR_CORPUS = 5000
 
     # --- 데이터셋 설정 (하나의 저장소 ID 사용) ---
@@ -75,12 +75,8 @@ if __name__ == "__main__":
     NUM_DOCUMENT_IMAGES = 100
 
     # --- 출력 디렉토리 설정 ---
-    SINGLE_LINE_OUTPUT_DIR = "images_single_line"
-    DOC_OUTPUT_DIR = "images_document"
-
-    # ======================================================================
-    # 실행할 작업을 선택하세요
-    # ======================================================================
+    SINGLE_LINE_OUTPUT_DIR = "data/images_single_line"
+    DOC_OUTPUT_DIR = "data/images_document"
 
     # --- STEP 0: 코퍼스 파일 생성 (최초 한 번 또는 텍스트 변경 시 실행 필요) ---
     # Path(CORPUS_FILE_PATH).unlink(missing_ok=True) # 기존 파일 삭제 후 시작

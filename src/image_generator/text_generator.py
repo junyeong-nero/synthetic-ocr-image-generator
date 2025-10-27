@@ -6,6 +6,7 @@ from typing import List, Tuple, Dict, Any, Optional
 # numpy와 ImageFilter, ImageEnhance를 import합니다.
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
+from utils import read_txt
 
 
 def find_coeffs(
@@ -27,7 +28,7 @@ def find_coeffs(
     return res.flatten()
 
 
-def generate_single_text_image(
+def generate_text_image(
     text: str,
     font_path: str,
     background_color: Tuple[int, int, int],
@@ -146,19 +147,9 @@ def generate_single_line_images(
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
 
-    try:
-        with open(corpus_path, "r", encoding="utf-8") as f:
-            korean_texts = [line[:20].strip() for line in f if line.strip()]
-        if not korean_texts:
-            raise ValueError("코퍼스 파일이 비어있습니다.")
-    except FileNotFoundError:
-        print(
-            f"오류: '{corpus_path}' 파일을 찾을 수 없습니다. 먼저 코퍼스를 생성해야 합니다. 작업을 중단합니다."
-        )
-        return None
-    except ValueError as e:
-        print(f"오류: {e} 작업을 중단합니다.")
-        return None
+    corpus = read_txt(corpus_path)
+    lines = corpus.splitlines()
+    korean_texts = [line[:20].strip() for line in lines if line.strip()]
 
     background_colors = [
         (255, 255, 255),
@@ -187,7 +178,7 @@ def generate_single_line_images(
         blur = random.choice([True, False])
         contrast = random.choice([True, False])  # 대비 효과 랜덤 선택
 
-        img = generate_single_text_image(
+        img = generate_text_image(
             text=text,
             font_path=font_path,
             background_color=bg_color,
@@ -216,3 +207,7 @@ def generate_single_line_images(
 
     print(f"총 {len(image_text_pairs):,}개의 이미지 및 메타데이터 생성을 완료했습니다.")
     return str(output_path)
+
+
+if __name__ == "__main__":
+    generate_single_line_images(corpus_path="korean_char_corpus.txt")
