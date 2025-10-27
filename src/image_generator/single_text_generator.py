@@ -3,77 +3,119 @@ import random
 from pathlib import Path
 from typing import List, Tuple, Dict, Any, Optional
 
-from PIL import Image, ImageDraw, ImageFont
+# numpy와 ImageFilter, ImageEnhance를 import합니다.
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
+
+
+def find_coeffs(
+    source_coords: List[Tuple[int, int]], target_coords: List[Tuple[int, int]]
+) -> np.ndarray:
+    """
+    원근 왜곡에 필요한 8개의 계수(coefficients)를 계산합니다.
+    numpy를 사용하여 Ax = B 형태의 선형 방정식을 풉니다.
+    """
+    matrix = []
+    for s, t in zip(source_coords, target_coords):
+        matrix.append([s[0], s[1], 1, 0, 0, 0, -t[0] * s[0], -t[0] * s[1]])
+        matrix.append([0, 0, 0, s[0], s[1], 1, -t[1] * s[0], -t[1] * s[1]])
+    A = np.array(matrix, dtype=float)
+    B = np.array(target_coords).reshape(8)
+
+    # 선형 방정식을 풀어 계수를 구합니다.
+    res = np.linalg.solve(A, B)
+    return res.flatten()
 
 
 def generate_single_text_image(
     text: str,
     font_path: str,
     background_color: Tuple[int, int, int],
+    font_size: int = 80,
     bold: bool = False,
-    italic: bool = False,
     tilt: int = 0,
     shadow: bool = False,
+    distortion: bool = False,
+    blur: bool = False,
+    contrast: bool = False,  # 대비 조절을 위한 인수 추가
 ) -> Image.Image:
     """
     단일 문장을 다양한 스타일로 렌더링한 이미지를 생성합니다.
     """
-    font_size = 80
     try:
         font = ImageFont.truetype(font_path, font_size)
     except IOError:
-        # print(f"폰트 파일을 찾을 수 없습니다: {font_path}. 기본 폰트를 사용합니다.")
         font = ImageFont.load_default()
 
-    # 텍스트 크기 측정
     dummy_img = Image.new("RGB", (1, 1))
     dummy_draw = ImageDraw.Draw(dummy_img)
     bbox = dummy_draw.textbbox((0, 0), text, font=font)
     text_width, text_height = bbox[2] - bbox[0], bbox[3] - bbox[1]
 
-    # 이미지 크기 계산
-    padding = 40
+    padding = font_size // 2
     img_width, img_height = text_width + padding * 2, text_height + padding * 2
     if tilt != 0:
-        # 회전 시 이미지 잘림 방지를 위해 크기 확장
         img_width, img_height = int(img_width * 1.5), int(img_height * 1.5)
 
-    # 이미지 생성 및 그리기 준비
     img = Image.new("RGB", (img_width, img_height), background_color)
     draw = ImageDraw.Draw(img)
     x, y = (img_width - text_width) // 2, (img_height - text_height) // 2
 
-    # 텍스트 색상 결정 (배경 밝기에 따라)
     text_color = (0, 0, 0) if sum(background_color[:3]) > 384 else (255, 255, 255)
 
-    # 그림자 효과
     if shadow:
-        shadow_offset = 5
+        shadow_offset = max(1, font_size // 16)
         shadow_color = (50, 50, 50)
         draw.text(
             (x + shadow_offset, y + shadow_offset), text, font=font, fill=shadow_color
         )
 
-    # 기본 텍스트 렌더링
     draw.text((x, y), text, font=font, fill=text_color)
 
-    # 볼드 효과
     if bold:
         for offset in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
             draw.text((x + offset[0], y + offset[1]), text, font=font, fill=text_color)
 
-    # 이탤릭 효과
-    if italic:
-        # 기울임 변환
+    if distortion:
+        width, height = img.size
+        source_coords = [
+            (0, 0),
+            (width - 1, 0),
+            (width - 1, height - 1),
+            (0, height - 1),
+        ]
+        max_distort = font_size // 8
+        target_coords = []
+        for sx, sy in source_coords:
+            dx = random.randint(-max_distort, max_distort)
+            dy = random.randint(-max_distort, max_distort)
+            target_coords.append((sx + dx, sy + dy))
+
+        coeffs = find_coeffs(source_coords, target_coords)
         img = img.transform(
-            img.size, Image.AFFINE, (1, -0.3, 0, 0, 1, 0), resample=Image.BICUBIC
+            (width, height),
+            Image.PERSPECTIVE,
+            coeffs,
+            Image.BICUBIC,
+            fillcolor=background_color,
         )
 
-    # 회전 효과
     if tilt != 0:
         img = img.rotate(tilt, expand=True, fillcolor=background_color)
-        # 이미지 내용이 있는 영역으로 크롭
-        img = img.crop(img.getbbox())
+        bbox = img.getbbox()
+        if bbox:
+            img = img.crop(bbox)
+
+    if blur:
+        blur_radius = random.uniform(0.5, 1.5)
+        img = img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+
+    # 대비(Contrast) 조정 (마지막 단계에서 적용)
+    if contrast:
+        # 대비 조절 강도를 무작위로 설정 (0.7은 대비 감소, 1.5는 대비 증가)
+        enhancer = ImageEnhance.Contrast(img)
+        factor = random.uniform(0.7, 1.5)
+        img = enhancer.enhance(factor)
 
     return img
 
@@ -82,36 +124,31 @@ def generate_single_text_image(
 # 1.4 단일 문장 이미지 생성 메인 함수
 # --------------------------------------------------------------------------
 def generate_single_line_images(
-    corpus_path: str, num_images: int = 1000, output_dir: str = "images"
+    corpus_path: str,
+    num_images: int = 1000,
+    output_dir: str = "images",
+    resolution_range: Tuple[int, int] = (70, 90),
 ) -> Optional[str]:
     """
     주어진 코퍼스 파일에서 텍스트를 읽어 단일 문장 이미지를 생성하고,
     이미지-텍스트 쌍 메타데이터를 저장합니다.
-
-    :param corpus_path: 텍스트 코퍼스 파일 경로.
-    :param num_images: 생성할 이미지 개수.
-    :param output_dir: 이미지를 저장할 디렉토리.
-    :return: 생성된 이미지 디렉토리 경로.
     """
     print(
         f"\n'{corpus_path}' 파일을 사용하여 [단일 문장] 이미지 생성을 시작합니다. 목표 이미지 수: {num_images:,}"
     )
 
-    # 폰트 경로 준비
     font_dir = Path("fonts")
     font_paths = [str(path) for path in font_dir.glob("*.ttf")]
     if not font_paths:
         print("오류: 'fonts' 디렉토리에 .ttf 폰트 파일이 없습니다. 작업을 중단합니다.")
         return None
 
-    # 출력 디렉토리 준비
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
 
-    # 코퍼스 텍스트 로드
     try:
         with open(corpus_path, "r", encoding="utf-8") as f:
-            korean_texts = [line.strip() for line in f if line.strip()]
+            korean_texts = [line[:20].strip() for line in f if line.strip()]
         if not korean_texts:
             raise ValueError("코퍼스 파일이 비어있습니다.")
     except FileNotFoundError:
@@ -123,7 +160,6 @@ def generate_single_line_images(
         print(f"오류: {e} 작업을 중단합니다.")
         return None
 
-    # 배경색상 리스트
     background_colors = [
         (255, 255, 255),
         (240, 240, 240),
@@ -139,38 +175,40 @@ def generate_single_line_images(
     image_text_pairs: List[Dict[str, str]] = []
 
     for idx in range(num_images):
-        # 랜덤 스타일 설정
         font_path = random.choice(font_paths)
         text = random.choice(korean_texts)
         bg_color = random.choice(background_colors)
-        bold = random.choice([True, False])
-        italic = random.choice([True, False])
-        tilt = random.randint(-15, 15)  # 단일 라인은 회전 각도를 줄임
-        shadow = random.choice([True, False])
+        font_size = random.randint(*resolution_range)
 
-        # 이미지 생성
+        bold = random.choice([True, False])
+        tilt = random.randint(-15, 15)
+        shadow = random.choice([True, False])
+        distortion = random.choice([True, False])
+        blur = random.choice([True, False])
+        contrast = random.choice([True, False])  # 대비 효과 랜덤 선택
+
         img = generate_single_text_image(
             text=text,
             font_path=font_path,
             background_color=bg_color,
+            font_size=font_size,
             bold=bold,
-            italic=italic,
             tilt=tilt,
             shadow=shadow,
+            distortion=distortion,
+            blur=blur,
+            contrast=contrast,  # 인자 전달
         )
 
-        # 이미지 저장
         image_filename = f"image_{idx:04d}.png"
         image_path = output_path / image_filename
         img.save(image_path)
 
-        # 메타데이터 저장
         image_text_pairs.append({"file_name": str(image_path), "text": text})
 
         if (idx + 1) % 100 == 0:
             print(f"... {idx + 1:,} / {num_images:,} 이미지 생성 완료")
 
-    # 메타데이터 파일 저장 (JSONL 형식)
     metadata_path = output_path / "metadata.jsonl"
     with open(metadata_path, "w", encoding="utf-8") as f:
         for item in image_text_pairs:

@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, "src")
 
-from generator import generate_document, generate_line
+from image_generator import generate_document, generate_line
 from uploader import upload_subset_to_hub
 
 

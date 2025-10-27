@@ -2,8 +2,12 @@ import json
 import random
 from pathlib import Path
 from typing import List, Tuple, Dict, Any, Optional
+import logging
 
 from PIL import Image, ImageDraw, ImageFont
+
+logger = logging.getLogger(__name__)
+
 
 
 def draw_text_in_box(
@@ -128,7 +132,7 @@ def generate_document_images(
     :param output_dir: 이미지를 저장할 디렉토리.
     :return: 생성된 이미지 디렉토리 경로.
     """
-    print(
+    logger.info(
         f"\n'{corpus_path}' 파일을 사용하여 [문서] 이미지 생성을 시작합니다. 목표 이미지 수: {num_images:,}"
     )
 
@@ -139,7 +143,7 @@ def generate_document_images(
     font_paths = [str(path) for path in font_dir.glob("*.ttf")]
 
     if not font_paths:
-        print("오류: 'fonts' 디렉토리에 .ttf 폰트 파일이 없습니다. 작업을 중단합니다.")
+        logger.error("오류: 'fonts' 디렉토리에 .ttf 폰트 파일이 없습니다. 작업을 중단합니다.")
         return None
 
     # 코퍼스 텍스트 로드
@@ -149,10 +153,10 @@ def generate_document_images(
         if not lines:
             raise ValueError("코퍼스 파일이 비어있습니다.")
     except FileNotFoundError:
-        print(f"오류: '{corpus_path}' 파일을 찾을 수 없습니다. 작업을 중단합니다.")
+        logger.error(f"오류: '{corpus_path}' 파일을 찾을 수 없습니다. 작업을 중단합니다.")
         return None
     except ValueError as e:
-        print(f"오류: {e} 작업을 중단합니다.")
+        logger.error(f"오류: {e} 작업을 중단합니다.")
         return None
 
     # 레이아웃 함수 리스트
@@ -193,7 +197,7 @@ def generate_document_images(
         metadata.append({"file_name": str(filepath), "text": drawn_text})
 
         if (i + 1) % 20 == 0:
-            print(f"... {i + 1} / {num_images} 문서 이미지 생성 완료")
+            logger.info(f"... {i + 1} / {num_images} 문서 이미지 생성 완료")
 
     # 메타데이터 파일 저장 (JSONL 형식)
     metadata_path = output_path / "metadata.jsonl"
