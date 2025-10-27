@@ -1,47 +1,121 @@
-from utils import *
+import re
 from pathlib import Path
 import random
+from datasets import load_dataset
+from PIL import (
+    Image,
+    ImageDraw,
+    ImageFont,
+    ImageEnhance,
+)  # generate_text_image를 위해 필요
+import numpy as np  # generate_text_image를 위해 필요
 
 
-def generate():
+# --------------------------------------------------------------------------
+# 1. 텍스트 정제 함수 (한글, 숫자, 기본 구두점 외 필터링 기능 추가)
+# --------------------------------------------------------------------------
+def clean_wiki_text(text):
+    """
+    위키피디아 텍스트에서 마크업, 불필요한 공백, 그리고 한글 외 텍스트를 제거하는 함수
+    """
+    # 1단계: 위키 마크업 제거
+    text = re.sub(r"\[\[[^\]\|]+\|([^\]]+)\]\]", r"\1", text)  # [[표시|내용]] -> 내용
+    text = re.sub(r"\[\[([^\]]+)\]\]", r"\1", text)  # [[내용]] -> 내용
+    text = re.sub(r"\[https?:\/\/[^\]]+\]", "", text)  # 외부 링크 제거
+    text = re.sub(r"'{2,5}", "", text)  # 강조, 이탤릭 마크업 제거
+    text = re.sub(r"==+\s*(.*?)\s*==+", r"\1.", text)  # 문단 제목 -> 문장처럼 변경
+
+    # 2단계: 한글, 숫자, 기본 구두점, 공백을 제외한 모든 문자 제거
+    # (영어, 한자, 일본어, 특수기호 등 필터링)
+    text = re.sub(r"[^ㄱ-ㅎㅏ-ㅣ가-힣0-9\s.?!]", "", text)
+
+    # 3단계: 불필요한 공백 정리
+    text = " ".join(text.split())
+    return text
+
+
+# --------------------------------------------------------------------------
+# 2. 위키피디아에서 코퍼스 파일을 생성하는 함수
+# --------------------------------------------------------------------------
+def create_corpus_from_wiki(output_path, num_sentences=5000):
+    """
+    Hugging Face Wikipedia 데이터셋에서 텍스트를 가져와 정제한 후,
+    지정된 경로에 텍스트 파일(코퍼스)로 저장합니다.
+
+    Args:
+        output_path (str or Path): 저장할 코퍼스 파일 경로
+        num_sentences (int): 수집할 총 문장 수
+    """
+    print(f"'{output_path}' 생성을 시작합니다. 목표 문장 수: {num_sentences}")
+
+    # 스트리밍 모드로 한국어 위키피디아 데이터셋 로드
+    dataset = load_dataset("wikipedia", "20220301.ko", split="train", streaming=True)
+    shuffled_dataset = dataset.shuffle(buffer_size=10000)
+
+    collected_sentences = []
+
+    for data in shuffled_dataset:
+        if len(collected_sentences) >= num_sentences:
+            break
+
+        cleaned_text = clean_wiki_text(data["text"])
+        sentences = re.split(r"(?<=[.?!])\s+", cleaned_text)
+
+        for sentence in sentences:
+            s = sentence.strip()
+            if 10 < len(s) < 100:  # 너무 짧거나 긴 문장은 제외
+                collected_sentences.append(s)
+
+                # 진행 상황 출력
+                if len(collected_sentences) % 100 == 0:
+                    print(
+                        f"... {len(collected_sentences)} / {num_sentences} 문장 수집 완료"
+                    )
+
+                if len(collected_sentences) >= num_sentences:
+                    break
+
+    # 수집된 문장을 파일에 저장
+    with open(output_path, "w", encoding="utf-8") as f:
+        for sentence in collected_sentences:
+            f.write(sentence + "\n")
+
+    print(
+        f"'{output_path}' 파일에 총 {len(collected_sentences)}개의 문장을 저장했습니다."
+    )
+
+
+# --------------------------------------------------------------------------
+# 3. 코퍼스 파일을 사용해 이미지를 생성하는 함수
+# --------------------------------------------------------------------------
+def generate(corpus_path, num_images=1000):
+    """
+    주어진 코퍼스 파일에서 텍스트를 읽어 이미지를 생성합니다.
+
+    Args:
+        corpus_path (str or Path): 사용할 코퍼스 파일 경로
+        num_images (int): 생성할 이미지의 개수
+    """
+    print(
+        f"\n'{corpus_path}' 파일을 사용하여 이미지 생성을 시작합니다. 목표 이미지 수: {num_images}"
+    )
+
     font_dir = Path("fonts")
     font_paths = [str(path) for path in font_dir.glob("*.ttf")]
     output_dir = Path("images")
     output_dir.mkdir(exist_ok=True, parents=True)
 
-    # 다양한 한국어 텍스트 샘플
-    korean_texts = [
-        "안녕하세요",
-        "감사합니다",
-        "사랑해요",
-        "행복하세요",
-        "좋은 하루",
-        "환영합니다",
-        "축하합니다",
-        "고맙습니다",
-        "미안합니다",
-        "괜찮아요",
-        "화이팅",
-        "수고하셨습니다",
-        "잘 먹겠습니다",
-        "건강하세요",
-        "평안하세요",
-        "좋은 아침",
-        "안녕히 가세요",
-        "또 만나요",
-        "잘 지내세요",
-        "반갑습니다",
-        "최고예요",
-        "멋있어요",
-        "예뻐요",
-        "귀여워요",
-        "멋지다",
-        "대단해요",
-        "훌륭합니다",
-        "잘했어요",
-        "최선을 다하세요",
-        "꿈을 이루세요",
-    ]
+    # 코퍼스 파일 읽기
+    try:
+        with open(corpus_path, "r", encoding="utf-8") as f:
+            korean_texts = [line.strip() for line in f if line.strip()]
+        if not korean_texts:
+            raise ValueError("코퍼스 파일이 비어있습니다.")
+    except FileNotFoundError:
+        print(
+            f"오류: '{corpus_path}' 파일을 찾을 수 없습니다. 먼저 코퍼스를 생성해야 합니다."
+        )
+        return
 
     # 배경색 옵션
     background_colors = [
@@ -56,21 +130,15 @@ def generate():
         (230, 230, 250),
     ]
 
-    # 1000개 이미지 생성
-    for idx in range(1000):
-        # 랜덤으로 폰트 선택
+    # 이미지 생성
+    for idx in range(num_images):
         font_path = random.choice(font_paths)
-
-        # 랜덤으로 텍스트 선택
         text = random.choice(korean_texts)
-
-        # 랜덤으로 배경색 선택
         bg_color = random.choice(background_colors)
-
-        # 랜덤으로 옵션 선택
         bold = random.choice([True, False])
         italic = random.choice([True, False])
-        tilt = random.randint(-45, 45)  # -45도 ~ 45도
+        tilt = random.randint(-45, 45)
+        shadow = random.choice([True, False])
 
         img = generate_text_image(
             text=text,
@@ -79,14 +147,88 @@ def generate():
             bold=bold,
             italic=italic,
             tilt=tilt,
+            shadow=shadow,
         )
         img.save(output_dir / f"image_{idx:04d}.png")
 
-        # 진행상황 출력 (선택사항)
         if (idx + 1) % 100 == 0:
-            print(f"{idx + 1}/1000 이미지 생성 완료")
+            print(f"... {idx + 1} / {num_images} 이미지 생성 완료")
+
+    print(f"총 {num_images}개의 이미지 생성을 완료했습니다.")
 
 
-# 사용 예제
+# --------------------------------------------------------------------------
+# (참고) 이미지 생성 함수 (이전 질문의 함수)
+# --------------------------------------------------------------------------
+def generate_text_image(
+    text, font_path, background_color, bold=False, italic=False, tilt=0, shadow=False
+):
+    font_size = 80
+    try:
+        font = ImageFont.truetype(font_path, font_size)
+    except IOError:
+        print(f"폰트 파일을 찾을 수 없습니다: {font_path}. 기본 폰트를 사용합니다.")
+        font = ImageFont.load_default()
+
+    dummy_img = Image.new("RGB", (1, 1))
+    dummy_draw = ImageDraw.Draw(dummy_img)
+    bbox = dummy_draw.textbbox((0, 0), text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+
+    padding = 40
+    img_width = text_width + padding * 2
+    img_height = text_height + padding * 2
+
+    if tilt != 0:
+        img_width = int(img_width * 1.5)
+        img_height = int(img_height * 1.5)
+
+    if len(background_color) == 3:
+        img = Image.new("RGB", (img_width, img_height), background_color)
+    else:
+        img = Image.new("RGBA", (img_width, img_height), background_color)
+
+    draw = ImageDraw.Draw(img)
+    x = (img_width - text_width) // 2
+    y = (img_height - text_height) // 2
+
+    if shadow:
+        shadow_offset = 5
+        shadow_color = (50, 50, 50, 180) if len(background_color) == 4 else (50, 50, 50)
+        draw.text(
+            (x + shadow_offset, y + shadow_offset), text, font=font, fill=shadow_color
+        )
+
+    text_color = (0, 0, 0) if sum(background_color[:3]) > 384 else (255, 255, 255)
+    draw.text((x, y), text, font=font, fill=text_color)
+
+    if bold:
+        for offset in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            draw.text((x + offset[0], y + offset[1]), text, font=font, fill=text_color)
+
+    if italic:
+        img = img.transform(
+            img.size, Image.AFFINE, (1, -0.3, 0, 0, 1, 0), resample=Image.BICUBIC
+        )
+
+    if tilt != 0:
+        img = img.rotate(tilt, expand=True, fillcolor=background_color)
+        img = img.crop(img.getbbox())
+
+    return img
+
+
+# --------------------------------------------------------------------------
+# 메인 실행 블록
+# --------------------------------------------------------------------------
 if __name__ == "__main__":
-    generate()
+    CORPUS_FILE_PATH = "corpus.txt"
+    NUM_SENTENCES = 5000  # 코퍼스에 저장할 문장 수
+    NUM_IMAGES = 1000  # 생성할 이미지 수
+
+    # 1. 코퍼스 파일 생성 (파일이 이미 있다면 이 부분을 주석 처리하고 실행 가능)
+    create_corpus_from_wiki(output_path=CORPUS_FILE_PATH, num_sentences=NUM_SENTENCES)
+
+    # 2. 생성된 코퍼스 파일을 사용하여 이미지 생성
+    generate(corpus_path=CORPUS_FILE_PATH, num_images=NUM_IMAGES)
