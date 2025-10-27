@@ -4,8 +4,13 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from skimage.metrics import structural_similarity as ssim
 from tqdm import tqdm  # 진행 상황을 보여주기 위한 라이브러리
-from utils import save_json, read_json
+import os
+
+# --- 가정: 이 함수들은 별도의 파일에 존재하고 임포트됨 ---
+from utils import save_json, read_json, read_txt
 from image_generator.text_generator import generate_text_image
+
+# --- 1단계: 유사도 데이터베이스 구축 ---
 
 
 def calculate_ssim_with_pil_images(imageA_pil, imageB_pil):
@@ -18,9 +23,6 @@ def calculate_ssim_with_pil_images(imageA_pil, imageB_pil):
 
     score, _ = ssim(imageA, imageB, full=True)
     return score
-
-
-# --- 1단계: 유사도 데이터베이스 구축 ---
 
 
 def build_similarity_database(char_list, font_path, db_path, threshold=0.5):
@@ -36,15 +38,24 @@ def build_similarity_database(char_list, font_path, db_path, threshold=0.5):
     print("유사도 데이터베이스 구축을 시작합니다...")
     similarity_db = {}
 
-    # 각 문자에 대한 이미지를 미리 생성하여 중복 계산 방지
-    char_images = {char: generate_text_image(char, font_path) for char in char_list}
+    # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    # 수정된 부분: 이미지 생성 단계에 tqdm 추가
+    print("1. 문자 이미지를 사전 생성합니다...")
+    char_images = {
+        char: generate_text_image(char, font_path, background_color=(255, 255, 255))
+        for char in tqdm(char_list, desc="Generating images")
+    }
+    # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    # tqdm을 사용하여 진행률 표시
-    for i in tqdm(range(len(char_list)), desc="Processing characters"):
+    # 각 문자에 대한 이미지를 미리 생성하여 중복 계산 방지
+    # char_images = {char: generate_text_image(char, font_path) for char in char_list}
+
+    # tqdm을 사용하여 진행률 표시 (기존 코드)
+    print("\n2. 문자 쌍의 유사도를 계산합니다...")
+    for i in tqdm(range(len(char_list)), desc="Comparing characters"):
         char1 = char_list[i]
         img1 = char_images[char1]
 
-        similar_chars = {}
         for j in range(i + 1, len(char_list)):
             char2 = char_list[j]
             img2 = char_images[char2]
@@ -84,47 +95,23 @@ def find_similar_chars(query_char, db, top_n=5):
     if query_char not in db:
         return []
 
-    # 유사도 점수를 기준으로 내림차순 정렬
     similar_items = sorted(
         db[query_char].items(), key=lambda item: item[1], reverse=True
     )
-
     return similar_items[:top_n]
 
 
-def run(font_path, db_path):
-    font_path = "/System/Library/Fonts/Supplemental/AppleGothic.ttf"
-    db_path = "data/char_similarity_db.json"
+def run(
+    corpus_path="data/korean_char_corpus.txt",
+    db_path="data/char_similarity_db.json",
+    font_path="/System/Library/Fonts/Supplemental/AppleGothic.ttf",
+):
 
-    # 전체 한글: [chr(i) for i in range(0xAC00, 0xD7A4)]
-    test_chars = [
-        "각",
-        "갂",
-        "간",
-        "갇",
-        "갈",
-        "갉",
-        "갊",
-        "감",
-        "갑",
-        "값",
-        "갓",
-        "갔",
-        "강",
-        "갖",
-        "갗",
-        "갘",
-        "같",
-        "갚",
-        "갛",
-        "가",
-    ]
+    chars = read_txt(corpus_path)
 
     # 1. 데이터베이스 구축 (파일이 없을 경우에만 실행)
-    import os
-
     if not os.path.exists(db_path):
-        build_similarity_database(test_chars, font_path, db_path, threshold=0.6)
+        build_similarity_database(chars, font_path, db_path, threshold=0.6)
 
     # 2. 데이터베이스 로드 및 유사 문자 검색
     similarity_database = read_json(db_path)
@@ -138,4 +125,9 @@ def run(font_path, db_path):
             for char, score in similar_results:
                 print(f"- {char} (유사도: {score:.4f})")
         else:
-            print("유사한 문자를 찾을 수 없습니다.")
+            print(f"'{search_char}'에 대한 유사 문자를 찾을 수 없습니다.")
+
+
+# --- 메인 실행 ---
+if __name__ == "__main__":
+    run()
