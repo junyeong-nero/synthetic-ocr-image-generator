@@ -92,7 +92,9 @@ def create_table_layout(
 
     # 2. Calculate row heights (dynamically determined by content)
     row_heights = []
-    temp_draw = ImageDraw.Draw(Image.new("RGB", (1, 1)))  # Temporary draw object for height calculation
+    temp_draw = ImageDraw.Draw(
+        Image.new("RGB", (1, 1))
+    )  # Temporary draw object for height calculation
     for row_data in table_data:
         max_height_in_row = 0
         for i, cell_text in enumerate(row_data):
@@ -192,18 +194,14 @@ def generate_table_images(
         and len(num_rows) == 2
         and num_rows[0] <= num_rows[1]
     ):
-        logger.error(
-            "Error: num_rows must be a tuple of (min, max) where min <= max."
-        )
+        logger.error("Error: num_rows must be a tuple of (min, max) where min <= max.")
         return None
     if not (
         isinstance(num_cols, (list, tuple))
         and len(num_cols) == 2
         and num_cols[0] <= num_cols[1]
     ):
-        logger.error(
-            "Error: num_cols must be a tuple of (min, max) where min <= max."
-        )
+        logger.error("Error: num_cols must be a tuple of (min, max) where min <= max.")
         return None
 
     output_path = Path(output_dir)
@@ -219,16 +217,12 @@ def generate_table_images(
 
     corpus = read_txt(corpus_path)
     if not corpus:
-        logger.error(
-            f"Error: '{corpus_path}' is empty or cannot be read. Aborting."
-        )
+        logger.error(f"Error: '{corpus_path}' is empty or cannot be read. Aborting.")
         return None
 
     lines = [line[:10].strip() for line in corpus.splitlines() if line.strip()]
     if not lines:
-        logger.error(
-            f"Error: No content found in '{corpus_path}'. Aborting."
-        )
+        logger.error(f"Error: No content found in '{corpus_path}'. Aborting.")
         return None
 
     metadata: List[Dict[str, str]] = []
@@ -274,62 +268,3 @@ def generate_table_images(
 
     print(f"Successfully generated {len(metadata):,} table images and metadata.")
     return str(output_path)
-
-
-# --- This part below should be modified to fit the actual execution environment ---
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-    )
-
-    def read_txt(path: str) -> str:
-        """Reads a text file and returns its content."""
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                return f.read()
-        except FileNotFoundError:
-            return ""
-
-    font_dir = Path("fonts")
-    if not font_dir.exists() or not any(font_dir.glob("*.ttf")):
-        font_dir.mkdir(exist_ok=True)
-        logger.warning(
-            f"No .ttf font files found in '{font_dir}'. Please add Korean fonts."
-        )
-
-    corpus_path = Path("data/corpus.txt")
-    if not corpus_path.parent.exists():
-        logger.info(f"Creating directory '{corpus_path.parent}'.")
-        corpus_path.parent.mkdir(parents=True)
-    if not corpus_path.exists():
-        logger.warning(f"'{corpus_path}' not found. Creating a sample file.")
-        with open(corpus_path, "w", encoding="utf-8") as f:
-            f.write(
-                "데이터\n분석\n테이블\n이미지\n생성\n파이썬\n라이브러리\n자동화\n프로그래밍\n인공지능\n"
-            )
-
-    # --- Calling the table image generation function (example with new arguments) ---
-
-    # Example 1: Using default values (5-20 rows, 2-5 columns)
-    # logger.info("Starting table image generation with default settings.")
-    # generate_table_images(corpus_path=str(corpus_path), num_images=10, output_dir="table_images_default")
-
-    # Example 2: Specifying a narrow range for rows and columns (3-10 rows, 2-5 columns)
-    logger.info("Starting generation of small table images (3-10 rows, 2-5 columns).")
-    generate_table_images(
-        corpus_path=str(corpus_path),
-        num_images=10,
-        output_dir="table_images_small",
-        num_rows=(3, 10),
-        num_cols=(2, 5),
-    )
-
-    # Example 3: Specifying a fixed size table (exactly 10 rows, 4 columns)
-    # logger.info("Starting generation of fixed-size table images (10 rows, 4 columns).")
-    # generate_table_images(
-    #     corpus_path=str(corpus_path),
-    #     num_images=10,
-    #     output_dir="table_images_fixed",
-    #     num_rows=(10, 10),
-    #     num_cols=(4, 4)
-    # )

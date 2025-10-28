@@ -7,6 +7,7 @@ from typing import List, Tuple, Dict, Any, Optional
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 from utils import read_txt
+from character_similarity import find_similar_chars, read_txt, read_json
 
 
 def find_coeffs(
@@ -121,10 +122,35 @@ def _generate_word_image(
     return img
 
 
-# --------------------------------------------------------------------------
-# 1.4 Main Function for Generating Single Sentence Images
-# --------------------------------------------------------------------------
-def generate_word_images(
+def needle_in_a_haystack_generator(
+    corpus_path, top_n=3, num_size=(5, 10), needle_ratio=0.2
+):
+    corpus = read_txt(corpus_path)
+    db = read_json("data/char_similarity_db.json")
+
+    result = []
+    chars = set(list(corpus))
+    for char in chars:
+
+        size = random.randint(num_size[0], num_size[1])
+        num_needle = int(size * size * needle_ratio)
+
+        sim_chars = find_similar_chars(char, db, top_n=top_n)
+        if not sim_chars:
+            continue
+
+        temp = [[char for _ in range(size)] for _ in range(size)]
+        x = random.choices(list(range(size)), k=num_needle)
+        y = random.choices(list(range(size)), k=num_needle)
+        for _x, _y in zip(x, y):
+            temp[_x][_y] = sim_chars[0][0]
+
+        result.append("\n".join(["".join(row) for row in temp]))
+
+    return result
+
+
+def generate_needle_in_a_haystack_images(
     corpus_path: str,
     num_images: int = 1000,
     output_dir: str = "images",
@@ -147,9 +173,7 @@ def generate_word_images(
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
 
-    corpus = read_txt(corpus_path)
-    lines = corpus.splitlines()
-    korean_texts = [line[:20].strip() for line in lines if line.strip()]
+    texts = needle_in_a_haystack_generator(corpus_path, top_n=3)
 
     background_colors = [
         (255, 255, 255),
@@ -167,7 +191,7 @@ def generate_word_images(
 
     for idx in range(num_images):
         font_path = random.choice(font_paths)
-        text = random.choice(korean_texts)
+        text = random.choice(texts)
         bg_color = random.choice(background_colors)
         font_size = random.randint(*resolution_range)
 
@@ -176,19 +200,19 @@ def generate_word_images(
         shadow = random.choice([True, False])
         distortion = random.choice([True, False])
         blur = random.choice([True, False])
-        contrast = random.choice([True, False])  # Randomly select contrast effect
+        contrast = random.choice([True, False])
 
         img = _generate_word_image(
             text=text,
             font_path=font_path,
             background_color=bg_color,
             font_size=font_size,
-            bold=bold,
-            tilt=tilt,
-            shadow=shadow,
-            distortion=distortion,
-            blur=blur,
-            contrast=contrast,  # Pass argument
+            # bold=bold,
+            # tilt=tilt,
+            # shadow=shadow,
+            # distortion=distortion,
+            # blur=blur,
+            # contrast=contrast,
         )
 
         image_filename = f"image_{idx:04d}.png"
@@ -210,4 +234,4 @@ def generate_word_images(
 
 
 if __name__ == "__main__":
-    generate_word_images(corpus_path="korean_char_corpus.txt")
+    generate_needle_in_a_haystack_images(corpus_path="korean_char_corpus.txt")
