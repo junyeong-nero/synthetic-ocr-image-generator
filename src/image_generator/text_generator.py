@@ -28,7 +28,7 @@ def find_coeffs(
     return res.flatten()
 
 
-def generate_text_image(
+def _generate_word_image(
     text: str,
     font_path: str,
     background_color: Tuple[int, int, int],
@@ -38,7 +38,7 @@ def generate_text_image(
     shadow: bool = False,
     distortion: bool = False,
     blur: bool = False,
-    contrast: bool = False,  # 대비 조절을 위한 인수 추가
+    contrast: bool = False,
 ) -> Image.Image:
     """
     단일 문장을 다양한 스타일로 렌더링한 이미지를 생성합니다.
@@ -124,7 +124,7 @@ def generate_text_image(
 # --------------------------------------------------------------------------
 # 1.4 단일 문장 이미지 생성 메인 함수
 # --------------------------------------------------------------------------
-def generate_single_line_images(
+def generate_word_images(
     corpus_path: str,
     num_images: int = 1000,
     output_dir: str = "images",
@@ -178,7 +178,7 @@ def generate_single_line_images(
         blur = random.choice([True, False])
         contrast = random.choice([True, False])  # 대비 효과 랜덤 선택
 
-        img = generate_text_image(
+        img = _generate_word_image(
             text=text,
             font_path=font_path,
             background_color=bg_color,
@@ -210,4 +210,4 @@ def generate_single_line_images(
 
 
 if __name__ == "__main__":
-    generate_single_line_images(corpus_path="korean_char_corpus.txt")
+    generate_word_images(corpus_path="korean_char_corpus.txt")

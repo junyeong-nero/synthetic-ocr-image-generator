@@ -8,7 +8,7 @@ import os
 
 # --- 가정: 이 함수들은 별도의 파일에 존재하고 임포트됨 ---
 from utils import save_json, read_json, read_txt
-from image_generator.text_generator import generate_text_image
+from image_generator.text_generator import _generate_word_image
 
 # --- 1단계: 유사도 데이터베이스 구축 ---
 
@@ -42,7 +42,9 @@ def build_similarity_database(char_list, font_path, db_path, threshold=0.5):
     # 수정된 부분: 이미지 생성 단계에 tqdm 추가
     print("1. 문자 이미지를 사전 생성합니다...")
     char_images = {
-        char: generate_text_image(char, font_path, background_color=(255, 255, 255))
+        char: _generate_word_image(
+            char, font_path, background_color=(255, 255, 255), font_size=24
+        )
         for char in tqdm(char_list, desc="Generating images")
     }
     # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
@@ -108,6 +110,9 @@ def run(
 ):
 
     chars = read_txt(corpus_path)
+    chars = list(set(list(chars)))
+
+    print(f"len(chars): {len(chars)}")
 
     # 1. 데이터베이스 구축 (파일이 없을 경우에만 실행)
     if not os.path.exists(db_path):
@@ -117,8 +122,8 @@ def run(
     similarity_database = read_json(db_path)
 
     if similarity_database:
-        search_char = "각"
-        similar_results = find_similar_chars(search_char, similarity_database, top_n=5)
+        search_char = "의"
+        similar_results = find_similar_chars(search_char, similarity_database, top_n=10)
 
         print(f"\n'{search_char}' 문자와 비슷한 문자들 (Top 5):")
         if similar_results:
