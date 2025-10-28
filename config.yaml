@@ -6,3 +6,8 @@ image_generation:
   num_document_images: 1000
   num_table_images: 1000
   num_needle_in_a_haystack_images: 1000
+corpus_generation:
+  language: "ko"
+  num_sentences: 10000
+  sentence_corpus_path: "data/corpus.txt"
+  char_corpus_path: "data/all_chars_corpus.txt"
