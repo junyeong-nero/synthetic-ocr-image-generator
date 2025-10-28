@@ -1,7 +1,12 @@
 from pathlib import Path
 
 from corpus_generator import create_corpus_from_wiki
-from image_generator import generate_document, generate_text, generate_table
+from image_generator import (
+    generate_document,
+    generate_text,
+    generate_table,
+    generate_needle,
+)
 from utils import upload_subset_to_hub
 
 
@@ -11,9 +16,8 @@ def pipeline(
     num_word_images: int,
     num_doc_images: int,
     num_table_images: int,
-    word_output_dir: str,
-    doc_output_dir: str,
-    table_output_dir: str,
+    num_needle_images: int,
+    output_dir: str,
 ):
     """
     Executes the full data generation and upload pipeline.
@@ -33,6 +37,11 @@ def pipeline(
         doc_output_dir (str): The directory to save generated document images.
         table_output_dir (str): The directory to save generated table images.
     """
+
+    word_output_dir = output_dir + "/images_word"
+    table_output_dir = output_dir + "/images_table"
+    doc_output_dir = output_dir + "/images_document"
+    needle_output_dir = output_dir + "/images_needle_in_a_haystack"
 
     # If the corpus file doesn't exist, create it from Wikipedia.
     corpus_dir = Path(corpus_path)
@@ -70,11 +79,22 @@ def pipeline(
         print("Failed to generate table images. Aborting pipeline.")
         return
 
+    needle_output_dir = generate_needle(
+        corpus_path=corpus_path,
+        num_images=num_needle_images,
+        output_dir=needle_output_dir,
+    )
+
+    if needle_output_dir is None:
+        print("Failed to generate needle in a haystack images. Aborting pipeline.")
+        return
+
     # STEP 4: Upload all generated datasets to the Hugging Face Hub
     print(" Starting Upload to Hugging Face Hub ".center(50, "-"))
     upload_subset_to_hub(word_output_dir, repo_id, config_name="word")
     upload_subset_to_hub(doc_output_dir, repo_id, config_name="document")
     upload_subset_to_hub(table_output_dir, repo_id, config_name="table")
+    upload_subset_to_hub(needle_output_dir, repo_id, config_name="needle-in-a-haystack")
 
     print(" All tasks completed! ".center(50, "="))
     print(f"Check your dataset on the Hub: https://huggingface.co/datasets/{repo_id}")

@@ -1,0 +1,8 @@
+corpus_file_path: "data/corpus.txt"
+hf_repo_id: "junyeong-nero/synthetic-ocr-bench"
+output_dir: "data"
+image_generation:
+  num_word_images: 1000
+  num_document_images: 1000
+  num_table_images: 1000
+  num_needle_in_a_haystack_images: 1000
