@@ -16,17 +16,17 @@ def draw_text_in_box(
     font: ImageFont.ImageFont,
     box: Tuple[int, int, int, int],
 ) -> str:
-    """지정된 box 영역 안에 텍스트를 자동으로 줄바꿈하여 그립니다."""
+    """Draws text within a specified box area with automatic line wrapping."""
     x1, y1, x2, y2 = box
     box_width = x2 - x1
     words = text.split()
 
     lines: List[str] = []
     current_line = ""
-    # 단어 단위로 줄바꿈 처리
+    # Process line breaks on a word-by-word basis
     for word in words:
         test_line = f"{current_line} {word}".strip()
-        # 텍스트 너비 측정
+        # Measure text width
         line_bbox = draw.textbbox((0, 0), test_line, font=font)
         line_width = line_bbox[2] - line_bbox[0]
 
@@ -40,13 +40,13 @@ def draw_text_in_box(
     if current_line:
         lines.append(current_line)
 
-    # 실제 이미지에 텍스트 그리기
+    # Draw text on the actual image
     drawn_text_lines: List[str] = []
     y = y1
-    # 'A' 텍스트 높이의 0.5배를 줄 간격으로 사용
+    # Use 0.5 times the height of the text 'A' as line spacing
     try:
         line_height = font.getbbox("A")[3] - font.getbbox("A")[1]
-    except AttributeError:  # 이전 PIL 버전 호환
+    except AttributeError:  # Compatibility for older PIL versions
         line_height = font.getsize("A")[1]
     line_spacing = line_height * 0.5
 
@@ -55,7 +55,7 @@ def draw_text_in_box(
         line_height = line_bbox[3] - line_bbox[1]
 
         if y + line_height > y2:
-            break  # Box 높이를 벗어나면 중단
+            break  # Stop if it exceeds the box height
 
         draw.text((x1, y), line, font=font, fill=(0, 0, 0))
         y += line_height + line_spacing
@@ -65,12 +65,12 @@ def draw_text_in_box(
 
 
 # --------------------------------------------------------------------------
-# 2.2 문서 레이아웃 생성 함수들
+# 2.2 Document Layout Generation Functions
 # --------------------------------------------------------------------------
 def create_single_column_layout(
     text: str, font: ImageFont.ImageFont
 ) -> Tuple[Image.Image, str]:
-    """세로 방향의 단일 컬럼 문서 이미지를 생성합니다 (A4 세로 비율)."""
+    """Creates a single-column document image in portrait orientation (A4 portrait ratio)."""
     width, height = 1240, 1754
     margin = 100
     img = Image.new("RGB", (width, height), (255, 255, 255))
@@ -83,25 +83,25 @@ def create_single_column_layout(
 def create_two_column_layout(
     text: str, font: ImageFont.ImageFont
 ) -> Tuple[Image.Image, str]:
-    """세로 방향의 두 개 컬럼 문서 이미지를 생성합니다 (A4 세로 비율)."""
+    """Creates a two-column document image in portrait orientation (A4 portrait ratio)."""
     width, height = 1240, 1754
     margin = 80
-    gutter = 60  # 컬럼 사이 간격
+    gutter = 60  # Gutter space between columns
     col_width = (width - 2 * margin - gutter) // 2
 
     img = Image.new("RGB", (width, height), (255, 255, 255))
     draw = ImageDraw.Draw(img)
 
-    # 텍스트를 대략 반으로 나눔 (컬럼 경계를 맞추기 위해 실제로는 더 복잡해야 하나, 여기서는 단순화)
+    # Roughly split the text in half (in reality, this should be more complex to align column boundaries, but simplified here)
     split_point = len(text) // 2
     text1 = text[:split_point]
     text2 = text[split_point:]
 
-    # 왼쪽 컬럼 (Column 1)
+    # Left column (Column 1)
     box1 = (margin, margin, margin + col_width, height - margin)
     drawn_text1 = draw_text_in_box(draw, text1, font, box1)
 
-    # 오른쪽 컬럼 (Column 2)
+    # Right column (Column 2)
     box2 = (margin + col_width + gutter, margin, width - margin, height - margin)
     drawn_text2 = draw_text_in_box(draw, text2, font, box2)
 
@@ -111,7 +111,7 @@ def create_two_column_layout(
 def create_horizontal_layout(
     text: str, font: ImageFont.ImageFont
 ) -> Tuple[Image.Image, str]:
-    """가로 방향의 단일 컬럼 문서 이미지를 생성합니다 (A4 가로 비율)."""
+    """Creates a single-column document image in landscape orientation (A4 landscape ratio)."""
     width, height = 1754, 1240
     margin = 100
     img = Image.new("RGB", (width, height), (255, 255, 255))
@@ -125,18 +125,18 @@ def generate_document_images(
     corpus_path: str, num_images: int = 100, output_dir: str = "documents"
 ) -> Optional[str]:
     """
-    다양한 레이아웃(단일/이중 컬럼, 가로/세로)의 문서 이미지를 생성합니다.
+    Generates document images with various layouts (single/double column, landscape/portrait).
 
-    :param corpus_path: 텍스트 코퍼스 파일 경로.
-    :param num_images: 생성할 이미지 개수.
-    :param output_dir: 이미지를 저장할 디렉토리.
-    :return: 생성된 이미지 디렉토리 경로.
+    :param corpus_path: Path to the text corpus file.
+    :param num_images: Number of images to generate.
+    :param output_dir: Directory to save the images.
+    :return: Path to the directory where images were generated.
     """
     logger.info(
-        f"\n'{corpus_path}' 파일을 사용하여 [문서] 이미지 생성을 시작합니다. 목표 이미지 수: {num_images:,}"
+        f"\nStarting [document] image generation using '{corpus_path}'. Target number of images: {num_images:,}"
     )
 
-    # 출력 디렉토리 및 폰트 경로 준비
+    # Prepare output directory and font paths
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
     font_dir = Path("fonts")
@@ -144,16 +144,16 @@ def generate_document_images(
 
     if not font_paths:
         logger.error(
-            "오류: 'fonts' 디렉토리에 .ttf 폰트 파일이 없습니다. 작업을 중단합니다."
+            "Error: No .ttf font files found in the 'fonts' directory. Aborting."
         )
         return None
 
-    # 코퍼스 텍스트 로드
+    # Load corpus text
     corpus = read_txt(corpus_path)
     lines = corpus.splitlines()
     korean_texts = [line[:20].strip() for line in lines if line.strip()]
 
-    # 레이아웃 함수 리스트
+    # List of layout functions
     layout_functions = [
         create_single_column_layout,
         create_two_column_layout,
@@ -163,25 +163,25 @@ def generate_document_images(
     metadata: List[Dict[str, str]] = []
 
     for i in range(num_images):
-        # 1. 폰트 및 텍스트 덩어리 준비
+        # 1. Prepare font and text chunk
         font_path = random.choice(font_paths)
-        font_size = random.randint(28, 42)  # 문서에 적합한 폰트 크기
+        font_size = random.randint(28, 42)  # Font size suitable for documents
         try:
             font = ImageFont.truetype(font_path, font_size)
         except IOError:
             font = ImageFont.load_default()
 
-        # 여러 문장을 합쳐서 긴 텍스트 생성 (문서 내용)
+        # Join multiple sentences to create a long text (document content)
         num_sentences_to_join = random.randint(15, 40)
         text_chunk = " ".join(random.choices(lines, k=num_sentences_to_join))
 
-        # 2. 랜덤 레이아웃 선택 및 이미지 생성
+        # 2. Select a random layout and generate the image
         layout_func = random.choice(layout_functions)
         img, drawn_text = layout_func(text_chunk, font)
 
-        # 3. 이미지 및 메타데이터 저장
+        # 3. Save image and metadata
         if not drawn_text or drawn_text.strip() == "":
-            # print(f"... {i+1}/{num_images} 건너뜀 (내용 없음)")
+            # print(f"... {i+1}/{num_images} skipped (no content)")
             continue
 
         filename = f"doc_{i:04d}.png"
@@ -191,13 +191,13 @@ def generate_document_images(
         metadata.append({"file_name": str(filepath), "text": drawn_text})
 
         if (i + 1) % 20 == 0:
-            logger.info(f"... {i + 1} / {num_images} 문서 이미지 생성 완료")
+            logger.info(f"... {i + 1} / {num_images} document images generated")
 
-    # 메타데이터 파일 저장 (JSONL 형식)
+    # Save metadata file (JSONL format)
     metadata_path = output_path / "metadata.jsonl"
     with open(metadata_path, "w", encoding="utf-8") as f:
         for item in metadata:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-    print(f"총 {len(metadata):,}개의 문서 이미지 및 메타데이터 생성을 완료했습니다.")
+    print(f"Successfully generated {len(metadata):,} document images and metadata.")
     return str(output_path)

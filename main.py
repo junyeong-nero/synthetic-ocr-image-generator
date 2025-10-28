@@ -2,120 +2,34 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, "src")
-
-from image_generator import generate_document, generate_text, generate_table
-from uploader import upload_subset_to_hub
-
-
-def run_full_pipeline(
-    corpus_path: str,
-    repo_id: str,
-    num_word_images: int,
-    num_doc_images: int,
-    num_table_images: int,
-    word_output_dir: str,
-    doc_output_dir: str,
-    table_output_dir: str,
-):
-    """데이터 생성부터 Hub 업로드까지 전체 과정을 실행합니다."""
-
-    print("=" * 50)
-    print(" OCR 데이터셋 생성 및 업로드 파이프라인 시작 ".center(50, "="))
-    print("=" * 50)
-
-    # STEP 1: 단일 문장 이미지 생성
-    word_output_dir = generate_text(
-        corpus_path=corpus_path,
-        num_images=num_word_images,
-        output_dir=word_output_dir,
-    )
-
-    if word_output_dir is None:
-        print("단일 문장 이미지 생성에 실패하여 파이프라인을 중단합니다.")
-        return
-
-    # STEP 2: 문서 이미지 생성
-    doc_output_dir = generate_document(
-        corpus_path=corpus_path, num_images=num_doc_images, output_dir=doc_output_dir
-    )
-
-    if doc_output_dir is None:
-        print("문서 이미지 생성에 실패하여 파이프라인을 중단합니다.")
-        return
-
-    # STEP 3: 테이블 이미지 생성
-    table_output_dir = generate_table(
-        corpus_path=corpus_path,
-        num_images=num_table_images,
-        output_dir=table_output_dir,
-    )
-
-    if table_output_dir is None:
-        print("문서 이미지 생성에 실패하여 파이프라인을 중단합니다.")
-        return
-
-    print("-" * 50)
-    print(" Hugging Face Hub 업로드 시작 ".center(50, "-"))
-    print("-" * 50)
-
-    # STEP 3: 각 데이터셋을 다른 config으로 동일한 저장소에 업로드
-    # 단일 문장 데이터셋 업로드 (config_name="single_line")
-    upload_subset_to_hub(
-        dataset_dir=word_output_dir, repo_id=repo_id, config_name="word"
-    )
-
-    # 문서 데이터셋 업로드 (config_name="document")
-    upload_subset_to_hub(
-        dataset_dir=doc_output_dir, repo_id=repo_id, config_name="document"
-    )
-
-    upload_subset_to_hub(
-        dataset_dir=table_output_dir, repo_id=repo_id, config_name="table"
-    )
-
-    print("\n" + "=" * 50)
-    print(" 모든 작업 완료! ".center(50, "="))
-    print(f"Hub에서 데이터셋 확인: https://huggingface.co/datasets/{repo_id}")
-    print("=" * 50)
+from pipeline import pipeline
 
 
 if __name__ == "__main__":
-    # --- 공통 설정 ---
-    CORPUS_FILE_PATH = "data/corpus.txt"
-    NUM_SENTENCES_FOR_CORPUS = 5000
 
-    # --- 데이터셋 설정 (하나의 저장소 ID 사용) ---
+    # corpus directory (auto-generated from wikipedia)
+    CORPUS_FILE_PATH = "data/corpus.txt"
+
+    # repository-id
     HF_REPO_ID = "junyeong-nero/synthetic-ocr-bench"
 
-    # --- 생성할 이미지 개수 설정 ---
+    # number of images
     NUM_WORD_IMAGES = 1000
     NUM_DOCUMENT_IMAGES = 1000
     NUM_TABLE_IMAGES = 1000
 
-    # --- 출력 디렉토리 설정 ---
+    # output directory
     SINGLE_LINE_OUTPUT_DIR = "data/images_word"
     DOC_OUTPUT_DIR = "data/images_document"
     TABLE_OUTPUT_DIR = "data/images_table"
 
-    # --- STEP 0: 코퍼스 파일 생성 (최초 한 번 또는 텍스트 변경 시 실행 필요) ---
-    # Path(CORPUS_FILE_PATH).unlink(missing_ok=True) # 기존 파일 삭제 후 시작
-    # create_corpus_from_wiki(
-    #     output_path=CORPUS_FILE_PATH, num_sentences=NUM_SENTENCES_FOR_CORPUS
-    # )
-
-    # --- STEP 1 & 2 & 3: 전체 파이프라인 실행 ---
-    if Path(CORPUS_FILE_PATH).exists():
-        run_full_pipeline(
-            corpus_path=CORPUS_FILE_PATH,
-            repo_id=HF_REPO_ID,
-            num_word_images=NUM_WORD_IMAGES,
-            num_doc_images=NUM_DOCUMENT_IMAGES,
-            num_table_images=NUM_TABLE_IMAGES,
-            word_output_dir=SINGLE_LINE_OUTPUT_DIR,
-            table_output_dir=TABLE_OUTPUT_DIR,
-            doc_output_dir=DOC_OUTPUT_DIR,
-        )
-    else:
-        print(
-            f"⚠️ 코퍼스 파일 '{CORPUS_FILE_PATH}'을(를) 찾을 수 없습니다. STEP 0을 먼저 실행하세요."
-        )
+    pipeline(
+        corpus_path=CORPUS_FILE_PATH,
+        repo_id=HF_REPO_ID,
+        num_word_images=NUM_WORD_IMAGES,
+        num_doc_images=NUM_DOCUMENT_IMAGES,
+        num_table_images=NUM_TABLE_IMAGES,
+        word_output_dir=SINGLE_LINE_OUTPUT_DIR,
+        table_output_dir=TABLE_OUTPUT_DIR,
+        doc_output_dir=DOC_OUTPUT_DIR,
+    )

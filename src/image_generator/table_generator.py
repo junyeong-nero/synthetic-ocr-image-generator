@@ -17,8 +17,8 @@ def draw_text_in_box(
     box: Tuple[int, int, int, int],
 ) -> Tuple[str, int]:
     """
-    지정된 box 영역 안에 텍스트를 자동으로 줄바꿈하여 그립니다.
-    그려진 텍스트와 실제 텍스트의 높이를 반환합니다.
+    Draws text within a specified box area with automatic line wrapping.
+    Returns the drawn text and the actual height of the text.
     """
     x1, y1, x2, y2 = box
     box_width = x2 - x1
@@ -73,10 +73,10 @@ def draw_text_in_box(
 def create_table_layout(
     table_data: List[List[str]], font: ImageFont.ImageFont
 ) -> Tuple[Image.Image, str]:
-    """테이블 형식의 이미지를 생성합니다."""
+    """Creates an image in a table format."""
     width, height = 1240, 1754
     margin = 80
-    cell_padding = 10  # 셀 내부 여백
+    cell_padding = 10  # Cell inner padding
 
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
@@ -86,13 +86,13 @@ def create_table_layout(
     if num_cols == 0:
         return img, ""
 
-    # 1. 열 너비 계산 (균등 분할)
+    # 1. Calculate column widths (equal division)
     drawable_width = width - 2 * margin
     col_widths = [drawable_width // num_cols] * num_cols
 
-    # 2. 행 높이 계산 (내용에 따라 동적 결정)
+    # 2. Calculate row heights (dynamically determined by content)
     row_heights = []
-    temp_draw = ImageDraw.Draw(Image.new("RGB", (1, 1)))  # 높이 계산용 임시 draw 객체
+    temp_draw = ImageDraw.Draw(Image.new("RGB", (1, 1)))  # Temporary draw object for height calculation
     for row_data in table_data:
         max_height_in_row = 0
         for i, cell_text in enumerate(row_data):
@@ -132,7 +132,7 @@ def create_table_layout(
 
         row_heights.append(max_height_in_row + 2 * cell_padding)
 
-    # 3. 테이블 그리기
+    # 3. Draw the table
     all_drawn_text = []
     current_y = margin
     for i, row_data in enumerate(table_data):
@@ -170,20 +170,20 @@ def generate_table_images(
     num_cols: Tuple[int, int] = (2, 5),
 ) -> Optional[str]:
     """
-    다양한 행/열 개수를 가진 테이블 이미지를 생성합니다.
+    Generates table images with a variable number of rows and columns.
 
-    :param corpus_path: 텍스트 코퍼스 파일 경로.
-    :param num_images: 생성할 이미지 개수.
-    :param output_dir: 이미지를 저장할 디렉토리.
-    :param num_rows: 생성될 테이블의 행 개수 범위 (min, max).
-    :param num_cols: 생성될 테이블의 열 개수 범위 (min, max).
-    :return: 생성된 이미지 디렉토리 경로.
+    :param corpus_path: Path to the text corpus file.
+    :param num_images: Number of images to generate.
+    :param output_dir: Directory to save the images.
+    :param num_rows: Range for the number of rows in the table (min, max).
+    :param num_cols: Range for the number of columns in the table (min, max).
+    :return: Path to the directory where images were generated.
     """
     logger.info(
-        f"\n'{corpus_path}' 파일을 사용하여 [테이블] 이미지 생성을 시작합니다. 목표 이미지 수: {num_images:,}"
+        f"\nStarting [table] image generation using '{corpus_path}'. Target number of images: {num_images:,}"
     )
     logger.info(
-        f"테이블 크기: {num_rows[0]}~{num_rows[1]}행, {num_cols[0]}~{num_cols[1]}열"
+        f"Table size: {num_rows[0]}-{num_rows[1]} rows, {num_cols[0]}-{num_cols[1]} columns"
     )
 
     # --- Argument Validation ---
@@ -193,7 +193,7 @@ def generate_table_images(
         and num_rows[0] <= num_rows[1]
     ):
         logger.error(
-            "오류: num_rows는 (min, max) 형식의 튜플이어야 하며 min <= max 여야 합니다."
+            "Error: num_rows must be a tuple of (min, max) where min <= max."
         )
         return None
     if not (
@@ -202,7 +202,7 @@ def generate_table_images(
         and num_cols[0] <= num_cols[1]
     ):
         logger.error(
-            "오류: num_cols는 (min, max) 형식의 튜플이어야 하며 min <= max 여야 합니다."
+            "Error: num_cols must be a tuple of (min, max) where min <= max."
         )
         return None
 
@@ -213,21 +213,21 @@ def generate_table_images(
 
     if not font_paths:
         logger.error(
-            "오류: 'fonts' 디렉토리에 .ttf 폰트 파일이 없습니다. 작업을 중단합니다."
+            "Error: No .ttf font files found in the 'fonts' directory. Aborting."
         )
         return None
 
     corpus = read_txt(corpus_path)
     if not corpus:
         logger.error(
-            f"오류: '{corpus_path}' 파일이 비어있거나 읽을 수 없습니다. 작업을 중단합니다."
+            f"Error: '{corpus_path}' is empty or cannot be read. Aborting."
         )
         return None
 
     lines = [line[:10].strip() for line in corpus.splitlines() if line.strip()]
     if not lines:
         logger.error(
-            f"오류: '{corpus_path}' 파일에 내용이 없습니다. 작업을 중단합니다."
+            f"Error: No content found in '{corpus_path}'. Aborting."
         )
         return None
 
@@ -241,7 +241,7 @@ def generate_table_images(
         except IOError:
             font = ImageFont.load_default()
 
-        # 지정된 범위 내에서 랜덤 행/열 개수 결정
+        # Determine random number of rows/columns within the specified range
         current_num_cols = random.randint(*num_cols)
         current_num_rows = random.randint(*num_rows)
 
@@ -265,25 +265,25 @@ def generate_table_images(
         metadata.append({"file_name": str(filepath), "text": drawn_text})
 
         if (i + 1) % 20 == 0:
-            logger.info(f"... {i + 1} / {num_images} 테이블 이미지 생성 완료")
+            logger.info(f"... {i + 1} / {num_images} table images generated")
 
     metadata_path = output_path / "metadata.jsonl"
     with open(metadata_path, "w", encoding="utf-8") as f:
         for item in metadata:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-    print(f"총 {len(metadata):,}개의 테이블 이미지 및 메타데이터 생성을 완료했습니다.")
+    print(f"Successfully generated {len(metadata):,} table images and metadata.")
     return str(output_path)
 
 
-# --- 이 아래 부분은 실제 실행 환경에 맞게 수정하여 사용하세요 ---
+# --- This part below should be modified to fit the actual execution environment ---
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
 
     def read_txt(path: str) -> str:
-        """텍스트 파일을 읽어 내용을 반환합니다."""
+        """Reads a text file and returns its content."""
         try:
             with open(path, "r", encoding="utf-8") as f:
                 return f.read()
@@ -294,28 +294,28 @@ if __name__ == "__main__":
     if not font_dir.exists() or not any(font_dir.glob("*.ttf")):
         font_dir.mkdir(exist_ok=True)
         logger.warning(
-            f"'{font_dir}' 디렉토리에 .ttf 폰트 파일이 없습니다. 한글 폰트를 추가해주세요."
+            f"No .ttf font files found in '{font_dir}'. Please add Korean fonts."
         )
 
     corpus_path = Path("data/corpus.txt")
     if not corpus_path.parent.exists():
-        logger.info(f"'{corpus_path.parent}' 디렉토리를 생성합니다.")
+        logger.info(f"Creating directory '{corpus_path.parent}'.")
         corpus_path.parent.mkdir(parents=True)
     if not corpus_path.exists():
-        logger.warning(f"'{corpus_path}' 파일이 없어 샘플 파일을 생성합니다.")
+        logger.warning(f"'{corpus_path}' not found. Creating a sample file.")
         with open(corpus_path, "w", encoding="utf-8") as f:
             f.write(
                 "데이터\n분석\n테이블\n이미지\n생성\n파이썬\n라이브러리\n자동화\n프로그래밍\n인공지능\n"
             )
 
-    # --- 테이블 이미지 생성 함수 호출 (새로운 인자 사용 예시) ---
+    # --- Calling the table image generation function (example with new arguments) ---
 
-    # 예시 1: 기본값 사용 (5~20행, 2~5열)
-    # logger.info("기본 설정으로 테이블 이미지 생성을 시작합니다.")
+    # Example 1: Using default values (5-20 rows, 2-5 columns)
+    # logger.info("Starting table image generation with default settings.")
     # generate_table_images(corpus_path=str(corpus_path), num_images=10, output_dir="table_images_default")
 
-    # 예시 2: 좁은 범위의 행과 열 지정 (3~5행, 2~3열)
-    logger.info("3~5행, 2~3열의 작은 테이블 이미지 생성을 시작합니다.")
+    # Example 2: Specifying a narrow range for rows and columns (3-10 rows, 2-5 columns)
+    logger.info("Starting generation of small table images (3-10 rows, 2-5 columns).")
     generate_table_images(
         corpus_path=str(corpus_path),
         num_images=10,
@@ -324,8 +324,8 @@ if __name__ == "__main__":
         num_cols=(2, 5),
     )
 
-    # 예시 3: 고정된 크기의 테이블 지정 (정확히 10행 4열)
-    # logger.info("정확히 10행 4열의 고정 크기 테이블 이미지 생성을 시작합니다.")
+    # Example 3: Specifying a fixed size table (exactly 10 rows, 4 columns)
+    # logger.info("Starting generation of fixed-size table images (10 rows, 4 columns).")
     # generate_table_images(
     #     corpus_path=str(corpus_path),
     #     num_images=10,
