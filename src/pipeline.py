@@ -8,6 +8,7 @@ from character_similarity import generate_similar_chars_db
 
 from generator.document_generator import generate_document_images
 from generator.sentence_generator import generate_sentence_images
+from generator.sentence_typo_generator import generate_sentence_typos_images
 from generator.table_generator import generate_table_images
 from generator.table_numeric_generator import generate_table_numeric_images
 from generator.needle_in_a_haystack_generator import (
@@ -23,6 +24,7 @@ def pipeline(
     repo_id: str,
     num_sentence_images: int,
     num_sentence_noise_images: int,
+    num_sentence_typos_images: int,
     num_document_images: int,
     num_table_images: int,
     num_table_numeric_images: int,  # num_table_numeric_images 인자 추가
@@ -74,6 +76,13 @@ def pipeline(
             "config_name": "sentence_noise",
             "args": {"lang": lang},
         },
+        "sentence_typos": {
+            "name": "Sentence Typos",
+            "func": generate_sentence_typos_images,
+            "dir_suffix": "images_sentence_typos",
+            "config_name": "sentence_typos",
+            "args": {"db_path": str(db_path), "lang": lang},
+        },
         "document": {
             "name": "Document",
             "func": generate_document_images,
@@ -108,6 +117,7 @@ def pipeline(
     num_images_map = {
         "sentence": num_sentence_images,
         "sentence_noise": num_sentence_noise_images,
+        "sentence_typos": num_sentence_typos_images,
         "document": num_document_images,
         "table": num_table_images,
         "table_numeric": num_table_numeric_images,
