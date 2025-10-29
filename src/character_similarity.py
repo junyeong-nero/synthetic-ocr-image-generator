@@ -100,7 +100,7 @@ def find_similar_chars(query_char, db, top_n=5):
 
 
 def generate_similar_chars_db(
-    corpus_path="data/korean_char_corpus.txt",
+    corpus_path="data/corpus.txt",
     db_path="data/char_similarity_db.json",
     font_path="/System/Library/Fonts/Supplemental/AppleGothic.ttf",
 ):
@@ -112,25 +112,7 @@ def generate_similar_chars_db(
     chars = list(set(list(chars)))
 
     print(f"Total unique characters: {len(chars)}")
-
-    # 1. Build the database (only if the file doesn't already exist)
-    if not os.path.exists(db_path):
-        build_similarity_database(chars, font_path, db_path, threshold=0.6)
-
-    # 2. Load the database and search for similar characters
-    similarity_database = read_json(db_path)
-
-    if similarity_database:
-        # Example search
-        search_char = "의"
-        similar_results = find_similar_chars(search_char, similarity_database, top_n=10)
-
-        print(f"\nCharacters similar to '{search_char}' (Top 5):")
-        if similar_results:
-            for char, score in similar_results:
-                print(f"- {char} (Similarity: {score:.4f})")
-        else:
-            print(f"No similar characters found for '{search_char}'.")
+    build_similarity_database(chars, font_path, db_path, threshold=0.6)
 
 
 if __name__ == "__main__":

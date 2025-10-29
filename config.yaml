@@ -1,13 +1,11 @@
-corpus_file_path: "data/corpus.txt"
-hf_repo_id: "junyeong-nero/synthetic-ocr-bench"
+lang: "ko"
+corpus_path: "data/corpus.txt"
+repo_id: "junyeong-nero/synthetic-ocr-dataset"
 output_dir: "data"
-image_generation:
-  num_word_images: 1000
-  num_document_images: 1000
-  num_table_images: 1000
-  num_needle_in_a_haystack_images: 1000
-corpus_generation:
-  language: "ko"
-  num_sentences: 10000
-  sentence_corpus_path: "data/corpus.txt"
-  char_corpus_path: "data/all_chars_corpus.txt"
+num_word_images: 100
+num_doc_images: 100
+num_table_images: 100
+num_needle_images: 100
+num_sentences: 100
+sentence_corpus_path: "data/corpus.txt"
+char_corpus_path: "data/all_chars_corpus.txt"

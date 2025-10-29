@@ -72,7 +72,7 @@ def read_txt(file_path):
         return None
 
 
-def save_txt(lines, file_path):
+def save_txt(file_path, text):
     """
     문자열 리스트를 텍스트 파일에 씁니다. 각 요소는 한 줄에 해당합니다.
 
@@ -82,8 +82,7 @@ def save_txt(lines, file_path):
     """
     try:
         with open(file_path, "w", encoding="utf-8") as f:
-            for line in lines:
-                f.write(line + "\n")
+            f.write(text)
         print(f"데이터가 '{file_path}' 파일에 성공적으로 저장되었습니다.")
     except Exception as e:
         print(f"파일 저장 중 오류가 발생했습니다: {e}")

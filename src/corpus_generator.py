@@ -2,7 +2,9 @@ import re
 import yaml
 from typing import List
 from datasets import load_dataset
+from tqdm import tqdm
 
+from utils import save_txt
 
 LANG_CONFIG = {
     "ko": {
@@ -82,27 +84,27 @@ def create_corpus_from_wiki(output_path: str, lang: str, num_sentences: int = 50
         return
 
     collected_sentences: List[str] = []
-    for data in shuffled_dataset:
-        if len(collected_sentences) >= num_sentences:
-            break
+    with tqdm(total=num_sentences, desc=f"Collecting '{lang}' sentences") as pbar:
+        for data in shuffled_dataset:
+            if len(collected_sentences) >= num_sentences:
+                break
 
-        cleaned_text = clean_wiki_text(data["text"], lang)
-        sentences = re.split(r"(?<=[.?!])\s+", cleaned_text)
+            cleaned_text = clean_wiki_text(data["text"], lang)
+            sentences = re.split(r"(?<=[.?!])\s+", cleaned_text)
 
-        for sentence in sentences:
-            s = sentence.strip()
-            if 10 < len(s) < 100:
-                collected_sentences.append(s)
-                if len(collected_sentences) % 100 == 0:
-                    print(
-                        f"... {len(collected_sentences):,} / {num_sentences:,} sentences collected"
-                    )
-                if len(collected_sentences) >= num_sentences:
-                    break
+            for sentence in sentences:
+                s = sentence.strip()
+                if 10 < len(s) < 100:
+                    collected_sentences.append(s)
+                    pbar.update(1)  # 진행률 1 증가
+                    if len(collected_sentences) >= num_sentences:
+                        break
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        for sentence in collected_sentences:
-            f.write(sentence + "\n")
+    if pbar.n < num_sentences:
+        pbar.update(num_sentences - pbar.n)
+
+    text = "\n".join(collected_sentences)
+    save_txt(output_path, text)
 
     print(
         f"Saved a total of {len(collected_sentences):,} sentences to '{output_path}'."
@@ -195,9 +197,10 @@ def create_all_chars_corpus(output_path: str):
 
     all_korean_chars = []
 
-    for i, _ in enumerate(CHOSUNG):
-        for j, _ in enumerate(JUNGSUNG):
-            for k, _ in enumerate(JONGSUNG):
+    # tqdm을 사용하여 한글 조합 생성 진행률 표시
+    for i in tqdm(range(len(CHOSUNG)), desc="Generating Hangul syllables"):
+        for j in range(len(JUNGSUNG)):
+            for k in range(len(JONGSUNG)):
                 code_point = (i * 21 * 28) + (j * 28) + k + 0xAC00
                 all_korean_chars.append(chr(code_point))
 
@@ -205,7 +208,8 @@ def create_all_chars_corpus(output_path: str):
     all_korean_chars.extend(JUNGSUNG)
 
     with open(output_path, "w", encoding="utf-8") as f:
-        for char in all_korean_chars:
+        # tqdm을 사용하여 파일 쓰기 진행률 표시
+        for char in tqdm(all_korean_chars, desc="Writing to file"):
             f.write(char + "\n")
 
     total_chars = len(all_korean_chars)

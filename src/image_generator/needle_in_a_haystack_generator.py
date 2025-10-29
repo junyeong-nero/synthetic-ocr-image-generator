@@ -6,6 +6,7 @@ from typing import List, Tuple, Dict, Any, Optional
 # Import numpy, ImageFilter, and ImageEnhance.
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
+from tqdm import tqdm
 from utils import read_txt
 from character_similarity import find_similar_chars, read_txt, read_json
 
@@ -123,10 +124,10 @@ def _generate_word_image(
 
 
 def needle_in_a_haystack_generator(
-    corpus_path, top_n=3, num_size=(5, 10), needle_ratio=0.2
+    corpus_path, db_path, top_n=3, num_size=(5, 10), needle_ratio=0.2
 ):
     corpus = read_txt(corpus_path)
-    db = read_json("data/char_similarity_db.json")
+    db = read_json(db_path)
 
     result = []
     chars = set(list(corpus))
@@ -152,6 +153,7 @@ def needle_in_a_haystack_generator(
 
 def generate_needle_in_a_haystack_images(
     corpus_path: str,
+    db_path: str,
     num_images: int = 1000,
     output_dir: str = "images",
     resolution_range: Tuple[int, int] = (70, 90),
@@ -173,7 +175,7 @@ def generate_needle_in_a_haystack_images(
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
 
-    texts = needle_in_a_haystack_generator(corpus_path, top_n=3)
+    texts = needle_in_a_haystack_generator(corpus_path, db_path, top_n=3)
 
     background_colors = [
         (255, 255, 255),
@@ -189,7 +191,7 @@ def generate_needle_in_a_haystack_images(
 
     image_text_pairs: List[Dict[str, str]] = []
 
-    for idx in range(num_images):
+    for idx in tqdm(range(num_images), desc="Generating needle images"):
         font_path = random.choice(font_paths)
         text = random.choice(texts)
         bg_color = random.choice(background_colors)
@@ -220,9 +222,6 @@ def generate_needle_in_a_haystack_images(
         img.save(image_path)
 
         image_text_pairs.append({"file_name": str(image_path), "text": text})
-
-        if (idx + 1) % 100 == 0:
-            print(f"... {idx + 1:,} / {num_images:,} images generated")
 
     metadata_path = output_path / "metadata.jsonl"
     with open(metadata_path, "w", encoding="utf-8") as f:

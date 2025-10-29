@@ -6,6 +6,7 @@ from typing import List, Tuple, Dict, Any, Optional
 # Import numpy, ImageFilter, and ImageEnhance.
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
+from tqdm import tqdm
 from utils import read_txt
 
 
@@ -165,7 +166,7 @@ def generate_word_images(
 
     image_text_pairs: List[Dict[str, str]] = []
 
-    for idx in range(num_images):
+    for idx in tqdm(range(num_images), desc="Generating word images"):
         font_path = random.choice(font_paths)
         text = random.choice(korean_texts)
         bg_color = random.choice(background_colors)
@@ -196,9 +197,6 @@ def generate_word_images(
         img.save(image_path)
 
         image_text_pairs.append({"file_name": str(image_path), "text": text})
-
-        if (idx + 1) % 100 == 0:
-            print(f"... {idx + 1:,} / {num_images:,} images generated")
 
     metadata_path = output_path / "metadata.jsonl"
     with open(metadata_path, "w", encoding="utf-8") as f:

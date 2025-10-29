@@ -5,6 +5,7 @@ from typing import List, Tuple, Dict, Any, Optional
 import logging
 
 from PIL import Image, ImageDraw, ImageFont
+from tqdm import tqdm
 from utils import read_txt
 
 logger = logging.getLogger(__name__)
@@ -227,7 +228,7 @@ def generate_table_images(
 
     metadata: List[Dict[str, str]] = []
 
-    for i in range(num_images):
+    for i in tqdm(range(num_images), desc="Generating table images"):
         font_path = random.choice(font_paths)
         font_size = random.randint(22, 32)
         try:
@@ -257,9 +258,6 @@ def generate_table_images(
         filepath = output_path / filename
         img.save(filepath)
         metadata.append({"file_name": str(filepath), "text": drawn_text})
-
-        if (i + 1) % 20 == 0:
-            logger.info(f"... {i + 1} / {num_images} table images generated")
 
     metadata_path = output_path / "metadata.jsonl"
     with open(metadata_path, "w", encoding="utf-8") as f:

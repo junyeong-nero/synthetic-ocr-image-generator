@@ -5,6 +5,7 @@ from typing import List, Tuple, Dict, Any, Optional
 import logging
 
 from PIL import Image, ImageDraw, ImageFont
+from tqdm import tqdm
 from utils import read_txt
 
 logger = logging.getLogger(__name__)
@@ -162,7 +163,7 @@ def generate_document_images(
 
     metadata: List[Dict[str, str]] = []
 
-    for i in range(num_images):
+    for i in tqdm(range(num_images), desc="Generating document images"):
         # 1. Prepare font and text chunk
         font_path = random.choice(font_paths)
         font_size = random.randint(28, 42)  # Font size suitable for documents
@@ -189,9 +190,6 @@ def generate_document_images(
         img.save(filepath)
 
         metadata.append({"file_name": str(filepath), "text": drawn_text})
-
-        if (i + 1) % 20 == 0:
-            logger.info(f"... {i + 1} / {num_images} document images generated")
 
     # Save metadata file (JSONL format)
     metadata_path = output_path / "metadata.jsonl"
