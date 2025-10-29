@@ -1,11 +1,14 @@
 import json
 import random
+import logging
 from tqdm import tqdm
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from utils import read_txt
 from image_generator.basic_generator import _generate_text_image
+
+logger = logging.getLogger(__name__)
 
 BACKGROUND_COLORS: List[Tuple[int, int, int]] = [
     (255, 255, 255),
@@ -51,7 +54,7 @@ def generate_sentence_images(
     Returns:
         The path to the output directory, or None if an error occurs.
     """
-    print(
+    logger.info(
         f"\nStarting image generation from '{corpus_path}'. "
         f"Target: {num_images:,} images."
     )
@@ -59,7 +62,7 @@ def generate_sentence_images(
     font_dir = Path(f"fonts/{lang}")
     font_paths = [str(p) for p in font_dir.glob("*.ttf")]
     if not font_paths:
-        print(f"Error: No .ttf font files found in 'fonts/{lang}' directory. Aborting.")
+        logger.error(f"Error: No .ttf font files found in 'fonts/{lang}' directory. Aborting.")
         return None
 
     output_path = Path(output_dir)
@@ -68,7 +71,7 @@ def generate_sentence_images(
     lines = read_txt(corpus_path).splitlines()
     korean_texts = [line[:20].strip() for line in lines if line.strip()]
     if not korean_texts:
-        print(f"Error: No text found in '{corpus_path}'. Aborting.")
+        logger.error(f"Error: No text found in '{corpus_path}'. Aborting.")
         return None
 
     image_text_pairs: List[Dict[str, str]] = []
@@ -114,5 +117,5 @@ def generate_sentence_images(
         for item in image_text_pairs:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-    print(f"Successfully generated {len(image_text_pairs):,} images.")
+    logger.info(f"Successfully generated {len(image_text_pairs):,} images.")
     return str(output_path)

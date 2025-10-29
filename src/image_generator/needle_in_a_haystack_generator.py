@@ -3,12 +3,15 @@ import random
 import numpy as np
 from pathlib import Path
 from typing import List, Tuple, Dict, Any, Optional
+import logging
 
 from tqdm import tqdm
 from utils import read_txt, read_json
 
 from character_similarity import find_similar_chars
 from image_generator.basic_generator import _generate_text_image
+
+logger = logging.getLogger(__name__)
 
 
 def needle_in_a_haystack_generator(
@@ -52,14 +55,14 @@ def generate_needle_in_a_haystack_images(
     Reads text from a given corpus file, generates single-sentence images,
     and saves the image-text pair metadata.
     """
-    print(
+    logger.info(
         f"\nStarting [single sentence] image generation using '{corpus_path}'. Target number of images: {num_images:,}"
     )
 
     font_dir = Path(f"fonts/{lang}")
     font_paths = [str(path) for path in font_dir.glob("*.ttf")]
     if not font_paths:
-        print(f"Error: No .ttf font files found in the 'fonts/{lang}' directory. Aborting.")
+        logger.error(f"Error: No .ttf font files found in the 'fonts/{lang}' directory. Aborting.")
         return None
 
     output_path = Path(output_dir)
@@ -118,7 +121,7 @@ def generate_needle_in_a_haystack_images(
         for item in image_text_pairs:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-    print(f"Successfully generated {len(image_text_pairs):,} images and metadata.")
+    logger.info(f"Successfully generated {len(image_text_pairs):,} images and metadata.")
     return str(output_path)
 
 

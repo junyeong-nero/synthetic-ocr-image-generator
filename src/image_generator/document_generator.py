@@ -182,7 +182,7 @@ def generate_document_images(
 
         # 3. Save image and metadata
         if not drawn_text or drawn_text.strip() == "":
-            # print(f"... {i+1}/{num_images} skipped (no content)")
+            # logger.info(f"... {i+1}/{num_images} skipped (no content)")
             continue
 
         filename = f"doc_{i:04d}.png"
@@ -197,5 +197,5 @@ def generate_document_images(
         for item in metadata:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-    print(f"Successfully generated {len(metadata):,} document images and metadata.")
+    logger.info(f"Successfully generated {len(metadata):,} document images and metadata.")
     return str(output_path)

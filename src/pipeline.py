@@ -1,4 +1,5 @@
 import argparse
+import logging
 from pathlib import Path
 from typing import Callable, Dict, Any
 
@@ -13,6 +14,8 @@ from image_generator.needle_in_a_haystack_generator import (
 )
 
 from utils import upload_subset_to_hub
+
+logger = logging.getLogger(__name__)
 
 
 def pipeline(
@@ -45,12 +48,12 @@ def pipeline(
         lang: The language code for corpus generation (e.g., "ko", "en").
         **kwargs: Additional keyword arguments (currently unused).
     """
-    print("=" * 80)
-    print(" VDG: Visual Document Generation Pipeline ".center(80))
-    print("=" * 80)
+    logger.info("=" * 80)
+    logger.info(" VDG: Visual Document Generation Pipeline ".center(80))
+    logger.info("=" * 80)
 
     # --- 1. Path Initialization and Directory Setup ---
-    print(f"\n[SETUP] Initializing paths and directories in '{output_dir}'...")
+    logger.info(f"\n[SETUP] Initializing paths and directories in '{output_dir}'...")
     base_output_path = Path(output_dir)
     db_path = base_output_path / f"char_similarity_db_{lang}.json"
     corpus_file_path = base_output_path / f"corpus_{lang}.txt"
@@ -69,30 +72,30 @@ def pipeline(
         path.mkdir(parents=True, exist_ok=True)
     if not corpus_file_path.parent.exists():
         corpus_file_path.parent.mkdir(parents=True, exist_ok=True)
-    print("[SETUP] All directories are ready.")
+    logger.info("[SETUP] All directories are ready.")
 
     # --- 2. Corpus Generation ---
     if not corpus_file_path.exists():
-        print(
+        logger.info(
             f"\n[CORPUS] Corpus not found at '{corpus_file_path}'. Creating from Wikipedia..."
         )
         create_corpus_from_wiki(
             output_path=str(corpus_file_path), lang=lang, num_sentences=5000
         )
-        print(f"[CORPUS] Successfully created corpus.")
+        logger.info(f"[CORPUS] Successfully created corpus.")
     else:
-        print(f"\n[CORPUS] Using existing corpus at '{corpus_file_path}'.")
+        logger.info(f"\n[CORPUS] Using existing corpus at '{corpus_file_path}'.")
 
     if not db_path.exists():
-        print(
+        logger.info(
             f"\n[DB] Character similarity database not found at '{db_path}'. Creating..."
         )
         generate_similar_chars_db(
             corpus_path=str(corpus_file_path), db_path=str(db_path)
         )
-        print(f"[DB] Successfully created character similarity database.")
+        logger.info(f"[DB] Successfully created character similarity database.")
     else:
-        print(f"\n[DB] Using existing character similarity database at '{db_path}'.")
+        logger.info(f"\n[DB] Using existing character similarity database at '{db_path}'.")
 
     # --- 3. Image Generation Tasks ---
     GENERATION_TASKS = [
@@ -160,29 +163,29 @@ def pipeline(
         name = task["name"]
         num_images = task["args"]["num_images"]
 
-        print(f"\n--- Generating {name} Images ---")
+        logger.info(f"\n--- Generating {name} Images ---")
         if num_images > 0:
-            print(f"Requesting {num_images} images.")
+            logger.info(f"Requesting {num_images} images.")
             generated_dir = task["func"](
                 corpus_path=str(corpus_file_path), **task["args"]
             )
             if generated_dir is None:
-                print(f"Error: Failed to generate {name} images. Aborting.")
+                logger.error(f"Error: Failed to generate {name} images. Aborting.")
                 return
             generated_dirs[task["config_name"]] = Path(generated_dir)
-            print(f"Successfully generated {name} images in '{generated_dir}'")
+            logger.info(f"Successfully generated {name} images in '{generated_dir}'")
         else:
-            print(f"Skipping {name} generation (0 images requested).")
+            logger.info(f"Skipping {name} generation (0 images requested).")
 
     # --- 4. Upload to Hugging Face Hub ---
-    print(f"\n--- Uploading to Hugging Face Hub: {repo_id} ---")
+    logger.info(f"\n--- Uploading to Hugging Face Hub: {repo_id} ---")
     if not generated_dirs:
-        print("No datasets were generated, so nothing to upload.")
+        logger.info("No datasets were generated, so nothing to upload.")
     else:
         for config_name, dir_path in generated_dirs.items():
-            print(f"Uploading '{config_name}' subset from '{dir_path}'...")
+            logger.info(f"Uploading '{config_name}' subset from '{dir_path}'...")
             upload_subset_to_hub(str(dir_path), repo_id, config_name=config_name)
-            print(f"Successfully uploaded '{config_name}'.")
+            logger.info(f"Successfully uploaded '{config_name}'.")
 
-    print("\n" + " Pipeline Completed Successfully! ".center(80, "="))
-    print(f"Check your dataset on the Hub: https://huggingface.co/datasets/{repo_id}")
+    logger.info("\n" + " Pipeline Completed Successfully! ".center(80, "="))
+    logger.info(f"Check your dataset on the Hub: https://huggingface.co/datasets/{repo_id}")

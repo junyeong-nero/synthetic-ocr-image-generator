@@ -1,12 +1,15 @@
 import os
 import cv2
 import numpy as np
+import logging
 
 from tqdm import tqdm
 from skimage.metrics import structural_similarity as ssim
 
 from utils import save_json, read_json, read_txt
 from image_generator.basic_generator import _generate_text_image
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_ssim_with_pil_images(imageA_pil, imageB_pil):
@@ -34,11 +37,11 @@ def build_similarity_database(char_list, font_path, db_path, threshold=0.5):
         db_path (str): The path to the JSON file where the results will be saved.
         threshold (float): The similarity score threshold for saving the relationship.
     """
-    print("Starting to build the similarity database...")
+    logger.info("Starting to build the similarity database...")
     similarity_db = {}
 
     # Pre-generate character images to avoid redundant generation
-    print("1. Pre-generating character images...")
+    logger.info("1. Pre-generating character images...")
     char_images = {
         char: _generate_text_image(
             char,
@@ -56,7 +59,7 @@ def build_similarity_database(char_list, font_path, db_path, threshold=0.5):
     }
 
     # Calculate the similarity for each pair of characters
-    print("\n2. Calculating similarity for character pairs...")
+    logger.info("\n2. Calculating similarity for character pairs...")
     for i in tqdm(range(len(char_list)), desc="Comparing characters"):
         char1 = char_list[i]
         img1 = char_images[char1]
@@ -79,7 +82,7 @@ def build_similarity_database(char_list, font_path, db_path, threshold=0.5):
 
     # Save the completed database to a JSON file
     save_json(similarity_db, db_path)
-    print("Database build complete.")
+    logger.info("Database build complete.")
     return similarity_db
 
 
@@ -120,7 +123,7 @@ def generate_similar_chars_db(
     chars = read_txt(corpus_path)
     chars = list(set(list(chars)))
 
-    print(f"Total unique characters: {len(chars)}")
+    logger.info(f"Total unique characters: {len(chars)}")
     build_similarity_database(chars, font_path, db_path, threshold=0.6)
 
 

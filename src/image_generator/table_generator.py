@@ -265,5 +265,5 @@ def generate_table_images(
         for item in metadata:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-    print(f"Successfully generated {len(metadata):,} table images and metadata.")
+    logger.info(f"Successfully generated {len(metadata):,} table images and metadata.")
     return str(output_path)

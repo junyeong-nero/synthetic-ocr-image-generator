@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 from typing import List, Tuple, Dict, Any, Optional
 
@@ -9,6 +10,8 @@ from datasets import (
     Image as HFImage,
 )
 from huggingface_hub import HfFolder
+
+logger = logging.getLogger(__name__)
 
 
 def read_json(file_path):
@@ -26,10 +29,10 @@ def read_json(file_path):
             data = json.load(f)
         return data
     except FileNotFoundError:
-        print(f"오류: 파일 '{file_path}'를 찾을 수 없습니다.")
+        logger.error(f"오류: 파일 '{file_path}'를 찾을 수 없습니다.")
         return None
     except json.JSONDecodeError:
-        print(f"오류: '{file_path}' 파일이 올바른 JSON 형식이 아닙니다.")
+        logger.error(f"오류: '{file_path}' 파일이 올바른 JSON 형식이 아닙니다.")
         return None
 
 
@@ -47,9 +50,9 @@ def save_json(data, file_path):
     try:
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
-        print(f"데이터가 '{file_path}' 파일에 성공적으로 저장되었습니다.")
+        logger.info(f"데이터가 '{file_path}' 파일에 성공적으로 저장되었습니다.")
     except Exception as e:
-        print(f"파일 저장 중 오류가 발생했습니다: {e}")
+        logger.error(f"파일 저장 중 오류가 발생했습니다: {e}")
 
 
 def read_txt(file_path):
@@ -68,7 +71,7 @@ def read_txt(file_path):
         # 각 줄의 끝에 있는 개행 문자(\n) 제거
         return text
     except FileNotFoundError:
-        print(f"오류: 파일 '{file_path}'를 찾을 수 없습니다.")
+        logger.error(f"오류: 파일 '{file_path}'를 찾을 수 없습니다.")
         return None
 
 
@@ -83,9 +86,9 @@ def save_txt(file_path, text):
     try:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(text)
-        print(f"데이터가 '{file_path}' 파일에 성공적으로 저장되었습니다.")
+        logger.info(f"데이터가 '{file_path}' 파일에 성공적으로 저장되었습니다.")
     except Exception as e:
-        print(f"파일 저장 중 오류가 발생했습니다: {e}")
+        logger.error(f"파일 저장 중 오류가 발생했습니다: {e}")
 
 
 def upload_subset_to_hub(dataset_dir: str, repo_id: str, config_name: str):
@@ -96,7 +99,7 @@ def upload_subset_to_hub(dataset_dir: str, repo_id: str, config_name: str):
     :param repo_id: Hugging Face 저장소 ID (예: 'user/repo-name').
     :param config_name: 데이터셋의 config 이름 (예: 'single_line', 'document').
     """
-    print(f"\n▶ Subset '{config_name}'을(를) '{repo_id}' 저장소에 업로드 시작...")
+    logger.info(f"\n▶ Subset '{config_name}'을(를) '{repo_id}' 저장소에 업로드 시작...")
 
     try:
         # Hugging Face 로그인 확인
@@ -124,7 +127,7 @@ def upload_subset_to_hub(dataset_dir: str, repo_id: str, config_name: str):
                 image_paths.append(str(Path(data["file_name"])))
                 texts.append(data["text"])
 
-        print(
+        logger.info(
             f"  '{config_name}' subset: 총 {len(image_paths):,}개의 이미지-텍스트 쌍을 찾았습니다."
         )
 
@@ -137,11 +140,11 @@ def upload_subset_to_hub(dataset_dir: str, repo_id: str, config_name: str):
         # Hugging Face Hub에 업로드 (config_name 지정)
         dataset.push_to_hub(repo_id, config_name=config_name)
 
-        print(f"✔ Subset '{config_name}' 업로드 완료!")
+        logger.info(f"✔ Subset '{config_name}' 업로드 완료!")
 
     except ConnectionError as ce:
-        print(f"오류: {ce}")
+        logger.error(f"오류: {ce}")
     except FileNotFoundError as fnfe:
-        print(f"오류: {fnfe}")
+        logger.error(f"오류: {fnfe}")
     except Exception as e:
-        print(f"오류: Subset '{config_name}' 업로드 중 예상치 못한 오류 발생: {e}")
+        logger.error(f"오류: Subset '{config_name}' 업로드 중 예상치 못한 오류 발생: {e}")

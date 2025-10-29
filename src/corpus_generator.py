@@ -1,10 +1,13 @@
 import re
 import yaml
+import logging
 from typing import List
 from datasets import load_dataset
 from tqdm import tqdm
 
 from utils import save_txt
+
+logger = logging.getLogger(__name__)
 
 LANG_CONFIG = {
     "ko": {
@@ -61,13 +64,13 @@ def create_corpus_from_wiki(output_path: str, lang: str, num_sentences: int = 50
     Collects sentences from the Wikimedia dataset for a specified language to create a corpus file.
     """
     if lang not in LANG_CONFIG:
-        print(
+        logger.error(
             f"Error: Language '{lang}' is not supported. Supported languages are: {list(LANG_CONFIG.keys())}"
         )
         return
 
     lang_settings = LANG_CONFIG[lang]
-    print(
+    logger.info(
         f"Starting to create '{output_path}' for language '{lang}'. Target sentences: {num_sentences:,}"
     )
 
@@ -80,7 +83,7 @@ def create_corpus_from_wiki(output_path: str, lang: str, num_sentences: int = 50
         )
         shuffled_dataset = dataset.shuffle(buffer_size=10000)
     except Exception as e:
-        print(f"Error loading dataset for language '{lang}': {e}")
+        logger.error(f"Error loading dataset for language '{lang}': {e}")
         return
 
     collected_sentences: List[str] = []
@@ -106,7 +109,7 @@ def create_corpus_from_wiki(output_path: str, lang: str, num_sentences: int = 50
     text = "\n".join(collected_sentences)
     save_txt(output_path, text)
 
-    print(
+    logger.info(
         f"Saved a total of {len(collected_sentences):,} sentences to '{output_path}'."
     )
 
@@ -118,7 +121,7 @@ def create_all_chars_corpus(output_path: str):
 
     :param output_path: The file path to save the corpus.
     """
-    print(f"Starting to create the complete Hangul character corpus '{output_path}'.")
+    logger.info(f"Starting to create the complete Hangul character corpus '{output_path}'.")
 
     CHOSUNG = [
         "ㄱ",
@@ -213,7 +216,7 @@ def create_all_chars_corpus(output_path: str):
             f.write(char + "\n")
 
     total_chars = len(all_korean_chars)
-    print(f"Saved a total of {total_chars:,} Hangul characters to '{output_path}'.")
-    print(
+    logger.info(f"Saved a total of {total_chars:,} Hangul characters to '{output_path}'.")
+    logger.info(
         f"(Syllables: {11172:,}, Consonants: {len(CHOSUNG):,}, Vowels: {len(JUNGSUNG):,})"
     )

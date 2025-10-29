@@ -1,9 +1,12 @@
 import json
+import logging
 import random
 import numpy as np
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
+
+logger = logging.getLogger(__name__)
 
 
 def find_coeffs(
@@ -61,7 +64,7 @@ def _generate_text_image(
     try:
         font = ImageFont.truetype(font_path, font_size)
     except IOError:
-        print(f"Warning: Font '{font_path}' not found. Using default font.")
+        logger.warning(f"Font '{font_path}' not found. Using default font.")
         font = ImageFont.load_default()
 
     # Determine text size to create an appropriately sized image
