@@ -25,90 +25,39 @@ def pipeline(
     num_sentence_noise_images: int,
     num_document_images: int,
     num_table_images: int,
+    num_table_numeric_images: int,  # num_table_numeric_images 인자 추가
     num_needle_images: int,
     output_dir: str,
     lang: str,
     **kwargs: Any,
 ) -> None:
     """
-    Executes the full data generation and upload pipeline.
+    전체 데이터 생성 및 업로드 파이프라인을 실행합니다.
 
-    This function orchestrates the process of:
-    1. Creating a text corpus from Wikipedia if it doesn't exist.
-    2. Generating synthetic images for sentences, documents, tables, and "needle-in-a-haystack."
-    3. Uploading the generated datasets to the Hugging Face Hub.
-
-    Args:
-        corpus_path: Path to the text corpus file.
-        repo_id: The Hugging Face Hub repository ID (e.g., "username/dataset-name").
-        num_sentence_images: The number of sentence images to generate.
-        num_document_images: The number of document images to generate.
-        num_table_images: The number of table images to generate.
-        num_needle_images: The number of "needle in a haystack" images to generate.
-        output_dir: The root directory to save all generated content.
-        lang: The language code for corpus generation (e.g., "ko", "en").
-        **kwargs: Additional keyword arguments (currently unused).
+    이 함수는 다음 과정을 조율합니다:
+    1. 텍스트 코퍼스가 없는 경우 위키피디아에서 생성합니다.
+    2. 문장, 문서, 표, "건초더미 속 바늘 찾기" 형식의 합성 이미지를 생성합니다.
+    3. 생성된 데이터셋을 허깅페이스 허브에 업로드합니다.
     """
     logger.info("=" * 80)
     logger.info(" VDG: Visual Document Generation Pipeline ".center(80))
     logger.info("=" * 80)
 
-    # --- 1. Path Initialization and Directory Setup ---
-    logger.info(f"\n[SETUP] Initializing paths and directories in '{output_dir}'...")
+    # --- 1. 경로 초기화 ---
+    logger.info(f"\n[SETUP] '{output_dir}'에 경로 및 디렉토리 초기화 중...")
     base_output_path = Path(output_dir)
     db_path = base_output_path / f"char_similarity_db_{lang}.json"
     corpus_file_path = base_output_path / f"corpus_{lang}.txt"
 
-    # Define specific output paths for each data type
-    paths = {
-        "sentence": base_output_path / "images_sentence",
-        "sentence_noise": base_output_path / "images_sentence_noise",
-        "table": base_output_path / "images_table",
-        "table_numeric": base_output_path / "images_table_numeric",
-        "document": base_output_path / "images_document",
-        "needle": base_output_path / "images_needle_in_a_haystack",
-    }
-
-    # Create all necessary directories
-    for path in paths.values():
-        path.mkdir(parents=True, exist_ok=True)
-    if not corpus_file_path.parent.exists():
-        corpus_file_path.parent.mkdir(parents=True, exist_ok=True)
-    logger.info("[SETUP] All directories are ready.")
-
-    # --- 2. Corpus Generation ---
-    if not corpus_file_path.exists():
-        logger.info(
-            f"\n[CORPUS] Corpus not found at '{corpus_file_path}'. Creating from Wikipedia..."
-        )
-        create_corpus_from_wiki(
-            output_path=str(corpus_file_path), lang=lang, num_sentences=5000
-        )
-        logger.info(f"[CORPUS] Successfully created corpus.")
-    else:
-        logger.info(f"\n[CORPUS] Using existing corpus at '{corpus_file_path}'.")
-
-    if not db_path.exists():
-        logger.info(
-            f"\n[DB] Character similarity database not found at '{db_path}'. Creating..."
-        )
-        generate_similar_chars_db(
-            corpus_path=str(corpus_file_path), db_path=str(db_path)
-        )
-        logger.info(f"[DB] Successfully created character similarity database.")
-    else:
-        logger.info(
-            f"\n[DB] Using existing character similarity database at '{db_path}'."
-        )
-
-    # --- 3. Image Generation Tasks ---
-    GENERATION_TASKS = [
-        {
+    # --- 2. 생성 작업 통합 설정 ---
+    # paths와 GENERATION_TASKS를 하나로 통합하여 관리
+    GENERATION_CONFIG = {
+        "sentence": {
             "name": "Sentence",
             "func": generate_sentence_images,
+            "dir_suffix": "images_sentence",
+            "config_name": "sentence",
             "args": {
-                "num_images": num_sentence_images,
-                "output_dir": str(paths["sentence"]),
                 "lang": lang,
                 "bold": False,
                 "tilt": 0,
@@ -117,91 +66,126 @@ def pipeline(
                 "blur": False,
                 "contrast": False,
             },
-            "config_name": "sentence",
         },
-        {
+        "sentence_noise": {
             "name": "Sentence Noise",
             "func": generate_sentence_images,
-            "args": {
-                "num_images": num_sentence_noise_images,
-                "output_dir": str(paths["sentence_noise"]),
-                "lang": lang,
-            },
+            "dir_suffix": "images_sentence_noise",
             "config_name": "sentence_noise",
+            "args": {"lang": lang},
         },
-        {
+        "document": {
             "name": "Document",
             "func": generate_document_images,
-            "args": {
-                "num_images": num_document_images,
-                "output_dir": str(paths["document"]),
-                "lang": lang,
-            },
+            "dir_suffix": "images_document",
             "config_name": "document",
+            "args": {"lang": lang},
         },
-        {
+        "table": {
             "name": "Table",
             "func": generate_table_images,
-            "args": {
-                "num_images": num_table_images,
-                "output_dir": str(paths["table"]),
-                "lang": lang,
-            },
+            "dir_suffix": "images_table",
             "config_name": "table",
+            "args": {"lang": lang},
         },
-        {
+        "table_numeric": {
             "name": "Table Numeric",
             "func": generate_table_numeric_images,
-            "args": {
-                "num_images": num_table_images,
-                "output_dir": str(paths["table_numeric"]),
-                "lang": lang,
-            },
-            "config_name": "table",
+            "dir_suffix": "images_table_numeric",
+            "config_name": "table_numeric",
+            "args": {"lang": lang},
         },
-        {
+        "needle": {
             "name": "Needle in a Haystack",
             "func": generate_needle_in_a_haystack_images,
-            "args": {
-                "db_path": str(db_path),
-                "num_images": num_needle_images,
-                "output_dir": str(paths["needle"]),
-                "lang": lang,
-            },
+            "dir_suffix": "images_needle_in_a_haystack",
             "config_name": "needle_in_a_haystack",
+            "args": {"db_path": str(db_path), "lang": lang},
         },
-    ]
+    }
 
+    # 파이프라인 인자와 설정 키를 매핑
+    num_images_map = {
+        "sentence": num_sentence_images,
+        "sentence_noise": num_sentence_noise_images,
+        "document": num_document_images,
+        "table": num_table_images,
+        "table_numeric": num_table_numeric_images,
+        "needle": num_needle_images,
+    }
+
+    # --- 3. 디렉토리 설정 ---
+    for task_config in GENERATION_CONFIG.values():
+        path = base_output_path / task_config["dir_suffix"]
+        path.mkdir(parents=True, exist_ok=True)
+
+    if not corpus_file_path.parent.exists():
+        corpus_file_path.parent.mkdir(parents=True, exist_ok=True)
+    logger.info("[SETUP] 모든 디렉토리가 준비되었습니다.")
+
+    # --- 4. 코퍼스 생성 ---
+    if not corpus_file_path.exists():
+        logger.info(
+            f"\n[CORPUS] '{corpus_file_path}'에서 코퍼스를 찾을 수 없습니다. 위키피디아에서 생성합니다..."
+        )
+        create_corpus_from_wiki(
+            output_path=str(corpus_file_path), lang=lang, num_sentences=5000
+        )
+        logger.info("[CORPUS] 코퍼스를 성공적으로 생성했습니다.")
+    else:
+        logger.info(f"\n[CORPUS] 기존 코퍼스 '{corpus_file_path}'를 사용합니다.")
+
+    if not db_path.exists():
+        logger.info(
+            f"\n[DB] '{db_path}'에서 문자 유사성 DB를 찾을 수 없습니다. 생성합니다..."
+        )
+        generate_similar_chars_db(
+            corpus_path=str(corpus_file_path), db_path=str(db_path)
+        )
+        logger.info("[DB] 문자 유사성 DB를 성공적으로 생성했습니다.")
+    else:
+        logger.info(f"\n[DB] 기존 문자 유사성 DB '{db_path}'를 사용합니다.")
+
+    # --- 5. 이미지 생성 작업 ---
     generated_dirs: Dict[str, Path] = {}
-    for task in GENERATION_TASKS:
-        name = task["name"]
-        num_images = task["args"]["num_images"]
+    for task_key, task_config in GENERATION_CONFIG.items():
+        name = task_config["name"]
+        num_images = num_images_map.get(task_key, 0)
 
-        logger.info(f"\n--- Generating {name} Images ---")
+        logger.info(f"\n--- {name} 이미지 생성 ---")
         if num_images > 0:
-            logger.info(f"Requesting {num_images} images.")
-            generated_dir = task["func"](
-                corpus_path=str(corpus_file_path), **task["args"]
-            )
-            if generated_dir is None:
-                logger.error(f"Error: Failed to generate {name} images. Aborting.")
-                return
-            generated_dirs[task["config_name"]] = Path(generated_dir)
-            logger.info(f"Successfully generated {name} images in '{generated_dir}'")
-        else:
-            logger.info(f"Skipping {name} generation (0 images requested).")
+            logger.info(f"{num_images}개의 이미지를 요청했습니다.")
 
-    # --- 4. Upload to Hugging Face Hub ---
-    logger.info(f"\n--- Uploading to Hugging Face Hub: {repo_id} ---")
+            output_dir_path = base_output_path / task_config["dir_suffix"]
+
+            # 함수에 필요한 모든 인자 조합
+            current_args = task_config["args"].copy()
+            current_args["num_images"] = num_images
+            current_args["output_dir"] = str(output_dir_path)
+
+            generated_dir = task_config["func"](
+                corpus_path=str(corpus_file_path), **current_args
+            )
+
+            if generated_dir is None:
+                logger.error(f"오류: {name} 이미지 생성에 실패했습니다. 중단합니다.")
+                return
+
+            config_name = task_config["config_name"]
+            generated_dirs[config_name] = Path(generated_dir)
+            logger.info(f"'{generated_dir}'에 {name} 이미지를 성공적으로 생성했습니다.")
+        else:
+            logger.info(f"{name} 생성을 건너뜁니다 (요청된 이미지 0개).")
+
+    # --- 6. 허깅페이스 허브에 업로드 ---
+    logger.info(f"\n--- 허깅페이스 허브에 업로드: {repo_id} ---")
     if not generated_dirs:
-        logger.info("No datasets were generated, so nothing to upload.")
+        logger.info("생성된 데이터셋이 없어 업로드할 내용이 없습니다.")
     else:
         for config_name, dir_path in generated_dirs.items():
-            logger.info(f"Uploading '{config_name}' subset from '{dir_path}'...")
+            logger.info(f"'{config_name}' 서브셋을 '{dir_path}'에서 업로드 중...")
             upload_subset_to_hub(str(dir_path), repo_id, config_name=config_name)
-            logger.info(f"Successfully uploaded '{config_name}'.")
+            logger.info(f"'{config_name}'을(를) 성공적으로 업로드했습니다.")
 
-    logger.info("\n" + " Pipeline Completed Successfully! ".center(80, "="))
-    logger.info(
-        f"Check your dataset on the Hub: https://huggingface.co/datasets/{repo_id}"
-    )
+    logger.info("\n" + " 파이프라인이 성공적으로 완료되었습니다! ".center(80, "="))
+    logger.info(f"허브에서 데이터셋 확인: https://huggingface.co/datasets/{repo_id}")
