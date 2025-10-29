@@ -171,6 +171,7 @@ def generate_table_images(
     output_dir: str = "tables",
     num_rows: Tuple[int, int] = (5, 20),
     num_cols: Tuple[int, int] = (2, 5),
+    lang: str = "ko",
 ) -> Optional[str]:
     """
     Generates table images with a variable number of rows and columns.
@@ -207,12 +208,12 @@ def generate_table_images(
 
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
-    font_dir = Path("fonts")
+    font_dir = Path(f"fonts/{lang}")
     font_paths = [str(path) for path in font_dir.glob("*.ttf")]
 
     if not font_paths:
         logger.error(
-            "Error: No .ttf font files found in the 'fonts' directory. Aborting."
+            f"Error: No .ttf font files found in the 'fonts/{lang}' directory. Aborting."
         )
         return None
 
@@ -230,7 +231,7 @@ def generate_table_images(
 
     for i in tqdm(range(num_images), desc="Generating table images"):
         font_path = random.choice(font_paths)
-        font_size = random.randint(22, 32)
+        font_size = random.randint(12, 32)
         try:
             font = ImageFont.truetype(font_path, font_size)
         except IOError:

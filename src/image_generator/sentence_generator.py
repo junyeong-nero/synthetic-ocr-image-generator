@@ -31,6 +31,7 @@ def generate_sentence_images(
     distortion: Optional[bool] = None,
     blur: Optional[bool] = None,
     contrast: Optional[bool] = None,
+    lang: str = "ko",
 ) -> Optional[str]:
     """
     Generates a dataset of images from a text corpus.
@@ -55,10 +56,10 @@ def generate_sentence_images(
         f"Target: {num_images:,} images."
     )
 
-    font_dir = Path("fonts")
+    font_dir = Path(f"fonts/{lang}")
     font_paths = [str(p) for p in font_dir.glob("*.ttf")]
     if not font_paths:
-        print("Error: No .ttf font files found in 'fonts' directory. Aborting.")
+        print(f"Error: No .ttf font files found in 'fonts/{lang}' directory. Aborting.")
         return None
 
     output_path = Path(output_dir)

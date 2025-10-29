@@ -18,6 +18,7 @@ from utils import upload_subset_to_hub
 def pipeline(
     repo_id: str,
     num_sentence_images: int,
+    num_sentence_noise_images: int,
     num_document_images: int,
     num_table_images: int,
     num_needle_images: int,
@@ -57,6 +58,7 @@ def pipeline(
     # Define specific output paths for each data type
     paths = {
         "sentence": base_output_path / "images_sentence",
+        "sentence_noise": base_output_path / "images_sentence_noise",
         "table": base_output_path / "images_table",
         "document": base_output_path / "images_document",
         "needle": base_output_path / "images_needle_in_a_haystack",
@@ -100,8 +102,25 @@ def pipeline(
             "args": {
                 "num_images": num_sentence_images,
                 "output_dir": str(paths["sentence"]),
+                "lang": lang,
+                "bold": False,
+                "tilt": 0,
+                "shadow": False,
+                "distortion": False,
+                "blur": False,
+                "contrast": False,
             },
             "config_name": "sentence",
+        },
+        {
+            "name": "Sentence",
+            "func": generate_sentence_images,
+            "args": {
+                "num_images": num_sentence_noise_images,
+                "output_dir": str(paths["sentence_noise"]),
+                "lang": lang,
+            },
+            "config_name": "sentence_noise",
         },
         {
             "name": "Document",
@@ -109,13 +128,18 @@ def pipeline(
             "args": {
                 "num_images": num_document_images,
                 "output_dir": str(paths["document"]),
+                "lang": lang,
             },
             "config_name": "document",
         },
         {
             "name": "Table",
             "func": generate_table_images,
-            "args": {"num_images": num_table_images, "output_dir": str(paths["table"])},
+            "args": {
+                "num_images": num_table_images,
+                "output_dir": str(paths["table"]),
+                "lang": lang,
+            },
             "config_name": "table",
         },
         {
@@ -125,6 +149,7 @@ def pipeline(
                 "db_path": str(db_path),
                 "num_images": num_needle_images,
                 "output_dir": str(paths["needle"]),
+                "lang": lang,
             },
             "config_name": "needle_in_a_haystack",
         },

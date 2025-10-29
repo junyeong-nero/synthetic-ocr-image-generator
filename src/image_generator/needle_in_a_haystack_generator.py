@@ -46,6 +46,7 @@ def generate_needle_in_a_haystack_images(
     num_images: int = 1000,
     output_dir: str = "images",
     resolution_range: Tuple[int, int] = (70, 90),
+    lang: str = "ko",
 ) -> Optional[str]:
     """
     Reads text from a given corpus file, generates single-sentence images,
@@ -55,10 +56,10 @@ def generate_needle_in_a_haystack_images(
         f"\nStarting [single sentence] image generation using '{corpus_path}'. Target number of images: {num_images:,}"
     )
 
-    font_dir = Path("fonts")
+    font_dir = Path(f"fonts/{lang}")
     font_paths = [str(path) for path in font_dir.glob("*.ttf")]
     if not font_paths:
-        print("Error: No .ttf font files found in the 'fonts' directory. Aborting.")
+        print(f"Error: No .ttf font files found in the 'fonts/{lang}' directory. Aborting.")
         return None
 
     output_path = Path(output_dir)

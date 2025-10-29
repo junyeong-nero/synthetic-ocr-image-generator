@@ -2,6 +2,7 @@ lang: "ko"
 output_dir: "data"
 repo_id: "junyeong-nero/synthetic-ocr-dataset"
 num_sentence_images: 10
+num_sentence_noise_images: 10
 num_document_images: 10
 num_table_images: 10
 num_needle_images: 10

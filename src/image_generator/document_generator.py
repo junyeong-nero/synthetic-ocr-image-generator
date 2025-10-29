@@ -123,7 +123,7 @@ def create_horizontal_layout(
 
 
 def generate_document_images(
-    corpus_path: str, num_images: int = 100, output_dir: str = "documents"
+    corpus_path: str, num_images: int = 100, output_dir: str = "documents", lang: str = "ko"
 ) -> Optional[str]:
     """
     Generates document images with various layouts (single/double column, landscape/portrait).
@@ -140,12 +140,12 @@ def generate_document_images(
     # Prepare output directory and font paths
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
-    font_dir = Path("fonts")
+    font_dir = Path(f"fonts/{lang}")
     font_paths = [str(path) for path in font_dir.glob("*.ttf")]
 
     if not font_paths:
         logger.error(
-            "Error: No .ttf font files found in the 'fonts' directory. Aborting."
+            f"Error: No .ttf font files found in the 'fonts/{lang}' directory. Aborting."
         )
         return None
 
