@@ -9,7 +9,7 @@ from tqdm import tqdm
 from utils import read_txt, read_json
 
 from character_similarity import find_similar_chars
-from image_generator.basic_generator import _generate_text_image
+from generator.basic_generator import _generate_text_image
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,9 @@ def generate_needle_in_a_haystack_images(
     font_dir = Path(f"fonts/{lang}")
     font_paths = [str(path) for path in font_dir.glob("*.ttf")]
     if not font_paths:
-        logger.error(f"Error: No .ttf font files found in the 'fonts/{lang}' directory. Aborting.")
+        logger.error(
+            f"Error: No .ttf font files found in the 'fonts/{lang}' directory. Aborting."
+        )
         return None
 
     output_path = Path(output_dir)
@@ -121,7 +123,9 @@ def generate_needle_in_a_haystack_images(
         for item in image_text_pairs:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-    logger.info(f"Successfully generated {len(image_text_pairs):,} images and metadata.")
+    logger.info(
+        f"Successfully generated {len(image_text_pairs):,} images and metadata."
+    )
     return str(output_path)
 
 

@@ -6,10 +6,10 @@ from typing import Callable, Dict, Any
 from corpus_generator import create_corpus_from_wiki
 from character_similarity import generate_similar_chars_db
 
-from image_generator.document_generator import generate_document_images
-from image_generator.sentence_generator import generate_sentence_images
-from image_generator.table_generator import generate_table_images
-from image_generator.needle_in_a_haystack_generator import (
+from generator.document_generator import generate_document_images
+from generator.sentence_generator import generate_sentence_images
+from generator.table_generator import generate_table_images
+from generator.needle_in_a_haystack_generator import (
     generate_needle_in_a_haystack_images,
 )
 
@@ -95,7 +95,9 @@ def pipeline(
         )
         logger.info(f"[DB] Successfully created character similarity database.")
     else:
-        logger.info(f"\n[DB] Using existing character similarity database at '{db_path}'.")
+        logger.info(
+            f"\n[DB] Using existing character similarity database at '{db_path}'."
+        )
 
     # --- 3. Image Generation Tasks ---
     GENERATION_TASKS = [
@@ -188,4 +190,6 @@ def pipeline(
             logger.info(f"Successfully uploaded '{config_name}'.")
 
     logger.info("\n" + " Pipeline Completed Successfully! ".center(80, "="))
-    logger.info(f"Check your dataset on the Hub: https://huggingface.co/datasets/{repo_id}")
+    logger.info(
+        f"Check your dataset on the Hub: https://huggingface.co/datasets/{repo_id}"
+    )

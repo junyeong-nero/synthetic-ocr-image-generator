@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from utils import read_txt
-from image_generator.basic_generator import _generate_text_image
+from generator.basic_generator import _generate_text_image
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,9 @@ def generate_sentence_images(
     font_dir = Path(f"fonts/{lang}")
     font_paths = [str(p) for p in font_dir.glob("*.ttf")]
     if not font_paths:
-        logger.error(f"Error: No .ttf font files found in 'fonts/{lang}' directory. Aborting.")
+        logger.error(
+            f"Error: No .ttf font files found in 'fonts/{lang}' directory. Aborting."
+        )
         return None
 
     output_path = Path(output_dir)

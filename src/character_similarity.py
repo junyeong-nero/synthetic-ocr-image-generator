@@ -7,7 +7,7 @@ from tqdm import tqdm
 from skimage.metrics import structural_similarity as ssim
 
 from utils import save_json, read_json, read_txt
-from image_generator.basic_generator import _generate_text_image
+from generator.basic_generator import _generate_text_image
 
 logger = logging.getLogger(__name__)
 
