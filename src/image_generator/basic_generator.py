@@ -28,7 +28,7 @@ def find_coeffs(
     return np.linalg.solve(A, B)
 
 
-def _generate_word_image(
+def _generate_text_image(
     text: str,
     font_path: str,
     background_color: Tuple[int, int, int],

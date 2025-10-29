@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from utils import read_txt
-from image_generator.basic_generator import _generate_word_image
+from image_generator.basic_generator import _generate_text_image
 
 BACKGROUND_COLORS: List[Tuple[int, int, int]] = [
     (255, 255, 255),
@@ -88,7 +88,7 @@ def generate_sentence_images(
         apply_contrast = random.choice([True, False]) if contrast is None else contrast
 
         # --- Generate and Save Image ---
-        img = _generate_word_image(
+        img = _generate_text_image(
             text=text,
             font_path=font_path,
             background_color=bg_color,

@@ -6,7 +6,7 @@ from tqdm import tqdm
 from skimage.metrics import structural_similarity as ssim
 
 from utils import save_json, read_json, read_txt
-from image_generator.basic_generator import _generate_word_image
+from image_generator.basic_generator import _generate_text_image
 
 
 def calculate_ssim_with_pil_images(imageA_pil, imageB_pil):
@@ -40,8 +40,17 @@ def build_similarity_database(char_list, font_path, db_path, threshold=0.5):
     # Pre-generate character images to avoid redundant generation
     print("1. Pre-generating character images...")
     char_images = {
-        char: _generate_word_image(
-            char, font_path, background_color=(255, 255, 255), font_size=24
+        char: _generate_text_image(
+            char,
+            font_path,
+            background_color=(255, 255, 255),
+            font_size=24,
+            bold=False,
+            tilt=0,
+            shadow=False,
+            distortion=False,
+            blur=False,
+            contrast=False,
         )
         for char in tqdm(char_list, desc="Generating images")
     }

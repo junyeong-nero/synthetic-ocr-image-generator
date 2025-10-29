@@ -16,7 +16,6 @@ from utils import upload_subset_to_hub
 
 
 def pipeline(
-    corpus_path: str,
     repo_id: str,
     num_sentence_images: int,
     num_document_images: int,
@@ -53,7 +52,7 @@ def pipeline(
     print(f"\n[SETUP] Initializing paths and directories in '{output_dir}'...")
     base_output_path = Path(output_dir)
     db_path = base_output_path / f"char_similarity_db_{lang}.json"
-    corpus_file_path = Path(corpus_path)
+    corpus_file_path = base_output_path / f"corpus_{lang}.txt"
 
     # Define specific output paths for each data type
     paths = {

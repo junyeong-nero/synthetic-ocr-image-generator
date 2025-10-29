@@ -8,7 +8,7 @@ from tqdm import tqdm
 from utils import read_txt, read_json
 
 from character_similarity import find_similar_chars
-from image_generator.basic_generator import _generate_word_image
+from image_generator.basic_generator import _generate_text_image
 
 
 def needle_in_a_haystack_generator(
@@ -93,7 +93,7 @@ def generate_needle_in_a_haystack_images(
         blur = random.choice([True, False])
         contrast = random.choice([True, False])
 
-        img = _generate_word_image(
+        img = _generate_text_image(
             text=text,
             font_path=font_path,
             background_color=bg_color,
