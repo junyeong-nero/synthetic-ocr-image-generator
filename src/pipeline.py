@@ -9,6 +9,7 @@ from character_similarity import generate_similar_chars_db
 from generator.document_generator import generate_document_images
 from generator.sentence_generator import generate_sentence_images
 from generator.table_generator import generate_table_images
+from generator.table_numeric_generator import generate_table_numeric_images
 from generator.needle_in_a_haystack_generator import (
     generate_needle_in_a_haystack_images,
 )
@@ -63,6 +64,7 @@ def pipeline(
         "sentence": base_output_path / "images_sentence",
         "sentence_noise": base_output_path / "images_sentence_noise",
         "table": base_output_path / "images_table",
+        "table_numeric": base_output_path / "images_table_numeric",
         "document": base_output_path / "images_document",
         "needle": base_output_path / "images_needle_in_a_haystack",
     }
@@ -118,7 +120,7 @@ def pipeline(
             "config_name": "sentence",
         },
         {
-            "name": "Sentence",
+            "name": "Sentence Noise",
             "func": generate_sentence_images,
             "args": {
                 "num_images": num_sentence_noise_images,
@@ -143,6 +145,16 @@ def pipeline(
             "args": {
                 "num_images": num_table_images,
                 "output_dir": str(paths["table"]),
+                "lang": lang,
+            },
+            "config_name": "table",
+        },
+        {
+            "name": "Table Numeric",
+            "func": generate_table_numeric_images,
+            "args": {
+                "num_images": num_table_images,
+                "output_dir": str(paths["table_numeric"]),
                 "lang": lang,
             },
             "config_name": "table",
