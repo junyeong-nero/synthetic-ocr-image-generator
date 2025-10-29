@@ -3,7 +3,7 @@ from pathlib import Path
 from corpus_generator import create_corpus_from_wiki
 from image_generator import (
     generate_document,
-    generate_text,
+    generate_sentence,
     generate_table,
     generate_needle,
 )
@@ -15,8 +15,8 @@ from utils import upload_subset_to_hub
 def pipeline(
     corpus_path: str,
     repo_id: str,
-    num_word_images: int,
-    num_doc_images: int,
+    num_sentence_images: int,
+    num_document_images: int,
     num_table_images: int,
     num_needle_images: int,
     output_dir: str,
@@ -70,9 +70,9 @@ def pipeline(
 
     # STEP 1: Generate single sentence images
     # 생성 함수에 Path 객체를 문자열로 변환하여 전달
-    generated_word_dir = generate_text(
+    generated_word_dir = generate_sentence(
         corpus_path=str(corpus_file_path),
-        num_images=num_word_images,
+        num_images=num_sentence_images,
         output_dir=str(word_output_path),
     )
 
@@ -83,7 +83,7 @@ def pipeline(
     # STEP 2: Generate document images
     generated_doc_dir = generate_document(
         corpus_path=str(corpus_file_path),
-        num_images=num_doc_images,
+        num_images=num_document_images,
         output_dir=str(doc_output_path),
     )
 
