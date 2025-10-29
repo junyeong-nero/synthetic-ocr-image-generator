@@ -6,7 +6,7 @@ from tqdm import tqdm
 from skimage.metrics import structural_similarity as ssim
 
 from utils import save_json, read_json, read_txt
-from image_generator.sentence_generator import _generate_word_image
+from image_generator.basic_generator import _generate_word_image
 
 
 def calculate_ssim_with_pil_images(imageA_pil, imageB_pil):

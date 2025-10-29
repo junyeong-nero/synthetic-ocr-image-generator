@@ -1,211 +1,117 @@
 import json
 import random
-from pathlib import Path
-from typing import List, Tuple, Dict, Any, Optional
-
-# Import numpy, ImageFilter, and ImageEnhance.
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 from tqdm import tqdm
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
 from utils import read_txt
+from image_generator.basic_generator import _generate_word_image
+
+BACKGROUND_COLORS: List[Tuple[int, int, int]] = [
+    (255, 255, 255),
+    (240, 240, 240),
+    (255, 250, 240),
+    (240, 255, 240),
+    (240, 248, 255),
+    (255, 240, 245),
+    (245, 245, 220),
+    (250, 250, 210),
+    (230, 230, 250),
+]
 
 
-def find_coeffs(
-    source_coords: List[Tuple[int, int]], target_coords: List[Tuple[int, int]]
-) -> np.ndarray:
-    """
-    Calculates the 8 coefficients required for perspective distortion.
-    Uses numpy to solve a system of linear equations in the form Ax = B.
-    """
-    matrix = []
-    for s, t in zip(source_coords, target_coords):
-        matrix.append([s[0], s[1], 1, 0, 0, 0, -t[0] * s[0], -t[0] * s[1]])
-        matrix.append([0, 0, 0, s[0], s[1], 1, -t[1] * s[0], -t[1] * s[1]])
-    A = np.array(matrix, dtype=float)
-    B = np.array(target_coords).reshape(8)
-
-    # Solve the linear equations to get the coefficients.
-    res = np.linalg.solve(A, B)
-    return res.flatten()
-
-
-def _generate_word_image(
-    text: str,
-    font_path: str,
-    background_color: Tuple[int, int, int],
-    font_size: int = 80,
-    bold: bool = False,
-    tilt: int = 0,
-    shadow: bool = False,
-    distortion: bool = False,
-    blur: bool = False,
-    contrast: bool = False,
-) -> Image.Image:
-    """
-    Generates an image by rendering a single sentence with various styles.
-    """
-    try:
-        font = ImageFont.truetype(font_path, font_size)
-    except IOError:
-        font = ImageFont.load_default()
-
-    dummy_img = Image.new("RGB", (1, 1))
-    dummy_draw = ImageDraw.Draw(dummy_img)
-    bbox = dummy_draw.textbbox((0, 0), text, font=font)
-    text_width, text_height = bbox[2] - bbox[0], bbox[3] - bbox[1]
-
-    padding = font_size // 2
-    img_width, img_height = text_width + padding * 2, text_height + padding * 2
-    if tilt != 0:
-        img_width, img_height = int(img_width * 1.5), int(img_height * 1.5)
-
-    img = Image.new("RGB", (img_width, img_height), background_color)
-    draw = ImageDraw.Draw(img)
-    x, y = (img_width - text_width) // 2, (img_height - text_height) // 2
-
-    text_color = (0, 0, 0) if sum(background_color[:3]) > 384 else (255, 255, 255)
-
-    if shadow:
-        shadow_offset = max(1, font_size // 16)
-        shadow_color = (50, 50, 50)
-        draw.text(
-            (x + shadow_offset, y + shadow_offset), text, font=font, fill=shadow_color
-        )
-
-    draw.text((x, y), text, font=font, fill=text_color)
-
-    if bold:
-        for offset in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
-            draw.text((x + offset[0], y + offset[1]), text, font=font, fill=text_color)
-
-    if distortion:
-        width, height = img.size
-        source_coords = [
-            (0, 0),
-            (width - 1, 0),
-            (width - 1, height - 1),
-            (0, height - 1),
-        ]
-        max_distort = font_size // 8
-        target_coords = []
-        for sx, sy in source_coords:
-            dx = random.randint(-max_distort, max_distort)
-            dy = random.randint(-max_distort, max_distort)
-            target_coords.append((sx + dx, sy + dy))
-
-        coeffs = find_coeffs(source_coords, target_coords)
-        img = img.transform(
-            (width, height),
-            Image.PERSPECTIVE,
-            coeffs,
-            Image.BICUBIC,
-            fillcolor=background_color,
-        )
-
-    if tilt != 0:
-        img = img.rotate(tilt, expand=True, fillcolor=background_color)
-        bbox = img.getbbox()
-        if bbox:
-            img = img.crop(bbox)
-
-    if blur:
-        blur_radius = random.uniform(0.5, 1.5)
-        img = img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
-
-    # Adjust contrast (applied at the last step)
-    if contrast:
-        # Randomly set the contrast adjustment intensity (0.7 for decreased contrast, 1.5 for increased contrast)
-        enhancer = ImageEnhance.Contrast(img)
-        factor = random.uniform(0.7, 1.5)
-        img = enhancer.enhance(factor)
-
-    return img
-
-
-# --------------------------------------------------------------------------
-# 1.4 Main Function for Generating Single Sentence Images
-# --------------------------------------------------------------------------
-def generate_word_images(
+def generate_sentence_images(
     corpus_path: str,
     num_images: int = 1000,
     output_dir: str = "images",
     resolution_range: Tuple[int, int] = (70, 90),
+    bold: Optional[bool] = None,
+    tilt: Optional[int] = None,
+    shadow: Optional[bool] = None,
+    distortion: Optional[bool] = None,
+    blur: Optional[bool] = None,
+    contrast: Optional[bool] = None,
 ) -> Optional[str]:
     """
-    Reads text from a given corpus file, generates single-sentence images,
-    and saves the image-text pair metadata.
+    Generates a dataset of images from a text corpus.
+
+    Args:
+        corpus_path: Path to the input text file.
+        num_images: The total number of images to generate.
+        output_dir: The directory to save the images and metadata.
+        resolution_range: A tuple (min, max) for random font sizes.
+        bold: Force bold effect. If None, it's randomly applied.
+        tilt: Force a specific tilt angle. If None, it's randomly set.
+        shadow: Force shadow effect. If None, it's randomly applied.
+        distortion: Force distortion. If None, it's randomly applied.
+        blur: Force blur. If None, it's randomly applied.
+        contrast: Force contrast adjustment. If None, it's randomly applied.
+
+    Returns:
+        The path to the output directory, or None if an error occurs.
     """
     print(
-        f"\nStarting [single sentence] image generation using '{corpus_path}'. Target number of images: {num_images:,}"
+        f"\nStarting image generation from '{corpus_path}'. "
+        f"Target: {num_images:,} images."
     )
 
     font_dir = Path("fonts")
-    font_paths = [str(path) for path in font_dir.glob("*.ttf")]
+    font_paths = [str(p) for p in font_dir.glob("*.ttf")]
     if not font_paths:
-        print("Error: No .ttf font files found in the 'fonts' directory. Aborting.")
+        print("Error: No .ttf font files found in 'fonts' directory. Aborting.")
         return None
 
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
 
-    corpus = read_txt(corpus_path)
-    lines = corpus.splitlines()
+    lines = read_txt(corpus_path).splitlines()
     korean_texts = [line[:20].strip() for line in lines if line.strip()]
-
-    background_colors = [
-        (255, 255, 255),
-        (240, 240, 240),
-        (255, 250, 240),
-        (240, 255, 240),
-        (240, 248, 255),
-        (255, 240, 245),
-        (245, 245, 220),
-        (250, 250, 210),
-        (230, 230, 250),
-    ]
+    if not korean_texts:
+        print(f"Error: No text found in '{corpus_path}'. Aborting.")
+        return None
 
     image_text_pairs: List[Dict[str, str]] = []
 
-    for idx in tqdm(range(num_images), desc="Generating word images"):
+    for idx in tqdm(range(num_images), desc="Generating Images"):
+        # --- Determine Parameters for this Image ---
         font_path = random.choice(font_paths)
         text = random.choice(korean_texts)
-        bg_color = random.choice(background_colors)
+        bg_color = random.choice(BACKGROUND_COLORS)
         font_size = random.randint(*resolution_range)
 
-        bold = random.choice([True, False])
-        tilt = random.randint(-15, 15)
-        shadow = random.choice([True, False])
-        distortion = random.choice([True, False])
-        blur = random.choice([True, False])
-        contrast = random.choice([True, False])  # Randomly select contrast effect
+        # Apply effects randomly if not specified by the user
+        apply_bold = random.choice([True, False]) if bold is None else bold
+        apply_tilt = random.randint(-15, 15) if tilt is None else tilt
+        apply_shadow = random.choice([True, False]) if shadow is None else shadow
+        apply_dist = random.choice([True, False]) if distortion is None else distortion
+        apply_blur = random.choice([True, False]) if blur is None else blur
+        apply_contrast = random.choice([True, False]) if contrast is None else contrast
 
+        # --- Generate and Save Image ---
         img = _generate_word_image(
             text=text,
             font_path=font_path,
             background_color=bg_color,
             font_size=font_size,
-            bold=bold,
-            tilt=tilt,
-            shadow=shadow,
-            distortion=distortion,
-            blur=blur,
-            contrast=contrast,  # Pass argument
+            bold=apply_bold,
+            tilt=apply_tilt,
+            shadow=apply_shadow,
+            distortion=apply_dist,
+            blur=apply_blur,
+            contrast=apply_contrast,
         )
 
-        image_filename = f"image_{idx:04d}.png"
-        image_path = output_path / image_filename
-        img.save(image_path)
+        image_filename = f"image_{idx:05d}.png"
+        image_filepath = output_path / image_filename
+        img.save(image_filepath)
 
-        image_text_pairs.append({"file_name": str(image_path), "text": text})
+        image_text_pairs.append({"file_name": str(image_filepath), "text": text})
 
+    # --- Save Metadata ---
     metadata_path = output_path / "metadata.jsonl"
     with open(metadata_path, "w", encoding="utf-8") as f:
         for item in image_text_pairs:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-    print(f"Successfully generated {len(image_text_pairs):,} images and metadata.")
+    print(f"Successfully generated {len(image_text_pairs):,} images.")
     return str(output_path)
-
-
-if __name__ == "__main__":
-    generate_word_images(corpus_path="korean_char_corpus.txt")
