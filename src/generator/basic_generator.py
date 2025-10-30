@@ -72,12 +72,12 @@ def _generate_text_image(
     dummy_draw = ImageDraw.Draw(dummy_img)
     _, _, text_width, text_height = dummy_draw.textbbox((0, 0), text, font=font)
 
-    padding = font_size // 2
+    padding = font_size // 4
     img_width = text_width + padding * 2
     img_height = text_height + padding * 2
     if tilt != 0:
         # Increase canvas size to prevent cropping during rotation
-        img_width, img_height = int(img_width * 1.5), int(img_height * 1.5)
+        img_width, img_height = int(img_width * 1.1), int(img_height * 1.1)
 
     img = Image.new("RGB", (img_width, img_height), background_color)
     draw = ImageDraw.Draw(img)
