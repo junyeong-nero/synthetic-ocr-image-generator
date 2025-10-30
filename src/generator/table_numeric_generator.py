@@ -1,13 +1,25 @@
 import json
 import random
-import string  # 구두점 제거를 위해 추가
+import string
 from pathlib import Path
 from typing import List, Tuple, Dict, Any, Optional
 import logging
 
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
-from utils import read_txt
+
+# from utils import read_txt # utils.py가 없으므로 이 부분은 주석 처리합니다.
+
+
+def read_txt(path: str) -> str:
+    """텍스트 파일을 읽고 내용을 반환합니다."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        # 이 함수에서는 코퍼스가 필요 없으므로 오류가 나도 괜찮습니다.
+        return "corpus not found but not needed"
+
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +42,16 @@ def draw_text_in_box(
     current_line = ""
     for word in words:
         test_line = f"{current_line} {word}".strip()
-        line_bbox = draw.textbbox((0, 0), test_line, font=font)
-        line_width = line_bbox[2] - line_bbox[0]
+
+        # --- Pillow 버전 호환성 처리 ---
+        # 최신 Pillow 버전에서는 textsize 대신 textbbox를 사용해야 합니다.
+        if hasattr(draw, "textbbox"):
+            # Pillow 9.2.0 이상 버전용
+            line_bbox = draw.textbbox((0, 0), test_line, font=font)
+            line_width = line_bbox[2] - line_bbox[0]
+        else:
+            # 이전 버전 호환용
+            line_width, _ = draw.textsize(test_line, font=font)
 
         if line_width <= box_width:
             current_line = test_line
@@ -48,16 +68,20 @@ def draw_text_in_box(
     total_text_height = 0
 
     try:
-        # Pillow 10.0.0 이상
+        # Pillow 8.0.0 이상
         line_height_A = font.getbbox("A")[3] - font.getbbox("A")[1]
     except AttributeError:
         # 이전 버전
-        line_height_A = font.getsize("A")[1]
+        _, line_height_A = font.getsize("A")
     line_spacing = line_height_A * 0.5
 
     for i, line in enumerate(lines):
-        line_bbox = draw.textbbox((0, 0), line, font=font)
-        line_height = line_bbox[3] - line_bbox[1]
+        # --- Pillow 버전 호환성 처리 ---
+        if hasattr(draw, "textbbox"):
+            line_bbox = draw.textbbox((0, 0), line, font=font)
+            line_height = line_bbox[3] - line_bbox[1]
+        else:
+            _, line_height = draw.textsize(line, font=font)
 
         if y + line_height > y2:
             break
@@ -90,11 +114,9 @@ def create_table_layout(
     if num_cols == 0:
         return img, ""
 
-    # 1. 열 너비 계산 (균등 분할)
     drawable_width = width - 2 * margin
     col_widths = [drawable_width // num_cols] * num_cols
 
-    # 2. 행 높이 계산 (내용에 따라 동적 결정)
     row_heights = []
     temp_draw = ImageDraw.Draw(Image.new("RGB", (1, 1)))
     for row_data in table_data:
@@ -106,8 +128,14 @@ def create_table_layout(
             current_line = ""
             for word in words:
                 test_line = f"{current_line} {word}".strip()
-                line_bbox = temp_draw.textbbox((0, 0), test_line, font=font)
-                line_width = line_bbox[2] - line_bbox[0]
+
+                # --- Pillow 버전 호환성 처리 ---
+                if hasattr(temp_draw, "textbbox"):
+                    line_bbox = temp_draw.textbbox((0, 0), test_line, font=font)
+                    line_width = line_bbox[2] - line_bbox[0]
+                else:
+                    line_width, _ = temp_draw.textsize(test_line, font=font)
+
                 if line_width <= box_width:
                     current_line = test_line
                 else:
@@ -120,14 +148,19 @@ def create_table_layout(
             try:
                 line_height_A = font.getbbox("A")[3] - font.getbbox("A")[1]
             except AttributeError:
-                line_height_A = font.getsize("A")[1]
+                _, line_height_A = font.getsize("A")
             line_spacing = line_height_A * 0.5
 
-            total_text_height = sum(
-                temp_draw.textbbox((0, 0), line, font=font)[3]
-                - temp_draw.textbbox((0, 0), line, font=font)[1]
-                for line in lines
-            )
+            total_text_height = 0
+            for line in lines:
+                # --- Pillow 버전 호환성 처리 ---
+                if hasattr(temp_draw, "textbbox"):
+                    line_bbox = temp_draw.textbbox((0, 0), line, font=font)
+                    line_height = line_bbox[3] - line_bbox[1]
+                else:
+                    _, line_height = temp_draw.textsize(line, font=font)
+                total_text_height += line_height
+
             total_text_height += (
                 line_spacing * (len(lines) - 1) if len(lines) > 0 else 0
             )
@@ -136,7 +169,6 @@ def create_table_layout(
 
         row_heights.append(max_height_in_row + 2 * cell_padding)
 
-    # 3. 테이블 그리기
     all_drawn_text = []
     current_y = margin
     for i, row_data in enumerate(table_data):
@@ -177,9 +209,9 @@ def generate_table_numeric_images(
 ) -> Optional[str]:
     """
     가변적인 행과 열 개수를 가진 테이블 이미지를 생성합니다.
-    첫 행과 첫 열은 단어로, 나머지는 숫자로 채웁니다.
+    첫 행과 첫 열은 'col_A', 'row_1'과 같은 형식의 헤더로, 나머지는 숫자로 채웁니다.
 
-    :param corpus_path: 텍스트 코퍼스 파일 경로.
+    :param corpus_path: 텍스트 코퍼스 파일 경로 (현재 사용되지 않음).
     :param num_images: 생성할 이미지 수.
     :param output_dir: 이미지를 저장할 디렉토리.
     :param num_rows: 테이블의 행 수 범위 (최소, 최대).
@@ -188,14 +220,12 @@ def generate_table_numeric_images(
     :param digits: 숫자 값의 소수점 이하 자릿수.
     :return: 이미지가 생성된 디렉토리 경로.
     """
-    logger.info(
-        f"\n[table] 이미지 생성을 시작합니다. 코퍼스: '{corpus_path}', 목표 이미지 수: {num_images:,}"
-    )
+    logger.info(f"\n[table] 이미지 생성을 시작합니다. 목표 이미지 수: {num_images:,}")
     logger.info(
         f"테이블 크기: {num_rows[0]}-{num_rows[1]} 행, {num_cols[0]}-{num_cols[1]} 열"
     )
 
-    # --- 인수 유효성 검사 ---
+    # 인수 유효성 검사
     if not (
         isinstance(num_rows, (list, tuple))
         and len(num_rows) == 2
@@ -226,25 +256,6 @@ def generate_table_numeric_images(
         )
         return None
 
-    corpus = read_txt(corpus_path)
-    if not corpus:
-        logger.error(
-            f"오류: '{corpus_path}'가 비어 있거나 읽을 수 없습니다. 중단합니다."
-        )
-        return None
-
-    # --- 변경된 부분 시작 ---
-    # 1. 구두점 제거
-    translator = str.maketrans("", "", string.punctuation)
-    clean_corpus = corpus.translate(translator)
-
-    # 2. 구두점이 제거된 텍스트에서 단어 목록 생성
-    words = list(set(clean_corpus.split()))
-    if not words:
-        logger.error(f"오류: '{corpus_path}'에서 단어를 찾을 수 없습니다. 중단합니다.")
-        return None
-    # --- 변경된 부분 끝 ---
-
     metadata: List[Dict[str, str]] = []
 
     for i in tqdm(range(num_images), desc="테이블 이미지 생성 중"):
@@ -259,20 +270,19 @@ def generate_table_numeric_images(
         current_num_rows = random.randint(*num_rows)
 
         table_data = []
-        for r in range(current_num_rows):
-            row_data = []
-            for c in range(current_num_cols):
-                cell_text = ""
-                if r == 0:
-                    cell_text = random.choice(words)
-                elif c == 0:
-                    cell_text = random.choice(words)
-                else:
-                    # --- 변경된 부분 시작 ---
-                    # 3. 지정된 자릿수(digits)까지 소수점 표현
-                    number = random.uniform(0, 10000)
-                    cell_text = f"{number:.{digits}f}"
-                    # --- 변경된 부분 끝 ---
+
+        # 헤더 행 생성 (e.g., "", "col_A", "col_B", ...)
+        header_row = [""]
+        for c in range(current_num_cols - 1):
+            header_row.append(f"col_{chr(ord('A') + c)}")
+        table_data.append(header_row)
+
+        # 데이터 행 생성 (첫 열은 행 이름, 나머지는 숫자)
+        for r in range(1, current_num_rows):
+            row_data = [f"row_{r}"]
+            for _ in range(current_num_cols - 1):
+                number = random.uniform(0, 10000)
+                cell_text = f"{number:.{digits}f}"
                 row_data.append(cell_text)
             table_data.append(row_data)
 
