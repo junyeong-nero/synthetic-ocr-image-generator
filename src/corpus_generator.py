@@ -9,6 +9,27 @@ from utils import save_txt
 
 logger = logging.getLogger(__name__)
 
+# --- 수정된 부분: 제거할 특수 기호 목록을 상수로 정의 ---
+# 요청된 모든 기호(기하학적 도형, 수학 기호, 화살표, 특수 따옴표 등)를 포함합니다.
+SPECIAL_SYMBOLS_TO_REMOVE = (
+    "▲▼◀▶◢◣◥◤△▽◿◺◹◸▴▾◂▸▵▿◃▹◁▷◅▻◬⟁⧋⧊⊿"
+    "○◌◍◎◯❍◉⦾⊙⦿⊜⊖⊘⊚⊛⊝●⚫⦁◐◑◒◓◔◕⦶⦸◵◴◶◷"
+    "□■▰▪◼▮◾▗▖▫▭▱◽◻▢⊞⊡⊟⊠▣▤▥▦⬚▧▨▩⬓◧⬒◨◩◪⬔⬕⊞⊟▯◚◛◫❏❐❑❒❘❙❚⊡▀ ▂▃▄▅▆▇█▉▊▋▌▍▎▏░▒▓▔"
+    "◇◆◈⬖⬗⬘⬙⬠⬡⎔⋄◊⧫⬢⬣"
+    '❝❞❛❜‘’‛‚“”„‟«»‹›Ꞌ"'
+    "+-×÷=< >±∞√∑∏∆∇∫∬∭∮∯∰∱∲∳≠≈≡≤≥≪≫∂∅∈∉⊂⊃⊆⊇⊕⊖⊗⊘⊙⊚⊛⊜⊝∀∃∄∴∵∶∷∸∹∺∻⁄|‖‗†‡•‣․‥…⁖⁘⁙⁏⁐⁓⁑⁒⁔⁕⁗⁘⁙⁚⁛⁜⁝⁞"
+    "←→↑↓↔↕↖↗↘↙↚↛↜↝↞↟↠↡↢↣↤↦↥↧↨↫↬↭↮↯↰↱↲↳↴↵↶↷↸↹↺↻↼↽↾↿⇀⇁⇂⇃⇄⇅⇆⇇⇈⇉⇊⇋⇌⇍⇏⇎⇐⇒⇔⇕⇖⇗⇘⇙⇚⇛⇜⇝⇞⇟⇠⇡⇢⇣⇤⇥⇦⇧⇨⇩⇪⟲⟳⟴⟵⟶⟷⟸⟹⟺⟻⟼⟿"
+    "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳⓵⓶⓷⓸⓹⓺⓻⓼⓽⓾⒈⒉⒊⒋⒌⒍⒎⒏⒐⒑⒒⒓⒔⒕⒖⒗⒘⒙⒚⒛⓪"
+    "❶❷❸❹❺❻❼❽❾❿➊➋➌➍➎➏➐➑➒➓⓫⓬⓭⓮⓯⓰⓱⓲⓳⓴"
+    "¹²³↉½⅓¼⅕⅙⅐⅛⅑⅒⅔⅖¾⅗⅜⅘⅚⅝⅞"
+    "✿☺☻☹☼☂☃⌇⚛⌨✆☎⌘⇧×☓✕✖⨉⨯☒✗✘Χχᚷ⊗⨷ₓˣ𒉽⛒⛝🆇🅧Ⓧ𝕏✔✓☐☑★☆♺⚑⚐✉✄⌲✈♦♣♠♥❤♡♪♩♫♬♯♀♂⚢⚣"
+    "❑❒◈◐◑✖✚✜⧓⧗⧑⧒⧖_⚊╴╼╾‐⁃‑‒–⎯—―╶╺╸©®™℠℻℅℁⅍℄¶⁋❡⁌⁍⸖⸗⸚⸓§₿⚽⚾☘❦❧☙❢❣✁✂✃✄"
+    "·•・"  # 가운데점 및 유사 기호 포함
+)
+# 효율성을 위해 정규식을 컴파일합니다.
+SPECIAL_SYMBOLS_REGEX = re.compile(f"[{re.escape(SPECIAL_SYMBOLS_TO_REMOVE)}]")
+
+
 LANG_CONFIG = {
     "ko": {
         "dataset_id": "20231101.ko",
@@ -43,15 +64,21 @@ LANG_CONFIG = {
 
 def clean_wiki_text(text: str, lang: str) -> str:
     """Cleans and removes unnecessary markup and special characters from Wikipedia text."""
+    # --- 수정된 부분: 위에서 정의한 모든 특수 기호를 먼저 제거 ---
+    text = SPECIAL_SYMBOLS_REGEX.sub("", text)
+
+    # 기존 위키피디아 마크업 제거 로직
     text = re.sub(r"\[\[[^\]|]+\|([^\]]+)\]\]", r" ", text)
     text = re.sub(r"\[\[([^\]]+)\]\]", r" ", text)
     text = re.sub(r"https?://[^ ]+", "", text)
     text = re.sub(r"'{2,5}", "", text)
     text = re.sub(r"==+\s*(.*?)\s*==+", r" .", text)
 
+    # 언어별로 허용된 문자 외에는 모두 제거
     if lang in LANG_CONFIG:
         text = re.sub(LANG_CONFIG[lang]["char_regex"], "", text)
 
+    # 공백 정규화
     text = " ".join(text.split()).strip()
     return text
 
@@ -111,112 +138,4 @@ def create_corpus_from_wiki(output_path: str, lang: str, num_sentences: int = 50
 
     logger.info(
         f"Saved a total of {len(collected_sentences):,} sentences to '{output_path}'."
-    )
-
-
-def create_all_chars_corpus(output_path: str):
-    """
-    Creates a corpus file containing all theoretically possible Hangul syllable characters
-    by combining initial, medial, and final consonants. Also includes individual consonants and vowels.
-
-    :param output_path: The file path to save the corpus.
-    """
-    logger.info(f"Starting to create the complete Hangul character corpus '{output_path}'.")
-
-    CHOSUNG = [
-        "ㄱ",
-        "ㄲ",
-        "ㄴ",
-        "ㄷ",
-        "ㄸ",
-        "ㄹ",
-        "ㅁ",
-        "ㅂ",
-        "ㅃ",
-        "ㅅ",
-        "ㅆ",
-        "ㅇ",
-        "ㅈ",
-        "ㅉ",
-        "ㅊ",
-        "ㅋ",
-        "ㅌ",
-        "ㅍ",
-        "ㅎ",
-    ]
-    JUNGSUNG = [
-        "ㅏ",
-        "ㅐ",
-        "ㅑ",
-        "ㅒ",
-        "ㅓ",
-        "ㅔ",
-        "ㅕ",
-        "ㅖ",
-        "ㅗ",
-        "ㅘ",
-        "ㅙ",
-        "ㅚ",
-        "ㅛ",
-        "ㅜ",
-        "ㅝ",
-        "ㅞ",
-        "ㅟ",
-        "ㅠ",
-        "ㅡ",
-        "ㅢ",
-        "ㅣ",
-    ]
-    JONGSUNG = [
-        "",
-        "ㄱ",
-        "ㄲ",
-        "ㄳ",
-        "ㄴ",
-        "ㄵ",
-        "ㄶ",
-        "ㄷ",
-        "ㄹ",
-        "ㄺ",
-        "ㄻ",
-        "ㄼ",
-        "ㄽ",
-        "ㄾ",
-        "ㄿ",
-        "ㅀ",
-        "ㅁ",
-        "ㅂ",
-        "ㅄ",
-        "ㅅ",
-        "ㅆ",
-        "ㅇ",
-        "ㅈ",
-        "ㅊ",
-        "ㅋ",
-        "ㅌ",
-        "ㅍ",
-        "ㅎ",
-    ]
-
-    all_korean_chars = []
-
-    # tqdm을 사용하여 한글 조합 생성 진행률 표시
-    for i in tqdm(range(len(CHOSUNG)), desc="Generating Hangul syllables"):
-        for j in range(len(JUNGSUNG)):
-            for k in range(len(JONGSUNG)):
-                code_point = (i * 21 * 28) + (j * 28) + k + 0xAC00
-                all_korean_chars.append(chr(code_point))
-
-    all_korean_chars.extend(CHOSUNG)
-    all_korean_chars.extend(JUNGSUNG)
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        # tqdm을 사용하여 파일 쓰기 진행률 표시
-        for char in tqdm(all_korean_chars, desc="Writing to file"):
-            f.write(char + "\n")
-
-    total_chars = len(all_korean_chars)
-    logger.info(f"Saved a total of {total_chars:,} Hangul characters to '{output_path}'.")
-    logger.info(
-        f"(Syllables: {11172:,}, Consonants: {len(CHOSUNG):,}, Vowels: {len(JUNGSUNG):,})"
     )
