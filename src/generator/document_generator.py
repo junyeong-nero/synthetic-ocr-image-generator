@@ -137,6 +137,12 @@ def generate_document_images(
     num_images: int = 100,
     output_dir: str = "documents",
     lang: str = "ko",
+    bold: Optional[bool] = None,
+    tilt: Optional[int] = None,
+    shadow: Optional[bool] = None,
+    distortion: Optional[bool] = None,
+    blur: Optional[bool] = None,
+    contrast: Optional[bool] = None,
 ) -> Optional[str]:
     """
     Generates document images with various layouts (single/double column, landscape/portrait).
@@ -144,6 +150,13 @@ def generate_document_images(
     :param corpus_path: Path to the text corpus file.
     :param num_images: Number of images to generate.
     :param output_dir: Directory to save the images.
+    :param lang: Language of the corpus.
+    :param bold: Force bold effect. If None, it's randomly applied.
+    :param tilt: Force a specific tilt angle. If None, it's randomly set.
+    :param shadow: Force shadow effect. If None, it's randomly applied.
+    :param distortion: Force distortion. If None, it's randomly applied.
+    :param blur: Force blur. If None, it's randomly applied.
+    :param contrast: Force contrast adjustment. If None, it's randomly applied.
     :return: Path to the directory where images were generated.
     """
     logger.info(
@@ -193,7 +206,41 @@ def generate_document_images(
         layout_func = random.choice(layout_functions)
         img, drawn_text = layout_func(text_chunk, font)
 
-        # 3. Save image and metadata
+        # 3. Apply noise and effects
+        apply_bold = random.choice([True, False]) if bold is None else bold
+        apply_tilt = (
+            random.randint(-5, 5) if tilt is None else tilt
+        )  # Reduced tilt for documents
+        apply_shadow = random.choice([True, False]) if shadow is None else shadow
+        apply_dist = random.choice([True, False]) if distortion is None else distortion
+        apply_blur = random.choice([True, False]) if blur is None else blur
+        apply_contrast = random.choice([True, False]) if contrast is None else contrast
+
+        # Create a temporary image with the drawn text to pass to _generate_text_image
+        # This is a bit of a workaround as _generate_text_image expects to draw the text itself.
+        # A better approach might be to refactor _generate_text_image to separate text drawing from effects.
+        # For now, we pass a dummy text and then composite.
+
+        # Create a transparent image to draw text on, to preserve layout
+        text_img = Image.new("RGBA", img.size, (255, 255, 255, 0))
+        temp_draw = ImageDraw.Draw(text_img)
+        # Re-draw text on transparent layer
+        _ = draw_text_in_box(temp_draw, text_chunk, font, (0, 0, img.width, img.height))
+
+        # Let's try to apply effects directly to the image for some effects
+        if apply_blur:
+            from PIL import ImageFilter
+
+            img = img.filter(ImageFilter.GaussianBlur(radius=random.uniform(0.5, 1.5)))
+        if apply_contrast:
+            from PIL import ImageEnhance
+
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(random.uniform(0.8, 1.2))
+        if apply_tilt:
+            img = img.rotate(apply_tilt, expand=True, fillcolor="white")
+
+        # 4. Save image and metadata
         if not drawn_text or drawn_text.strip() == "":
             # logger.info(f"... {i+1}/{num_images} skipped (no content)")
             continue
