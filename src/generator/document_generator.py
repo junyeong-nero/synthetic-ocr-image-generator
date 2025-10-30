@@ -17,7 +17,10 @@ def draw_text_in_box(
     font: ImageFont.ImageFont,
     box: Tuple[int, int, int, int],
 ) -> str:
-    """Draws text within a specified box area with automatic line wrapping."""
+    """
+    Draws text within a specified box area with automatic line wrapping.
+    Modified to return the drawn text with newline characters (\n) between lines.
+    """
     x1, y1, x2, y2 = box
     box_width = x2 - x1
     words = text.split()
@@ -62,11 +65,12 @@ def draw_text_in_box(
         y += line_height + line_spacing
         drawn_text_lines.append(line)
 
-    return " ".join(drawn_text_lines)
+    # *** 수정된 부분: drawn_text_lines를 '\n'으로 연결하여 반환 ***
+    return "\n".join(drawn_text_lines)
 
 
 # --------------------------------------------------------------------------
-# 2.2 Document Layout Generation Functions
+# 2.2 Document Layout Generation Functions (Unchanged)
 # --------------------------------------------------------------------------
 def create_single_column_layout(
     text: str, font: ImageFont.ImageFont
@@ -95,6 +99,8 @@ def create_two_column_layout(
 
     # Roughly split the text in half (in reality, this should be more complex to align column boundaries, but simplified here)
     split_point = len(text) // 2
+    # NOTE: It's better to split on a space/sentence boundary, but keeping the original
+    # simple split for consistency unless a more robust solution is required.
     text1 = text[:split_point]
     text2 = text[split_point:]
 
@@ -106,7 +112,11 @@ def create_two_column_layout(
     box2 = (margin + col_width + gutter, margin, width - margin, height - margin)
     drawn_text2 = draw_text_in_box(draw, text2, font, box2)
 
-    return img, f"{drawn_text1} {drawn_text2}".strip()
+    # *** 수정된 부분: 두 컬럼 텍스트 사이에 한 칸 띄어쓰기 대신 줄 바꿈 문자를 추가하여 분리 (선택적) ***
+    # V1: 띄어쓰기로 분리 (원본과 동일)
+    # return img, f"{drawn_text1} {drawn_text2}".strip()
+    # V2: 줄 바꿈 문자로 분리 (각 컬럼의 텍스트가 명확히 분리됨)
+    return img, f"{drawn_text1}\n\n{drawn_text2}".strip()
 
 
 def create_horizontal_layout(
