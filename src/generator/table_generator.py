@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 from utils import read_txt
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,8 +19,8 @@ def draw_text_in_box(
     box: Tuple[int, int, int, int],
 ) -> Tuple[str, int]:
     """
-    Draws text within a specified box area with automatic line wrapping.
-    Returns the drawn text and the actual height of the text.
+    지정된 상자 영역 내에서 자동 줄 바꿈으로 텍스트를 그립니다.
+    그려진 텍스트와 텍스트의 실제 높이를 반환합니다.
     """
     x1, y1, x2, y2 = box
     box_width = x2 - x1
@@ -72,30 +73,40 @@ def draw_text_in_box(
 
 
 def create_table_layout(
-    table_data: List[List[str]], font: ImageFont.ImageFont
+    table_data: List[List[str]],
+    font: ImageFont.ImageFont,
+    max_width: int = 1240,  # 최대 너비 제한
+    max_height: int = 1754,  # 최대 높이 제한
 ) -> Tuple[Image.Image, str]:
-    """Creates an image in a table format."""
-    width, height = 1240, 1754
+    """내용에 따라 크기가 조절되는 테이블 형식의 이미지를 생성합니다."""
     margin = 80
-    cell_padding = 10  # Cell inner padding
-
-    img = Image.new("RGB", (width, height), "white")
-    draw = ImageDraw.Draw(img)
+    cell_padding = 10
 
     num_rows = len(table_data)
     num_cols = len(table_data[0]) if num_rows > 0 else 0
-    if num_cols == 0:
-        return img, ""
 
-    # 1. Calculate column widths (equal division)
-    drawable_width = width - 2 * margin
-    col_widths = [drawable_width // num_cols] * num_cols
+    if num_rows == 0 or num_cols == 0:
+        return Image.new("RGB", (margin * 2, margin * 2), "white"), ""
 
-    # 2. Calculate row heights (dynamically determined by content)
+    # --- 1. 셀 내용에 따른 열 너비 및 행 높이 계산 ---
+    temp_draw = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+
+    # 각 열의 최대 너비 계산 (가장 긴 단어 기준)
+    col_widths = [0] * num_cols
+    for col_idx in range(num_cols):
+        max_word_width = 0
+        for row_idx in range(num_rows):
+            cell_text = table_data[row_idx][col_idx]
+            words = cell_text.split()
+            for word in words:
+                word_bbox = temp_draw.textbbox((0, 0), word, font=font)
+                word_width = word_bbox[2] - word_bbox[0]
+                max_word_width = max(max_word_width, word_width)
+        # 최소 너비를 설정하여 매우 좁은 열 방지
+        col_widths[col_idx] = max(max_word_width + 2 * cell_padding, 100)
+
+    # 각 행의 높이 계산 (자동 줄 바꿈 고려)
     row_heights = []
-    temp_draw = ImageDraw.Draw(
-        Image.new("RGB", (1, 1))
-    )  # Temporary draw object for height calculation
     for row_data in table_data:
         max_height_in_row = 0
         for i, cell_text in enumerate(row_data):
@@ -130,20 +141,33 @@ def create_table_layout(
             total_text_height += (
                 line_spacing * (len(lines) - 1) if len(lines) > 0 else 0
             )
-
             max_height_in_row = max(max_height_in_row, total_text_height)
 
         row_heights.append(max_height_in_row + 2 * cell_padding)
 
-    # 3. Draw the table
+    # --- 2. 계산된 크기를 바탕으로 이미지 생성 ---
+    total_width = sum(col_widths) + 2 * margin
+    total_height = sum(row_heights) + 2 * margin
+
+    # 최대 크기 제한 적용
+    final_width = int(total_width)
+    final_height = int(total_height)
+
+    img = Image.new("RGB", (final_width, final_height), "white")
+    draw = ImageDraw.Draw(img)
+
+    # --- 3. 테이블 그리기 ---
     all_drawn_text = []
     current_y = margin
     for i, row_data in enumerate(table_data):
-        if current_y + row_heights[i] > height - margin:
+        if current_y + row_heights[i] > final_height - margin:
             break
 
         current_x = margin
         for j, cell_text in enumerate(row_data):
+            if current_x + col_widths[j] > final_width - margin:
+                break
+
             box = (
                 current_x,
                 current_y,
@@ -174,36 +198,40 @@ def generate_table_images(
     lang: str = "ko",
 ) -> Optional[str]:
     """
-    Generates table images with a variable number of rows and columns.
+    가변적인 행과 열 개수를 가진 테이블 이미지를 생성합니다.
+    이미지 크기는 내용에 따라 동적으로 결정됩니다.
 
-    :param corpus_path: Path to the text corpus file.
-    :param num_images: Number of images to generate.
-    :param output_dir: Directory to save the images.
-    :param num_rows: Range for the number of rows in the table (min, max).
-    :param num_cols: Range for the number of columns in the table (min, max).
-    :return: Path to the directory where images were generated.
+    :param corpus_path: 텍스트 코퍼스 파일 경로.
+    :param num_images: 생성할 이미지 수.
+    :param output_dir: 이미지를 저장할 디렉토리.
+    :param num_rows: 테이블의 행 수 범위 (최소, 최대).
+    :param num_cols: 테이블의 열 수 범위 (최소, 최대).
+    :return: 이미지가 생성된 디렉토리 경로.
     """
     logger.info(
-        f"\nStarting [table] image generation using '{corpus_path}'. Target number of images: {num_images:,}"
+        f"\n'{corpus_path}'를 사용하여 [table] 이미지 생성을 시작합니다. 목표 이미지 수: {num_images:,}"
     )
     logger.info(
-        f"Table size: {num_rows[0]}-{num_rows[1]} rows, {num_cols[0]}-{num_cols[1]} columns"
+        f"테이블 크기: {num_rows[0]}-{num_rows[1]} 행, {num_cols[0]}-{num_cols[1]} 열"
     )
 
-    # --- Argument Validation ---
     if not (
         isinstance(num_rows, (list, tuple))
         and len(num_rows) == 2
         and num_rows[0] <= num_rows[1]
     ):
-        logger.error("Error: num_rows must be a tuple of (min, max) where min <= max.")
+        logger.error(
+            "오류: num_rows는 (최소, 최대) 형식의 튜플이어야 합니다 (최소 <= 최대)."
+        )
         return None
     if not (
         isinstance(num_cols, (list, tuple))
         and len(num_cols) == 2
         and num_cols[0] <= num_cols[1]
     ):
-        logger.error("Error: num_cols must be a tuple of (min, max) where min <= max.")
+        logger.error(
+            "오류: num_cols는 (최소, 최대) 형식의 튜플이어야 합니다 (최소 <= 최대)."
+        )
         return None
 
     output_path = Path(output_dir)
@@ -213,23 +241,25 @@ def generate_table_images(
 
     if not font_paths:
         logger.error(
-            f"Error: No .ttf font files found in the 'fonts/{lang}' directory. Aborting."
+            f"오류: 'fonts/{lang}' 디렉토리에서 .ttf 폰트 파일을 찾을 수 없습니다. 중단합니다."
         )
         return None
 
     corpus = read_txt(corpus_path)
     if not corpus:
-        logger.error(f"Error: '{corpus_path}' is empty or cannot be read. Aborting.")
+        logger.error(
+            f"오류: '{corpus_path}'가 비어있거나 읽을 수 없습니다. 중단합니다."
+        )
         return None
 
-    lines = [line[:10].strip() for line in corpus.splitlines() if line.strip()]
+    lines = [line.strip() for line in corpus.splitlines() if line.strip()]
     if not lines:
-        logger.error(f"Error: No content found in '{corpus_path}'. Aborting.")
+        logger.error(f"오류: '{corpus_path}'에서 내용을 찾을 수 없습니다. 중단합니다.")
         return None
 
     metadata: List[Dict[str, str]] = []
 
-    for i in tqdm(range(num_images), desc="Generating table images"):
+    for i in tqdm(range(num_images), desc="테이블 이미지 생성 중"):
         font_path = random.choice(font_paths)
         font_size = random.randint(12, 32)
         try:
@@ -237,7 +267,6 @@ def generate_table_images(
         except IOError:
             font = ImageFont.load_default()
 
-        # Determine random number of rows/columns within the specified range
         current_num_cols = random.randint(*num_cols)
         current_num_rows = random.randint(*num_rows)
 
@@ -245,7 +274,7 @@ def generate_table_images(
         for _ in range(current_num_rows):
             row_data = []
             for _ in range(current_num_cols):
-                num_words = random.randint(1, 10)
+                num_words = 1  #  random.randint(1, 3)
                 cell_text = " ".join(random.choices(lines, k=num_words))
                 row_data.append(cell_text)
             table_data.append(row_data)
@@ -265,5 +294,7 @@ def generate_table_images(
         for item in metadata:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-    logger.info(f"Successfully generated {len(metadata):,} table images and metadata.")
+    logger.info(
+        f"성공적으로 {len(metadata):,}개의 테이블 이미지와 메타데이터를 생성했습니다."
+    )
     return str(output_path)

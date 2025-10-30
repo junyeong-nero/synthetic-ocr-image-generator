@@ -44,13 +44,10 @@ def draw_text_in_box(
         test_line = f"{current_line} {word}".strip()
 
         # --- Pillow 버전 호환성 처리 ---
-        # 최신 Pillow 버전에서는 textsize 대신 textbbox를 사용해야 합니다.
         if hasattr(draw, "textbbox"):
-            # Pillow 9.2.0 이상 버전용
             line_bbox = draw.textbbox((0, 0), test_line, font=font)
             line_width = line_bbox[2] - line_bbox[0]
         else:
-            # 이전 버전 호환용
             line_width, _ = draw.textsize(test_line, font=font)
 
         if line_width <= box_width:
@@ -68,15 +65,12 @@ def draw_text_in_box(
     total_text_height = 0
 
     try:
-        # Pillow 8.0.0 이상
         line_height_A = font.getbbox("A")[3] - font.getbbox("A")[1]
     except AttributeError:
-        # 이전 버전
         _, line_height_A = font.getsize("A")
     line_spacing = line_height_A * 0.5
 
     for i, line in enumerate(lines):
-        # --- Pillow 버전 호환성 처리 ---
         if hasattr(draw, "textbbox"):
             line_bbox = draw.textbbox((0, 0), line, font=font)
             line_height = line_bbox[3] - line_bbox[1]
@@ -99,26 +93,44 @@ def draw_text_in_box(
 
 
 def create_table_layout(
-    table_data: List[List[str]], font: ImageFont.ImageFont
+    table_data: List[List[str]],
+    font: ImageFont.ImageFont,
+    max_width: int = 1240,  # 최대 너비 제한 추가
+    max_height: int = 1754,  # 최대 높이 제한 추가
 ) -> Tuple[Image.Image, str]:
-    """테이블 형식의 이미지를 생성합니다."""
-    width, height = 1240, 1754
+    """내용에 따라 크기가 조절되는 테이블 형식의 이미지를 생성합니다."""
     margin = 80
     cell_padding = 10
 
-    img = Image.new("RGB", (width, height), "white")
-    draw = ImageDraw.Draw(img)
-
     num_rows = len(table_data)
     num_cols = len(table_data[0]) if num_rows > 0 else 0
-    if num_cols == 0:
-        return img, ""
 
-    drawable_width = width - 2 * margin
-    col_widths = [drawable_width // num_cols] * num_cols
+    # 테이블 데이터가 없으면 빈 이미지를 반환합니다.
+    if num_rows == 0 or num_cols == 0:
+        return Image.new("RGB", (margin * 2, margin * 2), "white"), ""
 
-    row_heights = []
+    # --- 1. 셀 내용에 따른 열 너비 및 행 높이 계산 ---
     temp_draw = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+
+    # 각 열의 최대 너비 계산
+    col_widths = [0] * num_cols
+    for col_idx in range(num_cols):
+        max_word_width = 0
+        for row_idx in range(num_rows):
+            cell_text = table_data[row_idx][col_idx]
+            words = cell_text.split()
+            for word in words:
+                if hasattr(temp_draw, "textbbox"):
+                    word_bbox = temp_draw.textbbox((0, 0), word, font=font)
+                    word_width = word_bbox[2] - word_bbox[0]
+                else:
+                    word_width, _ = temp_draw.textsize(word, font=font)
+                max_word_width = max(max_word_width, word_width)
+        # 최소 너비를 설정하여 매우 좁은 열이 생기는 것을 방지
+        col_widths[col_idx] = max(max_word_width + 2 * cell_padding, 50)
+
+    # 각 행의 높이 계산 (자동 줄 바꿈 고려)
+    row_heights = []
     for row_data in table_data:
         max_height_in_row = 0
         for i, cell_text in enumerate(row_data):
@@ -129,7 +141,6 @@ def create_table_layout(
             for word in words:
                 test_line = f"{current_line} {word}".strip()
 
-                # --- Pillow 버전 호환성 처리 ---
                 if hasattr(temp_draw, "textbbox"):
                     line_bbox = temp_draw.textbbox((0, 0), test_line, font=font)
                     line_width = line_bbox[2] - line_bbox[0]
@@ -153,7 +164,6 @@ def create_table_layout(
 
             total_text_height = 0
             for line in lines:
-                # --- Pillow 버전 호환성 처리 ---
                 if hasattr(temp_draw, "textbbox"):
                     line_bbox = temp_draw.textbbox((0, 0), line, font=font)
                     line_height = line_bbox[3] - line_bbox[1]
@@ -164,19 +174,34 @@ def create_table_layout(
             total_text_height += (
                 line_spacing * (len(lines) - 1) if len(lines) > 0 else 0
             )
-
             max_height_in_row = max(max_height_in_row, total_text_height)
-
         row_heights.append(max_height_in_row + 2 * cell_padding)
 
+    # --- 2. 계산된 크기를 바탕으로 이미지 생성 ---
+    total_width = sum(col_widths) + 2 * margin
+    total_height = sum(row_heights) + 2 * margin
+
+    # 최대 크기 제한 적용
+    final_width = int(total_width)
+    final_height = int(total_height)
+
+    img = Image.new("RGB", (final_width, final_height), "white")
+    draw = ImageDraw.Draw(img)
+
+    # --- 3. 테이블 그리기 ---
     all_drawn_text = []
     current_y = margin
     for i, row_data in enumerate(table_data):
-        if current_y + row_heights[i] > height - margin:
+        # 이미지를 벗어나는 행은 그리지 않음
+        if current_y + row_heights[i] > final_height - margin:
             break
 
         current_x = margin
         for j, cell_text in enumerate(row_data):
+            # 이미지를 벗어나는 열은 그리지 않음
+            if current_x + col_widths[j] > final_width - margin:
+                break
+
             box = (
                 current_x,
                 current_y,
@@ -210,6 +235,7 @@ def generate_table_numeric_images(
     """
     가변적인 행과 열 개수를 가진 테이블 이미지를 생성합니다.
     첫 행과 첫 열은 'col_A', 'row_1'과 같은 형식의 헤더로, 나머지는 숫자로 채웁니다.
+    이미지 크기는 내용에 따라 동적으로 결정됩니다.
 
     :param corpus_path: 텍스트 코퍼스 파일 경로 (현재 사용되지 않음).
     :param num_images: 생성할 이미지 수.
@@ -225,7 +251,6 @@ def generate_table_numeric_images(
         f"테이블 크기: {num_rows[0]}-{num_rows[1]} 행, {num_cols[0]}-{num_cols[1]} 열"
     )
 
-    # 인수 유효성 검사
     if not (
         isinstance(num_rows, (list, tuple))
         and len(num_rows) == 2
@@ -271,13 +296,11 @@ def generate_table_numeric_images(
 
         table_data = []
 
-        # 헤더 행 생성 (e.g., "", "col_A", "col_B", ...)
         header_row = [""]
         for c in range(current_num_cols - 1):
             header_row.append(f"col_{chr(ord('A') + c)}")
         table_data.append(header_row)
 
-        # 데이터 행 생성 (첫 열은 행 이름, 나머지는 숫자)
         for r in range(1, current_num_rows):
             row_data = [f"row_{r}"]
             for _ in range(current_num_cols - 1):
