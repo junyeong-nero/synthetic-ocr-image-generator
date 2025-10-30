@@ -1,6 +1,7 @@
-lang: "ko"
+lang: "ja"
+repo_id: "junyeong-nero/synthetic-ocr-dataset-japanese"
+font_path: "fonts/ja/NotoSansJP-VariableFont_wght.ttf"
 output_dir: "data"
-repo_id: "junyeong-nero/synthetic-ocr-dataset"
 num_sentence_images: 10
 num_sentence_noise_images: 10
 num_sentence_typos_images: 10

@@ -22,12 +22,13 @@ logger = logging.getLogger(__name__)
 
 def pipeline(
     repo_id: str,
+    font_path: str,
     num_sentence_images: int,
     num_sentence_noise_images: int,
     num_sentence_typos_images: int,
     num_document_images: int,
     num_table_images: int,
-    num_table_numeric_images: int,  # num_table_numeric_images 인자 추가
+    num_table_numeric_images: int,
     num_needle_images: int,
     output_dir: str,
     lang: str,
@@ -47,9 +48,9 @@ def pipeline(
 
     # --- 1. 경로 초기화 ---
     logger.info(f"\n[SETUP] '{output_dir}'에 경로 및 디렉토리 초기화 중...")
-    base_output_path = Path(output_dir)
-    db_path = base_output_path / f"char_similarity_db_{lang}.json"
-    corpus_file_path = base_output_path / f"corpus_{lang}.txt"
+    base_dir = Path(output_dir)
+    db_path = base_dir / f"char_similarity_db_{lang}.json"
+    corpus_path = base_dir / f"corpus_{lang}.txt"
 
     # --- 2. 생성 작업 통합 설정 ---
     # paths와 GENERATION_TASKS를 하나로 통합하여 관리
@@ -126,31 +127,31 @@ def pipeline(
 
     # --- 3. 디렉토리 설정 ---
     for task_config in GENERATION_CONFIG.values():
-        path = base_output_path / task_config["dir_suffix"]
+        path = base_dir / task_config["dir_suffix"]
         path.mkdir(parents=True, exist_ok=True)
 
-    if not corpus_file_path.parent.exists():
-        corpus_file_path.parent.mkdir(parents=True, exist_ok=True)
+    if not corpus_path.parent.exists():
+        corpus_path.parent.mkdir(parents=True, exist_ok=True)
     logger.info("[SETUP] 모든 디렉토리가 준비되었습니다.")
 
     # --- 4. 코퍼스 생성 ---
-    if not corpus_file_path.exists():
+    if not corpus_path.exists():
         logger.info(
-            f"\n[CORPUS] '{corpus_file_path}'에서 코퍼스를 찾을 수 없습니다. 위키피디아에서 생성합니다..."
+            f"\n[CORPUS] '{corpus_path}'에서 코퍼스를 찾을 수 없습니다. 위키피디아에서 생성합니다..."
         )
         create_corpus_from_wiki(
-            output_path=str(corpus_file_path), lang=lang, num_sentences=5000
+            output_path=str(corpus_path), lang=lang, num_sentences=5000
         )
         logger.info("[CORPUS] 코퍼스를 성공적으로 생성했습니다.")
     else:
-        logger.info(f"\n[CORPUS] 기존 코퍼스 '{corpus_file_path}'를 사용합니다.")
+        logger.info(f"\n[CORPUS] 기존 코퍼스 '{corpus_path}'를 사용합니다.")
 
     if not db_path.exists():
         logger.info(
             f"\n[DB] '{db_path}'에서 문자 유사성 DB를 찾을 수 없습니다. 생성합니다..."
         )
         generate_similar_chars_db(
-            corpus_path=str(corpus_file_path), db_path=str(db_path)
+            corpus_path=str(corpus_path), db_path=str(db_path), font_path=font_path
         )
         logger.info("[DB] 문자 유사성 DB를 성공적으로 생성했습니다.")
     else:
@@ -166,7 +167,7 @@ def pipeline(
         if num_images > 0:
             logger.info(f"{num_images}개의 이미지를 요청했습니다.")
 
-            output_dir_path = base_output_path / task_config["dir_suffix"]
+            output_dir_path = base_dir / task_config["dir_suffix"]
 
             # 함수에 필요한 모든 인자 조합
             current_args = task_config["args"].copy()
@@ -174,7 +175,7 @@ def pipeline(
             current_args["output_dir"] = str(output_dir_path)
 
             generated_dir = task_config["func"](
-                corpus_path=str(corpus_file_path), **current_args
+                corpus_path=str(corpus_path), **current_args
             )
 
             if generated_dir is None:

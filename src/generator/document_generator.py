@@ -123,7 +123,10 @@ def create_horizontal_layout(
 
 
 def generate_document_images(
-    corpus_path: str, num_images: int = 100, output_dir: str = "documents", lang: str = "ko"
+    corpus_path: str,
+    num_images: int = 100,
+    output_dir: str = "documents",
+    lang: str = "ko",
 ) -> Optional[str]:
     """
     Generates document images with various layouts (single/double column, landscape/portrait).
@@ -197,5 +200,7 @@ def generate_document_images(
         for item in metadata:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-    logger.info(f"Successfully generated {len(metadata):,} document images and metadata.")
+    logger.info(
+        f"Successfully generated {len(metadata):,} document images and metadata."
+    )
     return str(output_path)
