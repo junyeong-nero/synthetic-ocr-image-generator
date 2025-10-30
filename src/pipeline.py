@@ -48,7 +48,7 @@ def pipeline(
 
     # --- 1. 경로 초기화 ---
     logger.info(f"\n[SETUP] '{output_dir}'에 경로 및 디렉토리 초기화 중...")
-    base_dir = Path(output_dir)
+    base_dir = Path(output_dir) / lang
     db_path = base_dir / f"char_similarity_db_{lang}.json"
     corpus_path = base_dir / f"corpus_{lang}.txt"
 
