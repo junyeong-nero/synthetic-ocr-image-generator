@@ -9,6 +9,7 @@ from character_similarity import generate_similar_chars_db
 from generator.document_generator import generate_document_images
 from generator.sentence_generator import generate_sentence_images
 from generator.sentence_typo_generator import generate_sentence_typos_images
+from generator.document_typo_generator import generate_document_images as generate_document_typos_images
 from generator.table_generator import generate_table_images
 from generator.table_numeric_generator import generate_table_numeric_images
 from generator.needle_in_a_haystack_generator import (
@@ -28,6 +29,7 @@ def pipeline(
     num_sentence_noise_images: int,
     num_sentence_typos_images: int,
     num_document_images: int,
+    num_document_typos_images: int,
     num_table_images: int,
     num_table_numeric_images: int,
     num_needle_images: int,
@@ -92,6 +94,13 @@ def pipeline(
             "config_name": "document",
             "args": {"lang": lang},
         },
+        "document_typos": {
+            "name": "Document Typos",
+            "func": generate_document_typos_images,
+            "dir_suffix": "images_document_typos",
+            "config_name": "document_typos",
+            "args": {"db_path": str(db_path), "lang": lang},
+        },
         "table": {
             "name": "Table",
             "func": generate_table_images,
@@ -121,6 +130,7 @@ def pipeline(
         "sentence_noise": num_sentence_noise_images,
         "sentence_typos": num_sentence_typos_images,
         "document": num_document_images,
+        "document_typos": num_document_typos_images,
         "table": num_table_images,
         "table_numeric": num_table_numeric_images,
         "needle": num_needle_images,

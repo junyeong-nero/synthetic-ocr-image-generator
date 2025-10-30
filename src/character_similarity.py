@@ -2,6 +2,8 @@ import os
 import cv2
 import numpy as np
 import logging
+import random
+from typing import Dict, List, Any
 
 from tqdm import tqdm
 from skimage.metrics import structural_similarity as ssim
@@ -86,7 +88,7 @@ def build_similarity_database(char_list, font_path, db_path, threshold=0.5):
     return similarity_db
 
 
-# --- Step 2: Searching for similar characters using the database ---
+# --- Step 2: Searching for similar characters using the database --- 
 
 
 def find_similar_chars(query_char, db, top_n=5):
@@ -110,6 +112,104 @@ def find_similar_chars(query_char, db, top_n=5):
     )
     return similar_items[:top_n]
 
+
+# --- Step 3: Generating typos using the database --- 
+
+
+def generate_sentence_typos(texts: List[str], db: Dict[str, Any], top_n: int = 1) -> List[str]:
+    """
+    주어진 텍스트 목록에 대해 유사 문자를 기반으로 오타를 생성합니다.
+
+    Args:
+        texts: 오타를 생성할 원본 문자열의 리스트.
+        db: 유사 문자 데이터베이스.
+        top_n: 각 문자에 대해 고려할 유사 문자의 최대 개수.
+
+    Returns:
+        생성된 모든 오타 문장들의 리스트.
+    """
+
+    def _generate_typos(word: str) -> List[str]:
+        """하나의 단어에 대한 오타 후보들을 생성합니다."""
+        if not word:  # 빈 문자열 처리
+            return [""]
+
+        n = len(word)
+        # 단어의 맨 앞/뒤가 아닌, 문자 사이에서 오타를 생성하려면 randint(0, n-1) 사용
+        index = random.randint(0, n - 1)
+
+        # 숫자인 경우 오타를 생성하지 않음
+        if word[index].isnumeric():
+            return [word]
+
+        original_char = word[index]
+        word_list: List[str] = list(word)
+
+        similar_chars: List[str] = find_similar_chars(original_char, db, top_n=top_n)
+
+        result: List[str] = []
+        for similar_char in similar_chars:
+            word_list[index] = similar_char[0]
+            result.append("".join(word_list))
+
+        # 원래 단어도 후보에 포함시키려면 아래 주석 해제
+        # if original_char not in similar_chars:
+        #     result.append(word)
+
+        return result
+
+    all_generated_sentences: List[str] = []
+    for text in texts:
+        words: List[str] = text.split()
+
+        # 각 단어에 대한 오타 후보들의 리스트 (예: [["안녕", "안녕"], ["하세여", "하새요"]])
+        words_candidate: List[List[str]] = [_generate_typos(word) for word in words]
+
+        # 생성된 오타 단어들의 모든 조합을 생성
+        # (이 부분은 조합이 기하급수적으로 늘어날 수 있어 주의가 필요합니다)
+        sentences: List[str] = [""]
+        for typo_words in words_candidate:
+            new_sentences: List[str] = [
+                f"{sentence} {word}".strip()
+                for sentence in sentences
+                for word in typo_words
+            ]
+            sentences = new_sentences
+        all_generated_sentences.extend(sentences)
+
+    return all_generated_sentences
+
+def inject_document_typos(text: str, db: Dict[str, Any], typo_rate: float = 0.05, top_n: int = 1) -> str:
+    """
+    Injects typos into a given text based on character similarity.
+    A typo is introduced on a word-by-word basis with a given probability (typo_rate).
+    """
+    words = text.split(' ')
+    new_words = []
+    for word in words:
+        if random.random() < typo_rate and len(word) > 1:
+            # Introduce a typo in this word
+            char_index_to_change = random.randint(0, len(word) - 1)
+            original_char = word[char_index_to_change]
+
+            if original_char.isnumeric() or original_char.isspace():
+                new_words.append(word)
+                continue
+
+            similar_chars = find_similar_chars(original_char, db, top_n=top_n)
+            if similar_chars:
+                # Replace with a similar character
+                new_char = random.choice(similar_chars)[0]
+                word_list = list(word)
+                word_list[char_index_to_change] = new_char
+                new_words.append("".join(word_list))
+            else:
+                # No similar character found, keep original
+                new_words.append(word)
+        else:
+            # No typo for this word
+            new_words.append(word)
+    return " ".join(new_words)
 
 def generate_similar_chars_db(
     corpus_path="data/corpus.txt",
