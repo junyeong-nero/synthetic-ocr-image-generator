@@ -87,7 +87,7 @@ def clean_wiki_text(text: str, lang: str) -> str:
 # --------------------------------------------------------------------------
 # 1.2 Function to Create a Corpus File from Wikipedia
 # --------------------------------------------------------------------------
-def create_corpus_from_wiki(output_path: str, lang: str, num_sentences: int = 5000):
+def create_corpus_from_wiki(output_path: str, lang: str, num_sentences: int = 100000):
     """
     Collects sentences from the Wikimedia dataset for a specified language to create a corpus file.
     """

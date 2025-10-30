@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 def pipeline(
     repo_id: str,
     font_path: str,
+    num_sentences: int,
     num_sentence_images: int,
     num_sentence_noise_images: int,
     num_sentence_typos_images: int,
@@ -140,7 +141,7 @@ def pipeline(
             f"\n[CORPUS] '{corpus_path}'에서 코퍼스를 찾을 수 없습니다. 위키피디아에서 생성합니다..."
         )
         create_corpus_from_wiki(
-            output_path=str(corpus_path), lang=lang, num_sentences=5000
+            output_path=str(corpus_path), lang=lang, num_sentences=num_sentences
         )
         logger.info("[CORPUS] 코퍼스를 성공적으로 생성했습니다.")
     else:
