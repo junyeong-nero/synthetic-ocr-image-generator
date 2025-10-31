@@ -23,22 +23,33 @@ def needle_in_a_haystack_generator(
     result = []
     chars = set(list(corpus))
     for char in chars:
-
         size_x = random.randint(num_size[0], num_size[1])
         size_y = random.randint(num_size[0], num_size[1])
-        num_needle = int(size_x * size_y * needle_ratio)
+        num_needle_to_inject = int(size_x * size_y * needle_ratio)
 
         sim_chars = find_similar_chars(char, db, top_n=top_n)
         if not sim_chars:
             continue
 
-        temp = [[char for _ in range(size_y)] for _ in range(size_x)]
-        x = random.choices(list(range(size_x)), k=num_needle)
-        y = random.choices(list(range(size_y)), k=num_needle)
-        for _x, _y in zip(x, y):
-            temp[_x][_y] = sim_chars[0][0]
+        temp_grid = [[char for _ in range(size_y)] for _ in range(size_x)]
 
-        result.append("\n".join(["".join(row) for row in temp]))
+        for _ in range(num_needle_to_inject):
+            x = random.randint(0, size_x - 1)
+            y = random.randint(0, size_y - 1)
+            temp_grid[x][y] = sim_chars[0][0]
+
+        generated_text = "\n".join(["".join(row) for row in temp_grid])
+
+        actual_needle_count = generated_text.count(sim_chars[0][0])
+
+        result.append(
+            {
+                "generated_text": generated_text,
+                "original_char": char,
+                "needle_char": sim_chars[0][0],
+                "needle_count": actual_needle_count,
+            }
+        )
 
     return result
 
@@ -70,7 +81,10 @@ def generate_needle_in_a_haystack_images(
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
 
-    texts = needle_in_a_haystack_generator(corpus_path, db_path, top_n=3)
+    generated_haystacks = needle_in_a_haystack_generator(corpus_path, db_path, top_n=3)
+    if not generated_haystacks:
+        logger.error("Error: No haystacks generated. Aborting.")
+        return None
 
     background_colors = [
         (255, 255, 255),
@@ -88,7 +102,12 @@ def generate_needle_in_a_haystack_images(
 
     for idx in tqdm(range(num_images), desc="Generating needle images"):
         font_path = random.choice(font_paths)
-        text = random.choice(texts)
+
+        selected_haystack_data = random.choice(generated_haystacks)
+        text_to_render = selected_haystack_data["generated_text"]
+        needle_char = selected_haystack_data["needle_char"]
+        needle_count = selected_haystack_data["needle_count"]
+
         bg_color = random.choice(background_colors)
         font_size = random.randint(*resolution_range)
 
@@ -100,7 +119,7 @@ def generate_needle_in_a_haystack_images(
         contrast = random.choice([True, False])
 
         img = _generate_text_image(
-            text=text,
+            text=text_to_render,
             font_path=font_path,
             background_color=bg_color,
             font_size=font_size,
@@ -116,12 +135,15 @@ def generate_needle_in_a_haystack_images(
         image_path = output_path / image_filename
         img.save(image_path)
 
+        prompt_text = f"Count the number of '{needle_char}' characters in the image."
+        response_text = str(needle_count)
+
         image_text_pairs.append(
             {
                 "file_name": str(image_path),
-                "text": text,
-                "prompt": "Transcribe all text visible in the image accurately, without any missing characters or modifications.",
-                "response": text,
+                "text": text_to_render,
+                "prompt": prompt_text,
+                "response": response_text,
             }
         )
 

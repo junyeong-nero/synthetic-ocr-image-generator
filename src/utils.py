@@ -137,7 +137,12 @@ def upload_subset_to_hub(dataset_dir: str, repo_id: str, config_name: str):
 
         # Hugging Face Dataset 객체 생성
         dataset = Dataset.from_dict(
-            {"image": image_paths, "text": texts, "prompt": prompts, "response": responses},
+            {
+                "image": image_paths,
+                "text": texts,
+                "prompt": prompts,
+                "response": responses,
+            },
             features=Features(
                 {
                     "image": HFImage(),

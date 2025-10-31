@@ -195,7 +195,7 @@ def generate_table_typo_images(
     db_path: str,
     num_images: int = 100,
     output_dir: str = "tables",
-    num_rows: Tuple[int, int] = (5, 20),
+    num_rows: Tuple[int, int] = (2, 10),
     num_cols: Tuple[int, int] = (2, 10),
     lang: str = "ko",
 ) -> Optional[str]:
@@ -306,10 +306,14 @@ def generate_table_typo_images(
         img.save(filepath)
 
         # Randomly select a cell for the prompt
-        target_row_idx = random.randint(0, current_num_rows - 1)
-        target_col_idx = random.randint(0, current_num_cols - 1)
+        target_row_idx = random.randint(1, current_num_rows - 1)
+        target_col_idx = random.randint(1, current_num_cols - 1)
 
-        prompt_text = f"Extract the text from row {target_row_idx + 1}, column {target_col_idx + 1} of the table."
+        # Determine the human-readable row and column labels for the prompt
+        row_display = f"row_{target_row_idx - 1}"
+        col_display = f"col_{chr(ord('A') + target_col_idx - 1)}"
+
+        prompt_text = f"Extract the text from the cell at row '{row_display}', column '{col_display}'."
         response_text = table_data[target_row_idx][target_col_idx]
 
         metadata.append(
