@@ -6,7 +6,8 @@ import logging
 
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
-from utils import read_txt
+from utils import read_txt, read_json
+from character_similarity import generate_sentence_typos
 
 
 logger = logging.getLogger(__name__)
@@ -189,8 +190,9 @@ def create_table_layout(
     return img, " ".join(filter(None, all_drawn_text))
 
 
-def generate_table_images(
+def generate_table_typo_images(
     corpus_path: str,
+    db_path: str,
     num_images: int = 100,
     output_dir: str = "tables",
     num_rows: Tuple[int, int] = (5, 20),
@@ -202,6 +204,7 @@ def generate_table_images(
     이미지 크기는 내용에 따라 동적으로 결정됩니다.
 
     :param corpus_path: 텍스트 코퍼스 파일 경로.
+    :param db_path: 오타 생성을 위한 DB 파일 경로.
     :param num_images: 생성할 이미지 수.
     :param output_dir: 이미지를 저장할 디렉토리.
     :param num_rows: 테이블의 행 수 범위 (최소, 최대).
@@ -209,7 +212,7 @@ def generate_table_images(
     :return: 이미지가 생성된 디렉토리 경로.
     """
     logger.info(
-        f"\n'{corpus_path}'를 사용하여 [table] 이미지 생성을 시작합니다. 목표 이미지 수: {num_images:,}"
+        f"\n'{corpus_path}'를 사용하여 [table with typos] 이미지 생성을 시작합니다. 목표 이미지 수: {num_images:,}"
     )
     logger.info(
         f"테이블 크기: {num_rows[0]}-{num_rows[1]} 행, {num_cols[0]}-{num_cols[1]} 열"
@@ -252,6 +255,11 @@ def generate_table_images(
         )
         return None
 
+    db = read_json(db_path)
+    if not db:
+        logger.error(f"오류: '{db_path}'가 비어있거나 읽을 수 없습니다. 중단합니다.")
+        return None
+
     lines = [line.strip() for line in corpus.splitlines() if line.strip()]
     if not lines:
         logger.error(f"오류: '{corpus_path}'에서 내용을 찾을 수 없습니다. 중단합니다.")
@@ -280,9 +288,12 @@ def generate_table_images(
         for r in range(1, current_num_rows):
             row_data = [f"row_{r}"]
             for _ in range(current_num_cols - 1):
-                num_words = 1  #  random.randint(1, 3)
+                num_words = 1
                 cell_text = " ".join(random.choices(lines, k=num_words))
-                row_data.append(cell_text)
+                cell_text_with_typo = generate_sentence_typos([cell_text], db, top_n=1)[
+                    0
+                ]
+                row_data.append(cell_text_with_typo)
             table_data.append(row_data)
 
         img, drawn_text = create_table_layout(table_data, font)

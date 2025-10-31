@@ -115,7 +115,8 @@ def generate_sentence_images(
             {
                 "file_name": str(image_filepath),
                 "text": text,
-                "prompt": "이미지에서 텍스트를 추출해 주세요.",
+                "prompt": "Transcribe all text visible in the image accurately, without any missing characters or modifications.",
+                "response": text,
             }
         )
 

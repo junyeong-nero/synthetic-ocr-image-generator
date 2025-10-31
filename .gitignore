@@ -1,3 +1,5 @@
 *.ttf
 *.pyc
 data/
+
+__pycache__/

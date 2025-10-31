@@ -228,7 +228,7 @@ def generate_table_numeric_images(
     num_images: int = 100,
     output_dir: str = "tables",
     num_rows: Tuple[int, int] = (5, 20),
-    num_cols: Tuple[int, int] = (2, 5),
+    num_cols: Tuple[int, int] = (2, 10),
     lang: str = "ko",
     digits: int = 4,
 ) -> Optional[str]:
@@ -317,11 +317,20 @@ def generate_table_numeric_images(
         filename = f"table_{i:04d}.png"
         filepath = output_path / filename
         img.save(filepath)
+
+        # Randomly select a cell for the prompt
+        target_row_idx = random.randint(0, current_num_rows - 1)
+        target_col_idx = random.randint(0, current_num_cols - 1)
+
+        prompt_text = f"Extract the text from row {target_row_idx + 1}, column {target_col_idx + 1} of the table."
+        response_text = table_data[target_row_idx][target_col_idx]
+
         metadata.append(
             {
                 "file_name": str(filepath),
                 "text": drawn_text,
-                "prompt": "이미지에서 텍스트를 추출해 주세요.",
+                "prompt": prompt_text,
+                "response": response_text,
             }
         )
 

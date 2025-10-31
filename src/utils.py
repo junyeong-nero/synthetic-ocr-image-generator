@@ -119,6 +119,7 @@ def upload_subset_to_hub(dataset_dir: str, repo_id: str, config_name: str):
         image_paths: List[str] = []
         texts: List[str] = []
         prompts: List[str] = []
+        responses: List[str] = []
 
         # 메타데이터 로드
         with open(metadata_path, "r", encoding="utf-8") as f:
@@ -127,9 +128,8 @@ def upload_subset_to_hub(dataset_dir: str, repo_id: str, config_name: str):
                 # 파일 경로를 dataset_dir을 기준으로 절대/상대 경로 조정 필요 (여기서는 현재 경로 기준 유지)
                 image_paths.append(str(Path(data["file_name"])))
                 texts.append(data["text"])
-                prompts.append(
-                    data.get("prompt", "")
-                )  # prompt 필드가 없을 경우 빈 문자열 할당
+                prompts.append(data.get("prompt", ""))
+                responses.append(data.get("response", ""))
 
         logger.info(
             f"  '{config_name}' subset: 총 {len(image_paths):,}개의 이미지-텍스트 쌍을 찾았습니다."
@@ -137,9 +137,14 @@ def upload_subset_to_hub(dataset_dir: str, repo_id: str, config_name: str):
 
         # Hugging Face Dataset 객체 생성
         dataset = Dataset.from_dict(
-            {"image": image_paths, "text": texts, "prompt": prompts},
+            {"image": image_paths, "text": texts, "prompt": prompts, "response": responses},
             features=Features(
-                {"image": HFImage(), "text": Value("string"), "prompt": Value("string")}
+                {
+                    "image": HFImage(),
+                    "text": Value("string"),
+                    "prompt": Value("string"),
+                    "response": Value("string"),
+                }
             ),
         )
 

@@ -12,6 +12,7 @@ from generator.sentence_typo_generator import generate_sentence_typos_images
 from generator.document_typo_generator import generate_document_images as generate_document_typos_images
 from generator.table_generator import generate_table_images
 from generator.table_numeric_generator import generate_table_numeric_images
+from generator.table_typo_generator import generate_table_typo_images
 from generator.needle_in_a_haystack_generator import (
     generate_needle_in_a_haystack_images,
 )
@@ -33,6 +34,7 @@ def pipeline(
     num_document_typos_images: int,
     num_table_images: int,
     num_table_numeric_images: int,
+    num_table_typos_images: int,
     num_needle_images: int,
     output_dir: str,
     lang: str,
@@ -131,6 +133,13 @@ def pipeline(
             "config_name": "table_numeric",
             "args": {"lang": lang},
         },
+        "table_typos": {
+            "name": "Table Typos",
+            "func": generate_table_typo_images,
+            "dir_suffix": "images_table_typos",
+            "config_name": "table_typos",
+            "args": {"db_path": str(db_path), "lang": lang},
+        },
         "needle": {
             "name": "Needle in a Haystack",
             "func": generate_needle_in_a_haystack_images,
@@ -150,6 +159,7 @@ def pipeline(
         "document_typos": num_document_typos_images,
         "table": num_table_images,
         "table_numeric": num_table_numeric_images,
+        "table_typos": num_table_typos_images,
         "needle": num_needle_images,
     }
 
