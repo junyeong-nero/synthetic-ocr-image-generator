@@ -116,7 +116,13 @@ def generate_sentence_typos_images(
         image_filepath = output_path / image_filename
         img.save(image_filepath)
 
-        image_text_pairs.append({"file_name": str(image_filepath), "text": text})
+        image_text_pairs.append(
+            {
+                "file_name": str(image_filepath),
+                "text": text,
+                "prompt": "이미지에서 텍스트를 추출해 주세요.",
+            }
+        )
 
     # --- Save Metadata ---
     metadata_path = output_path / "metadata.jsonl"

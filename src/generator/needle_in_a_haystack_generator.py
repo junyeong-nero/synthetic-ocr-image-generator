@@ -116,7 +116,13 @@ def generate_needle_in_a_haystack_images(
         image_path = output_path / image_filename
         img.save(image_path)
 
-        image_text_pairs.append({"file_name": str(image_path), "text": text})
+        image_text_pairs.append(
+            {
+                "file_name": str(image_path),
+                "text": text,
+                "prompt": "이미지에서 텍스트를 추출해 주세요.",
+            }
+        )
 
     metadata_path = output_path / "metadata.jsonl"
     with open(metadata_path, "w", encoding="utf-8") as f:

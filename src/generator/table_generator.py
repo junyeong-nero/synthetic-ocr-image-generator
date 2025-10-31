@@ -287,7 +287,13 @@ def generate_table_images(
         filename = f"table_{i:04d}.png"
         filepath = output_path / filename
         img.save(filepath)
-        metadata.append({"file_name": str(filepath), "text": drawn_text})
+        metadata.append(
+            {
+                "file_name": str(filepath),
+                "text": drawn_text,
+                "prompt": "이미지에서 텍스트를 추출해 주세요.",
+            }
+        )
 
     metadata_path = output_path / "metadata.jsonl"
     with open(metadata_path, "w", encoding="utf-8") as f:

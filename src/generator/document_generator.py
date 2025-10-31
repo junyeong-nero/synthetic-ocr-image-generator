@@ -249,7 +249,13 @@ def generate_document_images(
         filepath = output_path / filename
         img.save(filepath)
 
-        metadata.append({"file_name": str(filepath), "text": drawn_text})
+        metadata.append(
+            {
+                "file_name": str(filepath),
+                "text": drawn_text,
+                "prompt": "이미지에서 텍스트를 추출해 주세요.",
+            }
+        )
 
     # Save metadata file (JSONL format)
     metadata_path = output_path / "metadata.jsonl"
