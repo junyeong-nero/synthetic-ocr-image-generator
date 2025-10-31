@@ -1,6 +1,26 @@
-# Korean-OCR-bench
+## Introduction
 
-한글 OCR(광학 문자 인식) 모델의 성능을 벤치마킹하고 평가하기 위한 도구입니다. 이 프로젝트는 다양한 유형의 질문(Question Types)을 포함하는 벤치마크 데이터셋을 생성하고, 이를 통해 OCR 모델이 실제 시나리오에서 얼마나 잘 작동하는지 측정하는 것을 목표로 합니다.
+> **Multi-lingual OCR 데이터셋이 부족하다.**
+> 
+- 대부분의 데이터가 영어, 중국어로 이루어져 있음. minor language의 경우에는 공개되어 있는 데이터셋이 부족하다.
+- 한국어의 경우에도 공개되어 있는 데이터가 굉장히 적고, 공개되어있는 데이터도 접근 권한이 필요하기 때문에 사용하기 어렵다.
+- 기존의 synthetic OCR 데이터셋은 테이블이나 문서 형태의 레이아웃은 지원하지 않아 문서나 테이블과 같은 형식에서의 성능을 판단하기 어렵다.
+
+> **OCR의 주요한 오류 원인 중 하나인 문자교환 오류를 디테일하게 확인해야 한다.**
+> 
+- OCR을 사용하는 추출한 문자의 정확도가 정말 중요하다.
+    - 환자의 이름이 바뀐다거나, 대출금의 숫자가 바뀐다면 큰 영향이 있다.
+    - 단어 하나로 뉘양스가 바뀌거나, 완전히 의미가 바뀌는 경우도 있다.
+- 한국어의 경우 획의 조합으로 문자가 생성되기 때문에 이런 문자 교환 오류(character substitution errors) 가 발생할 가능성이 높을 것이다.
+- 한국어 뿐만 아니라, 한자 일본어의 경우에도 이런 문제가 발생할 수 있다.
+    - 한자 日(날 일)와 曰(말할 왈) 두 글자는 매우 유사하여 인식 난이도가 있다.
+    - 한글 의사(doctor)와 익사(drowing) 은 매우 유사하여 인식 난이도가 있다.
+
+> **Multilingual OCR Synthetic Dataset**
+> 
+- Font와 Corpus를 이용하여 OCR 데이터셋을 합성하여 minor language에서도 OCR 데이터를 제공한다.
+- 테이블과 문서 형식의 이미지 데이터를 공급하여 Document OCR을 평가 및 학습할 수 있도록 기여한다.
+- 문장에서 한 단어를 비슷한 문자로 치환한 OCR 데이터를 제공하여 문자 교환 오류에 대한 robustness 를 평가 및 학습 할 수 있도록 한다.
 
 ## 주요 기능:
 
@@ -31,34 +51,3 @@ python main.py --config_path config/config_ko.yaml
 ### 3. 설정 파일 수정
 
 `config` 디렉토리 내의 YAML 파일을 수정하여 데이터 생성 방식을 세부적으로 제어할 수 있습니다. 예를 들어, 생성할 데이터의 양, 텍스트 스타일, 이미지 배경 등을 설정할 수 있습니다.
-
-## 개발 및 기여
-
-프로젝트에 기여하려면 다음 단계를 따르세요:
-
-1.  저장소를 포크(Fork)합니다.
-2.  새로운 브랜치를 생성합니다 (`git checkout -b feature/your-feature-name`).
-3.  변경 사항을 커밋합니다 (`git commit -m 'Add some feature'`).
-4.  원격 저장소에 푸시합니다 (`git push origin feature/your-feature-name`).
-5.  풀 리퀘스트(Pull Request)를 생성합니다.
-
-# Question Types
-
-```
-{
-    "Key Information Extraction",
-    "Handwriting Recognition",
-    "Scene Text-centric VQA",
-    "Handwritten Mathematical Expression Recognition",
-    "Irregular Text Recognition",
-    "Digit String Recognition",
-    "Non-Semantic Text Recognition",
-    "Artistic Text Recognition",
-    "Doc-oriented VQA",
-    "Regular Text Recognition",
-}
-```
-
-# Reference
-
-- HF: [link](https://huggingface.co/datasets/echo840/OCRBench)
