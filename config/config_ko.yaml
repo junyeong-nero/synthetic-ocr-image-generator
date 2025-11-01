@@ -1,7 +1,7 @@
 lang: "ko"
-repo_id: "junyeong-nero/synthetic-ocr-dataset-korean"
+repo_id: "junyeong-nero/synthetic-ocr-images-korean"
 num_sentences: 100000
-font_path: "fonts/ko/NotoSansKR-VariableFont_wght.ttf"
+font_path: "fonts/NotoSans-VariableFont_wdth,wght.ttf"
 output_dir: "data"
 num_sentence_images: 10
 num_sentence_noise_images: 10

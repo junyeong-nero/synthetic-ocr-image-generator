@@ -88,7 +88,7 @@ def build_similarity_database(char_list, font_path, db_path, threshold=0.5):
     return similarity_db
 
 
-# --- Step 2: Searching for similar characters using the database --- 
+# --- Step 2: Searching for similar characters using the database ---
 
 
 def find_similar_chars(query_char, db, top_n=5):
@@ -113,10 +113,12 @@ def find_similar_chars(query_char, db, top_n=5):
     return similar_items[:top_n]
 
 
-# --- Step 3: Generating typos using the database --- 
+# --- Step 3: Generating typos using the database ---
 
 
-def generate_sentence_typos(texts: List[str], db: Dict[str, Any], top_n: int = 1) -> List[str]:
+def generate_sentence_typos(
+    texts: List[str], db: Dict[str, Any], top_n: int = 1
+) -> List[str]:
     """
     주어진 텍스트 목록에 대해 유사 문자를 기반으로 오타를 생성합니다.
 
@@ -152,9 +154,9 @@ def generate_sentence_typos(texts: List[str], db: Dict[str, Any], top_n: int = 1
             word_list[index] = similar_char[0]
             result.append("".join(word_list))
 
-        # 원래 단어도 후보에 포함시키려면 아래 주석 해제
-        # if original_char not in similar_chars:
-        #     result.append(word)
+        # 유사 단어가 없는 경우, 기존 단어추가
+        if not result:
+            result.append(word)
 
         return result
 
@@ -179,12 +181,15 @@ def generate_sentence_typos(texts: List[str], db: Dict[str, Any], top_n: int = 1
 
     return all_generated_sentences
 
-def inject_document_typos(text: str, db: Dict[str, Any], typo_rate: float = 0.05, top_n: int = 1) -> str:
+
+def inject_document_typos(
+    text: str, db: Dict[str, Any], typo_rate: float = 0.05, top_n: int = 1
+) -> str:
     """
     Injects typos into a given text based on character similarity.
     A typo is introduced on a word-by-word basis with a given probability (typo_rate).
     """
-    words = text.split(' ')
+    words = text.split(" ")
     new_words = []
     for word in words:
         if random.random() < typo_rate and len(word) > 1:
@@ -210,6 +215,7 @@ def inject_document_typos(text: str, db: Dict[str, Any], typo_rate: float = 0.05
             # No typo for this word
             new_words.append(word)
     return " ".join(new_words)
+
 
 def generate_similar_chars_db(
     corpus_path="data/corpus.txt",

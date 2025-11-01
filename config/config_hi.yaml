@@ -1,5 +1,5 @@
-lang: "ja"
-repo_id: "junyeong-nero/synthetic-ocr-images-japanese"
+lang: "hi"
+repo_id: "junyeong-nero/synthetic-ocr-images-hindi"
 num_sentences: 100000
 font_path: "fonts/NotoSans-VariableFont_wdth,wght.ttf"
 output_dir: "data"
