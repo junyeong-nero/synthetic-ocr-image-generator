@@ -1,22 +1,3 @@
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#     "datasets",
-#     "huggingface-hub[hf_transfer]",
-#     "pillow",
-#     "vllm",
-#     "tqdm",
-#     "toolz",
-#     "torch",
-# ]
-#
-# [[tool.uv.index]]
-# url = "https://wheels.vllm.ai/nightly"
-#
-# [tool.uv]
-# prerelease = "allow"
-# ///
-
 """
 Convert document images to markdown using DeepSeek-OCR with vLLM.
 
@@ -250,6 +231,7 @@ def main(
     input_dataset: str,
     output_dataset: str,
     image_column: str = "image",
+    prompt_column: str = "prompt",
     batch_size: int = 8,  # Smaller batch size to avoid potential memory issues with DeepSeek-OCR
     model: str = "deepseek-ai/DeepSeek-OCR",
     resolution_mode: str = "gundam",
@@ -332,7 +314,7 @@ def main(
 
     # Load dataset
     logger.info(f"Loading dataset: {input_dataset}")
-    dataset = load_dataset(input_dataset, split=split)
+    dataset = load_dataset(input_dataset, "sentence_typos", split=split)
 
     # Validate image column
     if image_column not in dataset.column_names:
@@ -384,11 +366,13 @@ def main(
     ):
         batch_indices = list(batch_indices)
         batch_images = [dataset[i][image_column] for i in batch_indices]
+        batch_prompts = [dataset[i][prompt_column] for i in batch_indices]
 
         try:
             # Create messages for batch
             batch_messages = [
-                make_ocr_message(img, final_prompt) for img in batch_images
+                make_ocr_message(img, prompt)
+                for img, prompt in zip(batch_images, batch_prompts)
             ]
 
             # Process with vLLM
@@ -593,6 +577,11 @@ Examples:
         help="Column containing images (default: image)",
     )
     parser.add_argument(
+        "--prompt-column",
+        default="prompt",
+        help="Column containing images (default: prompt)",
+    )
+    parser.add_argument(
         "--batch-size",
         type=int,
         default=8,
@@ -682,6 +671,7 @@ Examples:
         input_dataset=args.input_dataset,
         output_dataset=args.output_dataset,
         image_column=args.image_column,
+        prompt_column=args.prompt_column,
         batch_size=args.batch_size,
         model=args.model,
         resolution_mode=args.resolution_mode,

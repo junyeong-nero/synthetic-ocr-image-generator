@@ -334,7 +334,7 @@ def main(
         "max_model_len": max_model_len,
         "script": "nanonets-ocr2.py",
         "script_version": "1.0.0",
-        "script_url": "https://huggingface.co/datasets/uv-scripts/ocr/raw/main/nanonets-ocr2.py"
+        "script_url": "https://huggingface.co/datasets/uv-scripts/ocr/raw/main/nanonets-ocr2.py",
     }
     existing_info.append(new_info)
 
@@ -407,8 +407,12 @@ if __name__ == "__main__":
         print("       --max-samples 50 --shuffle")
         print("\n5. Running on HF Jobs:")
         print("   hf jobs uv run --flavor l4x1 \\")
-        print("     -e HF_TOKEN=$(python3 -c \"from huggingface_hub import get_token; print(get_token())\") \\")
-        print("     https://huggingface.co/datasets/uv-scripts/ocr/raw/main/nanonets-ocr2.py \\")
+        print(
+            '     -e HF_TOKEN=$(python3 -c "from huggingface_hub import get_token; print(get_token())") \\'
+        )
+        print(
+            "     https://huggingface.co/datasets/uv-scripts/ocr/raw/main/nanonets-ocr2.py \\"
+        )
         print("       your-document-dataset \\")
         print("       your-markdown-output")
         print("\n" + "=" * 80)

@@ -276,6 +276,7 @@ def main(
     input_dataset: str,
     output_dataset: str,
     image_column: str = "image",
+    prompt_column: str = "prompt",
     output_column: str = "markdown",
     batch_size: int = 16,
     model: str = "allenai/olmOCR-2-7B-1025-FP8",
@@ -384,7 +385,9 @@ def main(
         desc="Processing batches",
     ):
         # Create messages for batch
-        messages = [make_ocr_message(item[image_column]) for item in batch]
+        messages = [
+            make_ocr_message(item[image_column], item[prompt_column]) for item in batch
+        ]
 
         # Run inference
         outputs = llm.chat(messages, sampling_params=sampling_params)
@@ -539,6 +542,11 @@ Examples:
         help="Column name containing images (default: image)",
     )
     parser.add_argument(
+        "--prompt-column",
+        default="prompt",
+        help="Column name containing images (default: image)",
+    )
+    parser.add_argument(
         "--output-column",
         default="markdown",
         help="Column name for markdown output (default: markdown)",
@@ -619,6 +627,7 @@ Examples:
         input_dataset=args.input_dataset,
         output_dataset=args.output_dataset,
         image_column=args.image_column,
+        prompt_column=args.prompt_column,
         output_column=args.output_column,
         batch_size=args.batch_size,
         model=args.model,

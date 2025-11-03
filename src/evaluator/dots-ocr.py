@@ -11,7 +11,6 @@
 # ]
 #
 # ///
-
 """
 Convert document images to markdown using DoTS.ocr with vLLM.
 
@@ -233,7 +232,7 @@ def main(
     input_dataset: str,
     output_dataset: str,
     image_column: str = "image",
-    propmt_column: str = "prompt",
+    prompt_column: str = "prompt",
     batch_size: int = 16,
     model: str = "rednote-hilab/dots.ocr",
     max_model_len: int = 8192,
@@ -275,7 +274,7 @@ def main(
 
     # Load dataset
     logger.info(f"Loading dataset: {input_dataset}")
-    dataset = load_dataset(input_dataset, split=split)
+    dataset = load_dataset(input_dataset, "sentence_typos", split=split)
 
     # Validate image column
     if image_column not in dataset.column_names:
@@ -558,7 +557,7 @@ Examples:
         input_dataset=args.input_dataset,
         output_dataset=args.output_dataset,
         image_column=args.image_column,
-        prompt_column=args.image_column,
+        prompt_column=args.prompt_column,
         batch_size=args.batch_size,
         model=args.model,
         max_model_len=args.max_model_len,
