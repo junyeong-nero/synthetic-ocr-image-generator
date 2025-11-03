@@ -9,7 +9,9 @@ from character_similarity import generate_similar_chars_db
 from generator.document_generator import generate_document_images
 from generator.sentence_generator import generate_sentence_images
 from generator.sentence_typo_generator import generate_sentence_typos_images
-from generator.document_typo_generator import generate_document_images as generate_document_typos_images
+from generator.document_typo_generator import (
+    generate_document_images as generate_document_typos_images,
+)
 from generator.table_generator import generate_table_images
 from generator.table_numeric_generator import generate_table_numeric_images
 from generator.table_typo_generator import generate_table_typo_images
