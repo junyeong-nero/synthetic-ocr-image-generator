@@ -3,4 +3,5 @@ uv run main.py \
     --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
     --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
     --corpus-size 10000 \
-    --size 10000
+    --size 1000 \
+    --typo-ratio 0.4

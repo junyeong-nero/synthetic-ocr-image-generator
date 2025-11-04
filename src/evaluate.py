@@ -8,6 +8,8 @@ from models.transformers_model.paddle_ocr import PaddleOCR
 from models.transformers_model.qwen3_vl import Qwen3VL
 from models.transformers_model.varco_ocr import VarcoOCR
 
+from metrics.edit_distance import cer
+
 MODELS = {
     "rednote-hilab/dots.ocr": DotsOCR,
     "nanonets/Nanonets-OCR2-3B": NanonetsOCR,
@@ -22,28 +24,42 @@ MODELS = {
 }
 
 
-def main(model_id, hf_dataset_id, subset, split, batchsize, output_dataset_id):
+def main(
+    model_id,
+    hf_dataset_id,
+    subset,
+    split,
+    batchsize,
+    output_dataset_id,
+    image_column="image",
+    prompt="OCR this image",
+    target_column="response",
+):
 
     print(f"Load Models: {model_id}")
-    model = MODELS[model_id]() # Instantiate the model
+    model = MODELS[model_id]()  # Instantiate the model
 
     print(f"Load Dataset: {hf_dataset_id}, {subset}, {split}")
-    dataset = load_dataset(hf_dataset_id, subset, split=split)
+    dataset = load_dataset(hf_dataset_id, split=split)
 
     output = []
+    cer_list = []
 
     for i in range(0, len(dataset), batchsize):
         batch = dataset[i : i + batchsize]
 
-        batch_images = batch["image"]
-        batch_prompts = batch["prompts"]
-        batch_responses = batch["response"]
+        batch_images = batch[image_column]
+        batch_prompts = batch[prompt] if prompt in batch else [prompt] * batchsize
+        batch_gt = batch[target_column]
+        batch_result = model.run(prompts=batch_prompts, images=batch_images)
 
-        result = model.run(prompts=batch_prompts, images=batch_images)
-        output += result
+        cer_list += [cer(y_gt, y_pred) for y_pred, y_gt in zip(batch_gt, batch_result)]
+        output += batch_result
 
     dataset.add_column("output", output)
     if output_dataset_id:
+        dataset.add_column("cer", cer_list)
+        dataset.add_column("ocr_result", output)
         dataset.push_to_hub(output_dataset_id)
 
     return output
@@ -56,7 +72,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "dataset_id", type=str, default="junyeong-nero/synthetic-ocr-images-korean"
     )
-    parser.add_argument("--subset", type=str, default="sentence")
+    parser.add_argument("--subset", type=str, default="default")
     parser.add_argument("--split", type=str, default="train")
     parser.add_argument("--batchsize", type=int, default=1)
     parser.add_argument(
@@ -64,6 +80,9 @@ if __name__ == "__main__":
         type=str,
         default=None,
     )
+    parser.add_argument("--image-column", type=str, default="image")
+    parser.add_argument("--target-column", type=str, default="response")
+    parser.add_argument("--prompt", type=str, default="OCR this image")
 
     args = parser.parse_args()
     args_dict = vars(args)

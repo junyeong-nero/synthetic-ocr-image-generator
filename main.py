@@ -40,6 +40,12 @@ def main():
         default=100,
         help="생성할 이미지 수",
     )
+    parser.add_argument(
+        "--typo-ratio",
+        type=float,
+        default=0.15,
+        help="생성할 이미지 수",
+    )
 
     args = parser.parse_args()
     pipeline(**vars(args))
