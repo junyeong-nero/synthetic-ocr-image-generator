@@ -104,7 +104,7 @@ def generate_sentence_typos_images(
 
         # Apply effects randomly if not specified by the user
         apply_bold = random.choice([True, False]) if bold is None else bold
-        apply_tilt = random.randint(-15, 15) if tilt is None else tilt
+        apply_tilt = random.randint(-30, 30) if tilt is None else tilt
         apply_shadow = random.choice([True, False]) if shadow is None else shadow
         apply_dist = random.choice([True, False]) if distortion is None else distortion
         apply_blur = random.choice([True, False]) if blur is None else blur
@@ -133,7 +133,7 @@ def generate_sentence_typos_images(
                 "file_name": str(image_filepath),
                 "typo_text": typo_text,
                 "original_text": original_text,
-                "background_color": bg_color,
+                "background_color": str(bg_color),
                 "font_size": font_size,
                 "bold": apply_bold,
                 "tilt": apply_tilt,

@@ -54,6 +54,7 @@ def pipeline(
     corpus_size: int,
     output_dir: str,
     lang: str,
+    typo_ratio: float = 0.15,
     **kwargs: Any,  # kwargs는 argparse의 다른 인자를 받기 위해 유지
 ) -> None:
     """
@@ -92,6 +93,7 @@ def pipeline(
             lang=lang,
             num_images=size,
             output_dir=task_output_dir,
+            typo_ratio=typo_ratio,
         )
 
         if generated_dir_path is None or not Path(generated_dir_path).exists():

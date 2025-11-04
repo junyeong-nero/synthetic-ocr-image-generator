@@ -2,6 +2,7 @@ import json
 import logging
 from pathlib import Path
 from typing import List, Tuple, Dict, Any, Optional
+import pandas as pd
 
 from datasets import (
     Dataset,
@@ -94,7 +95,7 @@ def save_txt(file_path, text):
 def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
     """
     지정된 디렉토리의 데이터를 특정 config(subset)으로 Hub 저장소에 업로드합니다.
-    metadata.jsonl에 있는 모든 필드를 동적으로 컬럼으로 사용합니다.
+    metadata.jsonl에 있는 모든 필드를 동적으로 감지하여 컬럼으로 사용합니다.
 
     Args:
         repo_id (str): Hugging Face 저장소 ID (예: 'user/repo-name').
@@ -104,7 +105,6 @@ def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
     logger.info(f"\n▶ Subset '{config_name}'을(를) '{repo_id}' 저장소에 업로드 시작...")
 
     try:
-        # Hugging Face 로그인 확인
         if HfFolder.get_token() is None:
             raise ConnectionError(
                 "Hugging Face 로그인이 필요합니다. 'huggingface-cli login'을 실행해주세요."
@@ -116,6 +116,11 @@ def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
                 f"'{metadata_path}' 파일을 찾을 수 없습니다. 업로드 중단."
             )
 
+        # --- [수정된 부분 1] ---
+        # 1. metadata.jsonl의 첫 줄을 읽어 동적으로 컬럼과 **데이터 타입**을 파악합니다.
+        feature_dict = {}
+        column_names = []
+
         with open(metadata_path, "r", encoding="utf-8") as f:
             first_line = f.readline()
             if not first_line:
@@ -125,21 +130,51 @@ def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
                 return
 
             sample_data = json.loads(first_line)
-            all_keys = list(sample_data.keys())
-            if "file_name" not in all_keys:
+            if "file_name" not in sample_data:
                 raise KeyError("'metadata.jsonl'에 필수 키인 'file_name'이 없습니다.")
 
-            column_names = ["image"] + [key for key in all_keys if key != "file_name"]
-            logger.info(f"  감지된 컬럼: {column_names}")
+            # 'file_name'은 항상 'image' 컬럼으로 처리
+            feature_dict["image"] = HFImage()
+            column_names.append("image")
 
+            # 나머지 키들에 대해 타입을 확인하고 Features를 구성
+            for key, value in sample_data.items():
+                if key == "file_name":
+                    continue
+
+                value_type = type(value)
+                if value_type is bool:
+                    feature_dict[key] = Value("bool")
+                elif value_type is Tuple or value_type is List:
+                    feature_dict[key] = Value("string")
+                elif value_type is int:
+                    feature_dict[key] = Value("int64")
+                elif value_type is float:
+                    feature_dict[key] = Value("float32")
+                elif value_type is str:
+                    feature_dict[key] = Value("string")
+                else:
+                    # 지원하지 않는 타입은 경고를 출력하고 문자열로 처리
+                    logger.warning(
+                        f"'{key}'의 타입({value_type})을 지원하지 않습니다. 문자열로 처리합니다."
+                    )
+                    feature_dict[key] = Value("string")
+
+                column_names.append(key)
+
+        features = Features(feature_dict)
+        logger.info(f"  감지된 컬럼 및 타입: {features}")
+        # --- [수정 완료] ---
+
+        # 2. 모든 데이터를 딕셔너리의 리스트 형태로 수집
         all_data: List[Dict[str, Any]] = []
         with open(metadata_path, "r", encoding="utf-8") as f:
             for line in f:
                 data = json.loads(line)
                 record = {"image": str(data["file_name"])}
-                for key in column_names:
+                for key in feature_dict.keys():
                     if key != "image":
-                        record[key] = data.get(key, "")
+                        record[key] = data.get(key)
 
                 all_data.append(record)
 
@@ -151,19 +186,9 @@ def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
             f"  '{config_name}' subset: 총 {len(all_data):,}개의 유효한 데이터를 찾았습니다."
         )
 
-        feature_dict = {}
-        for col in column_names:
-            if col == "image":
-                feature_dict[col] = HFImage()
-            else:
-                feature_dict[col] = Value("string")
-
-        features = Features(feature_dict)
-
-        import pandas as pd
-
+        # 3. Hugging Face Dataset 객체 생성
         df = pd.DataFrame(all_data)
-        dataset = Dataset.from_dict(df.to_dict("list"), features=features)
+        dataset = Dataset.from_pandas(df, features=features)
 
         # Hugging Face Hub에 업로드 (config_name 지정)
         dataset.push_to_hub(repo_id, config_name=config_name)
