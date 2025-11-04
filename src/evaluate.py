@@ -1,19 +1,31 @@
 import argparse
 from datasets import load_dataset
 from models import DotsOCR, NanonetsOCR, LightOnOCR, OlmOCR
+from models.transformers_model.deepseek_ocr import DeepSeekOCR
+from models.transformers_model.gemma3_4b_it import Gemma3_4B_IT
+from models.transformers_model.got_ocr import GotOCR
+from models.transformers_model.paddle_ocr import PaddleOCR
+from models.transformers_model.qwen3_vl import Qwen3VL
+from models.transformers_model.varco_ocr import VarcoOCR
 
 MODELS = {
     "rednote-hilab/dots.ocr": DotsOCR,
     "nanonets/Nanonets-OCR2-3B": NanonetsOCR,
     "lightonai/LightOnOCR-1B-1025": LightOnOCR,
     "allenai/olmOCR-2-7B-1025": OlmOCR,
+    "deepseek-ai/DeepSeek-OCR": DeepSeekOCR,
+    "google/gemma-3-4b-it": Gemma3_4B_IT,
+    "stepfun-ai/GOT-OCR-2.0-hf": GotOCR,
+    "PaddlePaddle/PaddleOCR-VL": PaddleOCR,
+    "Qwen/Qwen3-VL-2B-Instruct": Qwen3VL,
+    "NCSOFT/VARCO-VISION-2.0-1.7B-OCR": VarcoOCR,
 }
 
 
 def main(model_id, hf_dataset_id, subset, split, batchsize, output_dataset_id):
 
     print(f"Load Models: {model_id}")
-    model = MODELS[model_id]
+    model = MODELS[model_id]() # Instantiate the model
 
     print(f"Load Dataset: {hf_dataset_id}, {subset}, {split}")
     dataset = load_dataset(hf_dataset_id, subset, split=split)

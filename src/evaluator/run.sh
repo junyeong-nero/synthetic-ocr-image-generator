@@ -1,1 +1,0 @@
-python src/evaluate.py "rednote-hilab/dots.ocr" "junyeong-nero/synthetic-ocr-images-korean"
