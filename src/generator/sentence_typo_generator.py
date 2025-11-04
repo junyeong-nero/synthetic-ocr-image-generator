@@ -77,7 +77,7 @@ def generate_sentence_typos_images(
     output_path.mkdir(exist_ok=True, parents=True)
 
     lines = read_txt(corpus_path).splitlines()
-    korean_texts = [line[:20].strip() for line in lines if line.strip()]
+    korean_texts = [" ".join(line.split()[:5]).strip() for line in lines if line.strip()]
     if not korean_texts:
         logger.error(f"Error: No text found in '{corpus_path}'. Aborting.")
         return None
