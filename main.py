@@ -1,44 +1,49 @@
 import sys
-from pathlib import Path
-import yaml
-import logging
-import argparse  # argparse 모듈 추가
+import argparse
 
 sys.path.insert(0, "src")
 from pipeline import pipeline
 
 
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        stream=sys.stdout,
-    )
-
-    parser = argparse.ArgumentParser(
-        description="Run the data processing pipeline with a specified config file."
-    )
-
+def main():
+    """명령줄 인자를 파싱하고 파이프라인을 실행합니다."""
+    parser = argparse.ArgumentParser(description="Synthetic OCR Image Generator")
     parser.add_argument(
-        "-c",
-        "--config",
+        "--repo-id",
+        required=True,
+        help="데이터셋을 업로드할 Hugging Face Hub 리포지토리 ID",
+    )
+    parser.add_argument(
+        "--font-path",
         type=str,
-        default="config.yaml",  # 기본값 설정
-        help="Path to the configuration YAML file (default: config.yaml)",
+        required=True,
+        help="문자 유사성 DB 생성에 사용할 폰트 파일 경로",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="./data",
+        help="생성된 모든 데이터를 저장할 기본 디렉토리",
+    )
+    parser.add_argument(
+        "--lang", type=str, default="ko", help="생성할 데이터의 언어 코드 (예: ko, en)"
+    )
+    parser.add_argument(
+        "--corpus-size",
+        type=int,
+        default=10000,
+        help="코퍼스 생성 시 위키피디아에서 추출할 문장 수",
+    )
+    parser.add_argument(
+        "--size",
+        type=int,
+        default=100,
+        help="생성할 이미지 수",
     )
 
     args = parser.parse_args()
-    config_path = args.config
-    logging.info(f"Loading configuration from: {config_path}")
+    pipeline(**vars(args))
 
-    try:
-        with open(config_path, "r") as f:
-            config = yaml.safe_load(f)
-    except FileNotFoundError:
-        logging.error(f"Configuration file not found at: {config_path}")
-        sys.exit(1)  # 파일이 없으면 에러 메시지 출력 후 종료
-    except Exception as e:
-        logging.error(f"Error loading or parsing the config file: {e}")
-        sys.exit(1)  # 기타 에러 발생 시 종료
 
-    pipeline(**config)
+if __name__ == "__main__":
+    main()

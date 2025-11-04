@@ -91,13 +91,15 @@ def save_txt(file_path, text):
         logger.error(f"파일 저장 중 오류가 발생했습니다: {e}")
 
 
-def upload_subset_to_hub(dataset_dir: str, repo_id: str, config_name: str):
+def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
     """
     지정된 디렉토리의 데이터를 특정 config(subset)으로 Hub 저장소에 업로드합니다.
+    metadata.jsonl에 있는 모든 필드를 동적으로 컬럼으로 사용합니다.
 
-    :param dataset_dir: 이미지와 metadata.jsonl이 있는 디렉토리 경로.
-    :param repo_id: Hugging Face 저장소 ID (예: 'user/repo-name').
-    :param config_name: 데이터셋의 config 이름 (예: 'single_line', 'document').
+    Args:
+        repo_id (str): Hugging Face 저장소 ID (예: 'user/repo-name').
+        subset_dir (Path): 이미지와 metadata.jsonl이 있는 디렉토리 경로.
+        config_name (str): 데이터셋의 config 이름 (예: 'sentence_typos').
     """
     logger.info(f"\n▶ Subset '{config_name}'을(를) '{repo_id}' 저장소에 업로드 시작...")
 
@@ -108,61 +110,70 @@ def upload_subset_to_hub(dataset_dir: str, repo_id: str, config_name: str):
                 "Hugging Face 로그인이 필요합니다. 'huggingface-cli login'을 실행해주세요."
             )
 
-        dataset_path = Path(dataset_dir)
-        metadata_path = dataset_path / "metadata.jsonl"
-
+        metadata_path = subset_dir / "metadata.jsonl"
         if not metadata_path.exists():
             raise FileNotFoundError(
                 f"'{metadata_path}' 파일을 찾을 수 없습니다. 업로드 중단."
             )
 
-        image_paths: List[str] = []
-        texts: List[str] = []
-        prompts: List[str] = []
-        responses: List[str] = []
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            first_line = f.readline()
+            if not first_line:
+                logger.warning(
+                    f"'{metadata_path}' 파일이 비어있습니다. 업로드를 건너뜁니다."
+                )
+                return
 
-        # 메타데이터 로드
+            sample_data = json.loads(first_line)
+            all_keys = list(sample_data.keys())
+            if "file_name" not in all_keys:
+                raise KeyError("'metadata.jsonl'에 필수 키인 'file_name'이 없습니다.")
+
+            column_names = ["image"] + [key for key in all_keys if key != "file_name"]
+            logger.info(f"  감지된 컬럼: {column_names}")
+
+        all_data: List[Dict[str, Any]] = []
         with open(metadata_path, "r", encoding="utf-8") as f:
             for line in f:
                 data = json.loads(line)
-                # 파일 경로를 dataset_dir을 기준으로 절대/상대 경로 조정 필요 (여기서는 현재 경로 기준 유지)
-                image_paths.append(str(Path(data["file_name"])))
-                texts.append(data["text"])
-                prompts.append(data.get("prompt", ""))
-                responses.append(data.get("response", ""))
+                record = {"image": str(data["file_name"])}
+                for key in column_names:
+                    if key != "image":
+                        record[key] = data.get(key, "")
+
+                all_data.append(record)
+
+        if not all_data:
+            logger.warning("처리할 유효한 데이터가 없습니다. 업로드를 중단합니다.")
+            return
 
         logger.info(
-            f"  '{config_name}' subset: 총 {len(image_paths):,}개의 이미지-텍스트 쌍을 찾았습니다."
+            f"  '{config_name}' subset: 총 {len(all_data):,}개의 유효한 데이터를 찾았습니다."
         )
 
-        # Hugging Face Dataset 객체 생성
-        dataset = Dataset.from_dict(
-            {
-                "image": image_paths,
-                "text": texts,
-                "prompt": prompts,
-                "response": responses,
-            },
-            features=Features(
-                {
-                    "image": HFImage(),
-                    "text": Value("string"),
-                    "prompt": Value("string"),
-                    "response": Value("string"),
-                }
-            ),
-        )
+        feature_dict = {}
+        for col in column_names:
+            if col == "image":
+                feature_dict[col] = HFImage()
+            else:
+                feature_dict[col] = Value("string")
+
+        features = Features(feature_dict)
+
+        import pandas as pd
+
+        df = pd.DataFrame(all_data)
+        dataset = Dataset.from_dict(df.to_dict("list"), features=features)
 
         # Hugging Face Hub에 업로드 (config_name 지정)
         dataset.push_to_hub(repo_id, config_name=config_name)
 
         logger.info(f"✔ Subset '{config_name}' 업로드 완료!")
 
-    except ConnectionError as ce:
-        logger.error(f"오류: {ce}")
-    except FileNotFoundError as fnfe:
-        logger.error(f"오류: {fnfe}")
+    except (ConnectionError, FileNotFoundError, KeyError) as e:
+        logger.error(f"오류: {e}")
     except Exception as e:
         logger.error(
-            f"오류: Subset '{config_name}' 업로드 중 예상치 못한 오류 발생: {e}"
+            f"오류: Subset '{config_name}' 업로드 중 예상치 못한 오류 발생: {e}",
+            exc_info=True,
         )
