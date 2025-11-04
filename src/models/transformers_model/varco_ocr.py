@@ -1,48 +1,61 @@
+from typing import List
+
 import torch
 from PIL import Image
 from transformers import AutoProcessor, LlavaOnevisionForConditionalGeneration
 
-model_name = "NCSOFT/VARCO-VISION-2.0-1.7B-OCR"
-model = LlavaOnevisionForConditionalGeneration.from_pretrained(
-    model_name,
-    torch_dtype=torch.float16,
-    attn_implementation="sdpa",
-    device_map="auto",
-)
-processor = AutoProcessor.from_pretrained(model_name)
+from ..base import Model
 
-image = Image.open("file:///path/to/image.jpg")
 
-# Image upscaling for OCR performance boost
-w, h = image.size
-target_size = 2304
-if max(w, h) < target_size:
-    scaling_factor = target_size / max(w, h)
-    new_w = int(w * scaling_factor)
-    new_h = int(h * scaling_factor)
-    image = image.resize((new_w, new_h))
+class VarcoOCR(Model):
+    def __init__(self, model_id="NCSOFT/VARCO-VISION-2.0-1.7B-OCR"):
+        self.model = LlavaOnevisionForConditionalGeneration.from_pretrained(
+            model_id,
+            torch_dtype=torch.float16,
+            attn_implementation="sdpa",
+            device_map="auto",
+        )
+        self.processor = AutoProcessor.from_pretrained(model_id)
 
-conversation = [
-    {
-        "role": "user",
-        "content": [
-            {"type": "image", "image": image},
-            {"type": "text", "text": "<ocr>"},
-        ],
-    },
-]
+    def _upscale_image(self, image: Image.Image, target_size=2304) -> Image.Image:
+        w, h = image.size
+        if max(w, h) < target_size:
+            scaling_factor = target_size / max(w, h)
+            new_w = int(w * scaling_factor)
+            new_h = int(h * scaling_factor)
+            image = image.resize((new_w, new_h))
+        return image
 
-inputs = processor.apply_chat_template(
-    conversation,
-    add_generation_prompt=True,
-    tokenize=True,
-    return_dict=True,
-    return_tensors="pt",
-).to(model.device, torch.float16)
+    def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
+        results = []
+        for prompt, image in zip(prompts, images):
+            image = self._upscale_image(image)
 
-generate_ids = model.generate(**inputs, max_new_tokens=1024)
-generate_ids_trimmed = [
-    out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generate_ids)
-]
-output = processor.decode(generate_ids_trimmed[0], skip_special_tokens=False)
-print(output)
+            conversation = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image", "image": image},
+                        {"type": "text", "text": prompt},
+                    ],
+                },
+            ]
+
+            inputs = self.processor.apply_chat_template(
+                conversation,
+                add_generation_prompt=True,
+                tokenize=True,
+                return_dict=True,
+                return_tensors="pt",
+            ).to(self.model.device, torch.float16)
+
+            generate_ids = self.model.generate(**inputs, max_new_tokens=4096)
+            generate_ids_trimmed = [
+                out_ids[len(in_ids) :]
+                for in_ids, out_ids in zip(inputs.input_ids, generate_ids)
+            ]
+            output = self.processor.decode(
+                generate_ids_trimmed[0], skip_special_tokens=False
+            )
+            results.append(output)
+        return results

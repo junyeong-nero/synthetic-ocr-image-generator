@@ -1,41 +1,49 @@
 import os
+import tempfile
+from typing import List
+
 import torch
+from PIL import Image
 from transformers import AutoModel, AutoTokenizer
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-model_name = "deepseek-ai/DeepSeek-OCR"
+from ..base import Model
 
-tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-model = AutoModel.from_pretrained(
-    model_name,
-    _attn_implementation="flash_attention_2",
-    trust_remote_code=True,
-    use_safetensors=True,
-)
-model = model.eval().cuda().to(torch.bfloat16)
 
-# prompt = "<image>\nFree OCR. "
-prompt = "<image>\n<|grounding|>Convert the document to markdown. "
-image_file = "image_00002.png"
-output_path = "output/"
+class DeepSeekOCR(Model):
+    def __init__(self, model_name="deepseek-ai/DeepSeek-OCR"):
+        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_name, trust_remote_code=True
+        )
+        self.model = AutoModel.from_pretrained(
+            model_name,
+            _attn_implementation="flash_attention_2",
+            trust_remote_code=True,
+            use_safetensors=True,
+        )
+        self.model = self.model.eval().cuda().to(torch.bfloat16)
 
-# infer(self, tokenizer, prompt='', image_file='', output_path = ' ', base_size = 1024, image_size = 640, crop_mode = True, test_compress = False, save_results = False):
+    def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
+        results = []
+        for prompt, image in zip(prompts, images):
+            with tempfile.NamedTemporaryFile(
+                suffix=".png", delete=False
+            ) as temp_image_file:
+                image.save(temp_image_file, format="PNG")
+                temp_image_path = temp_image_file.name
 
-# Tiny: base_size = 512, image_size = 512, crop_mode = False
-# Small: base_size = 640, image_size = 640, crop_mode = False
-# Base: base_size = 1024, image_size = 1024, crop_mode = False
-# Large: base_size = 1280, image_size = 1280, crop_mode = False
+            full_prompt = f"<image>\n{prompt}"
 
-# Gundam: base_size = 1024, image_size = 640, crop_mode = True
-
-res = model.infer(
-    tokenizer,
-    prompt=prompt,
-    image_file=image_file,
-    output_path=output_path,
-    base_size=1024,
-    image_size=640,
-    crop_mode=True,
-    save_results=True,
-    test_compress=True,
-)
+            res = self.model.infer(
+                self.tokenizer,
+                prompt=full_prompt,
+                image_file=temp_image_path,
+                base_size=1024,
+                image_size=640,
+                crop_mode=True,
+                save_results=False,
+                test_compress=True,
+            )
+            results.append(res)
+            os.remove(temp_image_path)
+        return results
