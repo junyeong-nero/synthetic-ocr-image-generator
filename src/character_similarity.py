@@ -117,69 +117,61 @@ def find_similar_chars(query_char, db, top_n=5):
 
 
 def generate_sentence_typos(
-    texts: List[str], db: Dict[str, Any], top_n: int = 1
-) -> List[str]:
+    texts: List[str], db: Dict[str, Any], typo_ratio: float = 0.15
+) -> List[tuple[str, str]]:
     """
     주어진 텍스트 목록에 대해 유사 문자를 기반으로 오타를 생성합니다.
+    전체 단어 중 `typo_ratio` 비율만큼의 단어에 오타를 생성합니다.
 
     Args:
         texts: 오타를 생성할 원본 문자열의 리스트.
         db: 유사 문자 데이터베이스.
-        top_n: 각 문자에 대해 고려할 유사 문자의 최대 개수.
+        typo_ratio: 전체 단어 대비 오타를 생성할 단어의 비율.
 
     Returns:
-        생성된 모든 오타 문장들의 리스트.
+        (원본 문장, 오타 문장) 튜플의 리스트.
     """
-
-    def _generate_typos(word: str) -> List[str]:
-        """하나의 단어에 대한 오타 후보들을 생성합니다."""
-        if not word:  # 빈 문자열 처리
-            return [""]
-
-        n = len(word)
-        # 단어의 맨 앞/뒤가 아닌, 문자 사이에서 오타를 생성하려면 randint(0, n-1) 사용
-        index = random.randint(0, n - 1)
-
-        # 숫자인 경우 오타를 생성하지 않음
-        if word[index].isnumeric():
-            return [word]
-
-        original_char = word[index]
-        word_list: List[str] = list(word)
-
-        similar_chars: List[str] = find_similar_chars(original_char, db, top_n=top_n)
-
-        result: List[str] = []
-        for similar_char in similar_chars:
-            word_list[index] = similar_char[0]
-            result.append("".join(word_list))
-
-        # 유사 단어가 없는 경우, 기존 단어추가
-        if not result:
-            result.append(word)
-
-        return result
-
-    all_generated_sentences: List[str] = []
+    generated_sentences_with_original = []
     for text in texts:
-        words: List[str] = text.split()
+        words = text.split()
+        if not words:
+            generated_sentences_with_original.append((text, text))
+            continue
 
-        # 각 단어에 대한 오타 후보들의 리스트 (예: [["안녕", "안녕"], ["하세여", "하새요"]])
-        words_candidate: List[List[str]] = [_generate_typos(word) for word in words]
+        num_words_to_change = int(len(words) * typo_ratio)
+        # typo_ratio가 0보다 크면 최소 1개의 오타를 생성
+        if num_words_to_change == 0 and typo_ratio > 0:
+            num_words_to_change = 1
 
-        # 생성된 오타 단어들의 모든 조합을 생성
-        # (이 부분은 조합이 기하급수적으로 늘어날 수 있어 주의가 필요합니다)
-        sentences: List[str] = [""]
-        for typo_words in words_candidate:
-            new_sentences: List[str] = [
-                f"{sentence} {word}".strip()
-                for sentence in sentences
-                for word in typo_words
-            ]
-            sentences = new_sentences
-        all_generated_sentences.extend(sentences)
+        # 단어 수보다 많은 오타를 생성하지 않도록 보장
+        num_words_to_change = min(num_words_to_change, len(words))
 
-    return all_generated_sentences
+        indices_to_change = random.sample(range(len(words)), num_words_to_change)
+
+        new_words = list(words)
+        for index in indices_to_change:
+            word = words[index]
+            if not word or len(word) <= 1:
+                continue
+
+            # 단어 내에서 변경할 문자의 인덱스를 무작위로 선택
+            char_index = random.randint(0, len(word) - 1)
+            original_char = word[char_index]
+
+            if original_char.isnumeric() or original_char.isspace():
+                continue
+
+            # 유사 문자를 찾아 무작위로 하나 선택
+            similar_chars = find_similar_chars(original_char, db, top_n=5)
+            if similar_chars:
+                similar_char, _ = random.choice(similar_chars)
+                word_list = list(word)
+                word_list[char_index] = similar_char
+                new_words[index] = "".join(word_list)
+
+        generated_sentences_with_original.append((text, " ".join(new_words)))
+
+    return generated_sentences_with_original
 
 
 def inject_document_typos(

@@ -37,12 +37,14 @@ def generate_sentence_typos_images(
     blur: Optional[bool] = None,
     contrast: Optional[bool] = None,
     lang: str = "ko",
+    typo_ratio: float = 0.15,
 ) -> Optional[str]:
     """
     Generates a dataset of images from a text corpus.
 
     Args:
         corpus_path: Path to the input text file.
+        db_path: Path to the character similarity database.
         num_images: The total number of images to generate.
         output_dir: The directory to save the images and metadata.
         resolution_range: A tuple (min, max) for random font sizes.
@@ -52,6 +54,8 @@ def generate_sentence_typos_images(
         distortion: Force distortion. If None, it's randomly applied.
         blur: Force blur. If None, it's randomly applied.
         contrast: Force contrast adjustment. If None, it's randomly applied.
+        lang: Language of the corpus.
+        typo_ratio: The ratio of words to introduce typos.
 
     Returns:
         The path to the output directory, or None if an error occurs.
@@ -79,14 +83,16 @@ def generate_sentence_typos_images(
         return None
 
     db = read_json(db_path)
-    korean_texts = generate_sentence_typos(korean_texts, db, top_n=1)
+    original_typo_pairs = generate_sentence_typos(
+        korean_texts, db, typo_ratio=typo_ratio
+    )
 
-    image_text_pairs: List[Dict[str, str]] = []
+    image_text_pairs: List[Dict[str, Any]] = []
 
     for idx in tqdm(range(num_images), desc="Generating Images"):
         # --- Determine Parameters for this Image ---
         font_path = random.choice(font_paths)
-        text = random.choice(korean_texts)
+        original_text, typo_text = random.choice(original_typo_pairs)
         bg_color = random.choice(BACKGROUND_COLORS)
         font_size = random.randint(*resolution_range)
 
@@ -100,7 +106,7 @@ def generate_sentence_typos_images(
 
         # --- Generate and Save Image ---
         img = _generate_text_image(
-            text=text,
+            text=typo_text,
             font_path=font_path,
             background_color=bg_color,
             font_size=font_size,
@@ -119,7 +125,8 @@ def generate_sentence_typos_images(
         image_text_pairs.append(
             {
                 "file_name": str(image_filepath),
-                "response": text,
+                "typo_text": typo_text,
+                "original_text": original_text,
                 "background_color": bg_color,
                 "font_size": font_size,
                 "bold": apply_bold,
