@@ -210,8 +210,6 @@ def generate_document_images(
         metadata.append(
             {
                 "file_name": str(filepath),
-                "text": drawn_text,
-                "prompt": "Transcribe all text visible in the image accurately, without any missing characters or modifications.",
                 "response": drawn_text,
             }
         )

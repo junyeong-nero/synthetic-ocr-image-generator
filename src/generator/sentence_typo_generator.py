@@ -119,9 +119,15 @@ def generate_sentence_typos_images(
         image_text_pairs.append(
             {
                 "file_name": str(image_filepath),
-                "text": text,
-                "prompt": "Transcribe all text visible in the image accurately, without any missing characters or modifications.",
                 "response": text,
+                "background_color": bg_color,
+                "font_size": font_size,
+                "bold": apply_bold,
+                "tilt": apply_tilt,
+                "shadow": apply_shadow,
+                "distortion": apply_dist,
+                "blur": apply_blur,
+                "contrast": apply_contrast,
             }
         )
 
