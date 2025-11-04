@@ -1,5 +1,6 @@
 import argparse
 from datasets import load_dataset
+from tqdm import tqdm  # tqdm 라이브러리 추가
 from models import DotsOCR, NanonetsOCR, LightOnOCR, OlmOCR
 from models.transformers_model.deepseek_ocr import DeepSeekOCR
 from models.transformers_model.gemma3_4b_it import Gemma3_4B_IT
@@ -26,7 +27,7 @@ MODELS = {
 
 def main(
     model_id,
-    hf_dataset_id,
+    dataset_id,
     subset,
     split,
     batchsize,
@@ -39,13 +40,14 @@ def main(
     print(f"Load Models: {model_id}")
     model = MODELS[model_id]()  # Instantiate the model
 
-    print(f"Load Dataset: {hf_dataset_id}, {subset}, {split}")
-    dataset = load_dataset(hf_dataset_id, split=split)
+    print(f"Load Dataset: {dataset_id}, {subset}, {split}")
+    dataset = load_dataset(dataset_id, split=split)
 
     output = []
     cer_list = []
 
-    for i in range(0, len(dataset), batchsize):
+    # tqdm을 사용하여 진행 상황을 표시합니다.
+    for i in tqdm(range(0, len(dataset), batchsize), desc="Processing Batches"):
         batch = dataset[i : i + batchsize]
 
         batch_images = batch[image_column]

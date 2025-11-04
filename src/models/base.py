@@ -39,11 +39,11 @@ class Model:
 
 class vLLMModel(Model):
 
-    def __init__(self, model_id, temperature=0, max_token=4096, top_p=1.0) -> None:
+    def __init__(self, model_id, temperature=0, max_tokens=4096, top_p=1.0) -> None:
         super().__init__()
         self.model = LLM(model_id, trust_remote_code=True)
         self.sampling_params = SamplingParams(
-            temperature=temperature, max_token=max_token, top_p=top_p
+            temperature=temperature, max_tokens=max_tokens, top_p=top_p
         )
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
