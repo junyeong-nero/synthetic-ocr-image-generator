@@ -29,7 +29,7 @@ def generate_sentence_typos_images(
     db_path: str,
     num_images: int = 1000,
     output_dir: str = "images",
-    resolution_range: Tuple[int, int] = (70, 90),
+    resolution_range: Tuple[int, int] = (20, 90),
     bold: Optional[bool] = None,
     tilt: Optional[int] = None,
     shadow: Optional[bool] = None,
@@ -77,7 +77,9 @@ def generate_sentence_typos_images(
     output_path.mkdir(exist_ok=True, parents=True)
 
     lines = read_txt(corpus_path).splitlines()
-    korean_texts = [" ".join(line.split()[:5]).strip() for line in lines if line.strip()]
+    korean_texts = [
+        " ".join(line.split()[:5]).strip() for line in lines if line.strip()
+    ]
     if not korean_texts:
         logger.error(f"Error: No text found in '{corpus_path}'. Aborting.")
         return None
@@ -93,7 +95,11 @@ def generate_sentence_typos_images(
         # --- Determine Parameters for this Image ---
         font_path = random.choice(font_paths)
         original_text, typo_text = random.choice(original_typo_pairs)
-        bg_color = random.choice(BACKGROUND_COLORS)
+        bg_color = (
+            random.randint(200, 255),
+            random.randint(200, 255),
+            random.randint(200, 255),
+        )
         font_size = random.randint(*resolution_range)
 
         # Apply effects randomly if not specified by the user
