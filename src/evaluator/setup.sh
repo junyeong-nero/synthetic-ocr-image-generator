@@ -1,1 +1,1 @@
-pip install torch transformers accelerate datasets toolz huggingface-hub hf_transfer
+pip install torch transformers accelerate datasets toolz huggingface-hub hf_transfer matplotlib easydict addict einops

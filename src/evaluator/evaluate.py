@@ -1,8 +1,13 @@
 import argparse
 from datasets import load_dataset
-from evaluator.model import DotsOCR
+from models import DotsOCR, NanonetsOCR, LightOnOCR, OlmOCR
 
-MODELS = {"rednote-hilab/dots.ocr": DotsOCR}
+MODELS = {
+    "rednote-hilab/dots.ocr": DotsOCR,
+    "nanonets/Nanonets-OCR2-3B": NanonetsOCR,
+    "lightonai/LightOnOCR-1B-1025": LightOnOCR,
+    "allenai/olmOCR-2-7B-1025": OlmOCR,
+}
 
 
 def main(model_id, hf_dataset_id, subset, split, batchsize, output_dataset_id):
