@@ -12,4 +12,4 @@ uv run main.py \
     --repo-id "junyeong-nero/synthetic-ocr-images-korean-no-typos" \
     --corpus-size 10000 \
     --size 1000 \
-    --typo-ratio 0.0
+    --typo-ratio 0.0w

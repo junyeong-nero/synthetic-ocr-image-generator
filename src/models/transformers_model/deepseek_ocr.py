@@ -17,7 +17,7 @@ class DeepSeekOCR(Model):
         )
         self.model = AutoModel.from_pretrained(
             model_name,
-            _attn_implementation="flash_attention_2",
+            # _attn_implementation="flash_attention_2",
             trust_remote_code=True,
             use_safetensors=True,
         )
@@ -38,6 +38,7 @@ class DeepSeekOCR(Model):
                 self.tokenizer,
                 prompt=full_prompt,
                 image_file=temp_image_path,
+                output_path="output/",
                 base_size=1024,
                 image_size=640,
                 crop_mode=True,

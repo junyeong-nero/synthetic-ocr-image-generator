@@ -3,7 +3,6 @@ import base64
 
 from PIL import Image
 from typing import List, Dict
-from vllm import SamplingParams, LLM
 
 
 def generate_message(
@@ -43,6 +42,9 @@ class vLLMModel(Model):
         self, model_id, temperature=0, max_model_len=2048, max_tokens=1024, top_p=1.0
     ) -> None:
         super().__init__()
+
+        from vllm import SamplingParams, LLM
+
         self.model = LLM(model_id, trust_remote_code=True, max_model_len=max_model_len)
         self.sampling_params = SamplingParams(
             temperature=temperature, max_tokens=max_tokens, top_p=top_p

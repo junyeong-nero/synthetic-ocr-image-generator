@@ -5,11 +5,11 @@ def levenshtein_distance(s1: Union[str, List], s2: Union[str, List]) -> int:
     """
     Calculates the Levenshtein distance between two sequences.
     """
+    if not s2 or len(s2) == 0:
+        return len(s1)
+
     if len(s1) < len(s2):
         return levenshtein_distance(s2, s1)
-
-    if len(s2) == 0:
-        return len(s1)
 
     previous_row = range(len(s2) + 1)
     for i, c1 in enumerate(s1):

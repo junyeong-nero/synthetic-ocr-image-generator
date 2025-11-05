@@ -10,7 +10,8 @@ uv venv --python 3.12 --seed
 source .venv/bin/activate
 
 uv tool install "huggingface_hub"
-uv add torch transformers accelerate datasets huggingface_hub hf_transfer addict easydict einops gpustat flashinfer-python
+uv pip install torchvision transformers accelerate datasets flashinfer-python
+uv pip install huggingface_hub hf_transfer addict easydict einops gpustat 
 uv pip install flash-attn --no-build-isolation
 
 # install vllm

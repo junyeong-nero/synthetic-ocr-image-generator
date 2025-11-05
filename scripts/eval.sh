@@ -42,9 +42,9 @@ uv run src/evaluate.py \
     "deepseek-ai/DeepSeek-OCR" \
     "junyeong-nero/synthetic-ocr-images-korean" \
     --target-column "typo_text" \
-    --prompt "Extract all text from the image verbatim, including typos, without translation or character modification." \
+    --prompt "Free OCR. " \
     --output-dataset-id "junyeong-nero/synthetic-ocr-images-korean-DeepSeek-OCR" \
-    --batchsize 8 
+    --batchsize 16
 
 uv run src/evaluate.py \
     "google/gemma-3-4b-it" \
@@ -82,6 +82,6 @@ uv run src/evaluate.py \
     "NCSOFT/VARCO-VISION-2.0-1.7B-OCR" \
     "junyeong-nero/synthetic-ocr-images-korean" \
     --target-column "typo_text" \
-    --prompt "Extract all text from the image verbatim, including typos, without translation or character modification." \
+    --prompt "<ocr>" \
     --output-dataset-id "junyeong-nero/synthetic-ocr-images-korean-VARCO-VISION-2.0-1.7B-OCR" \
     --batchsize 8
