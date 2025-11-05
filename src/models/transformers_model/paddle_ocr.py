@@ -41,5 +41,6 @@ class PaddleOCR(Model):
 
             outputs = self.model.generate(**inputs, max_new_tokens=1024)
             decoded = self.processor.batch_decode(outputs, skip_special_tokens=True)[0]
+            decoded = decoded.split("Assistant:")[-1].strip()
             results.append(decoded)
         return results

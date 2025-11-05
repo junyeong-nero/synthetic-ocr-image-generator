@@ -5,6 +5,7 @@ from PIL import Image
 from transformers import AutoProcessor, LlavaOnevisionForConditionalGeneration
 
 from ..base import Model
+from utils import extract_tag
 
 
 class VarcoOCR(Model):
@@ -57,5 +58,6 @@ class VarcoOCR(Model):
             output = self.processor.decode(
                 generate_ids_trimmed[0], skip_special_tokens=False
             )
+            output = " ".join([""] + extract_tag(output, tag="char"))
             results.append(output)
         return results

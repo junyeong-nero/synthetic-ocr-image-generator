@@ -1,42 +1,50 @@
 [
     {
+        "model": "rednote-hilab/dots.ocr",
         "dataset": "junyeong-nero/synthetic-ocr-images-korean-dots.ocr",
         "avg_cer": 1.9883760684477085,
         "std_cer": 15.208363233634218
     },
     {
+        "model": "nanonets/Nanonets-OCR2-3B",
         "dataset": "junyeong-nero/synthetic-ocr-images-korean-Nanonets-OCR2-3B",
         "avg_cer": 0.2679852019672048,
         "std_cer": 4.309994924687216
     },
     {
+        "model": "allenai/olmOCR-2-7B-1025",
         "dataset": "junyeong-nero/synthetic-ocr-images-korean-olmOCR-2-7B-1025",
         "avg_cer": 0.15954398180770346,
         "std_cer": 2.1594669376074056
     },
     {
+        "model": "google/gemma-3-4b-it",
         "dataset": "junyeong-nero/synthetic-ocr-images-korean-gemma-3-4b-it",
         "avg_cer": 0.9973080131627099,
         "std_cer": 7.249211542237726
     },
     {
+        "model": "stepfun-ai/GOT-OCR-2.0-hf",
         "dataset": "junyeong-nero/synthetic-ocr-images-korean-GOT-OCR-2.0-hf",
         "avg_cer": 6.49711730793276,
         "std_cer": 16.65140802080949
     },
     {
+        "model": "PaddlePaddle/PaddleOCR-VL",
         "dataset": "junyeong-nero/synthetic-ocr-images-korean-PaddleOCR-VL",
         "avg_cer": 0.49433699141427234,
         "std_cer": 8.531292933125158
     },
     {
+        "model": "Qwen/Qwen3-VL-2B-Instruct",
         "dataset": "junyeong-nero/synthetic-ocr-images-korean-Qwen3-VL-2B-Instruct",
         "avg_cer": 0.1911616952580078,
         "std_cer": 2.1570418059246026
     },
     {
+        "model": "NCSOFT/VARCO-VISION-2.0-1.7B-OCR",
         "dataset": "junyeong-nero/synthetic-ocr-images-korean-VARCO-VISION-2.0-1.7B-OCR",
-        "avg_cer": 10.21850443727411,
-        "std_cer": 7.082369479596144
+        "avg_cer": 0.3984933498569792,
+        "std_cer": 0.27031753537562925
     }
 ]

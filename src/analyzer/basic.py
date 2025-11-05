@@ -68,23 +68,30 @@ if __name__ == "__main__":
     print(dataset_list)
 
     results = []
-    for dataset_id in dataset_list:
+    for name, dataset_id in zip(names, dataset_list):
         avg_cer, std_cer = analysis(dataset_id)
         # 결과 리스트에 데이터셋 이름, 평균, 표준편차를 추가합니다.
-        results.append({"dataset": dataset_id, "avg_cer": avg_cer, "std_cer": std_cer})
+        results.append(
+            {
+                "model": name,
+                "dataset": dataset_id,
+                "avg_cer": avg_cer,
+                "std_cer": std_cer,
+            }
+        )
 
     # --- 결과 테이블 출력 ---
     print("\n\n--- 최종 결과 요약 ---")
 
     # 헤더 출력
-    header = f"| {'Dataset':<65} | {'Avg CER':<10} | {'Std CER':<10} |"
+    header = f"| {'Model':<65} | {'Avg CER':<10} | {'Std CER':<10} |"
     separator = f"|{'-'*67}|{'-'*12}|{'-'*12}|"
     print(header)
     print(separator)
 
     # 각 데이터셋의 결과 출력
     for result in results:
-        row = f"| {result['dataset']:<65} | {result['avg_cer']:.6f}   | {result['std_cer']:.6f}   |"
+        row = f"| {result['model']:<65} | {result['avg_cer']:.6f}   | {result['std_cer']:.6f}   |"
         print(row)
 
     # --- JSON 파일로 결과 저장 ---

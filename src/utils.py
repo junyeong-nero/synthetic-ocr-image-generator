@@ -1,8 +1,10 @@
+import re
 import json
 import logging
+import pandas as pd
+
 from pathlib import Path
 from typing import List, Tuple, Dict, Any, Optional
-import pandas as pd
 
 from datasets import (
     Dataset,
@@ -13,6 +15,12 @@ from datasets import (
 from huggingface_hub import HfFolder
 
 logger = logging.getLogger(__name__)
+
+
+def extract_tag(text: str, tag="char") -> list:
+    pattern = rf"<{tag}>(.*?)</{tag}>"
+    matches = re.findall(pattern, text)
+    return matches
 
 
 def read_json(file_path):
