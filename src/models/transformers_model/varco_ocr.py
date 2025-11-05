@@ -49,7 +49,7 @@ class VarcoOCR(Model):
                 return_tensors="pt",
             ).to(self.model.device, torch.float16)
 
-            generate_ids = self.model.generate(**inputs, max_new_tokens=4096)
+            generate_ids = self.model.generate(**inputs, max_new_tokens=1024)
             generate_ids_trimmed = [
                 out_ids[len(in_ids) :]
                 for in_ids, out_ids in zip(inputs.input_ids, generate_ids)

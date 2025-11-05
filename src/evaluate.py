@@ -1,6 +1,7 @@
 import argparse
 from datasets import load_dataset
 from tqdm import tqdm  # tqdm 라이브러리 추가
+from models.base import Model
 from models import DotsOCR, NanonetsOCR, LightOnOCR, OlmOCR
 from models.transformers_model.deepseek_ocr import DeepSeekOCR
 from models.transformers_model.gemma3_4b_it import Gemma3_4B_IT
@@ -12,6 +13,7 @@ from models.transformers_model.varco_ocr import VarcoOCR
 from metrics.edit_distance import cer
 
 MODELS = {
+    "dummy": Model,
     "rednote-hilab/dots.ocr": DotsOCR,
     "nanonets/Nanonets-OCR2-3B": NanonetsOCR,
     "lightonai/LightOnOCR-1B-1025": LightOnOCR,
@@ -42,6 +44,7 @@ def main(
 
     print(f"Load Dataset: {dataset_id}, {subset}, {split}")
     dataset = load_dataset(dataset_id, split=split)
+    print(dataset)
 
     output = []
     cer_list = []
@@ -55,13 +58,13 @@ def main(
         batch_gt = batch[target_column]
         batch_result = model.run(prompts=batch_prompts, images=batch_images)
 
-        cer_list += [cer(y_gt, y_pred) for y_pred, y_gt in zip(batch_gt, batch_result)]
+        cer_list += [cer(y_gt, y_pred) for y_gt, y_pred in zip(batch_gt, batch_result)]
         output += batch_result
 
-    dataset.add_column("output", output)
     if output_dataset_id:
-        dataset.add_column("cer", cer_list)
-        dataset.add_column("ocr_result", output)
+        dataset = dataset.add_column("cer", cer_list)
+        dataset = dataset.add_column("ocr_result", output)
+        print(dataset)
         dataset.push_to_hub(output_dataset_id)
 
     return output

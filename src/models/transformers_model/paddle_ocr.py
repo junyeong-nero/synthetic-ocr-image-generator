@@ -39,7 +39,7 @@ class PaddleOCR(Model):
                 return_tensors="pt",
             ).to(self.device)
 
-            outputs = self.model.generate(**inputs, max_new_tokens=4096)
+            outputs = self.model.generate(**inputs, max_new_tokens=1024)
             decoded = self.processor.batch_decode(outputs, skip_special_tokens=True)[0]
             results.append(decoded)
         return results

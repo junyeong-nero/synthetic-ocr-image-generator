@@ -9,11 +9,9 @@ from ..base import Model
 
 class Gemma3_4B_IT(Model):
     def __init__(self, model_id="google/gemma-3-4b-it"):
-        self.model = (
-            Gemma3ForConditionalGeneration.from_pretrained(
-                model_id, device_map="auto", torch_dtype=torch.bfloat16
-            ).eval()
-        )
+        self.model = Gemma3ForConditionalGeneration.from_pretrained(
+            model_id, device_map="auto", torch_dtype=torch.bfloat16
+        ).eval()
         self.processor = AutoProcessor.from_pretrained(model_id)
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
@@ -22,7 +20,9 @@ class Gemma3_4B_IT(Model):
             messages = [
                 {
                     "role": "system",
-                    "content": [{"type": "text", "text": "You are a helpful assistant."}],
+                    "content": [
+                        {"type": "text", "text": "You are a helpful assistant."}
+                    ],
                 },
                 {
                     "role": "user",
@@ -45,7 +45,7 @@ class Gemma3_4B_IT(Model):
 
             with torch.inference_mode():
                 generation = self.model.generate(
-                    **inputs, max_new_tokens=4096, do_sample=False
+                    **inputs, max_new_tokens=1024, do_sample=False
                 )
                 generation = generation[0][input_len:]
 

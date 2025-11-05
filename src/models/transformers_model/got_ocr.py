@@ -25,7 +25,7 @@ class GotOCR(Model):
                 do_sample=False,
                 tokenizer=self.processor.tokenizer,
                 stop_strings="<|im_end|>",
-                max_new_tokens=4096,
+                max_new_tokens=1024,
             )
 
             decoded = self.processor.decode(

@@ -34,14 +34,16 @@ class Model:
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
         assert len(prompts) == len(images)
-        return ["empty" * len(prompts)]
+        return ["empty"] * len(prompts)
 
 
 class vLLMModel(Model):
 
-    def __init__(self, model_id, temperature=0, max_tokens=4096, top_p=1.0) -> None:
+    def __init__(
+        self, model_id, temperature=0, max_model_len=2048, max_tokens=1024, top_p=1.0
+    ) -> None:
         super().__init__()
-        self.model = LLM(model_id, trust_remote_code=True)
+        self.model = LLM(model_id, trust_remote_code=True, max_model_len=max_model_len)
         self.sampling_params = SamplingParams(
             temperature=temperature, max_tokens=max_tokens, top_p=top_p
         )
