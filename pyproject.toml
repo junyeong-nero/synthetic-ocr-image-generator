@@ -14,4 +14,6 @@ dependencies = [
     "scikit-image>=0.25.2",
     "pyyaml>=6.0",
     "huggingface-hub[cli]>=0.35.3",
+    "plotly>=6.4.0",
+    "statsmodels>=0.14.5",
 ]
