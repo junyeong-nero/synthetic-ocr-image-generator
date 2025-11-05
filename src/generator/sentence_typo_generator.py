@@ -29,7 +29,7 @@ def generate_sentence_typos_images(
     db_path: str,
     num_images: int = 1000,
     output_dir: str = "images",
-    resolution_range: Tuple[int, int] = (20, 90),
+    resolution_range: Tuple[int, int] = (12, 48),
     bold: Optional[bool] = None,
     tilt: Optional[int] = None,
     shadow: Optional[bool] = None,

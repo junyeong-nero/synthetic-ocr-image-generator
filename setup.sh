@@ -10,7 +10,7 @@ uv venv --python 3.12 --seed
 source .venv/bin/activate
 
 # install vllm
-uv pip install "huggingface_hub[hf_transfer]" addict easydict einops 
+uv pip install huggingface_hub hf_transfer addict easydict einops gpustat
 uv pip install vllm --torch-backend=auto
 
 # install transformers
