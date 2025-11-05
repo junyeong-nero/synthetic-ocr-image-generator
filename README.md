@@ -28,26 +28,20 @@
 *   **유연한 설정**: `config` 디렉토리의 파일을 통해 벤치마크 데이터셋 생성 설정을 조정할 수 있습니다.
 *   **모델 성능 평가**: 생성된 데이터셋을 사용하여 OCR 모델의 정확도, 견고성 등을 평가합니다.
 
-## 사용법
+## How to Use
 
-### 1. 환경 설정
+- TODO
 
-프로젝트를 실행하기 전에 필요한 의존성을 설치해야 합니다. `uv`를 사용하여 의존성을 관리합니다.
 
-```bash
-uv sync
-```
+## Result
 
-### 2. 데이터 생성
-
-`main.py` 스크립트를 사용하여 벤치마크 데이터를 생성할 수 있습니다.
-
-```bash
-python main.py --config_path config/config_ko.yaml
-```
-
-*   `--config_path`: 사용할 설정 파일의 경로를 지정합니다. `config/config_ko.yaml` (한국어) 또는 `config/config_ja.yaml` (일본어) 중 하나를 선택할 수 있습니다.
-
-### 3. 설정 파일 수정
-
-`config` 디렉토리 내의 YAML 파일을 수정하여 데이터 생성 방식을 세부적으로 제어할 수 있습니다. 예를 들어, 생성할 데이터의 양, 텍스트 스타일, 이미지 배경 등을 설정할 수 있습니다.
+| Model                                                             | Avg CER    | Std CER    |
+|-------------------------------------------------------------------|------------|------------|
+| rednote-hilab/dots.ocr                                            | 1.988376   | 15.208363   |
+| nanonets/Nanonets-OCR2-3B                                         | 0.267985   | 4.309995   |
+| allenai/olmOCR-2-7B-1025                                          | 0.159544   | 2.159467   |
+| google/gemma-3-4b-it                                              | 0.997308   | 7.249212   |
+| stepfun-ai/GOT-OCR-2.0-hf                                         | 6.497117   | 16.651408   |
+| PaddlePaddle/PaddleOCR-VL                                         | 0.494337   | 8.531293   |
+| Qwen/Qwen3-VL-2B-Instruct                                         | 0.191162   | 2.157042   |
+| NCSOFT/VARCO-VISION-2.0-1.7B-OCR                                  | 0.398493   | 0.270318   |
