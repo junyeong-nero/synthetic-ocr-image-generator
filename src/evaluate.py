@@ -2,13 +2,18 @@ import argparse
 from datasets import load_dataset
 from tqdm import tqdm  # tqdm 라이브러리 추가
 from models.base import Model
-from models import DotsOCR, NanonetsOCR, LightOnOCR, OlmOCR
-from models.transformers_model.deepseek_ocr import DeepSeekOCR
-from models.transformers_model.gemma3_4b_it import Gemma3_4B_IT
-from models.transformers_model.got_ocr import GotOCR
-from models.transformers_model.paddle_ocr import PaddleOCR
-from models.transformers_model.qwen3_vl import Qwen3VL
-from models.transformers_model.varco_ocr import VarcoOCR
+from models import (
+    DotsOCR,
+    NanonetsOCR,
+    LightOnOCR,
+    OlmOCR,
+    DeepSeekOCR,
+    Gemma3_4B_IT,
+    GotOCR,
+    PaddleOCR,
+    Qwen3VL,
+    VarcoOCR,
+)
 
 from metrics.edit_distance import cer
 

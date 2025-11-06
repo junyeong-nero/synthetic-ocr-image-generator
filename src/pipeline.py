@@ -6,7 +6,7 @@ from typing import Any
 # 각 모듈이 실제로 존재한다고 가정합니다.
 from corpus_generator import create_corpus_from_wiki
 from character_similarity import generate_similar_chars_db
-from generator.sentence_typo_generator import generate_sentence_typos_images
+from generator.sentence_generator import generate_sentence_typos_images
 from utils import upload_subset_to_hub
 
 # 로거 설정

@@ -1,4 +1,4 @@
-from models.base import vLLMModel
+from ..base import vLLMModel
 
 
 class NanonetsOCR(vLLMModel):
