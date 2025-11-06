@@ -9,7 +9,16 @@ def generate_message(
     image: Image.Image,
     prompt: str = "OCR this image",
 ) -> List[Dict]:
+    """
+    Generates a message payload for a multimodal model.
 
+    Args:
+        image: The PIL Image to be included.
+        prompt: The text prompt to accompany the image.
+
+    Returns:
+        A list of dictionaries representing the message structure.
+    """
     buf = io.BytesIO()
     image = image.convert("RGB")
     image.save(buf, format="PNG")
@@ -27,16 +36,28 @@ def generate_message(
 
 
 class Model:
+    """Base class for OCR models."""
 
     def __init__(self) -> None:
         pass
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
+        """
+        Runs the OCR model on a batch of images and prompts.
+
+        Args:
+            prompts: A list of text prompts.
+            images: A list of PIL Images.
+
+        Returns:
+            A list of OCR results as strings.
+        """
         assert len(prompts) == len(images)
         return ["empty"] * len(prompts)
 
 
 class vLLMModel(Model):
+    """A wrapper for vLLM models."""
 
     def __init__(
         self, model_id, temperature=0, max_model_len=2048, max_tokens=1024, top_p=1.0

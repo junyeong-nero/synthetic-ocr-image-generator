@@ -7,6 +7,8 @@ from apted import APTED, Config
 
 
 class TableTree(object):
+    """Represents a node in a table tree structure."""
+
     def __init__(self, tag, colspan=None, rowspan=None, content=None):
         self.tag = tag
         self.colspan = colspan
@@ -19,8 +21,10 @@ class TableTree(object):
 
 
 class CustomConfig(Config):
+    """Custom configuration for the APTED algorithm to compare table tree nodes."""
+
     def rename(self, node1, node2):
-        """Compares attributes of two nodes"""
+        """Compares attributes of two nodes."""
         if (
             node1.tag != node2.tag
             or node1.colspan != node2.colspan
@@ -30,7 +34,7 @@ class CustomConfig(Config):
         return 0.0
 
     def children(self, node):
-        """Get children of a node"""
+        """Get children of a node."""
         return node.children
 
 

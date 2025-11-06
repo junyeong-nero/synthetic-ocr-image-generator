@@ -9,6 +9,8 @@ from utils import extract_tag
 
 
 class VarcoOCR(Model):
+    """Wrapper for the VARCO-VISION-2.0-1.7B-OCR model."""
+
     def __init__(self, model_id="NCSOFT/VARCO-VISION-2.0-1.7B-OCR"):
         self.model = LlavaOnevisionForConditionalGeneration.from_pretrained(
             model_id,
@@ -19,6 +21,7 @@ class VarcoOCR(Model):
         self.processor = AutoProcessor.from_pretrained(model_id)
 
     def _upscale_image(self, image: Image.Image, target_size=2304) -> Image.Image:
+        """Upscales an image if its largest dimension is smaller than the target size."""
         w, h = image.size
         if max(w, h) < target_size:
             scaling_factor = target_size / max(w, h)

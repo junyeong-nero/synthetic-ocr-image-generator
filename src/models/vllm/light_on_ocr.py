@@ -2,6 +2,7 @@ from ..base import vLLMModel
 
 
 class LightOnOCR(vLLMModel):
+    """Wrapper for the LightOnOCR-1B-1025 model using vLLM."""
 
     def __init__(self, **kwargs) -> None:
         super().__init__(

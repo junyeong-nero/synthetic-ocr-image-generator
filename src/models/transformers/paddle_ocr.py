@@ -8,6 +8,8 @@ from ..base import Model
 
 
 class PaddleOCR(Model):
+    """Wrapper for the PaddleOCR-VL model."""
+
     def __init__(self, model_id="PaddlePaddle/PaddleOCR-VL"):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = (

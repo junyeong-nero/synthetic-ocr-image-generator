@@ -8,6 +8,8 @@ from ..base import Model
 
 
 class Gemma3_4B_IT(Model):
+    """Wrapper for the Gemma-3-4B-IT model."""
+
     def __init__(self, model_id="google/gemma-3-4b-it"):
         self.model = Gemma3ForConditionalGeneration.from_pretrained(
             model_id, device_map="auto", torch_dtype=torch.bfloat16

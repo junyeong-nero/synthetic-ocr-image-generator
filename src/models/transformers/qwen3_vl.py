@@ -7,6 +7,8 @@ from ..base import Model
 
 
 class Qwen3VL(Model):
+    """Wrapper for the Qwen3-VL-2B-Instruct model."""
+
     def __init__(self, model_id="Qwen/Qwen3-VL-2B-Instruct"):
         self.model = Qwen3VLForConditionalGeneration.from_pretrained(
             model_id,

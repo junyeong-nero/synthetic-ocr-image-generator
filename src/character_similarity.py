@@ -120,16 +120,16 @@ def generate_sentence_typos(
     texts: List[str], db: Dict[str, Any], typo_ratio: float = 0.15
 ) -> List[tuple[str, str]]:
     """
-    주어진 텍스트 목록에 대해 유사 문자를 기반으로 오타를 생성합니다.
-    전체 단어 중 `typo_ratio` 비율만큼의 단어에 오타를 생성합니다.
+    Generates typos for a given list of texts based on character similarity.
+    Typos are generated for a ratio of words defined by `typo_ratio`.
 
     Args:
-        texts: 오타를 생성할 원본 문자열의 리스트.
-        db: 유사 문자 데이터베이스.
-        typo_ratio: 전체 단어 대비 오타를 생성할 단어의 비율.
+        texts: A list of original strings to generate typos for.
+        db: The character similarity database.
+        typo_ratio: The ratio of words in which to generate typos.
 
     Returns:
-        (원본 문장, 오타 문장) 튜플의 리스트.
+        A list of tuples, each containing the original sentence and the sentence with typos.
     """
     generated_sentences_with_original = []
     for text in texts:
@@ -139,11 +139,11 @@ def generate_sentence_typos(
             continue
 
         num_words_to_change = int(len(words) * typo_ratio)
-        # typo_ratio가 0보다 크면 최소 1개의 오타를 생성
+        # If typo_ratio is greater than 0, ensure at least one typo is generated.
         if num_words_to_change == 0 and typo_ratio > 0:
             num_words_to_change = 1
 
-        # 단어 수보다 많은 오타를 생성하지 않도록 보장
+        # Ensure we don't try to change more words than exist.
         num_words_to_change = min(num_words_to_change, len(words))
 
         indices_to_change = random.sample(range(len(words)), num_words_to_change)
@@ -154,14 +154,14 @@ def generate_sentence_typos(
             if not word or len(word) <= 1:
                 continue
 
-            # 단어 내에서 변경할 문자의 인덱스를 무작위로 선택
+            # Randomly select an index of a character to change within the word.
             char_index = random.randint(0, len(word) - 1)
             original_char = word[char_index]
 
             if original_char.isnumeric() or original_char.isspace():
                 continue
 
-            # 유사 문자를 찾아 무작위로 하나 선택
+            # Find similar characters and randomly choose one.
             similar_chars = find_similar_chars(original_char, db, top_n=5)
             if similar_chars:
                 similar_char, _ = random.choice(similar_chars)

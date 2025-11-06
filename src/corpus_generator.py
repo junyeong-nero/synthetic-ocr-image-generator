@@ -9,8 +9,8 @@ from utils import save_txt
 
 logger = logging.getLogger(__name__)
 
-# --- 수정된 부분: 제거할 특수 기호 목록을 상수로 정의 ---
-# 요청된 모든 기호(기하학적 도형, 수학 기호, 화살표, 특수 따옴표 등)를 포함합니다.
+# --- Modified Part: Define a list of special symbols to remove as a constant ---
+# Includes all requested symbols (geometric shapes, math symbols, arrows, special quotes, etc.).
 SPECIAL_SYMBOLS_TO_REMOVE = (
     "▲▼◀▶◢◣◥◤△▽◿◺◹◸▴▾◂▸▵▿◃▹◁▷◅▻◬⟁⧋⧊⊿"
     "○◌◍◎◯❍◉⦾⊙⦿⊜⊖⊘⊚⊛⊝●⚫⦁◐◑◒◓◔◕⦶⦸◵◴◶◷"
@@ -24,9 +24,9 @@ SPECIAL_SYMBOLS_TO_REMOVE = (
     "¹²³↉½⅓¼⅕⅙⅐⅛⅑⅒⅔⅖¾⅗⅜⅘⅚⅝⅞"
     "✿☺☻☹☼☂☃⌇⚛⌨✆☎⌘⇧×☓✕✖⨉⨯☒✗✘Χχᚷ⊗⨷ₓˣ𒉽⛒⛝🆇🅧Ⓧ𝕏✔✓☐☑★☆♺⚑⚐✉✄⌲✈♦♣♠♥❤♡♪♩♫♬♯♀♂⚢⚣"
     "❑❒◈◐◑✖✚✜⧓⧗⧑⧒⧖_⚊╴╼╾‐⁃‑‒–⎯—―╶╺╸©®™℠℻℅℁⅍℄¶⁋❡⁌⁍⸖⸗⸚⸓§₿⚽⚾☘❦❧☙❢❣✁✂✃✄"
-    "·•・"  # 가운데점 및 유사 기호 포함
+    "·•・"  # Including middle dots and similar symbols
 )
-# 효율성을 위해 정규식을 컴파일합니다.
+# Compile the regex for efficiency.
 SPECIAL_SYMBOLS_REGEX = re.compile(f"[{re.escape(SPECIAL_SYMBOLS_TO_REMOVE)}]")
 
 
@@ -64,22 +64,22 @@ LANG_CONFIG = {
 
 def clean_wiki_text(text: str, lang: str) -> str:
     """Cleans and removes unnecessary markup and special characters from Wikipedia text."""
-    # --- 수정된 부분: 위에서 정의한 모든 특수 기호를 먼저 제거 ---
+    # --- Modified Part: First, remove all special symbols defined above ---
     words = text.split()
     text = " ".join([SPECIAL_SYMBOLS_REGEX.sub("", word) for word in words])
 
-    # 기존 위키피디아 마크업 제거 로직
+    # Existing logic to remove Wikipedia markup
     text = re.sub(r"\[\[[^\]|]+\|([^\]]+)\]\]", r" ", text)
     text = re.sub(r"\[\[([^\]]+)\]\]", r" ", text)
     text = re.sub(r"https?://[^ ]+", "", text)
     text = re.sub(r"'{2,5}", "", text)
     text = re.sub(r"==+\s*(.*?)\s*==+", r" .", text)
 
-    # 언어별로 허용된 문자 외에는 모두 제거
+    # Remove all characters except those allowed for the specific language
     if lang in LANG_CONFIG:
         text = re.sub(LANG_CONFIG[lang]["char_regex"], "", text)
 
-    # 공백 정규화
+    # Normalize whitespace
     text = " ".join(text.split()).strip()
     return text
 
@@ -127,7 +127,7 @@ def create_corpus_from_wiki(output_path: str, lang: str, num_sentences: int = 10
                 s = sentence.strip()
                 if 10 < len(s) < 100:
                     collected_sentences.append(s)
-                    pbar.update(1)  # 진행률 1 증가
+                    pbar.update(1)
                     if len(collected_sentences) >= num_sentences:
                         break
 

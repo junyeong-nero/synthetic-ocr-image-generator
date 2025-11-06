@@ -1,6 +1,6 @@
 import argparse
 from datasets import load_dataset
-from tqdm import tqdm  # tqdm 라이브러리 추가
+from tqdm import tqdm
 from models.base import Model
 from models import (
     DotsOCR,
@@ -43,6 +43,23 @@ def main(
     prompt="OCR this image",
     target_column="response",
 ):
+    """
+    Evaluates an OCR model on a given dataset.
+
+    Args:
+        model_id (str): The ID of the model to use for evaluation.
+        dataset_id (str): The ID of the dataset to evaluate on.
+        subset (str): The subset of the dataset to use.
+        split (str): The split of the dataset to use.
+        batchsize (int): The batch size for processing.
+        output_dataset_id (str): The ID to use for pushing the results to the Hugging Face Hub.
+        image_column (str): The name of the column containing the images.
+        prompt (str): The prompt to use for the OCR model.
+        target_column (str): The name of the column containing the ground truth text.
+
+    Returns:
+        list: A list of the OCR results.
+    """
 
     print(f"Load Models: {model_id}")
     model = MODELS[model_id]()  # Instantiate the model
@@ -54,7 +71,7 @@ def main(
     output = []
     cer_list = []
 
-    # tqdm을 사용하여 진행 상황을 표시합니다.
+    # Use tqdm to display a progress bar.
     for i in tqdm(range(0, len(dataset), batchsize), desc="Processing Batches"):
         batch = dataset[i : i + batchsize]
 

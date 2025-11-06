@@ -18,6 +18,16 @@ logger = logging.getLogger(__name__)
 
 
 def extract_tag(text: str, tag="char") -> list:
+    """
+    Extracts content from a specified tag in a string.
+
+    Args:
+        text (str): The string to search within.
+        tag (str): The tag to extract content from.
+
+    Returns:
+        list: A list of strings found within the specified tags.
+    """
     pattern = rf"<{tag}>(.*?)</{tag}>"
     matches = re.findall(pattern, text)
     return matches
@@ -25,23 +35,23 @@ def extract_tag(text: str, tag="char") -> list:
 
 def read_json(file_path):
     """
-    JSON 파일을 읽어 파이썬 객체로 반환합니다.
+    Reads a JSON file and returns a Python object.
 
     Args:
-        file_path (str): 읽을 JSON 파일의 경로.
+        file_path (str): The path to the JSON file to read.
 
     Returns:
-        dict or list: JSON 파일의 내용을 담은 파이썬 객체.
+        dict or list: A Python object containing the contents of the JSON file.
     """
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return data
     except FileNotFoundError:
-        logger.error(f"오류: 파일 '{file_path}'를 찾을 수 없습니다.")
+        logger.error(f"Error: File '{file_path}' not found.")
         return None
     except json.JSONDecodeError:
-        logger.error(f"오류: '{file_path}' 파일이 올바른 JSON 형식이 아닙니다.")
+        logger.error(f"Error: File '{file_path}' is not a valid JSON format.")
         return None
 
 
@@ -50,82 +60,81 @@ import json
 
 def save_json(data, file_path):
     """
-    파이썬 객체를 JSON 파일로 저장합니다.
+    Saves a Python object to a JSON file.
 
     Args:
-        data (dict or list): 저장할 파이썬 객체.
-        file_path (str): 저장할 JSON 파일의 경로.
+        data (dict or list): The Python object to save.
+        file_path (str): The path to the JSON file to save.
     """
     try:
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
-        logger.info(f"데이터가 '{file_path}' 파일에 성공적으로 저장되었습니다.")
+        logger.info(f"Data successfully saved to '{file_path}'.")
     except Exception as e:
-        logger.error(f"파일 저장 중 오류가 발생했습니다: {e}")
+        logger.error(f"An error occurred while saving the file: {e}")
 
 
 def read_txt(file_path):
     """
-    텍스트 파일의 모든 줄을 읽어 리스트로 반환합니다.
+    Reads all lines from a text file and returns them as a single string.
 
     Args:
-        file_path (str): 읽을 텍스트 파일의 경로.
+        file_path (str): The path to the text file to read.
 
     Returns:
-        list: 파일의 각 줄을 요소로 하는 문자열 리스트.
+        str: A string containing the entire content of the file.
     """
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             text = f.read()
-        # 각 줄의 끝에 있는 개행 문자(\n) 제거
         return text
     except FileNotFoundError:
-        logger.error(f"오류: 파일 '{file_path}'를 찾을 수 없습니다.")
+        logger.error(f"Error: File '{file_path}' not found.")
         return None
 
 
 def save_txt(file_path, text):
     """
-    문자열 리스트를 텍스트 파일에 씁니다. 각 요소는 한 줄에 해당합니다.
+    Writes a string to a text file.
 
     Args:
-        lines (list): 파일에 쓸 문자열의 리스트.
-        file_path (str): 저장할 텍스트 파일의 경로.
+        text (str): The string to write to the file.
+        file_path (str): The path to the text file to save.
     """
     try:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(text)
-        logger.info(f"데이터가 '{file_path}' 파일에 성공적으로 저장되었습니다.")
+        logger.info(f"Data successfully saved to '{file_path}'.")
     except Exception as e:
-        logger.error(f"파일 저장 중 오류가 발생했습니다: {e}")
+        logger.error(f"An error occurred while saving the file: {e}")
 
 
 def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
     """
-    지정된 디렉토리의 데이터를 특정 config(subset)으로 Hub 저장소에 업로드합니다.
-    metadata.jsonl에 있는 모든 필드를 동적으로 감지하여 컬럼으로 사용합니다.
+    Uploads data from a specified directory to a specific config (subset) on the Hub.
+    Dynamically detects all fields in metadata.jsonl to use as columns.
 
     Args:
-        repo_id (str): Hugging Face 저장소 ID (예: 'user/repo-name').
-        subset_dir (Path): 이미지와 metadata.jsonl이 있는 디렉토리 경로.
-        config_name (str): 데이터셋의 config 이름 (예: 'sentence_typos').
+        repo_id (str): The Hugging Face repository ID (e.g., 'user/repo-name').
+        subset_dir (Path): The directory path containing images and metadata.jsonl.
+        config_name (str): The config name for the dataset (e.g., 'sentence_typos').
     """
-    logger.info(f"\n▶ Subset '{config_name}'을(를) '{repo_id}' 저장소에 업로드 시작...")
+    logger.info(f"\n▶ Starting upload of subset '{config_name}' to '{repo_id}'...")
 
     try:
         if HfFolder.get_token() is None:
             raise ConnectionError(
-                "Hugging Face 로그인이 필요합니다. 'huggingface-cli login'을 실행해주세요."
+                "Hugging Face login is required. Please run 'huggingface-cli login'."
             )
 
         metadata_path = subset_dir / "metadata.jsonl"
         if not metadata_path.exists():
             raise FileNotFoundError(
-                f"'{metadata_path}' 파일을 찾을 수 없습니다. 업로드 중단."
+                f"'{metadata_path}' not found. Aborting upload."
             )
 
-        # --- [수정된 부분 1] ---
-        # 1. metadata.jsonl의 첫 줄을 읽어 동적으로 컬럼과 **데이터 타입**을 파악합니다.
+        # --- [Modified Part 1] ---
+        # 1. Read the first line of metadata.jsonl to dynamically determine columns and data types.
         feature_dict = {}
         column_names = []
 
@@ -133,19 +142,19 @@ def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
             first_line = f.readline()
             if not first_line:
                 logger.warning(
-                    f"'{metadata_path}' 파일이 비어있습니다. 업로드를 건너뜁니다."
+                    f"'{metadata_path}' is empty. Skipping upload."
                 )
                 return
 
             sample_data = json.loads(first_line)
             if "file_name" not in sample_data:
-                raise KeyError("'metadata.jsonl'에 필수 키인 'file_name'이 없습니다.")
+                raise KeyError("Required key 'file_name' not found in 'metadata.jsonl'.")
 
-            # 'file_name'은 항상 'image' 컬럼으로 처리
+            # 'file_name' is always treated as the 'image' column
             feature_dict["image"] = HFImage()
             column_names.append("image")
 
-            # 나머지 키들에 대해 타입을 확인하고 Features를 구성
+            # Check types for the remaining keys and construct Features
             for key, value in sample_data.items():
                 if key == "file_name":
                     continue
@@ -162,19 +171,19 @@ def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
                 elif value_type is str:
                     feature_dict[key] = Value("string")
                 else:
-                    # 지원하지 않는 타입은 경고를 출력하고 문자열로 처리
+                    # Warn and treat unsupported types as strings
                     logger.warning(
-                        f"'{key}'의 타입({value_type})을 지원하지 않습니다. 문자열로 처리합니다."
+                        f"Unsupported type for '{key}' ({value_type}). Treating as string."
                     )
                     feature_dict[key] = Value("string")
 
                 column_names.append(key)
 
         features = Features(feature_dict)
-        logger.info(f"  감지된 컬럼 및 타입: {features}")
-        # --- [수정 완료] ---
+        logger.info(f"  Detected columns and types: {features}")
+        # --- [Modification Complete] ---
 
-        # 2. 모든 데이터를 딕셔너리의 리스트 형태로 수집
+        # 2. Collect all data into a list of dictionaries
         all_data: List[Dict[str, Any]] = []
         with open(metadata_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -187,26 +196,26 @@ def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
                 all_data.append(record)
 
         if not all_data:
-            logger.warning("처리할 유효한 데이터가 없습니다. 업로드를 중단합니다.")
+            logger.warning("No valid data to process. Aborting upload.")
             return
 
         logger.info(
-            f"  '{config_name}' subset: 총 {len(all_data):,}개의 유효한 데이터를 찾았습니다."
+            f"  '{config_name}' subset: Found {len(all_data):,} valid data entries."
         )
 
-        # 3. Hugging Face Dataset 객체 생성
+        # 3. Create a Hugging Face Dataset object
         df = pd.DataFrame(all_data)
         dataset = Dataset.from_pandas(df, features=features)
 
-        # Hugging Face Hub에 업로드 (config_name 지정)
+        # Upload to the Hugging Face Hub (specifying config_name)
         dataset.push_to_hub(repo_id, config_name=config_name)
 
-        logger.info(f"✔ Subset '{config_name}' 업로드 완료!")
+        logger.info(f"✔ Subset '{config_name}' uploaded successfully!")
 
     except (ConnectionError, FileNotFoundError, KeyError) as e:
-        logger.error(f"오류: {e}")
+        logger.error(f"Error: {e}")
     except Exception as e:
         logger.error(
-            f"오류: Subset '{config_name}' 업로드 중 예상치 못한 오류 발생: {e}",
+            f"Error: An unexpected error occurred while uploading subset '{config_name}': {e}",
             exc_info=True,
         )

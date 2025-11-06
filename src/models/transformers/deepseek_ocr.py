@@ -10,6 +10,8 @@ from ..base import Model
 
 
 class DeepSeekOCR(Model):
+    """Wrapper for the DeepSeek-OCR model."""
+
     def __init__(self, model_name="deepseek-ai/DeepSeek-OCR"):
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
         self.tokenizer = AutoTokenizer.from_pretrained(
