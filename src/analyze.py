@@ -3,40 +3,40 @@ import json
 import numpy as np
 from datasets import load_dataset
 
-# Add 'src' to the path to import the 'metrics.edit_distance' module.
+# 'src'를 경로에 추가하여 'metrics.edit_distance' 모듈을 임포트합니다.
 sys.path.insert(0, "src")
 from metrics.edit_distance import cer
 
 
 def analysis(dataset_id, split="train"):
     """
-    Loads a dataset and calculates the average CER and standard deviation of CER.
+    데이터셋을 로드하고 평균 CER 및 CER의 표준 편차를 계산합니다.
 
     Args:
-        dataset_id (str): The ID of the dataset to load.
-        split (str): The split of the dataset to use (default: "train").
+        dataset_id (str): 로드할 데이터셋의 ID.
+        split (str): 사용할 데이터셋의 분할 (기본값: "train").
 
     Returns:
-        tuple: A tuple containing the average CER and the standard deviation of CER.
+        tuple: 평균 CER과 CER의 표준 편차를 포함하는 튜플.
     """
     print(f"\nAnalyzing dataset: {dataset_id}...")
     dataset = load_dataset(dataset_id, split=split)
-    # print(dataset) # This is commented out as the dataset info can be very long.
+    # print(dataset) # 데이터셋 정보가 매우 길 수 있으므로 주석 처리합니다.
 
     typo = dataset["typo_text"]
     original = dataset["original_text"]
     ocr_result = dataset["ocr_result"]
 
-    # Recalculate the CER list using the cer function directly.
+    # cer 함수를 직접 사용하여 CER 목록을 다시 계산합니다.
     cer_list = [cer(y_gt, y_pred) for y_gt, y_pred in zip(typo, ocr_result)]
 
-    # Use all values, including those with CER greater than 1.
+    # CER이 1보다 큰 값을 포함하여 모든 값을 사용합니다.
     cer_list_filtered = [elem for elem in cer_list]
 
-    # Calculate the average
+    # 평균을 계산합니다.
     avg = sum(cer_list_filtered) / len(cer_list_filtered) if cer_list_filtered else 0
 
-    # Calculate the standard deviation
+    # 표준 편차를 계산합니다.
     std = np.std(cer_list_filtered) if cer_list_filtered else 0
 
     num = [(1 if typo[i] == original[i] else 0) for i in range(len(typo))]
@@ -49,8 +49,8 @@ def analysis(dataset_id, split="train"):
 
 def run_all():
     """
-    Runs the analysis for a predefined list of models and datasets,
-    prints a summary table, and saves the results to a JSON file.
+    미리 정의된 모델 및 데이터셋 목록에 대한 분석을 실행하고,
+    요약 테이블을 출력하며, 결과를 JSON 파일에 저장합니다.
     """
     names = [
         "rednote-hilab/dots.ocr",
@@ -62,6 +62,8 @@ def run_all():
         "stepfun-ai/GOT-OCR-2.0-hf",
         "PaddlePaddle/PaddleOCR-VL",
         "Qwen/Qwen3-VL-2B-Instruct",
+        "Qwen/Qwen3-VL-4B-Instruct",
+        "Qwen/Qwen3-VL-8B-Instruct",
         "NCSOFT/VARCO-VISION-2.0-1.7B-OCR",
     ]
 
@@ -73,7 +75,7 @@ def run_all():
     results = []
     for name, dataset_id in zip(names, dataset_list):
         avg_cer, std_cer = analysis(dataset_id)
-        # Add dataset name, average, and standard deviation to the results list.
+        # 데이터셋 이름, 평균, 표준 편차를 결과 목록에 추가합니다.
         results.append(
             {
                 "model": name,
@@ -83,21 +85,24 @@ def run_all():
             }
         )
 
-    # --- Print Results Table ---
+    # --- avg_cer을 기준으로 결과를 오름차순으로 정렬 ---
+    results.sort(key=lambda x: x["avg_cer"])
+
+    # --- 결과 테이블 출력 ---
     print("\n\n--- Final Results Summary ---")
 
-    # Print header
+    # 헤더 출력
     header = f"| {'Model':<65} | {'Avg CER':<10} | {'Std CER':<10} |"
     separator = f"|{'-'*67}|{'-'*12}|{'-'*12}|"
     print(header)
     print(separator)
 
-    # Print results for each dataset
+    # 각 데이터셋의 결과 출력
     for result in results:
         row = f"| {result['model']:<65} | {result['avg_cer']:.6f}   | {result['std_cer']:.6f}   |"
         print(row)
 
-    # --- Save Results to JSON File ---
+    # --- 결과를 JSON 파일로 저장 ---
     output_filename = "analysis_results.json"
     try:
         with open(output_filename, "w", encoding="utf-8") as f:

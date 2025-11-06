@@ -1,47 +1,19 @@
-## Introduction
+# Synthetic OCR Image Generator
 
-> **Multi-lingual OCR 데이터셋이 부족하다.**
-> 
-- 대부분의 데이터가 영어, 중국어로 이루어져 있음. minor language의 경우에는 공개되어 있는 데이터셋이 부족하다.
-- 한국어의 경우에도 공개되어 있는 데이터가 굉장히 적고, 공개되어있는 데이터도 접근 권한이 필요하기 때문에 사용하기 어렵다.
-- 기존의 synthetic OCR 데이터셋은 테이블이나 문서 형태의 레이아웃은 지원하지 않아 문서나 테이블과 같은 형식에서의 성능을 판단하기 어렵다.
-
-> **OCR의 주요한 오류 원인 중 하나인 문자교환 오류를 디테일하게 확인해야 한다.**
-> 
-- OCR을 사용하는 추출한 문자의 정확도가 정말 중요하다.
-    - 환자의 이름이 바뀐다거나, 대출금의 숫자가 바뀐다면 큰 영향이 있다.
-    - 단어 하나로 뉘양스가 바뀌거나, 완전히 의미가 바뀌는 경우도 있다.
-- 한국어의 경우 획의 조합으로 문자가 생성되기 때문에 이런 문자 교환 오류(character substitution errors) 가 발생할 가능성이 높을 것이다.
-- 한국어 뿐만 아니라, 한자 일본어의 경우에도 이런 문제가 발생할 수 있다.
-    - 한자 日(날 일)와 曰(말할 왈) 두 글자는 매우 유사하여 인식 난이도가 있다.
-    - 한글 의사(doctor)와 익사(drowing) 은 매우 유사하여 인식 난이도가 있다.
-
-> **Multilingual OCR Synthetic Dataset**
-> 
-- Font와 Corpus를 이용하여 OCR 데이터셋을 합성하여 minor language에서도 OCR 데이터를 제공한다.
-- 테이블과 문서 형식의 이미지 데이터를 공급하여 Document OCR을 평가 및 학습할 수 있도록 기여한다.
-- 문장에서 한 단어를 비슷한 문자로 치환한 OCR 데이터를 제공하여 문자 교환 오류에 대한 robustness 를 평가 및 학습 할 수 있도록 한다.
-
-## 주요 기능:
-
-*   **한국어 벤치마크 데이터셋 생성**: 다양한 복잡성과 스타일을 가진 한국어 텍스트 데이터를 생성하여 OCR 모델 평가에 활용합니다.
-*   **유연한 설정**: `config` 디렉토리의 파일을 통해 벤치마크 데이터셋 생성 설정을 조정할 수 있습니다.
-*   **모델 성능 평가**: 생성된 데이터셋을 사용하여 OCR 모델의 정확도, 견고성 등을 평가합니다.
-
-## How to Use
-
-- TODO
+- [Huggingface Dataset](https://huggingface.co/datasets/junyeong-nero/synthetic-ocr-images-korean)
 
 
-## Result
+# Result
 
 | Model                                                             | Avg CER    | Std CER    |
 |-------------------------------------------------------------------|------------|------------|
-| rednote-hilab/dots.ocr                                            | 1.988376   | 15.208363   |
-| nanonets/Nanonets-OCR2-3B                                         | 0.267985   | 4.309995   |
 | allenai/olmOCR-2-7B-1025                                          | 0.159544   | 2.159467   |
-| google/gemma-3-4b-it                                              | 0.997308   | 7.249212   |
-| stepfun-ai/GOT-OCR-2.0-hf                                         | 6.497117   | 16.651408   |
-| PaddlePaddle/PaddleOCR-VL                                         | 0.494337   | 8.531293   |
 | Qwen/Qwen3-VL-2B-Instruct                                         | 0.191162   | 2.157042   |
+| Qwen/Qwen3-VL-4B-Instruct                                         | 0.259124   | 2.964853   |
+| nanonets/Nanonets-OCR2-3B                                         | 0.267985   | 4.309995   |
+| Qwen/Qwen3-VL-8B-Instruct                                         | 0.290215   | 4.032342   |
 | NCSOFT/VARCO-VISION-2.0-1.7B-OCR                                  | 0.398493   | 0.270318   |
+| PaddlePaddle/PaddleOCR-VL                                         | 0.494337   | 8.531293   |
+| google/gemma-3-4b-it                                              | 0.997308   | 7.249212   |
+| rednote-hilab/dots.ocr                                            | 1.988376   | 15.208363   |
+| stepfun-ai/GOT-OCR-2.0-hf                                         | 6.497117   | 16.651408   |
