@@ -1,9 +1,66 @@
 # Synthetic OCR Image Generator
 
+This project provides a synthetic OCR image generator.
+
 - [Huggingface Dataset](https://huggingface.co/datasets/junyeong-nero/synthetic-ocr-images-korean)
 
+# How to Use
 
-# Result
+## Environment Setup
+
+Set up the environment using `uv`:
+
+```shell
+uv sync
+```
+
+## Running Scripts
+
+To generate synthetic OCR images, run the `main.py` script via `scripts/generate.sh`:
+
+```python
+# scripts/generate.sh
+uv run main.py \
+    --lang ko \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --corpus-size 10000 \
+    --size 1000 \
+    --typo-ratio 0.4
+```
+
+### Parameters:
+
+- `lang`: Specifies the language for text generation.
+- `font-path`: Path to the font directory used for calculating character-level similarity.
+- `repo-id`: Hugging Face repository ID to update.
+- `corpus-size`: The number of sentences to generate for the corpus, sourced from the [Wikipedia](https://huggingface.co/datasets/wikimedia/wikipedia) dataset.
+- `size`: The total number of synthetic images to generate for the dataset.
+- `typo-ratio`: The ratio of typos to introduce into the generated text.
+
+# Evaluation
+
+For evaluation, we utilized vLLM and Transformers. However, this project's `uv` environment does not support direct evaluation for various OCR models due to their differing setup requirements (e.g., specific PyTorch and CUDA versions).
+
+Please refer to `src/models` for details on integrating and inferring with different OCR models.
+
+Example evaluation script:
+
+```
+uv run src/evaluate.py \
+    "allenai/olmOCR-2-7B-1025" \
+    "junyeong-nero/synthetic-ocr-images-korean" \
+    --target-column "typo_text" \
+    --prompt "Extract all text from the image verbatim, including typos, without translation or character modification." \
+    --output-dataset-id "junyeong-nero/synthetic-ocr-images-korean-olmOCR-2-7B-1025" \
+    --batchsize 8
+```
+
+# Results
+
+We attempted to use DeepSeek-OCR, but the model generated repeated, meaningless characters that did not match the target languages (e.g., "號號號號號...").
+
+The results below are based on evaluations conducted with Korean text.
 
 | Model                                                             | Avg CER    | Std CER    |
 |-------------------------------------------------------------------|------------|------------|
@@ -17,3 +74,8 @@
 | google/gemma-3-4b-it                                              | 0.997308   | 7.249212   |
 | rednote-hilab/dots.ocr                                            | 1.988376   | 15.208363   |
 | stepfun-ai/GOT-OCR-2.0-hf                                         | 6.497117   | 16.651408   |
+
+# Future Work
+
+- Expanding Scope: Moving beyond basic text recognition to address the growing demand for document-level OCR and Key Information Extraction (KIE).
+- Target Data Types: Our primary focus will be on generating more complex and diverse synthetic images.
