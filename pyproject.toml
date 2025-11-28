@@ -16,4 +16,7 @@ dependencies = [
     "huggingface-hub[cli]>=0.35.3",
     "plotly>=6.4.0",
     "statsmodels>=0.14.5",
+    "torch>=2.9.1",
+    "torchvision>=0.24.1",
+    "accelerate>=1.12.0",
 ]
