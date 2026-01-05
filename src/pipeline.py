@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from corpus_generator import create_corpus_from_wiki
 from character_similarity import generate_similar_chars_db
-from generator import SentenceGenerator, TableGenerator, DocumentGenerator
 from utils import upload_subset_to_hub
 
 logging.basicConfig(
@@ -76,25 +75,44 @@ class MixedGenerator:
         self.font_path = font_path
         self.corpus_size = corpus_size
 
-        self.sentence_generator = SentenceGenerator(
-            output_dir=str(self.output_dir / "sentence"),
-            font_dir=str(self.font_dir),
-            corpus_path=str(self.corpus_path),
-            similarity_db_path=str(self.db_path),
-            lang=lang,
-        )
+        self._sentence_generator = None
+        self._table_generator = None
+        self._document_generator = None
 
-        self.table_generator = TableGenerator(
-            output_dir=str(self.output_dir / "table"),
-            font_dir=str(self.font_dir),
-            lang=lang,
-        )
+    @property
+    def sentence_generator(self):
+        if self._sentence_generator is None:
+            from generator import SentenceGenerator
+            self._sentence_generator = SentenceGenerator(
+                output_dir=str(self.output_dir / "sentence"),
+                font_dir=str(self.font_dir),
+                corpus_path=str(self.corpus_path),
+                similarity_db_path=str(self.db_path),
+                lang=self.lang,
+            )
+        return self._sentence_generator
 
-        self.document_generator = DocumentGenerator(
-            output_dir=str(self.output_dir / "document"),
-            font_dir=str(self.font_dir),
-            lang=lang,
-        )
+    @property
+    def table_generator(self):
+        if self._table_generator is None:
+            from generator import TableGenerator
+            self._table_generator = TableGenerator(
+                output_dir=str(self.output_dir / "table"),
+                font_dir=str(self.font_dir),
+                lang=self.lang,
+            )
+        return self._table_generator
+
+    @property
+    def document_generator(self):
+        if self._document_generator is None:
+            from generator import DocumentGenerator
+            self._document_generator = DocumentGenerator(
+                output_dir=str(self.output_dir / "document"),
+                font_dir=str(self.font_dir),
+                lang=self.lang,
+            )
+        return self._document_generator
 
     def run(
         self,
@@ -264,6 +282,8 @@ def pipeline(
         )
 
     elif format == "sentence":
+        from generator import SentenceGenerator
+
         corpus_path, db_path = _ensure_corpus_and_db(base_dir, font_path, lang, corpus_size)
         task_output_dir = base_dir / "images_sentence_typos"
 
@@ -278,6 +298,8 @@ def pipeline(
         generated_dir = generator.run(num_images=size, typo_ratio=typo_ratio)
 
     elif format == "table":
+        from generator import TableGenerator
+
         task_output_dir = base_dir / "images_tables"
         min_rows, max_rows = _parse_table_size(table_size)
         row_range = (min_rows, max_rows)
@@ -297,6 +319,8 @@ def pipeline(
         )
 
     elif format == "document":
+        from generator import DocumentGenerator
+
         task_output_dir = base_dir / "images_documents"
 
         generator = DocumentGenerator(

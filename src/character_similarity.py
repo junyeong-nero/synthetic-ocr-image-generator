@@ -8,7 +8,6 @@ from tqdm import tqdm
 from skimage.metrics import structural_similarity as ssim
 
 from utils import save_json, read_txt
-from generator.effects import render_text_with_effects
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +37,8 @@ def build_similarity_database(char_list, font_path, db_path, threshold=0.5):
         db_path (str): The path to the JSON file where the results will be saved.
         threshold (float): The similarity score threshold for saving the relationship.
     """
+    from generator.effects import render_text_with_effects
+
     logger.info("Starting to build the similarity database...")
     similarity_db = {}
 
