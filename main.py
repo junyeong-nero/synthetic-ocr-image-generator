@@ -48,6 +48,19 @@ def main():
         default=0.15,
         help="Ratio of words to introduce typos",
     )
+    parser.add_argument(
+        "--format",
+        type=str,
+        default="sentence",
+        choices=["sentence", "table", "document"],
+        help="Format of images to generate (sentence, table, or document)",
+    )
+    parser.add_argument(
+        "--template",
+        type=str,
+        default=None,
+        help="Template for table or document generation (e.g., invoice, receipt, form, letter, report)",
+    )
 
     args = parser.parse_args()
     pipeline(**vars(args))

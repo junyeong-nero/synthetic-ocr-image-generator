@@ -4,7 +4,7 @@ from typing import Any
 
 from corpus_generator import create_corpus_from_wiki
 from character_similarity import generate_similar_chars_db
-from generator import SentenceGenerator
+from generator import SentenceGenerator, TableGenerator, DocumentGenerator
 from utils import upload_subset_to_hub
 
 logging.basicConfig(
@@ -48,10 +48,13 @@ def pipeline(
     output_dir: str,
     lang: str,
     typo_ratio: float = 0.15,
+    format: str = "sentence",
+    template: str = None,
     **kwargs: Any,
 ) -> None:
     logger.info("=" * 80)
     logger.info(" Synthetic OCR Dataset Generator ".center(80))
+    logger.info(f" Format: {format} ".center(80))
     logger.info("=" * 80)
 
     if size <= 0:
@@ -59,20 +62,47 @@ def pipeline(
         return
 
     base_dir = Path(output_dir) / lang
-    corpus_path, db_path = _ensure_corpus_and_db(base_dir, font_path, lang, corpus_size)
-
-    task_output_dir = base_dir / "images_sentence_typos"
     font_dir = Path(f"fonts/{lang}")
 
-    generator = SentenceGenerator(
-        output_dir=str(task_output_dir),
-        font_dir=str(font_dir),
-        corpus_path=str(corpus_path),
-        similarity_db_path=str(db_path),
-        lang=lang,
-    )
+    if format == "sentence":
+        corpus_path, db_path = _ensure_corpus_and_db(base_dir, font_path, lang, corpus_size)
+        task_output_dir = base_dir / "images_sentence_typos"
 
-    generated_dir = generator.run(num_images=size, typo_ratio=typo_ratio)
+        generator = SentenceGenerator(
+            output_dir=str(task_output_dir),
+            font_dir=str(font_dir),
+            corpus_path=str(corpus_path),
+            similarity_db_path=str(db_path),
+            lang=lang,
+        )
+
+        generated_dir = generator.run(num_images=size, typo_ratio=typo_ratio)
+
+    elif format == "table":
+        task_output_dir = base_dir / "images_tables"
+
+        generator = TableGenerator(
+            output_dir=str(task_output_dir),
+            font_dir=str(font_dir),
+            lang=lang,
+        )
+
+        generated_dir = generator.run(num_images=size, template=template)
+
+    elif format == "document":
+        task_output_dir = base_dir / "images_documents"
+
+        generator = DocumentGenerator(
+            output_dir=str(task_output_dir),
+            font_dir=str(font_dir),
+            lang=lang,
+        )
+
+        generated_dir = generator.run(num_images=size, template=template)
+
+    else:
+        logger.error(f"Unknown format: {format}")
+        return
 
     if generated_dir:
         logger.info(f"\n--- Uploading to Hugging Face Hub: {repo_id} ---")
