@@ -1,4 +1,3 @@
-import os
 import cv2
 import numpy as np
 import logging
@@ -8,8 +7,8 @@ from typing import Dict, List, Any
 from tqdm import tqdm
 from skimage.metrics import structural_similarity as ssim
 
-from utils import save_json, read_json, read_txt
-from generator.basic_generator import _generate_text_image
+from utils import save_json, read_txt
+from generator.effects import render_text_with_effects
 
 logger = logging.getLogger(__name__)
 
@@ -42,20 +41,13 @@ def build_similarity_database(char_list, font_path, db_path, threshold=0.5):
     logger.info("Starting to build the similarity database...")
     similarity_db = {}
 
-    # Pre-generate character images to avoid redundant generation
     logger.info("1. Pre-generating character images...")
     char_images = {
-        char: _generate_text_image(
-            char,
-            font_path,
+        char: render_text_with_effects(
+            text=char,
+            font_path=font_path,
             background_color=(255, 255, 255),
             font_size=24,
-            bold=False,
-            tilt=0,
-            shadow=False,
-            distortion=False,
-            blur=False,
-            contrast=False,
         )
         for char in tqdm(char_list, desc="Generating images")
     }

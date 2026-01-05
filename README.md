@@ -79,3 +79,82 @@ The results below are based on evaluations conducted with Korean text.
 
 - Expanding Scope: Moving beyond basic text recognition to address the growing demand for document-level OCR and Key Information Extraction (KIE).
 - Target Data Types: Our primary focus will be on generating more complex and diverse synthetic images.
+
+# TODO
+
+## Table Image Generation
+
+- [ ] **Table Generator Module** (`src/generator/table_generator.py`)
+  - [ ] Define table structure: rows, columns, headers, cell content
+  - [ ] Support various table styles (bordered, borderless, alternating row colors)
+  - [ ] Implement cell merging (colspan, rowspan)
+  - [ ] Random table size generation (e.g., 2x2 ~ 10x10)
+  - [ ] Support for mixed content types in cells (text, numbers, dates)
+
+- [ ] **Table Rendering**
+  - [ ] Grid-based layout rendering with PIL/Pillow
+  - [ ] Configurable cell padding and margins
+  - [ ] Header row styling (bold, background color differentiation)
+  - [ ] Border style variations (solid, dashed, double, none)
+  - [ ] Cell alignment options (left, center, right)
+
+- [ ] **Table Data Generation**
+  - [ ] Template-based table content (invoice, schedule, receipt, etc.)
+  - [ ] Random numeric data generation (prices, quantities, dates)
+  - [ ] Multi-language support for table headers and content
+
+- [ ] **Table Ground Truth Format**
+  - [ ] HTML table representation for ground truth
+  - [ ] JSON structure with cell positions and content
+  - [ ] Support for table structure recognition (TSR) evaluation metrics
+
+## Document Layout Generation
+
+- [ ] **Document Generator Module** (`src/generator/document_generator.py`)
+  - [ ] Multi-section document layout (header, body, footer)
+  - [ ] Title and paragraph blocks
+  - [ ] Mixed content: text + tables + lists
+  - [ ] Page number and date stamps
+
+- [ ] **Document Templates**
+  - [ ] Invoice template (logo placeholder, billing info, item table, totals)
+  - [ ] Receipt template (store info, items, payment details)
+  - [ ] Form template (input fields, labels, checkboxes)
+  - [ ] Letter/memo template (header, greeting, body, signature)
+  - [ ] Report template (title, sections, tables, figures)
+
+- [ ] **Layout Variations**
+  - [ ] Single-column and multi-column layouts
+  - [ ] Margin and spacing randomization
+  - [ ] Background textures (paper-like, scanned document effects)
+  - [ ] Noise and artifacts for realistic scanned document simulation
+
+- [ ] **Document Ground Truth Format**
+  - [ ] Bounding box annotations for each element (title, paragraph, table, etc.)
+  - [ ] Reading order annotation
+  - [ ] Hierarchical document structure (sections, subsections)
+  - [ ] Key-value pair annotations for KIE tasks
+
+## Pipeline Integration
+
+- [ ] **CLI Updates** (`main.py`)
+  - [ ] Add `--format` argument: `sentence`, `table`, `document`
+  - [ ] Add `--template` argument for document type selection
+  - [ ] Add `--table-size` argument for table dimension ranges
+
+- [ ] **Pipeline Refactoring** (`src/pipeline.py`)
+  - [ ] Abstract base generator class for unified interface
+  - [ ] Format-specific pipeline branches
+  - [ ] Combined dataset generation (mixed formats)
+
+## Evaluation Extensions
+
+- [ ] **Table-specific Metrics** (`src/metrics/table_edit_distance.py`)
+  - [ ] Table structure recognition accuracy (TEDS score)
+  - [ ] Cell-level text accuracy
+  - [ ] Row/column detection metrics
+
+- [ ] **Document-level Metrics**
+  - [ ] Layout detection mAP (mean Average Precision)
+  - [ ] Reading order accuracy
+  - [ ] Key-value extraction F1 score

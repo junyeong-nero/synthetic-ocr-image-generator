@@ -6,45 +6,47 @@ from pipeline import pipeline
 
 
 def main():
-    """명령줄 인자를 파싱하고 파이프라인을 실행합니다."""
     parser = argparse.ArgumentParser(description="Synthetic OCR Image Generator")
     parser.add_argument(
         "--repo-id",
         required=True,
-        help="데이터셋을 업로드할 Hugging Face Hub 리포지토리 ID",
+        help="Hugging Face Hub repository ID for dataset upload",
     )
     parser.add_argument(
         "--font-path",
         type=str,
         required=True,
-        help="문자 유사성 DB 생성에 사용할 폰트 파일 경로",
+        help="Font file path for character similarity DB generation",
     )
     parser.add_argument(
         "--output-dir",
         type=str,
         default="./data",
-        help="생성된 모든 데이터를 저장할 기본 디렉토리",
+        help="Base directory for all generated data",
     )
     parser.add_argument(
-        "--lang", type=str, default="ko", help="생성할 데이터의 언어 코드 (예: ko, en)"
+        "--lang",
+        type=str,
+        default="ko",
+        help="Language code (e.g., ko, en)",
     )
     parser.add_argument(
         "--corpus-size",
         type=int,
         default=10000,
-        help="코퍼스 생성 시 위키피디아에서 추출할 문장 수",
+        help="Number of sentences to extract from Wikipedia",
     )
     parser.add_argument(
         "--size",
         type=int,
         default=100,
-        help="생성할 이미지 수",
+        help="Number of images to generate",
     )
     parser.add_argument(
         "--typo-ratio",
         type=float,
         default=0.15,
-        help="생성할 이미지 수",
+        help="Ratio of words to introduce typos",
     )
 
     args = parser.parse_args()
