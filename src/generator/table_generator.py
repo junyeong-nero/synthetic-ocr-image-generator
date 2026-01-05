@@ -49,6 +49,7 @@ class TableStyle:
 class Table:
     cells: List[List[TableCell]]
     style: TableStyle = field(default_factory=TableStyle)
+    cell_bounding_boxes: List[List[Tuple[int, int, int, int]]] = field(default_factory=list)
 
     @property
     def num_rows(self) -> int:
@@ -74,6 +75,45 @@ class Table:
             html_parts.append("  </tr>")
         html_parts.append("</table>")
         return "\n".join(html_parts)
+
+    def to_json(self) -> Dict[str, Any]:
+        """Convert table to JSON structure with cell positions for TSR evaluation."""
+        return {
+            "num_rows": self.num_rows,
+            "num_cols": self.num_cols,
+            "style": {
+                "border_style": self.style.border_style.value,
+                "border_color": self.style.border_color,
+                "border_width": self.style.border_width,
+                "cell_padding": self.style.cell_padding,
+                "header_bg_color": self.style.header_bg_color,
+                "cell_bg_color": self.style.cell_bg_color,
+                "alt_row_color": self.style.alt_row_color,
+                "text_color": self.style.text_color,
+                "header_text_color": self.style.header_text_color,
+                "alignment": self.style.alignment.value,
+            },
+            "cells": [
+                {
+                    "row": row_idx,
+                    "col": col_idx,
+                    "text": cell.text,
+                    "colspan": cell.colspan,
+                    "rowspan": cell.rowspan,
+                    "is_header": cell.is_header,
+                    "bounding_box": self.cell_bounding_boxes[row_idx][col_idx] if row_idx < len(self.cell_bounding_boxes) and col_idx < len(self.cell_bounding_boxes[row_idx]) else None,
+                }
+                for row_idx, row in enumerate(self.cells)
+                for col_idx, cell in enumerate(row)
+            ],
+            "structure": [
+                {
+                    "row": i,
+                    "num_cells": len(row),
+                }
+                for i, row in enumerate(self.cells)
+            ],
+        }
 
 
 class TableRenderer:
@@ -144,10 +184,12 @@ class TableRenderer:
     ):
         style = table.style
         y = 0
+        table.cell_bounding_boxes = []
 
         for row_idx, row in enumerate(table.cells):
             x = 0
             col_idx = 0
+            row_boxes = []
 
             for cell in row:
                 cell_width = sum(col_widths[col_idx : col_idx + cell.colspan])
@@ -183,9 +225,13 @@ class TableRenderer:
 
                 draw.text((text_x, text_y), cell.text, font=font, fill=text_color)
 
+                # Store bounding box for JSON ground truth
+                row_boxes.append((x, y, x + cell_width, y + cell_height))
+
                 x += cell_width
                 col_idx += cell.colspan
 
+            table.cell_bounding_boxes.append(row_boxes)
             y += row_heights[row_idx]
 
     def _draw_borders(
@@ -395,10 +441,12 @@ class TableGenerator(BaseGenerator):
             self.save_image(image, filename)
 
             html_gt = table.to_html()
+            json_gt = table.to_json()
 
             metadata.append({
                 "file_name": str(self.output_dir / filename),
                 "html": html_gt,
+                "json": json_gt,
                 "template": selected_template,
                 "num_rows": table.num_rows,
                 "num_cols": table.num_cols,

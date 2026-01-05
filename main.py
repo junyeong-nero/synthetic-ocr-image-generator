@@ -61,6 +61,18 @@ def main():
         default=None,
         help="Template for table or document generation (e.g., invoice, receipt, form, letter, report)",
     )
+    parser.add_argument(
+        "--table-size",
+        type=str,
+        default="3-8",
+        help="Table size range as 'min_rows-max_cols' (e.g., '3-8' for 3-8 rows and cols)",
+    )
+    parser.add_argument(
+        "--mixed",
+        action="store_true",
+        default=False,
+        help="Generate mixed format dataset (sentence, table, document)",
+    )
 
     args = parser.parse_args()
     pipeline(**vars(args))

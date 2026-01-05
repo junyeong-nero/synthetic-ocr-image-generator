@@ -72,6 +72,21 @@ uv run main.py \
 - `typo-ratio`: The ratio of typos to introduce into the generated text.
 - `format`: Format of images to generate (`sentence`, `table`, or `document`).
 - `template`: Template for table or document generation (`invoice`, `receipt`, `form`, `letter`, `report`).
+- `table-size`: Table size range as `min_rows-max_cols` (e.g., `3-8` for 3-8 rows and columns).
+- `mixed`: Generate mixed format dataset (sentence, table, document combined).
+
+### Generating Mixed Format Datasets
+
+Generate a dataset with all three formats combined:
+
+```bash
+uv run main.py \
+    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --mixed \
+    --size 300 \
+    --typo-ratio 0.15
+```
 
 # Evaluation
 
@@ -139,8 +154,8 @@ The results below are based on evaluations conducted with Korean text.
   - [ ] Multi-language support for table headers and content
 
 - [ ] **Table Ground Truth Format**
-  - [ ] HTML table representation for ground truth
-  - [ ] JSON structure with cell positions and content
+  - [x] HTML table representation for ground truth
+  - [x] JSON structure with cell positions and content
   - [ ] Support for table structure recognition (TSR) evaluation metrics
 
 ## Document Layout Generation
@@ -175,12 +190,13 @@ The results below are based on evaluations conducted with Korean text.
 - [x] **CLI Updates** (`main.py`)
   - [x] Add `--format` argument: `sentence`, `table`, `document`
   - [x] Add `--template` argument for document type selection
-  - [ ] Add `--table-size` argument for table dimension ranges
+  - [x] Add `--table-size` argument for table dimension ranges
+  - [x] Add `--mixed` argument for combined dataset generation
 
-- [ ] **Pipeline Refactoring** (`src/pipeline.py`)
-  - [ ] Abstract base generator class for unified interface
-  - [ ] Format-specific pipeline branches
-  - [ ] Combined dataset generation (mixed formats)
+- [x] **Pipeline Refactoring** (`src/pipeline.py`)
+  - [x] Abstract base generator class for unified interface
+  - [x] Format-specific pipeline branches
+  - [x] Combined dataset generation (mixed formats)
 
 ## Evaluation Extensions
 
