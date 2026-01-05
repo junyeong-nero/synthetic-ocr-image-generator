@@ -1,3 +1,4 @@
 from generator.base import BaseGenerator
 from generator.sentence_generator import SentenceGenerator
+from generator.table_generator import TableGenerator
 from generator.effects import render_text_with_effects
