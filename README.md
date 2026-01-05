@@ -29,6 +29,39 @@ uv run main.py \
     --typo-ratio 0.4
 ```
 
+### Generating Different Formats
+
+The generator supports multiple image formats:
+
+**Sentence images** (default):
+```bash
+uv run main.py \
+    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --format sentence \
+    --size 1000
+```
+
+**Table images**:
+```bash
+uv run main.py \
+    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --format table \
+    --template invoice \
+    --size 100
+```
+
+**Document images**:
+```bash
+uv run main.py \
+    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --format document \
+    --template invoice \
+    --size 100
+```
+
 ### Parameters:
 
 - `lang`: Specifies the language for text generation.
@@ -37,6 +70,8 @@ uv run main.py \
 - `corpus-size`: The number of sentences to generate for the corpus, sourced from the [Wikipedia](https://huggingface.co/datasets/wikimedia/wikipedia) dataset.
 - `size`: The total number of synthetic images to generate for the dataset.
 - `typo-ratio`: The ratio of typos to introduce into the generated text.
+- `format`: Format of images to generate (`sentence`, `table`, or `document`).
+- `template`: Template for table or document generation (`invoice`, `receipt`, `form`, `letter`, `report`).
 
 # Evaluation
 
@@ -110,36 +145,36 @@ The results below are based on evaluations conducted with Korean text.
 
 ## Document Layout Generation
 
-- [ ] **Document Generator Module** (`src/generator/document_generator.py`)
-  - [ ] Multi-section document layout (header, body, footer)
-  - [ ] Title and paragraph blocks
-  - [ ] Mixed content: text + tables + lists
-  - [ ] Page number and date stamps
+- [x] **Document Generator Module** (`src/generator/document_generator.py`)
+  - [x] Multi-section document layout (header, body, footer)
+  - [x] Title and paragraph blocks
+  - [x] Mixed content: text + tables + lists
+  - [x] Page number and date stamps
 
-- [ ] **Document Templates**
-  - [ ] Invoice template (logo placeholder, billing info, item table, totals)
-  - [ ] Receipt template (store info, items, payment details)
-  - [ ] Form template (input fields, labels, checkboxes)
-  - [ ] Letter/memo template (header, greeting, body, signature)
-  - [ ] Report template (title, sections, tables, figures)
+- [x] **Document Templates**
+  - [x] Invoice template (logo placeholder, billing info, item table, totals)
+  - [x] Receipt template (store info, items, payment details)
+  - [x] Form template (input fields, labels, checkboxes)
+  - [x] Letter/memo template (header, greeting, body, signature)
+  - [x] Report template (title, sections, tables, figures)
 
-- [ ] **Layout Variations**
-  - [ ] Single-column and multi-column layouts
-  - [ ] Margin and spacing randomization
-  - [ ] Background textures (paper-like, scanned document effects)
-  - [ ] Noise and artifacts for realistic scanned document simulation
+- [x] **Layout Variations**
+  - [x] Single-column and multi-column layouts
+  - [x] Margin and spacing randomization
+  - [x] Background textures (paper-like, scanned document effects)
+  - [x] Noise and artifacts for realistic scanned document simulation
 
-- [ ] **Document Ground Truth Format**
-  - [ ] Bounding box annotations for each element (title, paragraph, table, etc.)
-  - [ ] Reading order annotation
-  - [ ] Hierarchical document structure (sections, subsections)
-  - [ ] Key-value pair annotations for KIE tasks
+- [x] **Document Ground Truth Format**
+  - [x] Bounding box annotations for each element (title, paragraph, table, etc.)
+  - [x] Reading order annotation
+  - [x] Hierarchical document structure (sections, subsections)
+  - [x] Key-value pair annotations for KIE tasks
 
 ## Pipeline Integration
 
-- [ ] **CLI Updates** (`main.py`)
-  - [ ] Add `--format` argument: `sentence`, `table`, `document`
-  - [ ] Add `--template` argument for document type selection
+- [x] **CLI Updates** (`main.py`)
+  - [x] Add `--format` argument: `sentence`, `table`, `document`
+  - [x] Add `--template` argument for document type selection
   - [ ] Add `--table-size` argument for table dimension ranges
 
 - [ ] **Pipeline Refactoring** (`src/pipeline.py`)
