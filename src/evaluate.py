@@ -152,6 +152,15 @@ def load_predictions_file(filepath: str) -> List[str]:
     return predictions
 
 
+def get_dataset_subsets(dataset_id: str) -> List[str]:
+    try:
+        from datasets import get_dataset_config_names
+        configs = get_dataset_config_names(dataset_id)
+        return configs if configs else ["default"]
+    except Exception:
+        return ["default"]
+
+
 def evaluate_sentence_metrics(
     predictions: List[str],
     ground_truths: List[str],
@@ -292,30 +301,6 @@ def evaluate(
     batchsize: int = 1,
     split: str = "train",
 ) -> Dict[str, Any]:
-    """
-    Evaluate OCR predictions.
-
-    Three usage modes:
-    1. With predictions + ground_truths: Evaluate pre-computed predictions
-    2. With inference_fn + dataset: Run inference using custom function
-    3. With model_id + dataset: Run inference using built-in model
-
-    Args:
-        format_type: "sentence", "table", or "document"
-        dataset: HuggingFace Dataset or dataset_id string
-        predictions: List of model predictions (strings)
-        ground_truths: List of ground truth values
-        inference_fn: Custom inference function (images, prompts) -> predictions
-        model_id: Built-in model ID (e.g., "allenai/olmOCR-2-7B-1025")
-        image_column: Column name for images in dataset
-        target_column: Column name for ground truth in dataset (sentence format)
-        prompt: Custom prompt (uses format-specific default if None)
-        batchsize: Batch size for inference
-        split: Dataset split to use
-
-    Returns:
-        Evaluation results with metrics
-    """
     if prompt is None:
         prompt = DEFAULT_PROMPTS.get(format_type, DEFAULT_PROMPTS["sentence"])
 
@@ -367,6 +352,200 @@ def evaluate(
         raise ValueError(f"Unknown format_type: {format_type}")
 
 
+def evaluate_subset(
+    dataset_id: str,
+    subset: str,
+    split: str,
+    format_type: str,
+    model_id: Optional[str] = None,
+    predictions: Optional[List[str]] = None,
+    inference_fn: Optional[Callable[[List[Image.Image], List[str]], List[str]]] = None,
+    image_column: str = "image",
+    target_column: str = "typo_text",
+    prompt: Optional[str] = None,
+    batchsize: int = 1,
+) -> Dict[str, Any]:
+    print(f"\n{'='*60}")
+    print(f"Evaluating subset: '{subset}' (format: {format_type})")
+    print(f"{'='*60}")
+
+    if subset == "default":
+        dataset = load_dataset(dataset_id, split=split)
+    else:
+        dataset = load_dataset(dataset_id, name=subset, split=split)
+
+    print(f"Loaded {len(dataset)} samples from '{subset}' subset")
+
+    if prompt is None:
+        prompt = DEFAULT_PROMPTS.get(format_type, DEFAULT_PROMPTS["sentence"])
+
+    if predictions is not None:
+        if len(predictions) != len(dataset):
+            raise ValueError(f"Predictions count ({len(predictions)}) != dataset size ({len(dataset)})")
+
+        if format_type == "sentence":
+            ground_truths = dataset[target_column]
+        elif format_type == "table":
+            ground_truths = [
+                {"html": dataset[i].get("html", ""), "json": dataset[i].get("json", "{}")}
+                for i in range(len(dataset))
+            ]
+        elif format_type == "document":
+            ground_truths = [
+                {"ground_truth": dataset[i].get("ground_truth", "{}")}
+                for i in range(len(dataset))
+            ]
+
+        if format_type == "sentence":
+            result = evaluate_sentence_metrics(predictions, ground_truths)
+        elif format_type == "table":
+            result = evaluate_table_metrics(predictions, ground_truths)
+        elif format_type == "document":
+            result = evaluate_document_metrics(predictions, ground_truths)
+        else:
+            raise ValueError(f"Unknown format_type: {format_type}")
+    else:
+        if model_id is None and inference_fn is None:
+            raise ValueError("Either model_id or inference_fn must be provided")
+
+        if inference_fn is None:
+            model = _load_builtin_model(model_id)
+
+            def inf_fn(imgs, prompts):
+                return model.run(prompts=prompts, images=imgs)
+            inference_fn = inf_fn
+
+        result = evaluate(
+            format_type=format_type,
+            dataset=dataset,
+            inference_fn=inference_fn,
+            image_column=image_column,
+            target_column=target_column,
+            prompt=prompt,
+            batchsize=batchsize,
+        )
+
+    print_results(result, format_type)
+    return result
+
+
+def evaluate_all_subsets(
+    dataset_id: str,
+    subsets: List[str],
+    split: str = "train",
+    model_id: Optional[str] = None,
+    inference_fn: Optional[Callable[[List[Image.Image], List[str]], List[str]]] = None,
+    predictions: Optional[Dict[str, List[str]]] = None,
+    image_column: str = "image",
+    target_column: str = "typo_text",
+    batchsize: int = 1,
+) -> Dict[str, Any]:
+    all_results = {}
+
+    for subset in subsets:
+        lower = subset.lower()
+        if "sentence" in lower:
+            format_type = "sentence"
+        elif "table" in lower:
+            format_type = "table"
+        elif "document" in lower or "doc" in lower:
+            format_type = "document"
+        else:
+            format_type = "sentence"
+
+        subset_predictions = predictions.get(subset) if predictions else None
+
+        try:
+            result = evaluate_subset(
+                dataset_id=dataset_id,
+                subset=subset,
+                split=split,
+                format_type=format_type,
+                model_id=model_id,
+                predictions=subset_predictions,
+                inference_fn=inference_fn,
+                image_column=image_column,
+                target_column=target_column,
+                batchsize=batchsize,
+            )
+            all_results[subset] = result
+        except Exception as e:
+            print(f"Error evaluating subset '{subset}': {e}")
+            all_results[subset] = {"error": str(e)}
+
+    return all_results
+
+
+def aggregate_all_results(results: Dict[str, Any]) -> Dict[str, Any]:
+    aggregated = {
+        "subsets": {},
+        "overall_metrics": {},
+        "summary": {},
+    }
+
+    valid_results = {k: v for k, v in results.items() if "error" not in v and "metrics" in v}
+
+    if not valid_results:
+        return {"error": "No valid results to aggregate"}
+
+    all_metrics = {}
+    for subset, result in valid_results.items():
+        for metric_name, value in result["metrics"].items():
+            if metric_name not in all_metrics:
+                all_metrics[metric_name] = []
+            all_metrics[metric_name].append(value)
+        aggregated["subsets"][subset] = result["metrics"]
+
+    for metric_name, values in all_metrics.items():
+        aggregated["overall_metrics"][metric_name] = {
+            "mean": float(np.mean(values)),
+            "std": float(np.std(values)),
+            "min": float(np.min(values)),
+            "max": float(np.max(values)),
+            "subsets_evaluated": len(values),
+        }
+
+    aggregated["summary"] = {
+        "total_subsets": len(results),
+        "successful_subsets": len(valid_results),
+        "failed_subsets": [k for k, v in results.items() if "error" in v],
+    }
+
+    return aggregated
+
+
+def print_aggregated_results(results: Dict[str, Any]):
+    if "error" in results:
+        print(f"Error: {results['error']}")
+        return
+
+    print(f"\n{'='*60}")
+    print(" AGGREGATED EVALUATION RESULTS ")
+    print(f"{'='*60}")
+
+    print(f"\nTotal subsets: {results['summary']['total_subsets']}")
+    print(f"Successful: {results['summary']['successful_subsets']}")
+
+    if results['summary']['failed_subsets']:
+        print(f"Failed: {results['summary']['failed_subsets']}")
+
+    print(f"\n--- Overall Metrics ---")
+    for metric_name, stats in results['overall_metrics'].items():
+        if isinstance(stats, dict) and "mean" in stats:
+            print(f"  {metric_name}: {stats['mean']:.4f} ± {stats['std']:.4f}")
+
+    print(f"\n--- Per-Subset Summary ---")
+    for subset, metrics in results['subsets'].items():
+        if "avg_cer" in metrics:
+            print(f"  {subset}: CER = {metrics['avg_cer']:.4f}")
+        elif "avg_teds" in metrics:
+            print(f"  {subset}: TEDS = {metrics['avg_teds']:.4f}")
+        elif "avg_overall_f1" in metrics:
+            print(f"  {subset}: Overall F1 = {metrics['avg_overall_f1']:.4f}")
+
+    print(f"{'='*60}")
+
+
 def print_results(result: Dict[str, Any], format_type: str):
     print(f"\n{'='*60}")
 
@@ -400,20 +579,20 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Using built-in model
+  # Single subset evaluation
   python evaluate.py --model-id "allenai/olmOCR-2-7B-1025" \\
       --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \\
       --format sentence
 
-  # Using pre-computed predictions file
-  python evaluate.py --predictions results.jsonl \\
+  # Evaluate specific subsets
+  python evaluate.py --model-id "allenai/olmOCR-2-7B-1025" \\
       --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \\
-      --format table
+      --subsets "sentence,table,document"
 
-  # Predictions file formats:
-  - .json: ["pred1", "pred2", ...]
-  - .jsonl: {"prediction": "pred1"}\\n{"prediction": "pred2"}\\n...
-  - .txt: one prediction per line
+  # Evaluate all available subsets
+  python evaluate.py --model-id "allenai/olmOCR-2-7B-1025" \\
+      --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \\
+      --all-subsets
         """
     )
 
@@ -423,14 +602,24 @@ Examples:
                         help="Path to predictions file (.json, .jsonl, or .txt)")
     parser.add_argument("--dataset-id", type=str, required=True,
                         help="HuggingFace dataset ID")
-    parser.add_argument("--subset", type=str, default="default")
-    parser.add_argument("--split", type=str, default="train")
-    parser.add_argument("--batchsize", type=int, default=1)
+    parser.add_argument("--subset", type=str, default="default",
+                        help="Single subset to evaluate")
+    parser.add_argument("--subsets", type=str, default=None,
+                        help="Comma-separated list of subsets to evaluate (e.g., 'sentence,table')")
+    parser.add_argument("--all-subsets", action="store_true",
+                        help="Evaluate all available subsets in the dataset")
+    parser.add_argument("--split", type=str, default="train",
+                        help="Dataset split to use")
+    parser.add_argument("--batchsize", type=int, default=1,
+                        help="Batch size for inference")
     parser.add_argument("--output-dataset-id", type=str, default=None,
                         help="Push results to this HuggingFace dataset")
-    parser.add_argument("--image-column", type=str, default="image")
-    parser.add_argument("--target-column", type=str, default="typo_text")
-    parser.add_argument("--prompt", type=str, default=None)
+    parser.add_argument("--image-column", type=str, default="image",
+                        help="Image column name")
+    parser.add_argument("--target-column", type=str, default="typo_text",
+                        help="Ground truth column name for sentence format")
+    parser.add_argument("--prompt", type=str, default=None,
+                        help="Custom prompt")
     parser.add_argument("--format", type=str, default="sentence",
                         choices=["sentence", "table", "document"],
                         help="Evaluation format")
@@ -442,78 +631,90 @@ Examples:
     if args.model_id is None and args.predictions is None:
         parser.error("Either --model-id or --predictions must be provided")
 
-    print(f"Loading dataset: {args.dataset_id}")
-    dataset = load_dataset(args.dataset_id, split=args.split)
-    print(f"Dataset loaded: {len(dataset)} samples")
-
-    if args.predictions:
-        print(f"Loading predictions from: {args.predictions}")
-        predictions = load_predictions_file(args.predictions)
-        print(f"Loaded {len(predictions)} predictions")
-
-        if len(predictions) != len(dataset):
-            raise ValueError(f"Predictions count ({len(predictions)}) != dataset size ({len(dataset)})")
-
-        if args.format == "sentence":
-            ground_truths = dataset[args.target_column]
-        elif args.format == "table":
-            ground_truths = [
-                {"html": dataset[i].get("html", ""), "json": dataset[i].get("json", "{}")}
-                for i in range(len(dataset))
-            ]
-        elif args.format == "document":
-            ground_truths = [
-                {"ground_truth": dataset[i].get("ground_truth", "{}")}
-                for i in range(len(dataset))
-            ]
-
-        result = evaluate(
-            format_type=args.format,
-            predictions=predictions,
-            ground_truths=ground_truths,
-        )
+    if args.all_subsets:
+        print(f"Fetching available subsets for: {args.dataset_id}")
+        subsets = get_dataset_subsets(args.dataset_id)
+        print(f"Found subsets: {subsets}")
+    elif args.subsets:
+        subsets = [s.strip() for s in args.subsets.split(",")]
+    elif args.subset != "default":
+        subsets = [args.subset]
     else:
-        print(f"Using model: {args.model_id}")
-        result = evaluate(
-            format_type=args.format,
-            dataset=dataset,
+        subsets = ["default"]
+
+    if len(subsets) > 1 or args.all_subsets:
+        results = evaluate_all_subsets(
+            dataset_id=args.dataset_id,
+            subsets=subsets,
+            split=args.split,
             model_id=args.model_id,
+            predictions=None,
+            inference_fn=None,
             image_column=args.image_column,
             target_column=args.target_column,
-            prompt=args.prompt,
             batchsize=args.batchsize,
         )
+        aggregated = aggregate_all_results(results)
+        print_aggregated_results(aggregated)
 
-    print_results(result, args.format)
+        if args.output_file:
+            output_path = Path(args.output_file)
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(aggregated, f, indent=2, ensure_ascii=False)
+            print(f"Results saved to: {args.output_file}")
+    else:
+        print(f"Loading dataset: {args.dataset_id}")
+        if args.subset == "default":
+            dataset = load_dataset(args.dataset_id, split=args.split)
+        else:
+            dataset = load_dataset(args.dataset_id, name=args.subset, split=args.split)
+        print(f"Dataset loaded: {len(dataset)} samples")
 
-    if args.output_file:
-        output_path = Path(args.output_file)
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(result["metrics"], f, indent=2, ensure_ascii=False)
-        print(f"Results saved to: {args.output_file}")
+        if args.predictions:
+            print(f"Loading predictions from: {args.predictions}")
+            predictions = load_predictions_file(args.predictions)
+            print(f"Loaded {len(predictions)} predictions")
 
-    if args.output_dataset_id:
-        if args.format == "sentence":
-            dataset = dataset.add_column("cer", result["cer_list"])
-            dataset = dataset.add_column("ocr_result", result["predictions"])
-        elif args.format == "table":
-            dataset = dataset.add_column("teds", result["teds_list"])
-            dataset = dataset.add_column("cell_accuracy", result["cell_accuracy_list"])
-            dataset = dataset.add_column("structure_f1", result["structure_f1_list"])
-            raw_outputs = [p["raw_output"] for p in result["predictions"]]
-            dataset = dataset.add_column("ocr_result", raw_outputs)
-        elif args.format == "document":
-            dataset = dataset.add_column("layout_f1", result["layout_f1_list"])
-            dataset = dataset.add_column("reading_order", result["reading_order_list"])
-            dataset = dataset.add_column("kv_f1", result["kv_f1_list"])
-            dataset = dataset.add_column("overall_f1", result["overall_f1_list"])
-            raw_outputs = [p["raw_output"] for p in result["predictions"]]
-            dataset = dataset.add_column("ocr_result", raw_outputs)
+            if len(predictions) != len(dataset):
+                raise ValueError(f"Predictions count ({len(predictions)}) != dataset size ({len(dataset)})")
 
-        dataset.push_to_hub(args.output_dataset_id)
-        print(f"Results pushed to: {args.output_dataset_id}")
+            if args.format == "sentence":
+                ground_truths = dataset[args.target_column]
+            elif args.format == "table":
+                ground_truths = [
+                    {"html": dataset[i].get("html", ""), "json": dataset[i].get("json", "{}")}
+                    for i in range(len(dataset))
+                ]
+            elif args.format == "document":
+                ground_truths = [
+                    {"ground_truth": dataset[i].get("ground_truth", "{}")}
+                    for i in range(len(dataset))
+                ]
 
-    return result
+            result = evaluate(
+                format_type=args.format,
+                predictions=predictions,
+                ground_truths=ground_truths,
+            )
+        else:
+            print(f"Using model: {args.model_id}")
+            result = evaluate(
+                format_type=args.format,
+                dataset=dataset,
+                model_id=args.model_id,
+                image_column=args.image_column,
+                target_column=args.target_column,
+                prompt=args.prompt,
+                batchsize=args.batchsize,
+            )
+
+        print_results(result, args.format)
+
+        if args.output_file:
+            output_path = Path(args.output_file)
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(result["metrics"], f, indent=2, ensure_ascii=False)
+            print(f"Results saved to: {args.output_file}")
 
 
 if __name__ == "__main__":

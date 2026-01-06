@@ -233,6 +233,64 @@ class MixedGenerator:
             return None
 
 
+def _upload_mixed_format_to_hub(repo_id: str, output_dir: Path):
+    """Upload mixed format dataset, separating each format type into its own subset."""
+    import shutil
+    import tempfile
+
+    metadata_path = output_dir / "metadata.jsonl"
+    if not metadata_path.exists():
+        logger.warning(f"Metadata file not found: {metadata_path}")
+        return
+
+    # Group metadata by format type
+    format_groups = {"sentence": [], "table": [], "document": []}
+
+    with open(metadata_path, "r", encoding="utf-8") as f:
+        for line in f:
+            data = json.loads(line)
+            fmt = data.get("format", "sentence")
+            if fmt in format_groups:
+                format_groups[fmt].append(data)
+
+    # Upload each format as separate subset
+    for fmt, items in format_groups.items():
+        if not items:
+            continue
+
+        logger.info(f"  Uploading '{fmt}' subset: {len(items):,} samples")
+
+        # Create temporary directory for this subset
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Write metadata file
+            subset_metadata_path = temp_path / "metadata.jsonl"
+            with open(subset_metadata_path, "w", encoding="utf-8") as f:
+                for item in items:
+                    # Create copy without the format field for cleaner subset
+                    item_copy = item.copy()
+                    item_copy.pop("format", None)
+                    f.write(json.dumps(item_copy, ensure_ascii=False) + "\n")
+
+            # Copy images
+            for item in items:
+                src = Path(item["file_name"])
+                dst = temp_path / src.name
+                if src.exists():
+                    shutil.copy(src, dst)
+
+            # Upload
+            try:
+                upload_subset_to_hub(
+                    repo_id=repo_id,
+                    subset_dir=temp_path,
+                    config_name=fmt,
+                )
+            except Exception as e:
+                logger.error(f"  Failed to upload '{fmt}' subset: {e}")
+
+
 def pipeline(
     repo_id: str,
     font_path: str,
@@ -338,14 +396,20 @@ def pipeline(
 
     if generated_dir:
         logger.info(f"\n--- Uploading to Hugging Face Hub: {repo_id} ---")
-        try:
-            upload_subset_to_hub(
-                repo_id=repo_id,
-                subset_dir=Path(generated_dir),
-                config_name="default",
-            )
-        except Exception as e:
-            logger.error(f"Upload failed: {e}", exc_info=True)
+
+        if mixed:
+            # For mixed format, upload each format type as separate subset
+            _upload_mixed_format_to_hub(repo_id, Path(generated_dir))
+        else:
+            # For single format, use format name as subset
+            try:
+                upload_subset_to_hub(
+                    repo_id=repo_id,
+                    subset_dir=Path(generated_dir),
+                    config_name=format,
+                )
+            except Exception as e:
+                logger.error(f"Upload failed: {e}", exc_info=True)
     else:
         logger.warning("No dataset was generated, skipping upload.")
 
