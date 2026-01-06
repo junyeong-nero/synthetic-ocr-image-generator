@@ -94,17 +94,79 @@ For evaluation, we utilized vLLM and Transformers. However, this project's `uv` 
 
 Please refer to `src/models` for details on integrating and inferring with different OCR models.
 
-Example evaluation script:
+## Evaluation by Format
 
-```
+The evaluation script supports three formats: `sentence`, `table`, and `document`.
+
+### Sentence Evaluation (CER)
+
+Evaluates text extraction accuracy using Character Error Rate (CER).
+
+```bash
 uv run src/evaluate.py \
     "allenai/olmOCR-2-7B-1025" \
     "junyeong-nero/synthetic-ocr-images-korean" \
+    --format sentence \
     --target-column "typo_text" \
-    --prompt "Extract all text from the image verbatim, including typos, without translation or character modification." \
     --output-dataset-id "junyeong-nero/synthetic-ocr-images-korean-olmOCR-2-7B-1025" \
     --batchsize 8
 ```
+
+**Metrics:**
+- `avg_cer`: Average Character Error Rate
+- `std_cer`: Standard deviation of CER
+
+### Table Evaluation (TEDS)
+
+Evaluates table structure recognition using TEDS and cell-level accuracy.
+
+```bash
+uv run src/evaluate.py \
+    "allenai/olmOCR-2-7B-1025" \
+    "junyeong-nero/synthetic-ocr-images-korean" \
+    --format table \
+    --output-dataset-id "junyeong-nero/synthetic-ocr-tables-olmOCR" \
+    --batchsize 4
+```
+
+**Metrics:**
+- `avg_teds`: Tree-Edit Distance-based Similarity (structure accuracy)
+- `avg_cell_accuracy`: Percentage of cells with perfect text match
+- `avg_structure_f1`: Row/column detection F1 score
+
+### Document Evaluation (Layout + Reading Order)
+
+Evaluates document understanding including layout detection and reading order.
+
+```bash
+uv run src/evaluate.py \
+    "allenai/olmOCR-2-7B-1025" \
+    "junyeong-nero/synthetic-ocr-images-korean" \
+    --format document \
+    --output-dataset-id "junyeong-nero/synthetic-ocr-documents-olmOCR" \
+    --batchsize 4
+```
+
+**Metrics:**
+- `avg_layout_f1`: Layout element detection F1 (IoU-based)
+- `avg_reading_order`: Reading order accuracy (Kendall's tau)
+- `avg_kv_f1`: Key-value extraction F1 score
+- `avg_overall_f1`: Combined overall F1 score
+
+### Evaluation Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `model_id` | Model ID from Hugging Face (e.g., `allenai/olmOCR-2-7B-1025`) |
+| `dataset_id` | Dataset ID from Hugging Face |
+| `--format` | Evaluation format: `sentence`, `table`, or `document` |
+| `--subset` | Dataset subset (default: `default`) |
+| `--split` | Dataset split (default: `train`) |
+| `--batchsize` | Batch size for inference |
+| `--output-dataset-id` | Push results to this Hugging Face dataset |
+| `--image-column` | Image column name (default: `image`) |
+| `--target-column` | Ground truth column for sentence format |
+| `--prompt` | Custom prompt (uses format-specific default if not provided) |
 
 # Results
 

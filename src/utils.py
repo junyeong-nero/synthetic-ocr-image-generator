@@ -148,6 +148,10 @@ def _load_metadata_records(metadata_path: Path, feature_dict: Dict) -> List[Dict
             record = {"image": str(data["file_name"])}
             for key in feature_dict.keys():
                 if key != "image":
-                    record[key] = data.get(key)
+                    value = data.get(key)
+                    # Convert dict/list/tuple to JSON string for HF Dataset compatibility
+                    if isinstance(value, (dict, list, tuple)):
+                        value = json.dumps(value, ensure_ascii=False)
+                    record[key] = value
             all_data.append(record)
     return all_data

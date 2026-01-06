@@ -1,3 +1,4 @@
+import json
 import logging
 import random
 from pathlib import Path
@@ -221,7 +222,7 @@ class MixedGenerator:
             metadata_path = self.output_dir / "metadata.jsonl"
             with open(metadata_path, "w", encoding="utf-8") as f:
                 for item in all_metadata:
-                    f.write(f"{item}\n".replace("'", '"'))
+                    f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
             logger.info(f"Saved metadata to '{metadata_path}'")
             logger.info(f"Successfully generated {len(all_metadata):,} mixed format images")
