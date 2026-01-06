@@ -90,26 +90,78 @@ uv run main.py \
 
 # Evaluation
 
-For evaluation, we utilized vLLM and Transformers. However, this project's `uv` environment does not support direct evaluation for various OCR models due to their differing setup requirements (e.g., specific PyTorch and CUDA versions).
+The evaluation script supports three modes for evaluating OCR models:
 
-Please refer to `src/models` for details on integrating and inferring with different OCR models.
+1. **Using pre-computed predictions** (recommended for custom models)
+2. **Using a custom inference function** (Python API)
+3. **Using built-in models** (requires vLLM/Transformers)
 
-## Evaluation by Format
+## Evaluating Your Own Model
 
-The evaluation script supports three formats: `sentence`, `table`, and `document`.
+### Option 1: Using Pre-computed Predictions (CLI)
+
+Run your model separately and save predictions to a file, then evaluate:
+
+```bash
+# Predictions file formats supported:
+# - .json: ["prediction1", "prediction2", ...]
+# - .jsonl: {"prediction": "text"}\n{"prediction": "text"}\n...
+# - .txt: one prediction per line
+
+python src/evaluate.py \
+    --predictions my_predictions.jsonl \
+    --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --format sentence \
+    --output-file results.json
+```
+
+### Option 2: Using Custom Inference Function (Python API)
+
+```python
+from evaluate import evaluate
+
+# Define your inference function
+def my_ocr_model(images, prompts):
+    results = []
+    for img, prompt in zip(images, prompts):
+        # Your model inference logic here
+        result = your_model.predict(img, prompt)
+        results.append(result)
+    return results
+
+# Run evaluation
+result = evaluate(
+    format_type="sentence",
+    dataset="junyeong-nero/synthetic-ocr-images-korean",
+    inference_fn=my_ocr_model,
+    target_column="typo_text",
+    batchsize=4,
+)
+
+print(f"Average CER: {result['metrics']['avg_cer']:.4f}")
+```
+
+### Option 3: Using Built-in Models
+
+For built-in models (requires vLLM or Transformers installed separately):
+
+```bash
+python src/evaluate.py \
+    --model-id "allenai/olmOCR-2-7B-1025" \
+    --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --format sentence \
+    --batchsize 8
+```
+
+## Evaluation Formats
 
 ### Sentence Evaluation (CER)
 
-Evaluates text extraction accuracy using Character Error Rate (CER).
-
 ```bash
-uv run src/evaluate.py \
-    "allenai/olmOCR-2-7B-1025" \
-    "junyeong-nero/synthetic-ocr-images-korean" \
-    --format sentence \
-    --target-column "typo_text" \
-    --output-dataset-id "junyeong-nero/synthetic-ocr-images-korean-olmOCR-2-7B-1025" \
-    --batchsize 8
+python src/evaluate.py \
+    --predictions predictions.jsonl \
+    --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --format sentence
 ```
 
 **Metrics:**
@@ -118,15 +170,11 @@ uv run src/evaluate.py \
 
 ### Table Evaluation (TEDS)
 
-Evaluates table structure recognition using TEDS and cell-level accuracy.
-
 ```bash
-uv run src/evaluate.py \
-    "allenai/olmOCR-2-7B-1025" \
-    "junyeong-nero/synthetic-ocr-images-korean" \
-    --format table \
-    --output-dataset-id "junyeong-nero/synthetic-ocr-tables-olmOCR" \
-    --batchsize 4
+python src/evaluate.py \
+    --predictions predictions.jsonl \
+    --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --format table
 ```
 
 **Metrics:**
@@ -136,15 +184,11 @@ uv run src/evaluate.py \
 
 ### Document Evaluation (Layout + Reading Order)
 
-Evaluates document understanding including layout detection and reading order.
-
 ```bash
-uv run src/evaluate.py \
-    "allenai/olmOCR-2-7B-1025" \
-    "junyeong-nero/synthetic-ocr-images-korean" \
-    --format document \
-    --output-dataset-id "junyeong-nero/synthetic-ocr-documents-olmOCR" \
-    --batchsize 4
+python src/evaluate.py \
+    --predictions predictions.jsonl \
+    --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --format document
 ```
 
 **Metrics:**
@@ -153,20 +197,47 @@ uv run src/evaluate.py \
 - `avg_kv_f1`: Key-value extraction F1 score
 - `avg_overall_f1`: Combined overall F1 score
 
-### Evaluation Parameters
+## CLI Parameters
 
 | Parameter | Description |
 |-----------|-------------|
-| `model_id` | Model ID from Hugging Face (e.g., `allenai/olmOCR-2-7B-1025`) |
-| `dataset_id` | Dataset ID from Hugging Face |
+| `--model-id` | Built-in model ID (e.g., `allenai/olmOCR-2-7B-1025`) |
+| `--predictions` | Path to predictions file (.json, .jsonl, or .txt) |
+| `--dataset-id` | HuggingFace dataset ID (required) |
 | `--format` | Evaluation format: `sentence`, `table`, or `document` |
-| `--subset` | Dataset subset (default: `default`) |
 | `--split` | Dataset split (default: `train`) |
-| `--batchsize` | Batch size for inference |
-| `--output-dataset-id` | Push results to this Hugging Face dataset |
+| `--batchsize` | Batch size for inference (default: 1) |
+| `--output-dataset-id` | Push results to HuggingFace dataset |
+| `--output-file` | Save metrics to JSON file |
 | `--image-column` | Image column name (default: `image`) |
-| `--target-column` | Ground truth column for sentence format |
+| `--target-column` | Ground truth column for sentence format (default: `typo_text`) |
 | `--prompt` | Custom prompt (uses format-specific default if not provided) |
+
+## Python API
+
+```python
+from evaluate import evaluate, evaluate_sentence_metrics, evaluate_table_metrics, evaluate_document_metrics
+
+# Mode 1: Evaluate with dataset + inference function
+result = evaluate(
+    format_type="table",
+    dataset="your-dataset-id",
+    inference_fn=your_inference_fn,
+    batchsize=4,
+)
+
+# Mode 2: Evaluate pre-computed predictions directly
+result = evaluate(
+    format_type="sentence",
+    predictions=["pred1", "pred2", ...],
+    ground_truths=["gt1", "gt2", ...],
+)
+
+# Mode 3: Use format-specific evaluation functions
+result = evaluate_sentence_metrics(predictions, ground_truths)
+result = evaluate_table_metrics(predictions, ground_truths)
+result = evaluate_document_metrics(predictions, ground_truths)
+```
 
 # Results
 
