@@ -279,6 +279,20 @@ class TableDataGenerator:
         },
     }
 
+    KOREAN_HEADERS = {
+        "invoice": ["품목", "수량", "가격", "합계"],
+        "schedule": ["시간", "월", "화", "수", "목", "금"],
+        "product": ["제품", "분류", "가격", "재고"],
+        "contact": ["이름", "전화", "이메일"],
+    }
+
+    ENGLISH_HEADERS = {
+        "invoice": ["Item", "Qty", "Price", "Total"],
+        "schedule": ["Time", "Mon", "Tue", "Wed", "Thu", "Fri"],
+        "product": ["Product", "Category", "Price", "Stock"],
+        "contact": ["Name", "Phone", "Email"],
+    }
+
     KOREAN_ITEMS = ["사과", "바나나", "우유", "빵", "커피", "라면", "김치", "두부", "계란", "생수"]
     KOREAN_CATEGORIES = ["식품", "음료", "생활용품", "전자제품", "의류"]
     KOREAN_NAMES = ["김민수", "이영희", "박지영", "최동훈", "정수연", "강태호", "윤서연", "임재현"]
@@ -296,11 +310,13 @@ class TableDataGenerator:
             self.categories = self.KOREAN_CATEGORIES
             self.names = self.KOREAN_NAMES
             self.subjects = self.KOREAN_SUBJECTS
+            self.headers = self.KOREAN_HEADERS
         else:
             self.items = self.ENGLISH_ITEMS
             self.categories = self.ENGLISH_CATEGORIES
             self.names = self.ENGLISH_NAMES
             self.subjects = self.ENGLISH_SUBJECTS
+            self.headers = self.ENGLISH_HEADERS
 
     def generate_table(
         self,
@@ -314,8 +330,8 @@ class TableDataGenerator:
 
     def _generate_from_template(self, template: str, num_rows: int) -> Table:
         config = self.TEMPLATES[template]
-        headers = config["headers"]
         row_gen = getattr(self, config["row_generator"])
+        headers = self.headers.get(template, config["headers"])
 
         cells = []
         header_row = [TableCell(text=h, is_header=True) for h in headers]
