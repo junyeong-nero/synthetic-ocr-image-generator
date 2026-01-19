@@ -53,9 +53,9 @@ def _parse_table_size(table_size: str) -> Tuple[int, int]:
 
 
 class MixedGenerator:
-    """Generator for mixed format datasets (sentence, table, document)."""
+    """Generator for mixed format datasets (sentence, table, document, markdown)."""
 
-    FORMATS = ["sentence", "table", "document"]
+    FORMATS = ["sentence", "table", "document", "markdown"]
 
     def __init__(
         self,
@@ -79,6 +79,7 @@ class MixedGenerator:
         self._sentence_generator = None
         self._table_generator = None
         self._document_generator = None
+        self._markdown_generator = None
 
     @property
     def sentence_generator(self):
@@ -115,6 +116,17 @@ class MixedGenerator:
             )
         return self._document_generator
 
+    @property
+    def markdown_generator(self):
+        if self._markdown_generator is None:
+            from generator import MarkdownGenerator
+            self._markdown_generator = MarkdownGenerator(
+                output_dir=str(self.output_dir / "markdown"),
+                font_dir=str(self.font_dir),
+                lang=self.lang,
+            )
+        return self._markdown_generator
+
     def run(
         self,
         num_images: int,
@@ -124,7 +136,7 @@ class MixedGenerator:
     ) -> Optional[str]:
         """Generate mixed format dataset."""
         if format_weights is None:
-            format_weights = {"sentence": 0.4, "table": 0.3, "document": 0.3}
+            format_weights = {"sentence": 0.3, "table": 0.25, "document": 0.25, "markdown": 0.2}
 
         min_rows, max_rows = _parse_table_size(table_size)
         row_range = (min_rows, max_rows)
@@ -219,6 +231,29 @@ class MixedGenerator:
                         "elements_count": len(gt["elements"]),
                     })
 
+                elif fmt == "markdown":
+                    from generator.markdown_generator import MarkdownTemplate, MarkdownRenderer
+                    template = random.choice(list(MarkdownTemplate))
+                    style = self.markdown_generator._random_style()
+
+                    markdown_text = self.markdown_generator.data_generator.generate_markdown(
+                        template=template,
+                    )
+
+                    font_path = random.choice(self.markdown_generator.font_paths)
+                    renderer = MarkdownRenderer(font_path, style)
+                    image = renderer.render(markdown_text)
+
+                    filename = f"markdown_{idx:05d}.png"
+                    self.markdown_generator.save_image(image, filename)
+
+                    all_metadata.append({
+                        "file_name": str(self.markdown_generator.output_dir / filename),
+                        "format": "markdown",
+                        "template": template.value,
+                        "markdown": markdown_text,
+                    })
+
             metadata_path = self.output_dir / "metadata.jsonl"
             with open(metadata_path, "w", encoding="utf-8") as f:
                 for item in all_metadata:
@@ -244,7 +279,7 @@ def _upload_mixed_format_to_hub(repo_id: str, output_dir: Path):
         return
 
     # Group metadata by format type
-    format_groups = {"sentence": [], "table": [], "document": []}
+    format_groups = {"sentence": [], "table": [], "document": [], "markdown": []}
 
     with open(metadata_path, "r", encoding="utf-8") as f:
         for line in f:
@@ -383,6 +418,19 @@ def pipeline(
         task_output_dir = base_dir / "images_documents"
 
         generator = DocumentGenerator(
+            output_dir=str(task_output_dir),
+            font_dir=str(font_dir),
+            lang=lang,
+        )
+
+        generated_dir = generator.run(num_images=size, template=template)
+
+    elif format == "markdown":
+        from generator import MarkdownGenerator
+
+        task_output_dir = base_dir / "images_markdown"
+
+        generator = MarkdownGenerator(
             output_dir=str(task_output_dir),
             font_dir=str(font_dir),
             lang=lang,

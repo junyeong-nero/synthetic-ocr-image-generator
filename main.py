@@ -52,8 +52,8 @@ def main():
         "--format",
         type=str,
         default="sentence",
-        choices=["sentence", "table", "document"],
-        help="Format of images to generate (sentence, table, or document)",
+        choices=["sentence", "table", "document", "markdown"],
+        help="Format of images to generate (sentence, table, document, or markdown)",
     )
     parser.add_argument(
         "--template",
