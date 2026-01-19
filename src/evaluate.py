@@ -16,6 +16,7 @@ DEFAULT_PROMPTS = {
     "sentence": "Extract all text from the image verbatim, including typos, without translation or character modification.",
     "table": "Extract the table from this image. Return the result as HTML table format.",
     "document": "Extract all text elements from this document image. Return as JSON with 'elements' array containing objects with 'type', 'text', 'bounding_box', and 'reading_order' fields.",
+    "markdown": "Extract the markdown content from this image. Return the raw markdown text exactly as shown.",
 }
 
 
@@ -288,6 +289,96 @@ def evaluate_document_metrics(
     }
 
 
+def evaluate_markdown_metrics(
+    predictions: List[str],
+    ground_truths: List[str],
+) -> Dict[str, Any]:
+    if len(predictions) != len(ground_truths):
+        raise ValueError(f"Length mismatch: {len(predictions)} predictions vs {len(ground_truths)} ground truths")
+
+    cer_list = [cer(gt, pred) for gt, pred in zip(ground_truths, predictions)]
+
+    exact_match_list = [1.0 if pred.strip() == gt.strip() else 0.0 for pred, gt in zip(predictions, ground_truths)]
+
+    def normalize_markdown(text: str) -> str:
+        lines = [line.strip() for line in text.strip().split('\n') if line.strip()]
+        return '\n'.join(lines)
+
+    normalized_match_list = [
+        1.0 if normalize_markdown(pred) == normalize_markdown(gt) else 0.0
+        for pred, gt in zip(predictions, ground_truths)
+    ]
+
+    def count_markdown_elements(text: str) -> Dict[str, int]:
+        counts = {
+            "headers": 0,
+            "code_blocks": 0,
+            "lists": 0,
+            "blockquotes": 0,
+            "tables": 0,
+            "links": 0,
+        }
+        lines = text.split('\n')
+        in_code_block = False
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith('```'):
+                if not in_code_block:
+                    counts["code_blocks"] += 1
+                in_code_block = not in_code_block
+            elif not in_code_block:
+                if stripped.startswith('#'):
+                    counts["headers"] += 1
+                elif stripped.startswith('- ') or stripped.startswith('* ') or (len(stripped) > 2 and stripped[0].isdigit() and '. ' in stripped[:4]):
+                    counts["lists"] += 1
+                elif stripped.startswith('>'):
+                    counts["blockquotes"] += 1
+                elif stripped.startswith('|') and '|' in stripped[1:]:
+                    counts["tables"] += 1
+                if '[' in stripped and '](' in stripped:
+                    counts["links"] += stripped.count('](')
+
+        return counts
+
+    element_f1_list = []
+    for pred, gt in zip(predictions, ground_truths):
+        pred_counts = count_markdown_elements(pred)
+        gt_counts = count_markdown_elements(gt)
+
+        total_pred = sum(pred_counts.values())
+        total_gt = sum(gt_counts.values())
+
+        if total_gt == 0 and total_pred == 0:
+            element_f1_list.append(1.0)
+        elif total_gt == 0 or total_pred == 0:
+            element_f1_list.append(0.0)
+        else:
+            matched = sum(min(pred_counts[k], gt_counts[k]) for k in pred_counts)
+            precision = matched / total_pred if total_pred > 0 else 0.0
+            recall = matched / total_gt if total_gt > 0 else 0.0
+            f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+            element_f1_list.append(f1)
+
+    return {
+        "predictions": predictions,
+        "cer_list": cer_list,
+        "exact_match_list": exact_match_list,
+        "normalized_match_list": normalized_match_list,
+        "element_f1_list": element_f1_list,
+        "metrics": {
+            "avg_cer": float(np.mean(cer_list)),
+            "std_cer": float(np.std(cer_list)),
+            "min_cer": float(np.min(cer_list)),
+            "max_cer": float(np.max(cer_list)),
+            "exact_match_rate": float(np.mean(exact_match_list)),
+            "normalized_match_rate": float(np.mean(normalized_match_list)),
+            "avg_element_f1": float(np.mean(element_f1_list)),
+            "std_element_f1": float(np.std(element_f1_list)),
+        },
+    }
+
+
 def evaluate(
     format_type: str,
     dataset: Optional[Union[Dataset, str]] = None,
@@ -339,6 +430,11 @@ def evaluate(
                 {"ground_truth": dataset[i].get("ground_truth", "{}")}
                 for i in range(len(dataset))
             ]
+        elif format_type == "markdown":
+            ground_truths = [
+                {"markdown": dataset[i].get("markdown", "")}
+                for i in range(len(dataset))
+            ]
     else:
         raise ValueError("Either (predictions + ground_truths) or dataset must be provided")
 
@@ -348,6 +444,8 @@ def evaluate(
         return evaluate_table_metrics(predictions, ground_truths)
     elif format_type == "document":
         return evaluate_document_metrics(predictions, ground_truths)
+    elif format_type == "markdown":
+        return evaluate_markdown_metrics(predictions, [gt.get("markdown", "") for gt in ground_truths])
     else:
         raise ValueError(f"Unknown format_type: {format_type}")
 
@@ -395,6 +493,11 @@ def evaluate_subset(
                 {"ground_truth": dataset[i].get("ground_truth", "{}")}
                 for i in range(len(dataset))
             ]
+        elif format_type == "markdown":
+            ground_truths = [
+                {"markdown": dataset[i].get("markdown", "")}
+                for i in range(len(dataset))
+            ]
 
         if format_type == "sentence":
             result = evaluate_sentence_metrics(predictions, ground_truths)
@@ -402,6 +505,8 @@ def evaluate_subset(
             result = evaluate_table_metrics(predictions, ground_truths)
         elif format_type == "document":
             result = evaluate_document_metrics(predictions, ground_truths)
+        elif format_type == "markdown":
+            result = evaluate_markdown_metrics(predictions, [gt.get("markdown", "") for gt in ground_truths])
         else:
             raise ValueError(f"Unknown format_type: {format_type}")
     else:
@@ -450,6 +555,8 @@ def evaluate_all_subsets(
             format_type = "table"
         elif "document" in lower or "doc" in lower:
             format_type = "document"
+        elif "markdown" in lower or "md" in lower:
+            format_type = "markdown"
         else:
             format_type = "sentence"
 
@@ -570,6 +677,14 @@ def print_results(result: Dict[str, Any], format_type: str):
         print(f"  Average KV F1: {result['metrics']['avg_kv_f1']:.4f}")
         print(f"  Average Overall F1: {result['metrics']['avg_overall_f1']:.4f}")
 
+    elif format_type == "markdown":
+        print("Markdown Evaluation Results:")
+        print(f"  Average CER: {result['metrics']['avg_cer']:.4f}")
+        print(f"  Std CER: {result['metrics']['std_cer']:.4f}")
+        print(f"  Exact Match Rate: {result['metrics']['exact_match_rate']:.4f}")
+        print(f"  Normalized Match Rate: {result['metrics']['normalized_match_rate']:.4f}")
+        print(f"  Average Element F1: {result['metrics']['avg_element_f1']:.4f}")
+
     print(f"{'='*60}")
 
 
@@ -621,7 +736,7 @@ Examples:
     parser.add_argument("--prompt", type=str, default=None,
                         help="Custom prompt")
     parser.add_argument("--format", type=str, default="sentence",
-                        choices=["sentence", "table", "document"],
+                        choices=["sentence", "table", "document", "markdown"],
                         help="Evaluation format")
     parser.add_argument("--output-file", type=str, default=None,
                         help="Save results to JSON file")
@@ -688,6 +803,11 @@ Examples:
             elif args.format == "document":
                 ground_truths = [
                     {"ground_truth": dataset[i].get("ground_truth", "{}")}
+                    for i in range(len(dataset))
+                ]
+            elif args.format == "markdown":
+                ground_truths = [
+                    {"markdown": dataset[i].get("markdown", "")}
                     for i in range(len(dataset))
                 ]
 
