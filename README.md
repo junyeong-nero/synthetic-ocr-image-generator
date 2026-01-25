@@ -1,8 +1,11 @@
 # Synthetic OCR Image Generator
 
-This project provides a synthetic OCR image generator.
+This project provides a synthetic OCR image generator with multi-language support.
 
-- [Huggingface Dataset](https://huggingface.co/datasets/junyeong-nero/synthetic-ocr-images-korean)
+**Huggingface Datasets:**
+- [Korean](https://huggingface.co/datasets/junyeong-nero/synthetic-ocr-images-korean)
+- [Japanese](https://huggingface.co/datasets/junyeong-nero/synthetic-ocr-images-japanese)
+- [Hindi](https://huggingface.co/datasets/junyeong-nero/synthetic-ocr-images-hindi)
 
 # How to Use
 
@@ -14,12 +17,92 @@ Set up the environment using `uv`:
 uv sync
 ```
 
+## Scripts Directory Structure
+
+The scripts are organized by language for easy management:
+
+```
+scripts/
+├── korean/
+│   ├── generate.sh      # Korean OCR image generation
+│   └── evaluate.sh      # Korean dataset evaluation
+├── japanese/
+│   ├── generate.sh      # Japanese OCR image generation
+│   └── evaluate.sh      # Japanese dataset evaluation
+├── hindi/
+│   ├── generate.sh      # Hindi OCR image generation
+│   └── evaluate.sh      # Hindi dataset evaluation
+├── common/
+│   └── analyze.sh       # Common analysis script
+├── generate_all.sh      # Generate all languages (batch)
+└── evaluate_all.sh      # Evaluate all languages (batch)
+```
+
+### Language-Specific Font Configurations
+
+| Language | Code | Font |
+|----------|------|------|
+| Korean | `ko` | `NotoSans-VariableFont_wdth,wght.ttf` |
+| Japanese | `ja` | `NotoSansJP-VariableFont_wght.ttf` |
+| Hindi | `hi` | `NotoSansDevanagari-VariableFont_wdth,wght.ttf` |
+
 ## Running Scripts
 
-To generate synthetic OCR images, run the `main.py` script via `scripts/generate.sh`:
+### Generate for a Single Language
 
-```python
-# scripts/generate.sh
+Run the language-specific generation script:
+
+```bash
+# Korean
+bash scripts/korean/generate.sh
+
+# Japanese
+bash scripts/japanese/generate.sh
+
+# Hindi
+bash scripts/hindi/generate.sh
+```
+
+Each language script generates all four formats (sentence, table, document, markdown) with 1000 images per format.
+
+### Generate for All Languages
+
+To generate datasets for all supported languages at once:
+
+```bash
+bash scripts/generate_all.sh
+```
+
+### Evaluate for a Single Language
+
+Run the language-specific evaluation script:
+
+```bash
+# Korean
+bash scripts/korean/evaluate.sh
+
+# Japanese
+bash scripts/japanese/evaluate.sh
+
+# Hindi
+bash scripts/hindi/evaluate.sh
+```
+
+### Evaluate All Languages
+
+To evaluate all languages and run analysis:
+
+```bash
+bash scripts/evaluate_all.sh
+```
+
+This will evaluate all language datasets and then run the common analysis script.
+
+## Manual Script Usage
+
+You can also run `main.py` directly with custom parameters:
+
+```bash
 uv run main.py \
     --lang ko \
     --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \

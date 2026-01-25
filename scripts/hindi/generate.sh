@@ -2,13 +2,13 @@
 
 set -e
 
-REPO_ID="junyeong-nero/synthetic-ocr-images-korean"
-FONT_PATH="fonts/NotoSans-VariableFont_wdth,wght.ttf"
+REPO_ID="junyeong-nero/synthetic-ocr-images-hindi"
+FONT_PATH="fonts/NotoSansDevanagari-VariableFont_wdth,wght.ttf"
 SIZE=1000
-LANG="ko"
+LANG="hi"
 
 echo "=========================================="
-echo "Generating all subsets (1000 images each)"
+echo "Generating Hindi OCR images"
 echo "=========================================="
 
 echo ""
@@ -18,7 +18,8 @@ uv run main.py \
     --font-path "$FONT_PATH" \
     --format sentence \
     --size $SIZE \
-    --lang $LANG
+    --lang $LANG \
+    --typo-ratio 0.15
 
 echo ""
 echo "[2/4] Generating table format..."
@@ -49,6 +50,6 @@ uv run main.py \
 
 echo ""
 echo "=========================================="
-echo "All subsets generated and uploaded!"
+echo "Hindi dataset generated!"
 echo "Dataset: https://huggingface.co/datasets/$REPO_ID"
 echo "=========================================="
