@@ -1,4 +1,6 @@
-from typing import List, Union
+"""Edit distance based metrics for OCR evaluation."""
+
+from typing import Callable, List, Optional, Union
 
 
 def levenshtein_distance(s1: Union[str, List], s2: Union[str, List]) -> int:
@@ -48,3 +50,95 @@ def wer(reference: str, hypothesis: str) -> float:
 
     distance = levenshtein_distance(ref_words, hyp_words)
     return distance / len(ref_words)
+
+
+def normalized_cer(
+    reference: str,
+    hypothesis: str,
+    normalize_fn: Optional[Callable[[str], str]] = None,
+) -> float:
+    """
+    Calculate CER with optional text normalization.
+
+    Args:
+        reference: Reference text.
+        hypothesis: Hypothesis text.
+        normalize_fn: Optional normalization function.
+
+    Returns:
+        Normalized CER value.
+    """
+    if normalize_fn:
+        reference = normalize_fn(reference)
+        hypothesis = normalize_fn(hypothesis)
+    return cer(reference, hypothesis)
+
+
+def normalized_wer(
+    reference: str,
+    hypothesis: str,
+    normalize_fn: Optional[Callable[[str], str]] = None,
+) -> float:
+    """
+    Calculate WER with optional text normalization.
+
+    Args:
+        reference: Reference text.
+        hypothesis: Hypothesis text.
+        normalize_fn: Optional normalization function.
+
+    Returns:
+        Normalized WER value.
+    """
+    if normalize_fn:
+        reference = normalize_fn(reference)
+        hypothesis = normalize_fn(hypothesis)
+    return wer(reference, hypothesis)
+
+
+def accuracy(reference: str, hypothesis: str) -> float:
+    """
+    Calculate exact match accuracy.
+
+    Args:
+        reference: Reference text.
+        hypothesis: Hypothesis text.
+
+    Returns:
+        1.0 if exact match, 0.0 otherwise.
+    """
+    return 1.0 if reference.strip() == hypothesis.strip() else 0.0
+
+
+def word_accuracy(reference: str, hypothesis: str) -> float:
+    """
+    Calculate word-level accuracy (percentage of matching words).
+
+    Args:
+        reference: Reference text.
+        hypothesis: Hypothesis text.
+
+    Returns:
+        Proportion of reference words found in hypothesis.
+    """
+    ref_words = set(reference.split())
+    hyp_words = set(hypothesis.split())
+
+    if not ref_words:
+        return 1.0 if not hyp_words else 0.0
+
+    return len(ref_words & hyp_words) / len(ref_words)
+
+
+def character_accuracy(reference: str, hypothesis: str) -> float:
+    """
+    Calculate character-level accuracy (1 - CER, clamped to [0, 1]).
+
+    Args:
+        reference: Reference text.
+        hypothesis: Hypothesis text.
+
+    Returns:
+        Character accuracy value.
+    """
+    return max(0.0, 1.0 - cer(reference, hypothesis))
