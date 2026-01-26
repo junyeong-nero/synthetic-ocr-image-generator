@@ -1,8 +1,12 @@
-import io
+"""Base classes for OCR/VLM models."""
+
+import asyncio
 import base64
+import io
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List
 
 from PIL import Image
-from typing import List, Dict
 
 
 def generate_message(
@@ -35,8 +39,25 @@ def generate_message(
     ]
 
 
+def encode_image_base64(image: Image.Image, format: str = "PNG") -> str:
+    """
+    Encode a PIL Image to base64 string.
+
+    Args:
+        image: The PIL Image to encode.
+        format: Image format (PNG, JPEG, etc.)
+
+    Returns:
+        Base64 encoded string.
+    """
+    buf = io.BytesIO()
+    image = image.convert("RGB")
+    image.save(buf, format=format)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
 class Model:
-    """Base class for OCR models."""
+    """Base class for OCR models (legacy compatibility)."""
 
     def __init__(self) -> None:
         pass
@@ -56,16 +77,100 @@ class Model:
         return ["empty"] * len(prompts)
 
 
+class VLMModel(ABC):
+    """
+    Abstract base class for Vision Language Models.
+
+    Supports both synchronous and asynchronous inference.
+    All new model implementations should inherit from this class.
+    """
+
+    @abstractmethod
+    def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
+        """
+        Run synchronous inference on a batch of images.
+
+        Args:
+            prompts: A list of text prompts.
+            images: A list of PIL Images.
+
+        Returns:
+            A list of model outputs as strings.
+        """
+        pass
+
+    async def run_async(
+        self, prompts: List[str], images: List[Image.Image]
+    ) -> List[str]:
+        """
+        Run asynchronous inference on a batch of images.
+
+        Default implementation wraps the synchronous run() method.
+        Override this for true async support (e.g., API models).
+
+        Args:
+            prompts: A list of text prompts.
+            images: A list of PIL Images.
+
+        Returns:
+            A list of model outputs as strings.
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.run, prompts, images)
+
+    def run_batch(
+        self,
+        prompts: List[str],
+        images: List[Image.Image],
+        batch_size: int = 1,
+    ) -> List[str]:
+        """
+        Run inference with batching.
+
+        Args:
+            prompts: A list of text prompts.
+            images: A list of PIL Images.
+            batch_size: Number of samples per batch.
+
+        Returns:
+            A list of model outputs as strings.
+        """
+        results = []
+        for i in range(0, len(prompts), batch_size):
+            batch_prompts = prompts[i : i + batch_size]
+            batch_images = images[i : i + batch_size]
+            results.extend(self.run(batch_prompts, batch_images))
+        return results
+
+    def get_model_info(self) -> Dict[str, Any]:
+        """
+        Get model information.
+
+        Returns:
+            Dictionary with model metadata.
+        """
+        return {
+            "class": self.__class__.__name__,
+            "module": self.__class__.__module__,
+        }
+
+
 class vLLMModel(Model):
-    """A wrapper for vLLM models."""
+    """A wrapper for vLLM models (legacy compatibility)."""
 
     def __init__(
-        self, model_id, temperature=0, max_model_len=2048, max_tokens=1024, top_p=1.0
+        self,
+        model_id: str,
+        temperature: float = 0,
+        max_model_len: int = 2048,
+        max_tokens: int = 1024,
+        top_p: float = 1.0,
     ) -> None:
         super().__init__()
 
-        from vllm import SamplingParams, LLM
+        from vllm import LLM, SamplingParams
 
+        self.model_id = model_id
         self.model = LLM(model_id, trust_remote_code=True, max_model_len=max_model_len)
         self.sampling_params = SamplingParams(
             temperature=temperature, max_tokens=max_tokens, top_p=top_p
