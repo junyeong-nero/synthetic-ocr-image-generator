@@ -25,6 +25,7 @@ from models.transformers.got_ocr import GotOCR
 from models.transformers.paddle_ocr import PaddleOCR
 from models.transformers.qwen3_vl import Qwen3VL
 from models.transformers.varco_ocr import VarcoOCR
+from models.transformers.light_on_ocr2 import LightOnOCR2
 
 __all__ = [
     # Base
@@ -50,4 +51,5 @@ __all__ = [
     "PaddleOCR",
     "Qwen3VL",
     "VarcoOCR",
+    "LightOnOCR2",
 ]

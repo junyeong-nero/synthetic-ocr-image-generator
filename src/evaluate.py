@@ -21,39 +21,45 @@ DEFAULT_PROMPTS = {
 
 
 def _load_builtin_model(model_id: str):
-    from models.base import Model
-    from models import (
-        DotsOCR,
-        NanonetsOCR,
-        LightOnOCR,
-        OlmOCR,
-        DeepSeekOCR,
-        Gemma3_4B_IT,
-        GotOCR,
-        PaddleOCR,
-        Qwen3VL,
-        VarcoOCR,
-    )
+    import importlib.util
+    import sys
+    from pathlib import Path
 
-    MODELS = {
-        "dummy": Model,
-        "rednote-hilab/dots.ocr": DotsOCR,
-        "nanonets/Nanonets-OCR2-3B": NanonetsOCR,
-        "lightonai/LightOnOCR-1B-1025": LightOnOCR,
-        "allenai/olmOCR-2-7B-1025": OlmOCR,
-        "deepseek-ai/DeepSeek-OCR": DeepSeekOCR,
-        "google/gemma-3-4b-it": Gemma3_4B_IT,
-        "stepfun-ai/GOT-OCR-2.0-hf": GotOCR,
-        "PaddlePaddle/PaddleOCR-VL": PaddleOCR,
-        "Qwen/Qwen3-VL-2B-Instruct": Qwen3VL,
-        "NCSOFT/VARCO-VISION-2.0-1.7B-OCR": VarcoOCR,
+    def _import_from_file(module_name: str, relative_path: str):
+        """Import a module directly from file to avoid circular imports."""
+        src_dir = Path(__file__).parent
+        file_path = src_dir / relative_path
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        return module
+
+    # Map model_id to (module_path, class_name)
+    MODEL_REGISTRY = {
+        "dummy": ("models/base.py", "Model"),
+        "rednote-hilab/dots.ocr": ("models/vllm/dots_ocr.py", "DotsOCR"),
+        "nanonets/Nanonets-OCR2-3B": ("models/vllm/nanonets_ocr.py", "NanonetsOCR"),
+        "lightonai/LightOnOCR-1B-1025": ("models/vllm/light_on_ocr.py", "LightOnOCR"),
+        "lightonai/LightOnOCR-2-1B": ("models/transformers/light_on_ocr2.py", "LightOnOCR2"),
+        "allenai/olmOCR-2-7B-1025": ("models/vllm/olm_ocr.py", "OlmOCR"),
+        "deepseek-ai/DeepSeek-OCR": ("models/transformers/deepseek_ocr.py", "DeepSeekOCR"),
+        "google/gemma-3-4b-it": ("models/transformers/gemma3_4b_it.py", "Gemma3_4B_IT"),
+        "stepfun-ai/GOT-OCR-2.0-hf": ("models/transformers/got_ocr.py", "GotOCR"),
+        "PaddlePaddle/PaddleOCR-VL": ("models/transformers/paddle_ocr.py", "PaddleOCR"),
+        "Qwen/Qwen3-VL-2B-Instruct": ("models/transformers/qwen3_vl.py", "Qwen3VL"),
+        "NCSOFT/VARCO-VISION-2.0-1.7B-OCR": ("models/transformers/varco_ocr.py", "VarcoOCR"),
     }
 
-    if model_id not in MODELS:
-        available = ", ".join(MODELS.keys())
+    if model_id not in MODEL_REGISTRY:
+        available = ", ".join(MODEL_REGISTRY.keys())
         raise ValueError(f"Unknown model_id: {model_id}. Available: {available}")
 
-    return MODELS[model_id]()
+    module_path, class_name = MODEL_REGISTRY[model_id]
+    module_name = f"_eval_{class_name}"
+    module = _import_from_file(module_name, module_path)
+    model_class = getattr(module, class_name)
+    return model_class()
 
 
 def parse_model_output_as_json(output: str) -> Optional[Dict]:
