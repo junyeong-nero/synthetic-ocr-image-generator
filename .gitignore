@@ -1,5 +1,7 @@
 *.ttf
 *.pyc
 data/
+.serena/
+.claude/
 
 __pycache__/
