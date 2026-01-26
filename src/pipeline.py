@@ -53,9 +53,9 @@ def _parse_table_size(table_size: str) -> Tuple[int, int]:
 
 
 class MixedGenerator:
-    """Generator for mixed format datasets (sentence, table, document, markdown)."""
+    """Generator for mixed format datasets (sentence, table, document, markdown, kie)."""
 
-    FORMATS = ["sentence", "table", "document", "markdown"]
+    FORMATS = ["sentence", "table", "document", "markdown", "kie"]
 
     def __init__(
         self,
@@ -80,6 +80,7 @@ class MixedGenerator:
         self._table_generator = None
         self._document_generator = None
         self._markdown_generator = None
+        self._kie_generator = None
 
     @property
     def sentence_generator(self):
@@ -127,6 +128,17 @@ class MixedGenerator:
             )
         return self._markdown_generator
 
+    @property
+    def kie_generator(self):
+        if self._kie_generator is None:
+            from generator import KIEGenerator
+            self._kie_generator = KIEGenerator(
+                output_dir=str(self.output_dir / "kie"),
+                font_dir=str(self.font_dir),
+                lang=self.lang,
+            )
+        return self._kie_generator
+
     def run(
         self,
         num_images: int,
@@ -136,7 +148,7 @@ class MixedGenerator:
     ) -> Optional[str]:
         """Generate mixed format dataset."""
         if format_weights is None:
-            format_weights = {"sentence": 0.3, "table": 0.25, "document": 0.25, "markdown": 0.2}
+            format_weights = {"sentence": 0.25, "table": 0.2, "document": 0.2, "markdown": 0.15, "kie": 0.2}
 
         min_rows, max_rows = _parse_table_size(table_size)
         row_range = (min_rows, max_rows)
@@ -254,6 +266,34 @@ class MixedGenerator:
                         "markdown": markdown_text,
                     })
 
+                elif fmt == "kie":
+                    from generator.kie_generator import KIEDocumentType, KIERenderer
+                    doc_type = random.choice(list(KIEDocumentType))
+                    style = self.kie_generator.data_generator._random_style()
+
+                    document = self.kie_generator.data_generator.generate_document(
+                        doc_type=doc_type,
+                        style=style,
+                    )
+
+                    font_path = random.choice(self.kie_generator.font_paths)
+                    renderer = KIERenderer(font_path, style)
+                    renderer._is_korean = self.lang == "ko"
+                    image, raw_text = renderer.render(document)
+
+                    filename = f"kie_{idx:05d}.png"
+                    self.kie_generator.save_image(image, filename)
+
+                    gt = document.to_ground_truth()
+                    all_metadata.append({
+                        "file_name": str(self.kie_generator.output_dir / filename),
+                        "format": "kie",
+                        "document_type": doc_type.value,
+                        "ground_truth": gt,
+                        "entities": {f.key: f.value for f in document.fields},
+                        "raw_text": raw_text,
+                    })
+
             metadata_path = self.output_dir / "metadata.jsonl"
             with open(metadata_path, "w", encoding="utf-8") as f:
                 for item in all_metadata:
@@ -279,7 +319,7 @@ def _upload_mixed_format_to_hub(repo_id: str, output_dir: Path):
         return
 
     # Group metadata by format type
-    format_groups = {"sentence": [], "table": [], "document": [], "markdown": []}
+    format_groups = {"sentence": [], "table": [], "document": [], "markdown": [], "kie": []}
 
     with open(metadata_path, "r", encoding="utf-8") as f:
         for line in f:
@@ -437,6 +477,19 @@ def pipeline(
         )
 
         generated_dir = generator.run(num_images=size, template=template)
+
+    elif format == "kie":
+        from generator import KIEGenerator
+
+        task_output_dir = base_dir / "images_kie"
+
+        generator = KIEGenerator(
+            output_dir=str(task_output_dir),
+            font_dir=str(font_dir),
+            lang=lang,
+        )
+
+        generated_dir = generator.run(num_images=size, doc_type=template)
 
     else:
         logger.error(f"Unknown format: {format}")

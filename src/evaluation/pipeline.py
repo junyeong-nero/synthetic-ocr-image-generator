@@ -147,6 +147,16 @@ class EvaluationPipeline:
         elif format_type == FormatType.MARKDOWN:
             return [dataset[i].get("markdown", "") for i in range(len(dataset))]
 
+        elif format_type == FormatType.KIE:
+            return [
+                {
+                    "entities": dataset[i].get("entities", {}),
+                    "ground_truth": dataset[i].get("ground_truth", {}),
+                    "document_type": dataset[i].get("document_type", ""),
+                }
+                for i in range(len(dataset))
+            ]
+
         raise ValueError(f"Unknown format type: {format_type}")
 
     def _compute_metrics(
@@ -173,6 +183,9 @@ class EvaluationPipeline:
 
         elif format_type == FormatType.MARKDOWN:
             return self._compute_markdown_metrics(predictions, ground_truths)
+
+        elif format_type == FormatType.KIE:
+            return self._compute_kie_metrics(predictions, ground_truths)
 
         raise ValueError(f"Unknown format type: {format_type}")
 
@@ -308,6 +321,72 @@ class EvaluationPipeline:
             "exact_match_rate": float(np.mean(exact_match_list)),
             "normalized_match_rate": float(np.mean(normalized_match_list)),
         }
+
+    def _compute_kie_metrics(
+        self,
+        predictions: List[str],
+        ground_truths: List[Dict[str, Any]],
+    ) -> Dict[str, float]:
+        """Compute KIE (Key Information Extraction) metrics."""
+        from metrics.kie_metrics import evaluate_kie, aggregate_kie_metrics
+
+        all_results = []
+
+        for pred, gt in zip(predictions, ground_truths):
+            # Parse prediction
+            pred_json = parse_model_output_as_json(pred) or {}
+            pred_entities = pred_json.get("entities", {})
+            pred_items = pred_json.get("line_items", [])
+
+            # Handle different ground truth formats
+            if isinstance(pred_entities, str):
+                try:
+                    pred_entities = json.loads(pred_entities)
+                except (json.JSONDecodeError, TypeError):
+                    pred_entities = {}
+
+            # Extract ground truth entities
+            true_entities = gt.get("entities", {})
+            if isinstance(true_entities, str):
+                try:
+                    true_entities = json.loads(true_entities)
+                except (json.JSONDecodeError, TypeError):
+                    true_entities = {}
+
+            # Extract ground truth from nested structure if needed
+            true_gt = gt.get("ground_truth", {})
+            if isinstance(true_gt, str):
+                try:
+                    true_gt = json.loads(true_gt)
+                except (json.JSONDecodeError, TypeError):
+                    true_gt = {}
+
+            # Get line items from ground truth
+            true_items = true_gt.get("line_items", [])
+
+            # If entities not directly available, extract from ground_truth
+            if not true_entities and true_gt:
+                gt_entities = true_gt.get("entities", {})
+                if isinstance(gt_entities, dict):
+                    # Extract values from nested structure
+                    true_entities = {
+                        k: v.get("value", v) if isinstance(v, dict) else v
+                        for k, v in gt_entities.items()
+                    }
+
+            # Evaluate this sample
+            result = evaluate_kie(
+                pred_entities=pred_entities,
+                true_entities=true_entities,
+                pred_items=pred_items,
+                true_items=true_items,
+            )
+            all_results.append(result)
+
+        # Aggregate results
+        aggregated = aggregate_kie_metrics(all_results)
+
+        return aggregated
 
     async def run_async(self) -> EvaluationOutput:
         """Run the evaluation pipeline asynchronously."""

@@ -52,14 +52,14 @@ def main():
         "--format",
         type=str,
         default="sentence",
-        choices=["sentence", "table", "document", "markdown"],
-        help="Format of images to generate (sentence, table, document, or markdown)",
+        choices=["sentence", "table", "document", "markdown", "kie"],
+        help="Format of images to generate (sentence, table, document, markdown, or kie)",
     )
     parser.add_argument(
         "--template",
         type=str,
         default=None,
-        help="Template for table or document generation (e.g., invoice, receipt, form, letter, report)",
+        help="Template for generation. Table: invoice, receipt, form, letter, report. KIE: receipt, invoice, form, business_card",
     )
     parser.add_argument(
         "--table-size",

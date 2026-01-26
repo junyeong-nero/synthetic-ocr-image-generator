@@ -13,6 +13,7 @@ class FormatType(str, Enum):
     TABLE = "table"
     DOCUMENT = "document"
     MARKDOWN = "markdown"
+    KIE = "kie"
 
 
 class InferenceBackend(str, Enum):
@@ -99,5 +100,12 @@ DEFAULT_PROMPTS: dict[FormatType, str] = {
     FormatType.MARKDOWN: (
         "Extract the markdown content from this image. "
         "Return the raw markdown text exactly as shown."
+    ),
+    FormatType.KIE: (
+        "Extract key information from this document image. "
+        "Return as JSON with 'entities' object containing field names as keys "
+        "and extracted values as values. For receipts/invoices, also include "
+        "'line_items' array with objects containing 'name', 'quantity', "
+        "'unit_price', and 'total_price' fields."
     ),
 }

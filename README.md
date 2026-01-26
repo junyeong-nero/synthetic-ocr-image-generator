@@ -63,7 +63,7 @@ bash scripts/japanese/generate.sh
 bash scripts/hindi/generate.sh
 ```
 
-Each language script generates all four formats (sentence, table, document, markdown) with 1000 images per format.
+Each language script generates all five formats (sentence, table, document, markdown, kie) with 1000 images per format.
 
 ### Generate for All Languages
 
@@ -145,6 +145,30 @@ uv run main.py \
     --size 100
 ```
 
+**KIE (Key Information Extraction) images**:
+```bash
+# Generate KIE images (all types randomly)
+uv run main.py \
+    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --format kie \
+    --size 100
+
+# Generate specific KIE document type
+uv run main.py \
+    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --format kie \
+    --template receipt \
+    --size 100
+```
+
+KIE document types:
+- `receipt` - Store receipts (SROIE/CORD style)
+- `invoice` - Business invoices
+- `form` - Key-value pair forms (FUNSD style)
+- `business_card` - Contact information cards
+
 ### Parameters:
 
 - `lang`: Specifies the language for text generation.
@@ -153,8 +177,8 @@ uv run main.py \
 - `corpus-size`: The number of sentences to generate for the corpus, sourced from the [Wikipedia](https://huggingface.co/datasets/wikimedia/wikipedia) dataset.
 - `size`: The total number of synthetic images to generate for the dataset.
 - `typo-ratio`: The ratio of typos to introduce into the generated text.
-- `format`: Format of images to generate (`sentence`, `table`, or `document`).
-- `template`: Template for table or document generation (`invoice`, `receipt`, `form`, `letter`, `report`).
+- `format`: Format of images to generate (`sentence`, `table`, `document`, `markdown`, or `kie`).
+- `template`: Template for table/document generation (`invoice`, `receipt`, `form`, `letter`, `report`) or KIE generation (`receipt`, `invoice`, `form`, `business_card`).
 - `table-size`: Table size range as `min_rows-max_cols` (e.g., `3-8` for 3-8 rows and columns).
 - `mixed`: Generate mixed format dataset (sentence, table, document combined).
 
@@ -280,6 +304,23 @@ python src/evaluate.py \
 - `avg_kv_f1`: Key-value extraction F1 score
 - `avg_overall_f1`: Combined overall F1 score
 
+### KIE Evaluation (Key Information Extraction)
+
+```bash
+python src/evaluate.py \
+    --predictions predictions.jsonl \
+    --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \
+    --format kie
+```
+
+**Metrics:**
+- `avg_entity_f1`: Entity extraction F1 score
+- `avg_entity_precision`: Entity extraction precision
+- `avg_entity_recall`: Entity extraction recall
+- `avg_entity_accuracy`: Entity extraction accuracy (1 - NED)
+- `avg_item_f1`: Line item extraction F1 (for receipts/invoices)
+- `avg_overall_f1`: Overall F1 score
+
 ## CLI Parameters
 
 | Parameter | Description |
@@ -287,7 +328,7 @@ python src/evaluate.py \
 | `--model-id` | Built-in model ID (e.g., `allenai/olmOCR-2-7B-1025`) |
 | `--predictions` | Path to predictions file (.json, .jsonl, or .txt) |
 | `--dataset-id` | HuggingFace dataset ID (required) |
-| `--format` | Evaluation format: `sentence`, `table`, or `document` |
+| `--format` | Evaluation format: `sentence`, `table`, `document`, or `kie` |
 | `--split` | Dataset split (default: `train`) |
 | `--batchsize` | Batch size for inference (default: 1) |
 | `--output-dataset-id` | Push results to HuggingFace dataset |
@@ -299,7 +340,7 @@ python src/evaluate.py \
 ## Python API
 
 ```python
-from evaluate import evaluate, evaluate_sentence_metrics, evaluate_table_metrics, evaluate_document_metrics
+from evaluate import evaluate, evaluate_sentence_metrics, evaluate_table_metrics, evaluate_document_metrics, evaluate_kie_metrics
 
 # Mode 1: Evaluate with dataset + inference function
 result = evaluate(
@@ -320,6 +361,7 @@ result = evaluate(
 result = evaluate_sentence_metrics(predictions, ground_truths)
 result = evaluate_table_metrics(predictions, ground_truths)
 result = evaluate_document_metrics(predictions, ground_truths)
+result = evaluate_kie_metrics(predictions, ground_truths)
 ```
 
 # Results
@@ -343,5 +385,6 @@ The results below are based on evaluations conducted with Korean text.
 
 # Future Work
 
-- Expanding Scope: Moving beyond basic text recognition to address the growing demand for document-level OCR and Key Information Extraction (KIE).
+- Expanding Scope: Moving beyond basic text recognition to address more advanced document understanding tasks.
 - Target Data Types: Our primary focus will be on generating more complex and diverse synthetic images.
+- Multi-language KIE: Extending KIE support to additional languages with locale-specific templates.

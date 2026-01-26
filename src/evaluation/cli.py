@@ -170,7 +170,7 @@ Examples:
     )
     eval_parser.add_argument(
         "-f", "--format", default="sentence",
-        choices=["sentence", "table", "document", "markdown"],
+        choices=["sentence", "table", "document", "markdown", "kie"],
         help="Evaluation format type",
     )
     eval_parser.add_argument(
