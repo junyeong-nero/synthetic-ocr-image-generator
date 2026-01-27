@@ -3,12 +3,12 @@
 set -e
 
 DATASET_ID="junyeong-nero/synthetic-ocr-images-korean"
+MODEL_CONFIG="configs/models/deepseek-ocr-2.yaml"
 MODEL_ID="deepseek-ai/DeepSeek-OCR-2"
-BACKEND="transformers"
 OUTPUT_DIR="evaluation_results/korean"
 
 echo "=========================================="
-echo "Evaluating Korean dataset with: $MODEL_ID"
+echo "Evaluating Korean dataset with config: $MODEL_CONFIG"
 echo "=========================================="
 
 mkdir -p "$OUTPUT_DIR"
@@ -23,7 +23,7 @@ for subset in "${SUBSETS[@]}"; do
 
     uv run python -m evaluation.cli evaluate \
         -m "$MODEL_ID" \
-        -b "$BACKEND" \
+        --model-config "$MODEL_CONFIG" \
         -d "$DATASET_ID" \
         --subset "$subset" \
         -f "$subset" \

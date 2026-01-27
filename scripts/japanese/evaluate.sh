@@ -3,13 +3,12 @@
 set -e
 
 DATASET_ID="junyeong-nero/synthetic-ocr-images-japanese"
+MODEL_CONFIG="configs/models/qwen3-vl-2b.yaml"
 MODEL_ID="Qwen/Qwen3-VL-2B-Instruct"
-BACKEND="transformers"
-BATCH_SIZE=8
 OUTPUT_DIR="evaluation_results/japanese"
 
 echo "=========================================="
-echo "Evaluating Japanese dataset with: $MODEL_ID"
+echo "Evaluating Japanese dataset with config: $MODEL_CONFIG"
 echo "=========================================="
 
 mkdir -p "$OUTPUT_DIR"
@@ -24,12 +23,11 @@ for subset in "${SUBSETS[@]}"; do
 
     uv run python -m evaluation.cli evaluate \
         -m "$MODEL_ID" \
-        -b "$BACKEND" \
+        --model-config "$MODEL_CONFIG" \
         -d "$DATASET_ID" \
         --subset "$subset" \
         -f "$subset" \
         --split "train" \
-        --batch-size "$BATCH_SIZE" \
         --output-dir "$OUTPUT_DIR/$subset"
 
     echo ""
