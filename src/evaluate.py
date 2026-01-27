@@ -44,6 +44,7 @@ def _load_builtin_model(model_id: str):
         "lightonai/LightOnOCR-2-1B": ("models/transformers/light_on_ocr2.py", "LightOnOCR2"),
         "allenai/olmOCR-2-7B-1025": ("models/vllm/olm_ocr.py", "OlmOCR"),
         "deepseek-ai/DeepSeek-OCR": ("models/transformers/deepseek_ocr.py", "DeepSeekOCR"),
+        "deepseek-ai/DeepSeek-OCR-2": ("models/transformers/deepseek_ocr2.py", "DeepSeekOCR2"),
         "google/gemma-3-4b-it": ("models/transformers/gemma3_4b_it.py", "Gemma3_4B_IT"),
         "stepfun-ai/GOT-OCR-2.0-hf": ("models/transformers/got_ocr.py", "GotOCR"),
         "PaddlePaddle/PaddleOCR-VL": ("models/transformers/paddle_ocr.py", "PaddleOCR"),

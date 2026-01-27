@@ -20,6 +20,7 @@ from models.vllm.olm_ocr import OlmOCR
 
 # Legacy Transformers-based models
 from models.transformers.deepseek_ocr import DeepSeekOCR
+from models.transformers.deepseek_ocr2 import DeepSeekOCR2
 from models.transformers.gemma3_4b_it import Gemma3_4B_IT
 from models.transformers.got_ocr import GotOCR
 from models.transformers.paddle_ocr import PaddleOCR
@@ -46,6 +47,7 @@ __all__ = [
     "NanonetsOCR",
     "OlmOCR",
     "DeepSeekOCR",
+    "DeepSeekOCR2",
     "Gemma3_4B_IT",
     "GotOCR",
     "PaddleOCR",
