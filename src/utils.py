@@ -12,7 +12,7 @@ from datasets import (
     Value,
     Image as HFImage,
 )
-from huggingface_hub import HfFolder
+from huggingface_hub import login, whoami
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,9 @@ def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
     logger.info(f"\n▶ Starting upload of subset '{config_name}' to '{repo_id}'...")
 
     try:
-        if HfFolder.get_token() is None:
+        try:
+            whoami()
+        except Exception:
             raise ConnectionError(
                 "Hugging Face login is required. Please run 'huggingface-cli login'."
             )

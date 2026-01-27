@@ -12,7 +12,7 @@ echo "Generating Korean OCR images"
 echo "=========================================="
 
 echo ""
-echo "[1/4] Generating sentence format..."
+echo "[1/5] Generating sentence format..."
 uv run main.py \
     --repo-id "$REPO_ID" \
     --font-path "$FONT_PATH" \
@@ -22,7 +22,7 @@ uv run main.py \
     --typo-ratio 0.15
 
 echo ""
-echo "[2/4] Generating table format..."
+echo "[2/5] Generating table format..."
 uv run main.py \
     --repo-id "$REPO_ID" \
     --font-path "$FONT_PATH" \
@@ -31,7 +31,7 @@ uv run main.py \
     --lang $LANG
 
 echo ""
-echo "[3/4] Generating document format..."
+echo "[3/5] Generating document format..."
 uv run main.py \
     --repo-id "$REPO_ID" \
     --font-path "$FONT_PATH" \
@@ -40,11 +40,20 @@ uv run main.py \
     --lang $LANG
 
 echo ""
-echo "[4/4] Generating markdown format..."
+echo "[4/5] Generating markdown format..."
 uv run main.py \
     --repo-id "$REPO_ID" \
     --font-path "$FONT_PATH" \
     --format markdown \
+    --size $SIZE \
+    --lang $LANG
+
+echo ""
+echo "[5/5] Generating kie format..."
+uv run main.py \
+    --repo-id "$REPO_ID" \
+    --font-path "$FONT_PATH" \
+    --format kie \
     --size $SIZE \
     --lang $LANG
 
