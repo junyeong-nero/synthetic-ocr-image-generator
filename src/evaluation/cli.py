@@ -130,16 +130,19 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Evaluate with OpenAI GPT-4o
-  evaluate evaluate -m gpt-4o -b openai -d nero-nlp/synthetic-ocr-korean
+  # Evaluate sentence OCR with OpenAI GPT-4o
+  evaluate evaluate -m gpt-4o -b openai -d junyeong-nero/synthetic-ocr-images-korean -f sentence
 
-  # Evaluate with vLLM
-  evaluate evaluate -m Qwen/Qwen2-VL-7B -b vllm -d nero-nlp/synthetic-ocr-korean
+  # Evaluate table extraction with Transformers
+  evaluate evaluate -m Qwen/Qwen3-VL-2B-Instruct -b transformers -d junyeong-nero/synthetic-ocr-images-korean -f table
 
-  # Evaluate with Ollama
-  evaluate evaluate -m llava -b ollama -d nero-nlp/synthetic-ocr-korean
+  # Evaluate KIE (Key Information Extraction)
+  evaluate evaluate -m Qwen/Qwen3-VL-2B-Instruct -b transformers -d junyeong-nero/synthetic-ocr-images-korean -f kie
 
-  # Compare multiple models
+  # Evaluate with vLLM backend
+  evaluate evaluate -m Qwen/Qwen2-VL-7B -b vllm -d junyeong-nero/synthetic-ocr-images-korean -f sentence
+
+  # Compare multiple model results
   evaluate compare results/gpt4o/report.json results/qwen/report.json -o comparison
 
   # List available backends
