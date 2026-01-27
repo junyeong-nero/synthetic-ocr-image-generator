@@ -13,6 +13,3 @@ uv tool install "huggingface_hub"
 uv pip install torchvision transformers accelerate datasets flashinfer-python
 uv pip install huggingface_hub hf_transfer addict easydict einops gpustat 
 uv pip install flash-attn --no-build-isolation
-
-# install vllm
-uv pip install vllm --torch-backend=auto

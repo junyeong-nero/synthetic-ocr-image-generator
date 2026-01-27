@@ -280,9 +280,6 @@ Examples:
             "anthropic",
             "google",
             "transformers",
-            "vllm",
-            "sglang",
-            "ollama",
         ],
         help="Inference backend (optional if model config exists)",
     )
@@ -345,7 +342,7 @@ Examples:
         "--tensor-parallel",
         type=int,
         default=None,
-        help="Tensor parallel size for vLLM/SGLang (overrides model config)",
+        help="Tensor parallel size (overrides model config)",
     )
 
     # Compare command

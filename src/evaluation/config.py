@@ -19,13 +19,12 @@ class FormatType(str, Enum):
 class InferenceBackend(str, Enum):
     """Supported inference backends."""
 
+    # API backends
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
+    # Local backends
     TRANSFORMERS = "transformers"
-    VLLM = "vllm"
-    SGLANG = "sglang"
-    OLLAMA = "ollama"
 
 
 class ModelConfig(BaseModel):

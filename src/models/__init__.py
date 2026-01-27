@@ -1,13 +1,13 @@
 """OCR/VLM models.
 
 Model classes are lazily imported to avoid import errors when optional
-dependencies (transformers, vllm, etc.) are not installed.
+dependencies (transformers, etc.) are not installed.
 """
 
 from typing import TYPE_CHECKING
 
 # Base classes (always available)
-from models.base import Model, VLMModel, vLLMModel, encode_image_base64, generate_message
+from models.base import Model, VLMModel, encode_image_base64, generate_message
 
 # Model registry (always available)
 from models.registry import (
@@ -20,10 +20,6 @@ from models.registry import (
 
 # Lazy imports for type checking only
 if TYPE_CHECKING:
-    from models.vllm.dots_ocr import DotsOCR
-    from models.vllm.light_on_ocr import LightOnOCR
-    from models.vllm.nanonets_ocr import NanonetsOCR
-    from models.vllm.olm_ocr import OlmOCR
     from models.transformers.deepseek_ocr import DeepSeekOCR
     from models.transformers.deepseek_ocr2 import DeepSeekOCR2
     from models.transformers.gemma3_4b_it import Gemma3_4B_IT
@@ -36,20 +32,6 @@ if TYPE_CHECKING:
 
 def __getattr__(name: str):
     """Lazy import model classes on first access."""
-    # vLLM-based models
-    if name == "DotsOCR":
-        from models.vllm.dots_ocr import DotsOCR
-        return DotsOCR
-    if name == "LightOnOCR":
-        from models.vllm.light_on_ocr import LightOnOCR
-        return LightOnOCR
-    if name == "NanonetsOCR":
-        from models.vllm.nanonets_ocr import NanonetsOCR
-        return NanonetsOCR
-    if name == "OlmOCR":
-        from models.vllm.olm_ocr import OlmOCR
-        return OlmOCR
-
     # Transformers-based models
     if name == "DeepSeekOCR":
         from models.transformers.deepseek_ocr import DeepSeekOCR
@@ -83,7 +65,6 @@ __all__ = [
     # Base
     "Model",
     "VLMModel",
-    "vLLMModel",
     "encode_image_base64",
     "generate_message",
     # Registry
@@ -92,11 +73,7 @@ __all__ = [
     "get_model_class",
     "list_backends",
     "BACKEND_DISPLAY_NAMES",
-    # Legacy models (lazily imported)
-    "DotsOCR",
-    "LightOnOCR",
-    "NanonetsOCR",
-    "OlmOCR",
+    # Transformers models (lazily imported)
     "DeepSeekOCR",
     "DeepSeekOCR2",
     "Gemma3_4B_IT",

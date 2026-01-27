@@ -26,15 +26,6 @@ SPECIALIZED_MODEL_REGISTRY: list[tuple[str, InferenceBackend, str, str]] = [
     ("PaddlePaddle/PaddleOCR", InferenceBackend.TRANSFORMERS, "models.transformers.paddle_ocr", "PaddleOCR"),
     ("opendatalab/PDF-Extract-Kit-1.0", InferenceBackend.TRANSFORMERS, "models.transformers.paddle_ocr", "PaddleOCR"),
     ("google/gemma-3", InferenceBackend.TRANSFORMERS, "models.transformers.gemma3_4b_it", "Gemma3_4B_IT"),
-    # vLLM backend
-    ("rednote-hilab/dots.ocr", InferenceBackend.VLLM, "models.vllm.dots_ocr", "DotsOCR"),
-    ("dots.ocr", InferenceBackend.VLLM, "models.vllm.dots_ocr", "DotsOCR"),
-    ("lightonai/LightOnOCR-1B", InferenceBackend.VLLM, "models.vllm.light_on_ocr", "LightOnOCR"),
-    ("LightOnOCR-1B", InferenceBackend.VLLM, "models.vllm.light_on_ocr", "LightOnOCR"),
-    ("nanonets/Nanonets-OCR", InferenceBackend.VLLM, "models.vllm.nanonets_ocr", "NanonetsOCR"),
-    ("Nanonets-OCR", InferenceBackend.VLLM, "models.vllm.nanonets_ocr", "NanonetsOCR"),
-    ("allenai/olmOCR", InferenceBackend.VLLM, "models.vllm.olm_ocr", "OlmOCR"),
-    ("olmOCR", InferenceBackend.VLLM, "models.vllm.olm_ocr", "OlmOCR"),
 ]
 
 BACKEND_DISPLAY_NAMES: Dict[InferenceBackend, str] = {
@@ -42,9 +33,6 @@ BACKEND_DISPLAY_NAMES: Dict[InferenceBackend, str] = {
     InferenceBackend.ANTHROPIC: "Anthropic API (Claude 3.5/4)",
     InferenceBackend.GOOGLE: "Google API (Gemini 1.5/2.0)",
     InferenceBackend.TRANSFORMERS: "HuggingFace Transformers",
-    InferenceBackend.VLLM: "vLLM (high-performance local)",
-    InferenceBackend.SGLANG: "SGLang (local or server)",
-    InferenceBackend.OLLAMA: "Ollama (easy local)",
 }
 
 
@@ -84,7 +72,7 @@ def get_model_class(backend: InferenceBackend, model_id: str = "") -> Type[VLMMo
     Raises:
         ValueError: If backend is not supported.
     """
-    if model_id and backend in (InferenceBackend.TRANSFORMERS, InferenceBackend.VLLM):
+    if model_id and backend == InferenceBackend.TRANSFORMERS:
         specialized_class = get_specialized_model_class(model_id, backend)
         if specialized_class is not None:
             return specialized_class
@@ -104,18 +92,6 @@ def get_model_class(backend: InferenceBackend, model_id: str = "") -> Type[VLMMo
     if backend == InferenceBackend.TRANSFORMERS:
         from models.local.transformers_vlm import TransformersVLM
         return TransformersVLM
-
-    if backend == InferenceBackend.VLLM:
-        from models.local.vllm_vlm import VLLMModel
-        return VLLMModel
-
-    if backend == InferenceBackend.SGLANG:
-        from models.local.sglang_vlm import SGLangModel
-        return SGLangModel
-
-    if backend == InferenceBackend.OLLAMA:
-        from models.local.ollama_vlm import OllamaModel
-        return OllamaModel
 
     raise ValueError(f"Unknown backend: {backend}")
 

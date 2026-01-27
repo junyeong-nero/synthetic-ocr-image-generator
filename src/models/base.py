@@ -155,35 +155,3 @@ class VLMModel(ABC):
         }
 
 
-class vLLMModel(Model):
-    """A wrapper for vLLM models (legacy compatibility)."""
-
-    def __init__(
-        self,
-        model_id: str,
-        temperature: float = 0,
-        max_model_len: int = 2048,
-        max_tokens: int = 1024,
-        top_p: float = 1.0,
-    ) -> None:
-        super().__init__()
-
-        from vllm import LLM, SamplingParams
-
-        self.model_id = model_id
-        self.model = LLM(model_id, trust_remote_code=True, max_model_len=max_model_len)
-        self.sampling_params = SamplingParams(
-            temperature=temperature, max_tokens=max_tokens, top_p=top_p
-        )
-
-    def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
-        messages = [
-            generate_message(image, prompt) for image, prompt in zip(images, prompts)
-        ]
-        outputs = self.model.chat(messages, self.sampling_params)
-        results = []
-        for output in outputs:
-            text = output.outputs[0].text.strip()
-            results.append(text)
-
-        return results
