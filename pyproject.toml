@@ -44,10 +44,110 @@ transformers = ["transformers==4.46.3", "tokenizers==0.20.3"]
 #   uv sync --extra api --extra eval
 #   uv sync --extra api --extra eval --extra transformers
 
+[dependency-groups]
+# Individual model groups with their specific requirements
+# Usage: uv sync --group <model-name>
+
+nanonets-ocr2 = [
+    "transformers==4.46.3",
+    "tokenizers==0.20.3",
+]
+
+typhoon-ocr = [
+    "transformers==4.46.3",
+    "tokenizers==0.20.3",
+]
+
+deepseek-ocr = [
+    "transformers==4.46.3",
+    "tokenizers==0.20.3",
+    # Note: flash-attn requires CUDA and must be installed separately:
+    # pip install flash-attn --no-build-isolation
+]
+
+deepseek-ocr2 = [
+    "transformers==4.46.3",
+    "tokenizers==0.20.3",
+    # Note: flash-attn requires CUDA and must be installed separately:
+    # pip install flash-attn --no-build-isolation
+]
+
+lighton-ocr2 = [
+    "transformers==4.46.3",
+    "tokenizers==0.20.3",
+    "pypdfium2>=4.0.0",
+]
+
+hunyuan-ocr = [
+    "transformers==4.46.3",
+    "tokenizers==0.20.3",
+]
+
+varco-ocr = [
+    "transformers>=4.53.1",
+    "tokenizers>=0.20.3",
+]
+
+paddle-ocr = [
+    # Note: paddlepaddle-gpu requires separate installation from PaddlePaddle index
+    # See: https://www.paddlepaddle.org.cn/install/quick
+    "paddleocr>=2.0.0",
+]
+
+qwen3-vl = [
+    "transformers==4.46.3",
+    "tokenizers==0.20.3",
+    "qwen-vl-utils>=0.0.10",
+]
+
+gemma3 = [
+    "transformers>=4.50.0",
+    "tokenizers>=0.20.3",
+]
+
+got-ocr = [
+    "transformers==4.46.3",
+    "tokenizers==0.20.3",
+]
+
+kiri-ocr = [
+    "kiri-ocr>=0.1.0",
+]
+
+dots-ocr = [
+    "transformers==4.46.3",
+    "tokenizers==0.20.3",
+    "qwen-vl-utils>=0.0.10",
+]
+
 [tool.uv]
 # Resolve for current platform only (avoid cross-platform conflicts)
 environments = ["sys_platform == 'darwin'", "sys_platform == 'linux'"]
 package = true
+
+# Declare that model-specific dependency groups are mutually exclusive
+# This allows uv to resolve them independently despite conflicting requirements
+conflicts = [
+    [
+        { extra = "transformers" },
+        { group = "nanonets-ocr2" },
+        { group = "typhoon-ocr" },
+        { group = "deepseek-ocr" },
+        { group = "deepseek-ocr2" },
+        { group = "lighton-ocr2" },
+        { group = "hunyuan-ocr" },
+        { group = "varco-ocr" },
+        { group = "paddle-ocr" },
+        { group = "qwen3-vl" },
+        { group = "gemma3" },
+        { group = "got-ocr" },
+        { group = "kiri-ocr" },
+        { group = "dots-ocr" },
+    ],
+]
+
+# Don't include any model groups by default
+default-groups = []
 
 [tool.setuptools]
 packages = ["evaluation", "models", "metrics", "generator"]
