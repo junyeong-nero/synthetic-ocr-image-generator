@@ -53,3 +53,12 @@ evaluate = "evaluation.cli:main"
 [tool.uv]
 # Resolve for current platform only (avoid cross-platform conflicts)
 environments = ["sys_platform == 'darwin'", "sys_platform == 'linux'"]
+package = true
+
+[tool.setuptools]
+packages = ["evaluation", "models", "metrics", "generator"]
+package-dir = {"" = "src"}
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
