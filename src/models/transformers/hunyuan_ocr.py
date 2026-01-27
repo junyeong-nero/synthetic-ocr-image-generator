@@ -1,16 +1,37 @@
-from typing import List
+"""HunyuanOCR model wrapper."""
+
+from typing import List, Union
 
 import torch
 from PIL import Image
 from transformers import AutoProcessor, HunYuanVLForConditionalGeneration
 
-from ..base import Model
+from evaluation.config import ModelConfig
+from models.base import VLMModel
 
 
-class HunYuanOCR(Model):
+class HunYuanOCR(VLMModel):
     """Wrapper for the HunyuanOCR model."""
 
-    def __init__(self, model_id="tencent/HunyuanOCR"):
+    DEFAULT_MODEL_ID = "tencent/HunyuanOCR"
+
+    def __init__(self, config: Union[ModelConfig, str, None] = None):
+        """
+        Initialize HunYuanOCR model.
+
+        Args:
+            config: ModelConfig object, model_id string, or None for default.
+        """
+        if config is None:
+            model_id = self.DEFAULT_MODEL_ID
+            self.config = None
+        elif isinstance(config, str):
+            model_id = config
+            self.config = None
+        else:
+            model_id = config.model_id
+            self.config = config
+
         if torch.cuda.is_available():
             self.device = "cuda"
             torch_dtype = torch.float16
@@ -51,6 +72,20 @@ class HunYuanOCR(Model):
         return text
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
+        """
+        Run inference on a batch of images.
+
+        Args:
+            prompts: List of text prompts.
+            images: List of PIL Images.
+
+        Returns:
+            List of model responses.
+        """
+        max_tokens = 16384
+        if self.config is not None:
+            max_tokens = self.config.max_tokens
+
         results = []
         for prompt, image in zip(prompts, images):
             messages = [
@@ -77,7 +112,7 @@ class HunYuanOCR(Model):
 
             with torch.inference_mode():
                 generated_ids = self.model.generate(
-                    **inputs, max_new_tokens=16384, do_sample=False
+                    **inputs, max_new_tokens=max_tokens, do_sample=False
                 )
 
             input_ids = inputs.get("input_ids") or inputs.get("inputs")

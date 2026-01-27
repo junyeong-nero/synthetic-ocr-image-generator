@@ -1,17 +1,38 @@
-from typing import List
+"""VARCO-VISION OCR model wrapper."""
+
+from typing import List, Union
 
 import torch
 from PIL import Image
 from transformers import AutoProcessor, LlavaOnevisionForConditionalGeneration
 
-from ..base import Model
+from evaluation.config import ModelConfig
+from models.base import VLMModel
 from utils import extract_tag
 
 
-class VarcoOCR(Model):
+class VarcoOCR(VLMModel):
     """Wrapper for the VARCO-VISION-2.0-1.7B-OCR model."""
 
-    def __init__(self, model_id="NCSOFT/VARCO-VISION-2.0-1.7B-OCR"):
+    DEFAULT_MODEL_ID = "NCSOFT/VARCO-VISION-2.0-1.7B-OCR"
+
+    def __init__(self, config: Union[ModelConfig, str, None] = None):
+        """
+        Initialize VarcoOCR model.
+
+        Args:
+            config: ModelConfig object, model_id string, or None for default.
+        """
+        if config is None:
+            model_id = self.DEFAULT_MODEL_ID
+            self.config = None
+        elif isinstance(config, str):
+            model_id = config
+            self.config = None
+        else:
+            model_id = config.model_id
+            self.config = config
+
         self.model = LlavaOnevisionForConditionalGeneration.from_pretrained(
             model_id,
             torch_dtype=torch.float16,
@@ -31,6 +52,20 @@ class VarcoOCR(Model):
         return image
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
+        """
+        Run inference on a batch of images.
+
+        Args:
+            prompts: List of text prompts.
+            images: List of PIL Images.
+
+        Returns:
+            List of model responses.
+        """
+        max_tokens = 1024
+        if self.config is not None:
+            max_tokens = self.config.max_tokens
+
         results = []
         for prompt, image in zip(prompts, images):
             image = self._upscale_image(image)
@@ -53,7 +88,7 @@ class VarcoOCR(Model):
                 return_tensors="pt",
             ).to(self.model.device, torch.float16)
 
-            generate_ids = self.model.generate(**inputs, max_new_tokens=1024)
+            generate_ids = self.model.generate(**inputs, max_new_tokens=max_tokens)
             generate_ids_trimmed = [
                 out_ids[len(in_ids) :]
                 for in_ids, out_ids in zip(inputs.input_ids, generate_ids)

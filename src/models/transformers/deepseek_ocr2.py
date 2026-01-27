@@ -1,48 +1,69 @@
+"""DeepSeek-OCR-2 model wrapper."""
+
 import os
 import tempfile
-from typing import List
+from typing import List, Union
 
 import torch
 from PIL import Image
 from transformers import AutoModel, AutoTokenizer
 
-from ..base import Model
+from evaluation.config import ModelConfig
+from models.base import VLMModel
 
 
-class DeepSeekOCR2(Model):
+class DeepSeekOCR2(VLMModel):
     """Wrapper for the DeepSeek-OCR-2 model.
     
     DeepSeek-OCR-2 is an improved version with enhanced grounding capabilities
     for document-to-markdown conversion.
     """
 
-    def __init__(
-        self,
-        model_name: str = "deepseek-ai/DeepSeek-OCR-2",
-        use_flash_attention: bool = True,
-        base_size: int = 1024,
-        image_size: int = 768,
-    ):
-        self.base_size = base_size
-        self.image_size = image_size
+    DEFAULT_MODEL_ID = "deepseek-ai/DeepSeek-OCR-2"
+
+    def __init__(self, config: Union[ModelConfig, str, None] = None):
+        """
+        Initialize DeepSeekOCR2 model.
+
+        Args:
+            config: ModelConfig object, model_id string, or None for default.
+        """
+        if config is None:
+            model_id = self.DEFAULT_MODEL_ID
+            self.config = None
+        elif isinstance(config, str):
+            model_id = config
+            self.config = None
+        else:
+            model_id = config.model_id
+            self.config = config
+
+        self.base_size = 1024
+        self.image_size = 768
 
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-        attn_impl = "flash_attention_2" if use_flash_attention else None
-        model_kwargs = {
-            "trust_remote_code": True,
-            "use_safetensors": True,
-        }
-        if attn_impl:
-            model_kwargs["_attn_implementation"] = attn_impl
-
         self.tokenizer = AutoTokenizer.from_pretrained(
-            model_name, trust_remote_code=True
+            model_id, trust_remote_code=True
         )
-        self.model = AutoModel.from_pretrained(model_name, **model_kwargs)
+        self.model = AutoModel.from_pretrained(
+            model_id,
+            trust_remote_code=True,
+            use_safetensors=True,
+        )
         self.model = self.model.eval().cuda().to(torch.bfloat16)
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
+        """
+        Run inference on a batch of images.
+
+        Args:
+            prompts: List of text prompts.
+            images: List of PIL Images.
+
+        Returns:
+            List of model responses.
+        """
         results = []
         for prompt, image in zip(prompts, images):
             with tempfile.NamedTemporaryFile(

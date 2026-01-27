@@ -1,27 +1,37 @@
-from typing import List
+"""LightOnOCR-2 model wrapper."""
+
+from typing import List, Union
 
 import torch
 from PIL import Image
 from transformers import LightOnOcrForConditionalGeneration, LightOnOcrProcessor
 
-try:
-    from ..base import Model
-except ImportError:
-    # Fallback for direct file import (avoids circular import in evaluate.py)
-    class Model:
-        """Base class for OCR models."""
-        def __init__(self) -> None:
-            pass
-
-        def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
-            assert len(prompts) == len(images)
-            return ["empty"] * len(prompts)
+from evaluation.config import ModelConfig
+from models.base import VLMModel
 
 
-class LightOnOCR2(Model):
+class LightOnOCR2(VLMModel):
     """Wrapper for the LightOnOCR-2-1B model."""
 
-    def __init__(self, model_id="lightonai/LightOnOCR-2-1B"):
+    DEFAULT_MODEL_ID = "lightonai/LightOnOCR-2-1B"
+
+    def __init__(self, config: Union[ModelConfig, str, None] = None):
+        """
+        Initialize LightOnOCR2 model.
+
+        Args:
+            config: ModelConfig object, model_id string, or None for default.
+        """
+        if config is None:
+            model_id = self.DEFAULT_MODEL_ID
+            self.config = None
+        elif isinstance(config, str):
+            model_id = config
+            self.config = None
+        else:
+            model_id = config.model_id
+            self.config = config
+
         self.device = (
             "mps"
             if torch.backends.mps.is_available()
@@ -35,6 +45,20 @@ class LightOnOCR2(Model):
         self.processor = LightOnOcrProcessor.from_pretrained(model_id)
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
+        """
+        Run inference on a batch of images.
+
+        Args:
+            prompts: List of text prompts.
+            images: List of PIL Images.
+
+        Returns:
+            List of model responses.
+        """
+        max_tokens = 1024
+        if self.config is not None:
+            max_tokens = self.config.max_tokens
+
         results = []
         for prompt, image in zip(prompts, images):
             conversation = [
@@ -61,7 +85,7 @@ class LightOnOCR2(Model):
                 for k, v in inputs.items()
             }
 
-            output_ids = self.model.generate(**inputs, max_new_tokens=1024)
+            output_ids = self.model.generate(**inputs, max_new_tokens=max_tokens)
             generated_ids = output_ids[0, inputs["input_ids"].shape[1] :]
             output_text = self.processor.decode(generated_ids, skip_special_tokens=True)
             results.append(output_text)

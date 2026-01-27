@@ -1,31 +1,61 @@
+"""DeepSeek-OCR model wrapper."""
+
 import os
 import tempfile
-from typing import List
+from typing import List, Union
 
 import torch
 from PIL import Image
 from transformers import AutoModel, AutoTokenizer
 
-from ..base import Model
+from evaluation.config import ModelConfig
+from models.base import VLMModel
 
 
-class DeepSeekOCR(Model):
+class DeepSeekOCR(VLMModel):
     """Wrapper for the DeepSeek-OCR model."""
 
-    def __init__(self, model_name="deepseek-ai/DeepSeek-OCR"):
+    DEFAULT_MODEL_ID = "deepseek-ai/DeepSeek-OCR"
+
+    def __init__(self, config: Union[ModelConfig, str, None] = None):
+        """
+        Initialize DeepSeekOCR model.
+
+        Args:
+            config: ModelConfig object, model_id string, or None for default.
+        """
+        if config is None:
+            model_id = self.DEFAULT_MODEL_ID
+            self.config = None
+        elif isinstance(config, str):
+            model_id = config
+            self.config = None
+        else:
+            model_id = config.model_id
+            self.config = config
+
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
         self.tokenizer = AutoTokenizer.from_pretrained(
-            model_name, trust_remote_code=True
+            model_id, trust_remote_code=True
         )
         self.model = AutoModel.from_pretrained(
-            model_name,
-            # _attn_implementation="flash_attention_2",
+            model_id,
             trust_remote_code=True,
             use_safetensors=True,
         )
         self.model = self.model.eval().cuda().to(torch.bfloat16)
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
+        """
+        Run inference on a batch of images.
+
+        Args:
+            prompts: List of text prompts.
+            images: List of PIL Images.
+
+        Returns:
+            List of model responses.
+        """
         results = []
         for prompt, image in zip(prompts, images):
             with tempfile.NamedTemporaryFile(
