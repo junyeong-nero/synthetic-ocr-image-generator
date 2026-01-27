@@ -1,44 +1,133 @@
 # Synthetic OCR Image Generator
 
-This project provides a synthetic OCR image generator with multi-language support.
+This project provides a synthetic OCR image generator with multi-language support and an evaluation pipeline for OCR/VLM models.
 
 **Huggingface Datasets:**
+
 - [Korean](https://huggingface.co/datasets/junyeong-nero/synthetic-ocr-images-korean)
 - [Japanese](https://huggingface.co/datasets/junyeong-nero/synthetic-ocr-images-japanese)
 - [Hindi](https://huggingface.co/datasets/junyeong-nero/synthetic-ocr-images-hindi)
 
-# How to Use
+## Quick Start
 
-## Environment Setup
-
-Set up the environment using `uv`:
-
-```shell
+```bash
+# Setup environment
 uv sync
+
+# Generate synthetic OCR images (Korean, sentence format, 100 images)
+uv run main.py --lang ko --format sentence --size 100
+
+# Evaluate a model on the dataset
+uv sync --extra eval --extra transformers
+uv run evaluate evaluate \
+    -m "Qwen/Qwen3-VL-2B-Instruct" \
+    -b transformers \
+    -d "junyeong-nero/synthetic-ocr-images-korean" \
+    -f sentence
 ```
 
-## Scripts Directory Structure
+---
 
-The scripts are organized by language for easy management:
+# Generation
 
+Generate synthetic OCR images in various formats.
+
+## Supported Formats
+
+| Format | Description | Use Case |
+|--------|-------------|----------|
+| `sentence` | Single-line text images | Basic OCR evaluation |
+| `table` | Table structure images | Table extraction |
+| `document` | Multi-element document images | Document understanding |
+| `markdown` | Markdown-formatted content | Markdown conversion |
+| `kie` | Key Information Extraction documents | Receipt/Invoice/Form extraction |
+
+## Usage Examples
+
+### Sentence Images
+
+```bash
+uv run main.py \
+    --lang ko \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --format sentence \
+    --size 1000 \
+    --typo-ratio 0.3
 ```
-scripts/
-├── korean/
-│   ├── generate.sh      # Korean OCR image generation
-│   └── evaluate.sh      # Korean dataset evaluation
-├── japanese/
-│   ├── generate.sh      # Japanese OCR image generation
-│   └── evaluate.sh      # Japanese dataset evaluation
-├── hindi/
-│   ├── generate.sh      # Hindi OCR image generation
-│   └── evaluate.sh      # Hindi dataset evaluation
-├── common/
-│   └── analyze.sh       # Common analysis script
-├── generate_all.sh      # Generate all languages (batch)
-└── evaluate_all.sh      # Evaluate all languages (batch)
+
+### Table Images
+
+```bash
+uv run main.py \
+    --lang ko \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --format table \
+    --template invoice \
+    --size 500
 ```
 
-### Language-Specific Font Configurations
+### Document Images
+
+```bash
+uv run main.py \
+    --lang ko \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --format document \
+    --template report \
+    --size 500
+```
+
+### Markdown Images
+
+```bash
+uv run main.py \
+    --lang ko \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --format markdown \
+    --size 500
+```
+
+### KIE (Key Information Extraction) Images
+
+```bash
+# Generate all KIE types randomly
+uv run main.py \
+    --lang ko \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --format kie \
+    --size 500
+
+# Generate specific KIE document type
+uv run main.py \
+    --lang ko \
+    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
+    --format kie \
+    --template receipt \
+    --size 200
+```
+
+**KIE Document Types:**
+
+- `receipt` - Store receipts (SROIE/CORD style)
+- `invoice` - Business invoices
+- `form` - Key-value pair forms (FUNSD style)
+- `business_card` - Contact information cards
+
+## Generation Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--lang` | Language code (`ko`, `ja`, `hi`) | `ko` |
+| `--font-path` | Path to font file | Required |
+| `--format` | Image format | `sentence` |
+| `--template` | Template type for table/document/kie | Random |
+| `--size` | Number of images to generate | `1000` |
+| `--typo-ratio` | Ratio of typos to introduce | `0.0` |
+| `--corpus-size` | Wikipedia sentences for corpus | `10000` |
+| `--repo-id` | HuggingFace repo to push | None |
+| `--mixed` | Generate mixed format dataset | `false` |
+
+## Language-Specific Fonts
 
 | Language | Code | Font |
 |----------|------|------|
@@ -46,345 +135,237 @@ scripts/
 | Japanese | `ja` | `NotoSansJP-VariableFont_wght.ttf` |
 | Hindi | `hi` | `NotoSansDevanagari-VariableFont_wdth,wght.ttf` |
 
-## Running Scripts
-
-### Generate for a Single Language
-
-Run the language-specific generation script:
+## Batch Generation Scripts
 
 ```bash
-# Korean
+# Generate for a single language
 bash scripts/korean/generate.sh
-
-# Japanese
 bash scripts/japanese/generate.sh
-
-# Hindi
 bash scripts/hindi/generate.sh
-```
 
-Each language script generates all five formats (sentence, table, document, markdown, kie) with 1000 images per format.
-
-### Generate for All Languages
-
-To generate datasets for all supported languages at once:
-
-```bash
+# Generate for all languages
 bash scripts/generate_all.sh
 ```
 
-### Evaluate for a Single Language
-
-Run the language-specific evaluation script:
-
-```bash
-# Korean
-bash scripts/korean/evaluate.sh
-
-# Japanese
-bash scripts/japanese/evaluate.sh
-
-# Hindi
-bash scripts/hindi/evaluate.sh
-```
-
-### Evaluate All Languages
-
-To evaluate all languages and run analysis:
-
-```bash
-bash scripts/evaluate_all.sh
-```
-
-This will evaluate all language datasets and then run the common analysis script.
-
-## Manual Script Usage
-
-You can also run `main.py` directly with custom parameters:
-
-```bash
-uv run main.py \
-    --lang ko \
-    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
-    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --corpus-size 10000 \
-    --size 1000 \
-    --typo-ratio 0.4
-```
-
-### Generating Different Formats
-
-The generator supports multiple image formats:
-
-**Sentence images** (default):
-```bash
-uv run main.py \
-    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
-    --format sentence \
-    --size 1000
-```
-
-**Table images**:
-```bash
-uv run main.py \
-    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
-    --format table \
-    --template invoice \
-    --size 100
-```
-
-**Document images**:
-```bash
-uv run main.py \
-    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
-    --format document \
-    --template invoice \
-    --size 100
-```
-
-**KIE (Key Information Extraction) images**:
-```bash
-# Generate KIE images (all types randomly)
-uv run main.py \
-    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
-    --format kie \
-    --size 100
-
-# Generate specific KIE document type
-uv run main.py \
-    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
-    --format kie \
-    --template receipt \
-    --size 100
-```
-
-KIE document types:
-- `receipt` - Store receipts (SROIE/CORD style)
-- `invoice` - Business invoices
-- `form` - Key-value pair forms (FUNSD style)
-- `business_card` - Contact information cards
-
-### Parameters:
-
-- `lang`: Specifies the language for text generation.
-- `font-path`: Path to the font directory used for calculating character-level similarity.
-- `repo-id`: Hugging Face repository ID to update.
-- `corpus-size`: The number of sentences to generate for the corpus, sourced from the [Wikipedia](https://huggingface.co/datasets/wikimedia/wikipedia) dataset.
-- `size`: The total number of synthetic images to generate for the dataset.
-- `typo-ratio`: The ratio of typos to introduce into the generated text.
-- `format`: Format of images to generate (`sentence`, `table`, `document`, `markdown`, or `kie`).
-- `template`: Template for table/document generation (`invoice`, `receipt`, `form`, `letter`, `report`) or KIE generation (`receipt`, `invoice`, `form`, `business_card`).
-- `table-size`: Table size range as `min_rows-max_cols` (e.g., `3-8` for 3-8 rows and columns).
-- `mixed`: Generate mixed format dataset (sentence, table, document combined).
-
-### Generating Mixed Format Datasets
-
-Generate a dataset with all three formats combined:
-
-```bash
-uv run main.py \
-    --repo-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --font-path "fonts/NotoSans-VariableFont_wdth,wght.ttf" \
-    --mixed \
-    --size 300 \
-    --typo-ratio 0.15
-```
+---
 
 # Evaluation
 
-The evaluation script supports three modes for evaluating OCR models:
+Evaluate OCR/VLM models on synthetic datasets.
 
-1. **Using pre-computed predictions** (recommended for custom models)
-2. **Using a custom inference function** (Python API)
-3. **Using built-in models** (requires vLLM/Transformers)
-
-## Evaluating Your Own Model
-
-### Option 1: Using Pre-computed Predictions (CLI)
-
-Run your model separately and save predictions to a file, then evaluate:
+## Installation
 
 ```bash
-# Predictions file formats supported:
-# - .json: ["prediction1", "prediction2", ...]
-# - .jsonl: {"prediction": "text"}\n{"prediction": "text"}\n...
-# - .txt: one prediction per line
+# Install eval dependencies
+uv sync --extra eval
 
-python src/evaluate.py \
-    --predictions my_predictions.jsonl \
-    --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --format sentence \
-    --output-file results.json
+# Install backend-specific dependencies
+uv sync --extra eval --extra transformers  # For HuggingFace models
+uv sync --extra eval --extra vllm          # For vLLM (Linux + CUDA)
+uv sync --extra eval --extra ollama        # For Ollama
 ```
 
-### Option 2: Using Custom Inference Function (Python API)
+## Supported Backends
 
-```python
-from evaluate import evaluate
+| Backend | Description | Requirements |
+|---------|-------------|--------------|
+| `transformers` | HuggingFace Transformers | `--extra transformers` |
+| `vllm` | vLLM (high throughput) | `--extra vllm` (Linux + CUDA) |
+| `sglang` | SGLang | `--extra sglang` (Linux only) |
+| `ollama` | Ollama local models | `--extra ollama` |
+| `openai` | OpenAI API | `OPENAI_API_KEY` env var |
+| `anthropic` | Anthropic API | `ANTHROPIC_API_KEY` env var |
+| `google` | Google AI API | `GOOGLE_API_KEY` env var |
 
-# Define your inference function
-def my_ocr_model(images, prompts):
-    results = []
-    for img, prompt in zip(images, prompts):
-        # Your model inference logic here
-        result = your_model.predict(img, prompt)
-        results.append(result)
-    return results
+## Usage Examples
 
-# Run evaluation
-result = evaluate(
-    format_type="sentence",
-    dataset="junyeong-nero/synthetic-ocr-images-korean",
-    inference_fn=my_ocr_model,
-    target_column="typo_text",
-    batchsize=4,
-)
-
-print(f"Average CER: {result['metrics']['avg_cer']:.4f}")
-```
-
-### Option 3: Using Built-in Models
-
-For built-in models (requires vLLM or Transformers installed separately):
+### Sentence Evaluation (CER/WER)
 
 ```bash
-python src/evaluate.py \
-    --model-id "allenai/olmOCR-2-7B-1025" \
-    --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --format sentence \
-    --batchsize 8
+uv run evaluate evaluate \
+    -m "Qwen/Qwen3-VL-2B-Instruct" \
+    -b transformers \
+    -d "junyeong-nero/synthetic-ocr-images-korean" \
+    -f sentence \
+    --max-samples 100
 ```
 
-## Evaluation Formats
-
-### Sentence Evaluation (CER)
-
-```bash
-python src/evaluate.py \
-    --predictions predictions.jsonl \
-    --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --format sentence
-```
-
-**Metrics:**
-- `avg_cer`: Average Character Error Rate
-- `std_cer`: Standard deviation of CER
+**Metrics:** `avg_cer`, `avg_wer`, `std_cer`, `std_wer`
 
 ### Table Evaluation (TEDS)
 
 ```bash
-python src/evaluate.py \
-    --predictions predictions.jsonl \
-    --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --format table
+uv run evaluate evaluate \
+    -m "Qwen/Qwen3-VL-2B-Instruct" \
+    -b transformers \
+    -d "junyeong-nero/synthetic-ocr-images-korean" \
+    --subset table \
+    -f table \
+    --max-samples 50
 ```
 
-**Metrics:**
-- `avg_teds`: Tree-Edit Distance-based Similarity (structure accuracy)
-- `avg_cell_accuracy`: Percentage of cells with perfect text match
-- `avg_structure_f1`: Row/column detection F1 score
+**Metrics:** `avg_teds`, `avg_cell_accuracy`, `avg_structure_f1`
 
-### Document Evaluation (Layout + Reading Order)
+### Document Evaluation
 
 ```bash
-python src/evaluate.py \
-    --predictions predictions.jsonl \
-    --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --format document
+uv run evaluate evaluate \
+    -m "Qwen/Qwen3-VL-2B-Instruct" \
+    -b transformers \
+    -d "junyeong-nero/synthetic-ocr-images-korean" \
+    --subset document \
+    -f document \
+    --max-samples 50
 ```
 
-**Metrics:**
-- `avg_layout_f1`: Layout element detection F1 (IoU-based)
-- `avg_reading_order`: Reading order accuracy (Kendall's tau)
-- `avg_kv_f1`: Key-value extraction F1 score
-- `avg_overall_f1`: Combined overall F1 score
+**Metrics:** `avg_layout_f1`, `avg_reading_order`, `avg_kv_f1`, `avg_overall_f1`
+
+### Markdown Evaluation
+
+```bash
+uv run evaluate evaluate \
+    -m "Qwen/Qwen3-VL-2B-Instruct" \
+    -b transformers \
+    -d "junyeong-nero/synthetic-ocr-images-korean" \
+    --subset markdown \
+    -f markdown \
+    --max-samples 50
+```
+
+**Metrics:** `avg_cer`, `exact_match_rate`, `normalized_match_rate`
 
 ### KIE Evaluation (Key Information Extraction)
 
 ```bash
-python src/evaluate.py \
-    --predictions predictions.jsonl \
-    --dataset-id "junyeong-nero/synthetic-ocr-images-korean" \
-    --format kie
+uv run evaluate evaluate \
+    -m "Qwen/Qwen3-VL-2B-Instruct" \
+    -b transformers \
+    -d "junyeong-nero/synthetic-ocr-images-korean" \
+    --subset kie \
+    -f kie \
+    --max-samples 50
 ```
 
-**Metrics:**
-- `avg_entity_f1`: Entity extraction F1 score
-- `avg_entity_precision`: Entity extraction precision
-- `avg_entity_recall`: Entity extraction recall
-- `avg_entity_accuracy`: Entity extraction accuracy (1 - NED)
-- `avg_item_f1`: Line item extraction F1 (for receipts/invoices)
-- `avg_overall_f1`: Overall F1 score
+**Metrics:** `avg_entity_f1`, `avg_entity_precision`, `avg_entity_recall`, `avg_entity_accuracy`, `avg_item_f1`, `avg_overall_f1`
 
-## CLI Parameters
+### Using OpenAI API
 
-| Parameter | Description |
-|-----------|-------------|
-| `--model-id` | Built-in model ID (e.g., `allenai/olmOCR-2-7B-1025`) |
-| `--predictions` | Path to predictions file (.json, .jsonl, or .txt) |
-| `--dataset-id` | HuggingFace dataset ID (required) |
-| `--format` | Evaluation format: `sentence`, `table`, `document`, or `kie` |
-| `--split` | Dataset split (default: `train`) |
-| `--batchsize` | Batch size for inference (default: 1) |
-| `--output-dataset-id` | Push results to HuggingFace dataset |
-| `--output-file` | Save metrics to JSON file |
-| `--image-column` | Image column name (default: `image`) |
-| `--target-column` | Ground truth column for sentence format (default: `typo_text`) |
-| `--prompt` | Custom prompt (uses format-specific default if not provided) |
+```bash
+export OPENAI_API_KEY="your-api-key"
+
+uv run evaluate evaluate \
+    -m "gpt-4o" \
+    -b openai \
+    -d "junyeong-nero/synthetic-ocr-images-korean" \
+    -f sentence \
+    --max-samples 10
+```
+
+### Using vLLM (High Throughput)
+
+```bash
+uv run evaluate evaluate \
+    -m "Qwen/Qwen2-VL-7B-Instruct" \
+    -b vllm \
+    -d "junyeong-nero/synthetic-ocr-images-korean" \
+    -f sentence \
+    --tensor-parallel 2 \
+    --batch-size 8
+```
+
+## Evaluation CLI Reference
+
+```bash
+uv run evaluate evaluate [OPTIONS]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-m, --model` | Model ID (required) | - |
+| `-b, --backend` | Inference backend (required) | - |
+| `-d, --dataset` | HuggingFace dataset ID (required) | - |
+| `-f, --format` | Evaluation format | `sentence` |
+| `--subset` | Dataset subset | `default` |
+| `--split` | Dataset split | `test` |
+| `--batch-size` | Batch size | `1` |
+| `--max-samples` | Max samples to evaluate | All |
+| `--output-dir` | Output directory | `./evaluation_results` |
+| `--temperature` | Generation temperature | `0.0` |
+| `--max-tokens` | Max output tokens | `4096` |
+| `--report-format` | Report format (`json`, `markdown`, `html`, `all`) | `all` |
+
+## Comparing Models
+
+```bash
+uv run evaluate compare \
+    results/model1/report.json \
+    results/model2/report.json \
+    -o comparison
+```
 
 ## Python API
 
 ```python
-from evaluate import evaluate, evaluate_sentence_metrics, evaluate_table_metrics, evaluate_document_metrics, evaluate_kie_metrics
+from evaluation.pipeline import EvaluationPipeline
+from evaluation.config import EvaluationConfig, ModelConfig, FormatType, InferenceBackend
 
-# Mode 1: Evaluate with dataset + inference function
-result = evaluate(
-    format_type="table",
-    dataset="your-dataset-id",
-    inference_fn=your_inference_fn,
-    batchsize=4,
+# Configure evaluation
+model_config = ModelConfig(
+    model_id="Qwen/Qwen3-VL-2B-Instruct",
+    backend=InferenceBackend.TRANSFORMERS,
 )
 
-# Mode 2: Evaluate pre-computed predictions directly
-result = evaluate(
-    format_type="sentence",
-    predictions=["pred1", "pred2", ...],
-    ground_truths=["gt1", "gt2", ...],
+config = EvaluationConfig(
+    dataset_id="junyeong-nero/synthetic-ocr-images-korean",
+    format_type=FormatType.KIE,  # sentence, table, document, markdown, kie
+    model=model_config,
+    max_samples=100,
 )
 
-# Mode 3: Use format-specific evaluation functions
-result = evaluate_sentence_metrics(predictions, ground_truths)
-result = evaluate_table_metrics(predictions, ground_truths)
-result = evaluate_document_metrics(predictions, ground_truths)
-result = evaluate_kie_metrics(predictions, ground_truths)
+# Run evaluation
+pipeline = EvaluationPipeline(config)
+output = pipeline.run()
+
+# Access results
+print(f"Entity F1: {output.metrics['avg_entity_f1']:.4f}")
+print(f"Overall F1: {output.metrics['avg_overall_f1']:.4f}")
 ```
+
+## Batch Evaluation Scripts
+
+```bash
+# Evaluate for a single language
+bash scripts/korean/evaluate.sh
+bash scripts/japanese/evaluate.sh
+bash scripts/hindi/evaluate.sh
+
+# Evaluate all languages
+bash scripts/evaluate_all.sh
+```
+
+---
 
 # Results
 
-We attempted to use DeepSeek-OCR, but the model generated repeated, meaningless characters that did not match the target languages (e.g., "號號號號號...").
+The results below are based on evaluations conducted with Korean text (sentence format).
 
-The results below are based on evaluations conducted with Korean text.
+| Model | Avg CER | Std CER |
+|-------|---------|---------|
+| allenai/olmOCR-2-7B-1025 | 0.1595 | 2.1595 |
+| Qwen/Qwen3-VL-2B-Instruct | 0.1912 | 2.1570 |
+| Qwen/Qwen3-VL-4B-Instruct | 0.2591 | 2.9649 |
+| nanonets/Nanonets-OCR2-3B | 0.2680 | 4.3100 |
+| Qwen/Qwen3-VL-8B-Instruct | 0.2902 | 4.0323 |
+| NCSOFT/VARCO-VISION-2.0-1.7B-OCR | 0.3985 | 0.2703 |
+| PaddlePaddle/PaddleOCR-VL | 0.4943 | 8.5313 |
+| google/gemma-3-4b-it | 0.9973 | 7.2492 |
+| rednote-hilab/dots.ocr | 1.9884 | 15.2084 |
+| stepfun-ai/GOT-OCR-2.0-hf | 6.4971 | 16.6514 |
 
-| Model                                                             | Avg CER    | Std CER    |
-|-------------------------------------------------------------------|------------|------------|
-| allenai/olmOCR-2-7B-1025                                          | 0.159544   | 2.159467   |
-| Qwen/Qwen3-VL-2B-Instruct                                         | 0.191162   | 2.157042   |
-| Qwen/Qwen3-VL-4B-Instruct                                         | 0.259124   | 2.964853   |
-| nanonets/Nanonets-OCR2-3B                                         | 0.267985   | 4.309995   |
-| Qwen/Qwen3-VL-8B-Instruct                                         | 0.290215   | 4.032342   |
-| NCSOFT/VARCO-VISION-2.0-1.7B-OCR                                  | 0.398493   | 0.270318   |
-| PaddlePaddle/PaddleOCR-VL                                         | 0.494337   | 8.531293   |
-| google/gemma-3-4b-it                                              | 0.997308   | 7.249212   |
-| rednote-hilab/dots.ocr                                            | 1.988376   | 15.208363   |
-| stepfun-ai/GOT-OCR-2.0-hf                                         | 6.497117   | 16.651408   |
+---
 
 # Future Work
 
-- Expanding Scope: Moving beyond basic text recognition to address more advanced document understanding tasks.
-- Target Data Types: Our primary focus will be on generating more complex and diverse synthetic images.
-- Multi-language KIE: Extending KIE support to additional languages with locale-specific templates.
+- **Expanding Scope**: Moving beyond basic text recognition to address more advanced document understanding tasks.
+- **Target Data Types**: Our primary focus will be on generating more complex and diverse synthetic images.
+- **Multi-language KIE**: Extending KIE support to additional languages with locale-specific templates.
