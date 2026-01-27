@@ -20,12 +20,21 @@ class TransformersVLM(VLMModel):
 
         try:
             import torch
-            from transformers import AutoModelForVision2Seq, AutoProcessor
+            from transformers import AutoProcessor
         except ImportError:
             raise ImportError(
                 "transformers and torch packages are required for TransformersVLM. "
                 "Install with: pip install transformers torch"
             )
+
+        # Import the appropriate auto model class (name changed in transformers versions)
+        try:
+            from transformers import AutoModelForImageTextToText as AutoVisionModel
+        except ImportError:
+            try:
+                from transformers import AutoModelForVision2Seq as AutoVisionModel
+            except ImportError:
+                from transformers import AutoModelForCausalLM as AutoVisionModel
 
         self._torch = torch
 
@@ -52,7 +61,7 @@ class TransformersVLM(VLMModel):
         )
 
         try:
-            self.model = AutoModelForVision2Seq.from_pretrained(
+            self.model = AutoVisionModel.from_pretrained(
                 config.model_id,
                 torch_dtype=torch_dtype,
                 device_map=self.device if self.device != "cpu" else None,
