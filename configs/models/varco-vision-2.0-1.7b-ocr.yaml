@@ -1,0 +1,44 @@
+# VARCO-VISION-2.0-1.7B-OCR Model Configuration
+# https://huggingface.co/NCSOFT/VARCO-VISION-2.0-1.7B-OCR
+model_id: NCSOFT/VARCO-VISION-2.0-1.7B-OCR
+backend: transformers
+
+# Default generation parameters
+temperature: 0.0
+max_tokens: 4096
+top_p: 1.0
+batch_size: 1
+timeout: 180
+max_retries: 3
+
+# Local model specific
+device: cuda
+dtype: float16
+tensor_parallel_size: 1
+
+# VARCO-VISION uses <char> tags for output and auto-upscales small images
+# The model extracts text wrapped in <char> tags internally
+prompts:
+    sentence:
+        prompt: |
+            Extract all text from the image verbatim.
+            Include typos exactly as shown. Do not translate.
+
+    table:
+        prompt: |
+            Extract the table from this image as HTML format.
+            Use <table>, <tr>, <th>, <td> tags properly.
+
+    document:
+        prompt: |
+            Extract text elements from this document as JSON.
+            Format: {"elements": [{"type": "...", "text": "...", "reading_order": N}]}
+
+    markdown:
+        prompt: |
+            Extract markdown content from this image exactly as shown.
+
+    kie:
+        prompt: |
+            Extract key information as JSON.
+            Format: {"entities": {"field": "value"}, "line_items": [...]}

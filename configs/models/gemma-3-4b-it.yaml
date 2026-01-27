@@ -1,0 +1,43 @@
+# Gemma-3-4B-IT Model Configuration
+# https://huggingface.co/google/gemma-3-4b-it
+model_id: google/gemma-3-4b-it
+backend: transformers
+
+# Default generation parameters
+temperature: 0.0
+max_tokens: 4096
+top_p: 1.0
+batch_size: 1
+timeout: 180
+max_retries: 3
+
+# Local model specific
+device: cuda
+dtype: bfloat16
+tensor_parallel_size: 1
+
+# Default prompts for each format type
+prompts:
+    sentence:
+        prompt: |
+            Extract all text from the image verbatim.
+            Include typos exactly as shown. Do not translate.
+
+    table:
+        prompt: |
+            Extract the table from this image as HTML format.
+            Use <table>, <tr>, <th>, <td> tags properly.
+
+    document:
+        prompt: |
+            Extract text elements from this document as JSON.
+            Format: {"elements": [{"type": "...", "text": "...", "reading_order": N}]}
+
+    markdown:
+        prompt: |
+            Extract markdown content from this image exactly as shown.
+
+    kie:
+        prompt: |
+            Extract key information as JSON.
+            Format: {"entities": {"field": "value"}, "line_items": [...]}

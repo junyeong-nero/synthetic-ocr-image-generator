@@ -1,0 +1,34 @@
+# DeepSeek-OCR Model Configuration
+# https://huggingface.co/deepseek-ai/DeepSeek-OCR
+model_id: deepseek-ai/DeepSeek-OCR
+backend: transformers
+
+# Default generation parameters
+temperature: 0.0
+max_tokens: 4096
+top_p: 1.0
+batch_size: 1
+timeout: 300
+max_retries: 3
+
+# Local model specific
+device: cuda
+dtype: bfloat16
+tensor_parallel_size: 1
+
+# DeepSeek-OCR uses <image>\n{prompt} format internally
+prompts:
+    sentence:
+        prompt: "OCR this image."
+
+    table:
+        prompt: "OCR this image."
+
+    document:
+        prompt: "Convert the document to markdown."
+
+    markdown:
+        prompt: "Convert the document to markdown."
+
+    kie:
+        prompt: "OCR this image."

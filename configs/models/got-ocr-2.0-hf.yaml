@@ -1,0 +1,36 @@
+# GOT-OCR-2.0-hf Model Configuration
+# https://huggingface.co/stepfun-ai/GOT-OCR-2.0-hf
+model_id: stepfun-ai/GOT-OCR-2.0-hf
+backend: transformers
+
+# Default generation parameters
+# Note: GOT-OCR processes images directly without prompts
+temperature: 0.0
+max_tokens: 4096
+top_p: 1.0
+batch_size: 1
+timeout: 180
+max_retries: 3
+
+# Local model specific
+device: cuda
+dtype: bfloat16
+tensor_parallel_size: 1
+
+# GOT-OCR-2.0 uses its own internal prompting mechanism
+# These prompts are passed but may be ignored by the model
+prompts:
+    sentence:
+        prompt: "OCR"
+
+    table:
+        prompt: "OCR"
+
+    document:
+        prompt: "OCR"
+
+    markdown:
+        prompt: "OCR"
+
+    kie:
+        prompt: "OCR"
