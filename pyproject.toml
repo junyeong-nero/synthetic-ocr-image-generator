@@ -16,7 +16,7 @@ dependencies = [
     "huggingface-hub[cli]>=0.35.3",
     "plotly>=6.4.0",
     "statsmodels>=0.14.5",
-    "torch>=2.5.0",
+    "torch==2.6.0",
     "torchvision>=0.20.0",
     "accelerate>=1.12.0",
     "pydantic>=2.0.0",
@@ -42,7 +42,7 @@ eval = [
 vllm = ["vllm>=0.6.0"]
 sglang = ["sglang[all]>=0.3.0; sys_platform == 'linux'"]
 ollama = ["ollama>=0.3.0"]
-transformers = ["transformers>=4.40.0"]
+transformers = ["transformers==4.46.3", "tokenizers==0.20.3"]
 # NOTE: vllm, sglang, transformers have conflicting dependencies
 # Install each backend separately:
 #   uv sync --extra eval --extra vllm
