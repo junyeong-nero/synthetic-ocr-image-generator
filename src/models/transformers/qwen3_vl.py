@@ -1,36 +1,19 @@
 """Qwen3-VL model wrapper."""
 
-from typing import List, Union
+from typing import List
 
 from PIL import Image
 from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
 
-from evaluation.config import ModelConfig
-from models.base import VLMModel
+from models.transformers.base import BaseTransformersOCR
 
 
-class Qwen3VL(VLMModel):
+class Qwen3VL(BaseTransformersOCR):
     """Wrapper for the Qwen3-VL-2B-Instruct model."""
 
     DEFAULT_MODEL_ID = "Qwen/Qwen3-VL-2B-Instruct"
 
-    def __init__(self, config: Union[ModelConfig, str, None] = None):
-        """
-        Initialize Qwen3VL model.
-
-        Args:
-            config: ModelConfig object, model_id string, or None for default.
-        """
-        if config is None:
-            model_id = self.DEFAULT_MODEL_ID
-            self.config = None
-        elif isinstance(config, str):
-            model_id = config
-            self.config = None
-        else:
-            model_id = config.model_id
-            self.config = config
-
+    def _load_model(self, model_id: str) -> None:
         self.model = Qwen3VLForConditionalGeneration.from_pretrained(
             model_id,
             torch_dtype="auto",
@@ -50,9 +33,7 @@ class Qwen3VL(VLMModel):
         Returns:
             List of model responses.
         """
-        max_tokens = 1024
-        if self.config is not None:
-            max_tokens = self.config.max_tokens
+        max_tokens = self._get_max_tokens()
 
         results = []
         for prompt, image in zip(prompts, images):

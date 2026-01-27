@@ -2,42 +2,26 @@
 
 import os
 import tempfile
-from typing import List, Union
+from typing import List
 
 import torch
 from PIL import Image
 from transformers import AutoModel, AutoTokenizer
 
-from evaluation.config import ModelConfig
-from models.base import VLMModel
+from models.transformers.base import BaseTransformersOCR
 
 
-class DeepSeekOCR2(VLMModel):
-    """Wrapper for the DeepSeek-OCR-2 model.
-    
+class DeepSeekOCR2(BaseTransformersOCR):
+    """
+    Wrapper for the DeepSeek-OCR-2 model.
+
     DeepSeek-OCR-2 is an improved version with enhanced grounding capabilities
     for document-to-markdown conversion.
     """
 
     DEFAULT_MODEL_ID = "deepseek-ai/DeepSeek-OCR-2"
 
-    def __init__(self, config: Union[ModelConfig, str, None] = None):
-        """
-        Initialize DeepSeekOCR2 model.
-
-        Args:
-            config: ModelConfig object, model_id string, or None for default.
-        """
-        if config is None:
-            model_id = self.DEFAULT_MODEL_ID
-            self.config = None
-        elif isinstance(config, str):
-            model_id = config
-            self.config = None
-        else:
-            model_id = config.model_id
-            self.config = config
-
+    def _load_model(self, model_id: str) -> None:
         self.base_size = 1024
         self.image_size = 768
 

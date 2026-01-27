@@ -12,12 +12,6 @@ class LightOnOCR(VLLMModel):
     DEFAULT_MODEL_ID = "lightonai/LightOnOCR-1B-1025"
 
     def __init__(self, config: Union[ModelConfig, None] = None):
-        """
-        Initialize LightOnOCR model.
-
-        Args:
-            config: ModelConfig object or None for default.
-        """
         if config is None:
             config = ModelConfig(
                 model_id=self.DEFAULT_MODEL_ID,

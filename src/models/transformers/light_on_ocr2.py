@@ -1,43 +1,29 @@
 """LightOnOCR-2 model wrapper."""
 
-from typing import List, Union
+from typing import List
 
 import torch
 from PIL import Image
 from transformers import LightOnOcrForConditionalGeneration, LightOnOcrProcessor
 
-from evaluation.config import ModelConfig
-from models.base import VLMModel
+from models.transformers.base import BaseTransformersOCR
 
 
-class LightOnOCR2(VLMModel):
+class LightOnOCR2(BaseTransformersOCR):
     """Wrapper for the LightOnOCR-2-1B model."""
 
     DEFAULT_MODEL_ID = "lightonai/LightOnOCR-2-1B"
 
-    def __init__(self, config: Union[ModelConfig, str, None] = None):
-        """
-        Initialize LightOnOCR2 model.
-
-        Args:
-            config: ModelConfig object, model_id string, or None for default.
-        """
-        if config is None:
-            model_id = self.DEFAULT_MODEL_ID
-            self.config = None
-        elif isinstance(config, str):
-            model_id = config
-            self.config = None
+    def _load_model(self, model_id: str) -> None:
+        if torch.backends.mps.is_available():
+            self.device = "mps"
+            self.dtype = torch.float32
+        elif torch.cuda.is_available():
+            self.device = "cuda"
+            self.dtype = torch.bfloat16
         else:
-            model_id = config.model_id
-            self.config = config
-
-        self.device = (
-            "mps"
-            if torch.backends.mps.is_available()
-            else "cuda" if torch.cuda.is_available() else "cpu"
-        )
-        self.dtype = torch.float32 if self.device == "mps" else torch.bfloat16
+            self.device = "cpu"
+            self.dtype = torch.bfloat16
 
         self.model = LightOnOcrForConditionalGeneration.from_pretrained(
             model_id, torch_dtype=self.dtype
@@ -55,9 +41,7 @@ class LightOnOCR2(VLMModel):
         Returns:
             List of model responses.
         """
-        max_tokens = 1024
-        if self.config is not None:
-            max_tokens = self.config.max_tokens
+        max_tokens = self._get_max_tokens()
 
         results = []
         for prompt, image in zip(prompts, images):

@@ -1,37 +1,21 @@
 """HunyuanOCR model wrapper."""
 
-from typing import List, Union
+from typing import List
 
 import torch
 from PIL import Image
 from transformers import AutoProcessor, HunYuanVLForConditionalGeneration
 
-from evaluation.config import ModelConfig
-from models.base import VLMModel
+from models.transformers.base import BaseTransformersOCR
 
 
-class HunYuanOCR(VLMModel):
+class HunYuanOCR(BaseTransformersOCR):
     """Wrapper for the HunyuanOCR model."""
 
     DEFAULT_MODEL_ID = "tencent/HunyuanOCR"
+    DEFAULT_MAX_TOKENS = 16384
 
-    def __init__(self, config: Union[ModelConfig, str, None] = None):
-        """
-        Initialize HunYuanOCR model.
-
-        Args:
-            config: ModelConfig object, model_id string, or None for default.
-        """
-        if config is None:
-            model_id = self.DEFAULT_MODEL_ID
-            self.config = None
-        elif isinstance(config, str):
-            model_id = config
-            self.config = None
-        else:
-            model_id = config.model_id
-            self.config = config
-
+    def _load_model(self, model_id: str) -> None:
         if torch.cuda.is_available():
             self.device = "cuda"
             torch_dtype = torch.float16
@@ -82,9 +66,7 @@ class HunYuanOCR(VLMModel):
         Returns:
             List of model responses.
         """
-        max_tokens = 16384
-        if self.config is not None:
-            max_tokens = self.config.max_tokens
+        max_tokens = self._get_max_tokens()
 
         results = []
         for prompt, image in zip(prompts, images):

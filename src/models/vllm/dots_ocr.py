@@ -12,12 +12,6 @@ class DotsOCR(VLLMModel):
     DEFAULT_MODEL_ID = "rednote-hilab/dots.ocr"
 
     def __init__(self, config: Union[ModelConfig, None] = None):
-        """
-        Initialize DotsOCR model.
-
-        Args:
-            config: ModelConfig object or None for default.
-        """
         if config is None:
             config = ModelConfig(
                 model_id=self.DEFAULT_MODEL_ID,

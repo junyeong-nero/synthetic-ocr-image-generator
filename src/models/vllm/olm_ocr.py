@@ -12,12 +12,6 @@ class OlmOCR(VLLMModel):
     DEFAULT_MODEL_ID = "allenai/olmOCR-2-7B-1025"
 
     def __init__(self, config: Union[ModelConfig, None] = None):
-        """
-        Initialize OlmOCR model.
-
-        Args:
-            config: ModelConfig object or None for default.
-        """
         if config is None:
             config = ModelConfig(
                 model_id=self.DEFAULT_MODEL_ID,

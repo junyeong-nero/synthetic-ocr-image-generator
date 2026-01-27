@@ -12,12 +12,6 @@ class NanonetsOCR(VLLMModel):
     DEFAULT_MODEL_ID = "nanonets/Nanonets-OCR2-3B"
 
     def __init__(self, config: Union[ModelConfig, None] = None):
-        """
-        Initialize NanonetsOCR model.
-
-        Args:
-            config: ModelConfig object or None for default.
-        """
         if config is None:
             config = ModelConfig(
                 model_id=self.DEFAULT_MODEL_ID,

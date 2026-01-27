@@ -1,37 +1,20 @@
 """GOT-OCR model wrapper."""
 
-from typing import List, Union
+from typing import List
 
 import torch
 from PIL import Image
 from transformers import AutoModelForImageTextToText, AutoProcessor
 
-from evaluation.config import ModelConfig
-from models.base import VLMModel
+from models.transformers.base import BaseTransformersOCR
 
 
-class GotOCR(VLMModel):
+class GotOCR(BaseTransformersOCR):
     """Wrapper for the GOT-OCR-2.0-hf model."""
 
     DEFAULT_MODEL_ID = "stepfun-ai/GOT-OCR-2.0-hf"
 
-    def __init__(self, config: Union[ModelConfig, str, None] = None):
-        """
-        Initialize GotOCR model.
-
-        Args:
-            config: ModelConfig object, model_id string, or None for default.
-        """
-        if config is None:
-            model_id = self.DEFAULT_MODEL_ID
-            self.config = None
-        elif isinstance(config, str):
-            model_id = config
-            self.config = None
-        else:
-            model_id = config.model_id
-            self.config = config
-
+    def _load_model(self, model_id: str) -> None:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = AutoModelForImageTextToText.from_pretrained(
             model_id, device_map=self.device
@@ -49,9 +32,7 @@ class GotOCR(VLMModel):
         Returns:
             List of model responses.
         """
-        max_tokens = 1024
-        if self.config is not None:
-            max_tokens = self.config.max_tokens
+        max_tokens = self._get_max_tokens()
 
         results = []
         for image in images:

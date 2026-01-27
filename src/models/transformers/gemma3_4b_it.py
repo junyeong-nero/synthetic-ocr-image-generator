@@ -1,37 +1,20 @@
 """Gemma3-4B-IT model wrapper."""
 
-from typing import List, Union
+from typing import List
 
 import torch
 from PIL import Image
 from transformers import AutoProcessor, Gemma3ForConditionalGeneration
 
-from evaluation.config import ModelConfig
-from models.base import VLMModel
+from models.transformers.base import BaseTransformersOCR
 
 
-class Gemma3_4B_IT(VLMModel):
+class Gemma3_4B_IT(BaseTransformersOCR):
     """Wrapper for the Gemma-3-4B-IT model."""
 
     DEFAULT_MODEL_ID = "google/gemma-3-4b-it"
 
-    def __init__(self, config: Union[ModelConfig, str, None] = None):
-        """
-        Initialize Gemma3_4B_IT model.
-
-        Args:
-            config: ModelConfig object, model_id string, or None for default.
-        """
-        if config is None:
-            model_id = self.DEFAULT_MODEL_ID
-            self.config = None
-        elif isinstance(config, str):
-            model_id = config
-            self.config = None
-        else:
-            model_id = config.model_id
-            self.config = config
-
+    def _load_model(self, model_id: str) -> None:
         self.model = Gemma3ForConditionalGeneration.from_pretrained(
             model_id, device_map="auto", torch_dtype=torch.bfloat16
         ).eval()
@@ -48,9 +31,7 @@ class Gemma3_4B_IT(VLMModel):
         Returns:
             List of model responses.
         """
-        max_tokens = 1024
-        if self.config is not None:
-            max_tokens = self.config.max_tokens
+        max_tokens = self._get_max_tokens()
 
         results = []
         for prompt, image in zip(prompts, images):

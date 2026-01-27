@@ -2,38 +2,21 @@
 
 import os
 import tempfile
-from typing import List, Union
+from typing import List
 
 import torch
 from PIL import Image
 from transformers import AutoModel, AutoTokenizer
 
-from evaluation.config import ModelConfig
-from models.base import VLMModel
+from models.transformers.base import BaseTransformersOCR
 
 
-class DeepSeekOCR(VLMModel):
+class DeepSeekOCR(BaseTransformersOCR):
     """Wrapper for the DeepSeek-OCR model."""
 
     DEFAULT_MODEL_ID = "deepseek-ai/DeepSeek-OCR"
 
-    def __init__(self, config: Union[ModelConfig, str, None] = None):
-        """
-        Initialize DeepSeekOCR model.
-
-        Args:
-            config: ModelConfig object, model_id string, or None for default.
-        """
-        if config is None:
-            model_id = self.DEFAULT_MODEL_ID
-            self.config = None
-        elif isinstance(config, str):
-            model_id = config
-            self.config = None
-        else:
-            model_id = config.model_id
-            self.config = config
-
+    def _load_model(self, model_id: str) -> None:
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_id, trust_remote_code=True
@@ -66,17 +49,19 @@ class DeepSeekOCR(VLMModel):
 
             full_prompt = f"<image>\n{prompt}"
 
-            res = self.model.infer(
-                self.tokenizer,
-                prompt=full_prompt,
-                image_file=temp_image_path,
-                output_path="output/",
-                base_size=1024,
-                image_size=640,
-                crop_mode=True,
-                save_results=False,
-                test_compress=True,
-            )
-            results.append(res)
-            os.remove(temp_image_path)
+            try:
+                res = self.model.infer(
+                    self.tokenizer,
+                    prompt=full_prompt,
+                    image_file=temp_image_path,
+                    output_path="output/",
+                    base_size=1024,
+                    image_size=640,
+                    crop_mode=True,
+                    save_results=False,
+                    test_compress=True,
+                )
+                results.append(res)
+            finally:
+                os.remove(temp_image_path)
         return results
