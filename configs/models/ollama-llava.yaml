@@ -1,0 +1,42 @@
+# Ollama LLaVA Model Configuration
+model_id: llava:13b
+backend: ollama
+
+# Default generation parameters
+temperature: 0.0
+max_tokens: 2048
+top_p: 1.0
+batch_size: 1
+timeout: 300
+max_retries: 3
+
+# Ollama API endpoint (default)
+api_base: http://localhost:11434
+
+# Default prompts for each format type
+prompts:
+    sentence:
+        prompt: |
+            Look at this image and extract all the text you can see.
+            Return only the text, exactly as it appears, including any typos.
+
+    table:
+        prompt: |
+            Extract the table from this image.
+            Format it as an HTML table with <table>, <tr>, <th>, <td> tags.
+            Return only the HTML.
+
+    document:
+        prompt: |
+            Extract all text from this document image.
+            Return as JSON with format: {"elements": [{"type": "text", "text": "content", "reading_order": 0}]}
+
+    markdown:
+        prompt: |
+            Extract the markdown content from this image.
+            Return the raw markdown exactly as shown.
+
+    kie:
+        prompt: |
+            Extract key information from this document.
+            Return as JSON: {"entities": {"field_name": "value"}}

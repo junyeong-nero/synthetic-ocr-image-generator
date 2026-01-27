@@ -1,5 +1,5 @@
 [project]
-name = "korean-ocr-bench"
+name = "synthetic-ocr-image-benchmark"
 version = "0.1.0"
 description = "Synthetic OCR image generator and VLM evaluation pipeline"
 readme = "README.md"
@@ -46,9 +46,6 @@ transformers = ["transformers>=4.40.0"]
 #   uv sync --extra eval --extra sglang
 #   uv sync --extra eval --extra transformers
 # Do NOT install them together
-
-[project.scripts]
-evaluate = "evaluation.cli:main"
 
 [tool.uv]
 # Resolve for current platform only (avoid cross-platform conflicts)

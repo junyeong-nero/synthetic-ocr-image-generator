@@ -71,6 +71,7 @@ class EvaluationConfig(BaseModel):
     batch_size: int = Field(default=1, ge=1)
     max_samples: Optional[int] = Field(default=None, ge=1, description="Limit number of samples")
     prompt: Optional[str] = Field(default=None, description="Custom prompt override")
+    system_prompt: Optional[str] = Field(default=None, description="Custom system prompt")
 
     # Output configuration
     output_dir: str = Field(default="./evaluation_results")
@@ -79,6 +80,11 @@ class EvaluationConfig(BaseModel):
     # Column mappings
     image_column: str = Field(default="image")
     target_column: str = Field(default="typo_text")
+
+    # Model config file path (optional)
+    model_config_path: Optional[str] = Field(
+        default=None, description="Path to model-specific config YAML"
+    )
 
     model_config = {"protected_namespaces": ()}
 

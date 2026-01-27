@@ -1,0 +1,74 @@
+# DeepSeek-OCR-2 Model Configuration
+# https://huggingface.co/deepseek-ai/DeepSeek-OCR-2
+model_id: deepseek-ai/DeepSeek-OCR-2
+backend: transformers
+
+# Default generation parameters
+temperature: 0.0
+max_tokens: 4096
+top_p: 1.0
+batch_size: 1
+timeout: 300
+max_retries: 3
+
+# Local model specific
+device: cuda
+dtype: bfloat16
+tensor_parallel_size: 1
+
+# Official DeepSeek-OCR-2 Prompts:
+# - document:        <image>\n<|grounding|>Convert the document to markdown.
+# - other image:     <image>\n<|grounding|>OCR this image.
+# - without layouts: <image>\nFree OCR.
+# - figures:         <image>\nParse the figure.
+# - general:         <image>\nDescribe this image in detail.
+# - recognition:     <image>\nLocate <|ref|>xxxx<|/ref|> in the image.
+
+prompts:
+    sentence:
+        # Simple text extraction without layout information
+        prompt: "<image>\nFree OCR."
+
+    table:
+        # OCR with grounding for structured content
+        prompt: "<image>\n<|grounding|>OCR this image."
+
+    document:
+        # Document to markdown conversion with grounding
+        prompt: "<image>\n<|grounding|>Convert the document to markdown."
+
+    markdown:
+        # Document to markdown conversion with grounding
+        prompt: "<image>\n<|grounding|>Convert the document to markdown."
+
+    kie:
+        # OCR with grounding for key information extraction
+        prompt: "<image>\n<|grounding|>OCR this image."
+
+# Subset-specific overrides
+subsets:
+    # For figure/chart extraction
+    figure:
+        prompts:
+            document:
+                prompt: "<image>\nParse the figure."
+
+    # For image description tasks
+    description:
+        prompts:
+            sentence:
+                prompt: "<image>\nDescribe this image in detail."
+
+    # For simple OCR without layout
+    simple:
+        prompts:
+            sentence:
+                prompt: "<image>\nFree OCR."
+            table:
+                prompt: "<image>\nFree OCR."
+            document:
+                prompt: "<image>\nFree OCR."
+            markdown:
+                prompt: "<image>\nFree OCR."
+            kie:
+                prompt: "<image>\nFree OCR."

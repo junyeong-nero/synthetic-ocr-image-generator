@@ -1,0 +1,81 @@
+# GPT-4o Model Configuration
+model_id: gpt-4o
+backend: openai
+
+# Default generation parameters
+temperature: 0.0
+max_tokens: 4096
+top_p: 1.0
+batch_size: 8
+timeout: 120
+max_retries: 3
+
+# Rate limiting for API
+rate_limit_rpm: 500
+
+# Default prompts for each format type
+prompts:
+    sentence:
+        prompt: |
+            Extract all text from the image verbatim.
+            Include any typos or errors exactly as they appear.
+            Do not translate or modify any characters.
+            Return only the extracted text, nothing else.
+
+    table:
+        prompt: |
+            Extract the table from this image and return it in HTML format.
+            Use proper <table>, <thead>, <tbody>, <tr>, <th>, and <td> tags.
+            Preserve the exact structure and content of the table.
+            Return only the HTML table, no additional text.
+
+    document:
+        prompt: |
+            Extract all text elements from this document image.
+            Return as JSON with the following structure:
+            {
+              "elements": [
+                {
+                  "type": "text|heading|paragraph|list",
+                  "text": "extracted content",
+                  "bounding_box": [x1, y1, x2, y2],
+                  "reading_order": 0
+                }
+              ]
+            }
+
+    markdown:
+        prompt: |
+            Extract the markdown content from this image.
+            Return the raw markdown text exactly as shown.
+            Preserve all formatting including headers, lists, code blocks, etc.
+
+    kie:
+        prompt: |
+            Extract key information from this document image.
+            Return as JSON with the following structure:
+            {
+              "entities": {
+                "field_name": "value"
+              },
+              "line_items": [
+                {
+                  "name": "item name",
+                  "quantity": 1,
+                  "unit_price": 0.00,
+                  "total_price": 0.00
+                }
+              ]
+            }
+
+# Subset-specific overrides
+subsets:
+    korean:
+        batch_size: 4
+        prompts:
+            sentence:
+                prompt: |
+                    Extract all Korean text from the image verbatim.
+                    Include any typos or errors exactly as they appear.
+                    Do not translate or romanize Korean characters.
+                    Return only the extracted text, nothing else.

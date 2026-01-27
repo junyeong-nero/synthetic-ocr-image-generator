@@ -7,6 +7,12 @@ from evaluation.config import (
     InferenceBackend,
     ModelConfig,
 )
+from evaluation.model_config import (
+    ModelConfigLoader,
+    ModelSpecificConfig,
+    PromptConfig,
+    SubsetConfig,
+)
 from evaluation.comparator import ModelComparator, compare_models
 from evaluation.pipeline import EvaluationPipeline, evaluate_pipeline
 from evaluation.report import ReportGenerator, generate_report
@@ -20,6 +26,11 @@ __all__ = [
     "FormatType",
     "InferenceBackend",
     "DEFAULT_PROMPTS",
+    # Model Config
+    "ModelConfigLoader",
+    "ModelSpecificConfig",
+    "PromptConfig",
+    "SubsetConfig",
     # Pipeline
     "EvaluationPipeline",
     "evaluate_pipeline",

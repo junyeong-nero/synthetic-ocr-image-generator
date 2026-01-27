@@ -22,7 +22,7 @@ for subset in "${SUBSETS[@]}"; do
     echo "[$(date '+%H:%M:%S')] Evaluating subset: $subset"
     echo "=========================================="
 
-    uv run evaluate evaluate \
+    uv run python -m evaluation.cli evaluate \
         -m "$MODEL_ID" \
         -b "$BACKEND" \
         -d "$DATASET_ID" \

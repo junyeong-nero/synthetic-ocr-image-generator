@@ -1,0 +1,87 @@
+# Claude 3.5 Sonnet Model Configuration
+model_id: claude-3-5-sonnet-20241022
+backend: anthropic
+
+# Default generation parameters
+temperature: 0.0
+max_tokens: 4096
+top_p: 1.0
+batch_size: 8
+timeout: 120
+max_retries: 3
+
+# Rate limiting for API
+rate_limit_rpm: 1000
+
+# Default prompts for each format type
+prompts:
+    sentence:
+        prompt: |
+            Please extract all text from this image exactly as it appears.
+            - Include any typos, grammatical errors, or unusual formatting
+            - Do not correct, translate, or modify any characters
+            - Return only the extracted text with no additional commentary
+
+    table:
+        prompt: |
+            Please extract the table from this image and format it as HTML.
+            Requirements:
+            - Use semantic HTML table elements (table, thead, tbody, tr, th, td)
+            - Preserve the exact structure and content
+            - Include any merged cells using colspan/rowspan attributes
+            - Return only the HTML table code
+
+    document:
+        prompt: |
+            Please extract all text elements from this document image.
+            Return a JSON object with this structure:
+            {
+              "elements": [
+                {
+                  "type": "heading|paragraph|list|caption",
+                  "text": "the extracted content",
+                  "bounding_box": [x1, y1, x2, y2],
+                  "reading_order": 0
+                }
+              ]
+            }
+            Ensure elements are ordered by reading_order.
+
+    markdown:
+        prompt: |
+            Please extract the markdown content from this image.
+            - Preserve all formatting: headers, lists, code blocks, emphasis, links
+            - Match the exact structure shown in the image
+            - Return only the raw markdown text
+
+    kie:
+        prompt: |
+            Please extract key information from this document.
+            Return a JSON object with this structure:
+            {
+              "entities": {
+                "document_type": "...",
+                "date": "...",
+                "total": "...",
+                // other key-value pairs as found
+              },
+              "line_items": [
+                {
+                  "name": "item description",
+                  "quantity": 1,
+                  "unit_price": 0.00,
+                  "total_price": 0.00
+                }
+              ]
+            }
+
+# Subset-specific overrides
+subsets:
+    korean:
+        prompts:
+            sentence:
+                prompt: |
+                    Please extract all Korean text from this image exactly as it appears.
+                    - Include any typos or errors exactly as shown
+                    - Do not romanize or translate Korean characters
+                    - Return only the extracted text

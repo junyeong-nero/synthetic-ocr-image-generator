@@ -1,0 +1,59 @@
+# Qwen2-VL-7B Model Configuration
+model_id: Qwen/Qwen2-VL-7B-Instruct
+backend: transformers
+
+# Default generation parameters
+temperature: 0.0
+max_tokens: 2048
+top_p: 1.0
+batch_size: 1
+timeout: 300
+max_retries: 3
+
+# Local model specific
+device: cuda
+dtype: bfloat16
+tensor_parallel_size: 1
+
+# Default prompts for each format type
+prompts:
+    sentence:
+        prompt: |
+            <image>
+            Read and extract all the text visible in this image.
+            Output only the text, preserving any typos or errors exactly as shown.
+
+    table:
+        prompt: |
+            <image>
+            Extract the table from this image.
+            Format the output as an HTML table with proper tags.
+            Output only the HTML table.
+
+    document:
+        prompt: |
+            <image>
+            Extract all text elements from this document.
+            Output as JSON: {"elements": [{"type": "...", "text": "...", "reading_order": N}]}
+
+    markdown:
+        prompt: |
+            <image>
+            Extract the markdown content from this image.
+            Output the raw markdown text exactly as shown.
+
+    kie:
+        prompt: |
+            <image>
+            Extract key-value information from this document.
+            Output as JSON: {"entities": {"field": "value"}, "line_items": [...]}
+
+# Subset-specific overrides
+subsets:
+    korean:
+        prompts:
+            sentence:
+                prompt: |
+                    <image>
+                    이 이미지에서 모든 한국어 텍스트를 추출하세요.
+                    오타나 오류를 포함하여 정확히 그대로 출력하세요.

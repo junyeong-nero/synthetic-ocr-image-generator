@@ -19,7 +19,7 @@ uv run main.py --lang ko --format sentence --size 100
 
 # Evaluate a model on the dataset
 uv sync --extra eval --extra transformers
-uv run evaluate evaluate \
+uv run python -m evaluation.cli evaluate \
     -m "Qwen/Qwen3-VL-2B-Instruct" \
     -b transformers \
     -d "junyeong-nero/synthetic-ocr-images-korean" \
@@ -182,7 +182,7 @@ uv sync --extra eval --extra ollama        # For Ollama
 ### Sentence Evaluation (CER/WER)
 
 ```bash
-uv run evaluate evaluate \
+uv run python -m evaluation.cli evaluate \
     -m "Qwen/Qwen3-VL-2B-Instruct" \
     -b transformers \
     -d "junyeong-nero/synthetic-ocr-images-korean" \
@@ -195,7 +195,7 @@ uv run evaluate evaluate \
 ### Table Evaluation (TEDS)
 
 ```bash
-uv run evaluate evaluate \
+uv run python -m evaluation.cli evaluate \
     -m "Qwen/Qwen3-VL-2B-Instruct" \
     -b transformers \
     -d "junyeong-nero/synthetic-ocr-images-korean" \
@@ -209,7 +209,7 @@ uv run evaluate evaluate \
 ### Document Evaluation
 
 ```bash
-uv run evaluate evaluate \
+uv run python -m evaluation.cli evaluate \
     -m "Qwen/Qwen3-VL-2B-Instruct" \
     -b transformers \
     -d "junyeong-nero/synthetic-ocr-images-korean" \
@@ -223,7 +223,7 @@ uv run evaluate evaluate \
 ### Markdown Evaluation
 
 ```bash
-uv run evaluate evaluate \
+uv run python -m evaluation.cli evaluate \
     -m "Qwen/Qwen3-VL-2B-Instruct" \
     -b transformers \
     -d "junyeong-nero/synthetic-ocr-images-korean" \
@@ -237,7 +237,7 @@ uv run evaluate evaluate \
 ### KIE Evaluation (Key Information Extraction)
 
 ```bash
-uv run evaluate evaluate \
+uv run python -m evaluation.cli evaluate \
     -m "Qwen/Qwen3-VL-2B-Instruct" \
     -b transformers \
     -d "junyeong-nero/synthetic-ocr-images-korean" \
@@ -253,7 +253,7 @@ uv run evaluate evaluate \
 ```bash
 export OPENAI_API_KEY="your-api-key"
 
-uv run evaluate evaluate \
+uv run python -m evaluation.cli evaluate \
     -m "gpt-4o" \
     -b openai \
     -d "junyeong-nero/synthetic-ocr-images-korean" \
@@ -264,7 +264,7 @@ uv run evaluate evaluate \
 ### Using vLLM (High Throughput)
 
 ```bash
-uv run evaluate evaluate \
+uv run python -m evaluation.cli evaluate \
     -m "Qwen/Qwen2-VL-7B-Instruct" \
     -b vllm \
     -d "junyeong-nero/synthetic-ocr-images-korean" \
@@ -276,7 +276,7 @@ uv run evaluate evaluate \
 ## Evaluation CLI Reference
 
 ```bash
-uv run evaluate evaluate [OPTIONS]
+uv run python -m evaluation.cli evaluate [OPTIONS]
 ```
 
 | Option | Description | Default |
@@ -297,7 +297,7 @@ uv run evaluate evaluate [OPTIONS]
 ## Comparing Models
 
 ```bash
-uv run evaluate compare \
+uv run python -m evaluation.cli compare \
     results/model1/report.json \
     results/model2/report.json \
     -o comparison

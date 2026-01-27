@@ -12,6 +12,7 @@ from datasets import Dataset, load_dataset
 from PIL import Image
 
 from evaluation.config import DEFAULT_PROMPTS, EvaluationConfig, FormatType, ModelConfig
+from evaluation.model_config import ModelConfigLoader, ModelSpecificConfig
 from evaluation.runner import EvaluationRunner
 from evaluation.types import EvaluationOutput, InferenceResult
 from models.base import Model, VLMModel
@@ -91,6 +92,18 @@ class EvaluationPipeline:
         self.model = create_model(config.model)
         self.runner = EvaluationRunner(config, self.model)
 
+        # Load model-specific config if available
+        self.model_specific_config: Optional[ModelSpecificConfig] = None
+        if config.model_config_path:
+            loader = ModelConfigLoader()
+            self.model_specific_config = loader.load_from_path(
+                Path(config.model_config_path)
+            )
+        else:
+            # Try to auto-load based on model_id
+            loader = ModelConfigLoader()
+            self.model_specific_config = loader.load(config.model.model_id)
+
     def _load_dataset(self) -> Dataset:
         """Load dataset from HuggingFace."""
         if self.config.subset == "default":
@@ -114,9 +127,27 @@ class EvaluationPipeline:
         return dataset
 
     def _get_prompt(self) -> str:
-        """Get prompt for the format type."""
+        """Get prompt for the format type.
+
+        Priority:
+        1. Custom prompt from config
+        2. Model-specific prompt (with subset override)
+        3. Default prompt for format type
+        """
+        # 1. Custom prompt from config takes highest priority
         if self.config.prompt:
             return self.config.prompt
+
+        # 2. Try model-specific prompt
+        if self.model_specific_config:
+            prompt_config = self.model_specific_config.get_prompt(
+                self.config.format_type,
+                subset=self.config.subset,
+            )
+            if prompt_config:
+                return prompt_config.prompt
+
+        # 3. Fall back to default prompt
         return DEFAULT_PROMPTS.get(
             self.config.format_type,
             DEFAULT_PROMPTS[FormatType.SENTENCE],

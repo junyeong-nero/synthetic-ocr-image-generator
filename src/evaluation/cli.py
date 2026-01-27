@@ -4,9 +4,15 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
-from evaluation.config import EvaluationConfig, FormatType, InferenceBackend, ModelConfig
+from evaluation.config import (
+    EvaluationConfig,
+    FormatType,
+    InferenceBackend,
+    ModelConfig,
+)
+from evaluation.model_config import ModelConfigLoader, ModelSpecificConfig
 from evaluation.pipeline import EvaluationPipeline
 from evaluation.report import ReportGenerator
 from evaluation.comparator import ModelComparator
@@ -38,33 +44,120 @@ def print_results(metrics: dict, format_type: str) -> None:
     print("=" * 60)
 
 
+def load_model_config(
+    model_id: str,
+    model_config_path: Optional[str] = None,
+) -> Optional[ModelSpecificConfig]:
+    """Load model-specific configuration."""
+    loader = ModelConfigLoader()
+
+    if model_config_path:
+        return loader.load_from_path(Path(model_config_path))
+
+    return loader.load(model_id)
+
+
 def cmd_evaluate(args: argparse.Namespace) -> None:
     """Run evaluation command."""
+    # Load model-specific config if available
+    model_specific_config = load_model_config(
+        args.model,
+        model_config_path=getattr(args, "model_config", None),
+    )
+
+    # Determine backend
+    backend_str = args.backend
+    if not backend_str and model_specific_config:
+        backend_str = model_specific_config.backend
+    if not backend_str:
+        print(
+            "Error: Backend must be specified via --backend or model config",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Merge configs: CLI args override model config, which overrides defaults
+    subset = args.subset
+
+    # Get values from model config with subset overrides
+    if model_specific_config:
+        temperature = model_specific_config.get_temperature(subset)
+        max_tokens = model_specific_config.get_max_tokens(subset)
+        batch_size = model_specific_config.get_batch_size(subset)
+        tensor_parallel = model_specific_config.tensor_parallel_size
+        api_base = model_specific_config.api_base
+        timeout = model_specific_config.timeout
+        max_retries = model_specific_config.max_retries
+        device = model_specific_config.device
+        dtype = model_specific_config.dtype
+        rate_limit_rpm = model_specific_config.rate_limit_rpm
+    else:
+        temperature = 0.0
+        max_tokens = 4096
+        batch_size = 1
+        tensor_parallel = 1
+        api_base = None
+        timeout = 120
+        max_retries = 3
+        device = "cuda"
+        dtype = "bfloat16"
+        rate_limit_rpm = None
+
+    # CLI overrides (only if explicitly provided)
+    if hasattr(args, "temperature") and args.temperature is not None:
+        temperature = args.temperature
+    if hasattr(args, "max_tokens") and args.max_tokens is not None:
+        max_tokens = args.max_tokens
+    if hasattr(args, "batch_size") and args.batch_size is not None:
+        batch_size = args.batch_size
+    if hasattr(args, "tensor_parallel") and args.tensor_parallel is not None:
+        tensor_parallel = args.tensor_parallel
+    if hasattr(args, "api_base") and args.api_base is not None:
+        api_base = args.api_base
+
     # Build model config
     model_config = ModelConfig(
         model_id=args.model,
-        backend=InferenceBackend(args.backend),
-        api_key=get_api_key(args.backend),
-        api_base=args.api_base,
-        tensor_parallel_size=args.tensor_parallel,
-        temperature=args.temperature,
-        max_tokens=args.max_tokens,
+        backend=InferenceBackend(backend_str),
+        api_key=get_api_key(backend_str),
+        api_base=api_base,
+        tensor_parallel_size=tensor_parallel,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        timeout=timeout,
+        max_retries=max_retries,
+        device=device,
+        dtype=dtype,
+        rate_limit_rpm=rate_limit_rpm,
     )
 
     # Build evaluation config
     config = EvaluationConfig(
         dataset_id=args.dataset,
-        subset=args.subset,
+        subset=subset,
         split=args.split,
         format_type=FormatType(args.format),
         model=model_config,
-        batch_size=args.batch_size,
+        batch_size=batch_size,
         max_samples=args.max_samples,
         output_dir=args.output_dir,
+        model_config_path=getattr(args, "model_config", None),
     )
 
+    # Print configuration summary
+    print(f"\nConfiguration:")
+    print(f"  Model: {args.model}")
+    print(f"  Backend: {backend_str}")
+    print(f"  Dataset: {args.dataset} ({subset}/{args.split})")
+    print(f"  Format: {args.format}")
+    print(f"  Batch Size: {batch_size}")
+    print(f"  Temperature: {temperature}")
+    print(f"  Max Tokens: {max_tokens}")
+    if model_specific_config:
+        print(f"  Config File: {args.model_config or 'auto-detected'}")
+
     # Run pipeline
-    print(f"Evaluating {args.model} on {args.dataset}...")
+    print(f"\nEvaluating {args.model} on {args.dataset}...")
     pipeline = EvaluationPipeline(config)
     output = pipeline.run()
 
@@ -74,7 +167,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
 
     if args.report_format == "all":
         paths = generator.save_all(output_path)
-        print(f"\nReports saved:")
+        print("\nReports saved:")
         for fmt, path in paths.items():
             print(f"  {fmt}: {path}")
     else:
@@ -86,7 +179,9 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     print_results(output.metrics, args.format)
 
     # Print summary
-    print(f"\nSamples: {output.summary['successful']}/{output.summary['total_samples']}")
+    print(
+        f"\nSamples: {output.summary['successful']}/{output.summary['total_samples']}"
+    )
     print(f"Avg Latency: {output.summary['avg_latency_ms']:.2f}ms")
 
 
@@ -123,6 +218,25 @@ def cmd_list_backends(args: argparse.Namespace) -> None:
     print()
 
 
+def cmd_list_configs(args: argparse.Namespace) -> None:
+    """List available model configurations."""
+    loader = ModelConfigLoader()
+    configs = loader.list_available_configs()
+
+    print("\nAvailable model configurations:")
+    print("-" * 40)
+    if configs:
+        for config_name in configs:
+            print(f"  {config_name}")
+    else:
+        print("  No model configs found in configs/models/")
+    print("\nConfig search paths:")
+    for path in loader.config_dirs:
+        exists = "✓" if path.exists() else "✗"
+        print(f"  {exists} {path}")
+    print()
+
+
 def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -130,23 +244,26 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Evaluate sentence OCR with OpenAI GPT-4o
-  evaluate evaluate -m gpt-4o -b openai -d junyeong-nero/synthetic-ocr-images-korean -f sentence
+  # Evaluate with model config file (recommended)
+  uv run python -m evaluation.cli evaluate -m gpt-4o -d junyeong-nero/synthetic-ocr-images-korean -f sentence
 
-  # Evaluate table extraction with Transformers
-  evaluate evaluate -m Qwen/Qwen3-VL-2B-Instruct -b transformers -d junyeong-nero/synthetic-ocr-images-korean -f table
+  # Evaluate with explicit config path
+  uv run python -m evaluation.cli evaluate -m gpt-4o --model-config configs/models/gpt-4o.yaml -d dataset -f sentence
 
-  # Evaluate KIE (Key Information Extraction)
-  evaluate evaluate -m Qwen/Qwen3-VL-2B-Instruct -b transformers -d junyeong-nero/synthetic-ocr-images-korean -f kie
+  # Override config values via CLI
+  uv run python -m evaluation.cli evaluate -m gpt-4o -d dataset -f sentence --temperature 0.5 --batch-size 4
 
-  # Evaluate with vLLM backend
-  evaluate evaluate -m Qwen/Qwen2-VL-7B -b vllm -d junyeong-nero/synthetic-ocr-images-korean -f sentence
+  # Evaluate without model config (all params via CLI)
+  uv run python -m evaluation.cli evaluate -m gpt-4o -b openai -d dataset -f sentence --temperature 0.0 --max-tokens 4096
 
   # Compare multiple model results
-  evaluate compare results/gpt4o/report.json results/qwen/report.json -o comparison
+  uv run python -m evaluation.cli compare results/gpt4o/report.json results/qwen/report.json -o comparison
+
+  # List available model configs
+  uv run python -m evaluation.cli list-configs
 
   # List available backends
-  evaluate list-backends
+  uv run python -m evaluation.cli list-backends
         """,
     )
 
@@ -154,30 +271,37 @@ Examples:
 
     # Evaluate command
     eval_parser = subparsers.add_parser("evaluate", help="Run model evaluation")
+    eval_parser.add_argument("-m", "--model", required=True, help="Model ID")
     eval_parser.add_argument(
-        "-m", "--model", required=True, help="Model ID"
-    )
-    eval_parser.add_argument(
-        "-b", "--backend", required=True,
-        choices=["openai", "anthropic", "google", "transformers", "vllm", "sglang", "ollama"],
-        help="Inference backend",
+        "-b",
+        "--backend",
+        choices=[
+            "openai",
+            "anthropic",
+            "google",
+            "transformers",
+            "vllm",
+            "sglang",
+            "ollama",
+        ],
+        help="Inference backend (optional if model config exists)",
     )
     eval_parser.add_argument(
         "-d", "--dataset", required=True, help="HuggingFace dataset ID"
     )
+    eval_parser.add_argument("--subset", default="default", help="Dataset subset")
+    eval_parser.add_argument("--split", default="test", help="Dataset split")
     eval_parser.add_argument(
-        "--subset", default="default", help="Dataset subset"
-    )
-    eval_parser.add_argument(
-        "--split", default="test", help="Dataset split"
-    )
-    eval_parser.add_argument(
-        "-f", "--format", default="sentence",
+        "-f",
+        "--format",
+        default="sentence",
         choices=["sentence", "table", "document", "markdown", "kie"],
         help="Evaluation format type",
     )
     eval_parser.add_argument(
-        "--batch-size", type=int, default=1, help="Batch size"
+        "--model-config",
+        default=None,
+        help="Path to model-specific config YAML (auto-detected if not provided)",
     )
     eval_parser.add_argument(
         "--max-samples", type=int, default=None, help="Max samples to evaluate"
@@ -186,21 +310,42 @@ Examples:
         "--output-dir", default="./evaluation_results", help="Output directory"
     )
     eval_parser.add_argument(
-        "--api-base", default=None, help="Custom API base URL"
-    )
-    eval_parser.add_argument(
-        "--tensor-parallel", type=int, default=1, help="Tensor parallel size (vLLM/SGLang)"
-    )
-    eval_parser.add_argument(
-        "--temperature", type=float, default=0.0, help="Generation temperature"
-    )
-    eval_parser.add_argument(
-        "--max-tokens", type=int, default=4096, help="Max output tokens"
-    )
-    eval_parser.add_argument(
-        "--report-format", default="all",
+        "--report-format",
+        default="all",
         choices=["json", "markdown", "html", "all"],
         help="Report output format",
+    )
+
+    # CLI overrides (optional, override model config values)
+    override_group = eval_parser.add_argument_group(
+        "config overrides", "Override values from model config (optional)"
+    )
+    override_group.add_argument(
+        "--batch-size",
+        type=int,
+        default=None,
+        help="Batch size (overrides model config)",
+    )
+    override_group.add_argument(
+        "--temperature",
+        type=float,
+        default=None,
+        help="Generation temperature (overrides model config)",
+    )
+    override_group.add_argument(
+        "--max-tokens",
+        type=int,
+        default=None,
+        help="Max output tokens (overrides model config)",
+    )
+    override_group.add_argument(
+        "--api-base", default=None, help="Custom API base URL (overrides model config)"
+    )
+    override_group.add_argument(
+        "--tensor-parallel",
+        type=int,
+        default=None,
+        help="Tensor parallel size for vLLM/SGLang (overrides model config)",
     )
 
     # Compare command
@@ -213,7 +358,10 @@ Examples:
     )
 
     # List backends command
-    list_parser = subparsers.add_parser("list-backends", help="List available backends")
+    subparsers.add_parser("list-backends", help="List available backends")
+
+    # List configs command
+    subparsers.add_parser("list-configs", help="List available model configurations")
 
     args = parser.parse_args()
 
@@ -223,6 +371,8 @@ Examples:
         cmd_compare(args)
     elif args.command == "list-backends":
         cmd_list_backends(args)
+    elif args.command == "list-configs":
+        cmd_list_configs(args)
     else:
         parser.print_help()
         sys.exit(1)
