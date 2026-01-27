@@ -28,6 +28,7 @@ for subset in "${SUBSETS[@]}"; do
         -d "$DATASET_ID" \
         --subset "$subset" \
         -f "$subset" \
+        --split "train" \
         --batch-size "$BATCH_SIZE" \
         --output-dir "$OUTPUT_DIR/$subset"
 

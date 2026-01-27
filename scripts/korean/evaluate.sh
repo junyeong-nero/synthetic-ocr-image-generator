@@ -3,9 +3,8 @@
 set -e
 
 DATASET_ID="junyeong-nero/synthetic-ocr-images-korean"
-MODEL_ID="Qwen/Qwen3-VL-2B-Instruct"
+MODEL_ID="deepseek-ai/DeepSeek-OCR-2"
 BACKEND="transformers"
-BATCH_SIZE=8
 OUTPUT_DIR="evaluation_results/korean"
 
 echo "=========================================="
@@ -28,8 +27,8 @@ for subset in "${SUBSETS[@]}"; do
         -d "$DATASET_ID" \
         --subset "$subset" \
         -f "$subset" \
-        --batch-size "$BATCH_SIZE" \
-        --output-dir "$OUTPUT_DIR/$subset"
+        --output-dir "$OUTPUT_DIR/$subset" \
+        --split "train"
 
     echo ""
     echo "[$(date '+%H:%M:%S')] Results saved to: $OUTPUT_DIR/$subset"

@@ -27,15 +27,16 @@ class DeepSeekOCR2(BaseTransformersOCR):
 
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            model_id, trust_remote_code=True
-        )
+        self.tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
         self.model = AutoModel.from_pretrained(
             model_id,
             trust_remote_code=True,
             use_safetensors=True,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+            _attn_implementation="flash_attention_2",
         )
-        self.model = self.model.eval().cuda().to(torch.bfloat16)
+        self.model = self.model.eval()
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
         """
