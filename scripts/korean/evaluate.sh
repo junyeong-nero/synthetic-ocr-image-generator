@@ -4,7 +4,6 @@ set -e
 
 DATASET_ID="junyeong-nero/synthetic-ocr-images-korean"
 MODEL_CONFIG="configs/models/deepseek-ocr-2.yaml"
-MODEL_ID="deepseek-ai/DeepSeek-OCR-2"
 OUTPUT_DIR="evaluation_results/korean"
 
 echo "=========================================="
@@ -22,7 +21,6 @@ for subset in "${SUBSETS[@]}"; do
     echo "=========================================="
 
     uv run python -m evaluation.cli evaluate \
-        -m "$MODEL_ID" \
         --model-config "$MODEL_CONFIG" \
         -d "$DATASET_ID" \
         --subset "$subset" \

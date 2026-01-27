@@ -4,7 +4,6 @@ set -e
 
 DATASET_ID="junyeong-nero/synthetic-ocr-images-japanese"
 MODEL_CONFIG="configs/models/qwen3-vl-2b.yaml"
-MODEL_ID="Qwen/Qwen3-VL-2B-Instruct"
 OUTPUT_DIR="evaluation_results/japanese"
 
 echo "=========================================="
@@ -22,7 +21,6 @@ for subset in "${SUBSETS[@]}"; do
     echo "=========================================="
 
     uv run python -m evaluation.cli evaluate \
-        -m "$MODEL_ID" \
         --model-config "$MODEL_CONFIG" \
         -d "$DATASET_ID" \
         --subset "$subset" \
