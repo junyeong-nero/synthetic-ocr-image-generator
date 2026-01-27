@@ -4,6 +4,7 @@ set -e
 
 DATASET_ID="junyeong-nero/synthetic-ocr-images-korean"
 MODEL_ID="Qwen/Qwen3-VL-2B-Instruct"
+BACKEND="transformers"
 BATCH_SIZE=8
 OUTPUT_DIR="evaluation_results/korean"
 
@@ -13,7 +14,7 @@ echo "=========================================="
 
 mkdir -p "$OUTPUT_DIR"
 
-SUBSETS=("sentence" "table" "document" "markdown")
+SUBSETS=("sentence" "table" "document" "markdown" "kie")
 
 for subset in "${SUBSETS[@]}"; do
     echo ""
@@ -21,17 +22,17 @@ for subset in "${SUBSETS[@]}"; do
     echo "[$(date '+%H:%M:%S')] Evaluating subset: $subset"
     echo "=========================================="
 
-    OUTPUT_FILE="$OUTPUT_DIR/${subset}_results.json"
-
-    uv run python src/evaluate.py \
-        --model-id "$MODEL_ID" \
-        --dataset-id "$DATASET_ID" \
+    uv run evaluate evaluate \
+        -m "$MODEL_ID" \
+        -b "$BACKEND" \
+        -d "$DATASET_ID" \
         --subset "$subset" \
-        --batchsize "$BATCH_SIZE" \
-        --output-file "$OUTPUT_FILE"
+        -f "$subset" \
+        --batch-size "$BATCH_SIZE" \
+        --output-dir "$OUTPUT_DIR/$subset"
 
     echo ""
-    echo "[$(date '+%H:%M:%S')] Results saved to: $OUTPUT_FILE"
+    echo "[$(date '+%H:%M:%S')] Results saved to: $OUTPUT_DIR/$subset"
 done
 
 echo ""
