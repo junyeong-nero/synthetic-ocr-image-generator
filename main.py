@@ -3,6 +3,9 @@
 import sys
 import argparse
 import os
+import re
+import hashlib
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -76,112 +79,228 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     """Run evaluation command."""
     model_specific_config = load_model_config(args.model_config)
 
+    representative_metrics = {
+        FormatType.SENTENCE.value: "avg_cer",
+        FormatType.TABLE.value: "avg_teds",
+        FormatType.DOCUMENT.value: "avg_overall_f1",
+        FormatType.MARKDOWN.value: "avg_cer",
+        FormatType.KIE.value: "avg_entity_f1",
+    }
+
     backend_str = args.backend
     if not backend_str:
         backend_str = model_specific_config.backend
 
-    subset = args.subset
-    
-    # Try to map subset to FormatType, defaulting to SENTENCE if not found
-    try:
-        format_type = FormatType(subset)
-    except ValueError:
-        # If subset name doesn't match a format type (e.g. "korean_sentence"),
-        # we might need a heuristic or just default to sentence.
-        # For now, let's assume subset name IS the format type or contains it.
-        if "table" in subset:
-            format_type = FormatType.TABLE
-        elif "document" in subset:
-            format_type = FormatType.DOCUMENT
-        elif "markdown" in subset:
-            format_type = FormatType.MARKDOWN
-        elif "kie" in subset:
-            format_type = FormatType.KIE
+    def run_for_subset(subset: str, output_dir: Path) -> dict:
+        # Try to map subset to FormatType, defaulting to SENTENCE if not found
+        try:
+            format_type = FormatType(subset)
+        except ValueError:
+            # If subset name doesn't match a format type (e.g. "korean_sentence"),
+            # we might need a heuristic or just default to sentence.
+            # For now, let's assume subset name IS the format type or contains it.
+            if "table" in subset:
+                format_type = FormatType.TABLE
+            elif "document" in subset:
+                format_type = FormatType.DOCUMENT
+            elif "markdown" in subset:
+                format_type = FormatType.MARKDOWN
+            elif "kie" in subset:
+                format_type = FormatType.KIE
+            else:
+                format_type = FormatType.SENTENCE
+
+        temperature = model_specific_config.get_temperature(subset)
+        max_tokens = model_specific_config.get_max_tokens(subset)
+        batch_size = model_specific_config.get_batch_size(subset)
+        tensor_parallel = model_specific_config.tensor_parallel_size
+        api_base = model_specific_config.api_base
+        timeout = model_specific_config.timeout
+        max_retries = model_specific_config.max_retries
+        device = model_specific_config.device
+        dtype = model_specific_config.dtype
+        rate_limit_rpm = model_specific_config.rate_limit_rpm
+
+        if hasattr(args, "temperature") and args.temperature is not None:
+            temperature = args.temperature
+        if hasattr(args, "max_tokens") and args.max_tokens is not None:
+            max_tokens = args.max_tokens
+        if hasattr(args, "batch_size") and args.batch_size is not None:
+            batch_size = args.batch_size
+        if hasattr(args, "tensor_parallel") and args.tensor_parallel is not None:
+            tensor_parallel = args.tensor_parallel
+        if hasattr(args, "api_base") and args.api_base is not None:
+            api_base = args.api_base
+
+        model_config = ModelConfig(
+            model_id=model_specific_config.get_model_id(subset),
+            backend=InferenceBackend(backend_str),
+            api_key=get_api_key(backend_str),
+            api_base=api_base,
+            tensor_parallel_size=tensor_parallel,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+            max_retries=max_retries,
+            device=device,
+            dtype=dtype,
+            rate_limit_rpm=rate_limit_rpm,
+        )
+
+        config = EvaluationConfig(
+            dataset_id=args.dataset,
+            subset=subset,
+            split=args.split,
+            format_type=format_type,
+            model=model_config,
+            batch_size=batch_size,
+            max_samples=args.max_samples,
+            output_dir=str(output_dir),
+            model_config_path=args.model_config,
+        )
+
+        print("\nConfiguration:")
+        print(f"  Model: {model_config.model_id}")
+        print(f"  Backend: {backend_str}")
+        print(f"  Dataset: {args.dataset} ({subset}/{args.split})")
+        print(f"  Format: {format_type.value}")
+        print(f"  Batch Size: {batch_size}")
+        print(f"  Temperature: {temperature}")
+        print(f"  Max Tokens: {max_tokens}")
+        print(f"  Config File: {args.model_config}")
+
+        print(f"\nEvaluating {model_config.model_id} on {args.dataset}...")
+        pipeline = EvaluationPipeline(config)
+        output = pipeline.run()
+
+        generator = ReportGenerator(output)
+        output_path = output_dir
+
+        if args.report_format == "all":
+            paths = generator.save_all(output_path)
+            print("\nReports saved:")
+            for fmt, path in paths.items():
+                print(f"  {fmt}: {path}")
         else:
-            format_type = FormatType.SENTENCE
+            method = getattr(generator, f"to_{args.report_format}")
+            path = method(output_path / f"report.{args.report_format}")
+            print(f"\nReport saved: {path}")
 
-    temperature = model_specific_config.get_temperature(subset)
-    max_tokens = model_specific_config.get_max_tokens(subset)
-    batch_size = model_specific_config.get_batch_size(subset)
-    tensor_parallel = model_specific_config.tensor_parallel_size
-    api_base = model_specific_config.api_base
-    timeout = model_specific_config.timeout
-    max_retries = model_specific_config.max_retries
-    device = model_specific_config.device
-    dtype = model_specific_config.dtype
-    rate_limit_rpm = model_specific_config.rate_limit_rpm
+        print_results(output.metrics, format_type.value)
 
-    if hasattr(args, "temperature") and args.temperature is not None:
-        temperature = args.temperature
-    if hasattr(args, "max_tokens") and args.max_tokens is not None:
-        max_tokens = args.max_tokens
-    if hasattr(args, "batch_size") and args.batch_size is not None:
-        batch_size = args.batch_size
-    if hasattr(args, "tensor_parallel") and args.tensor_parallel is not None:
-        tensor_parallel = args.tensor_parallel
-    if hasattr(args, "api_base") and args.api_base is not None:
-        api_base = args.api_base
+        print(
+            f"\nSamples: {output.summary['successful']}/{output.summary['total_samples']}"
+        )
+        print(f"Avg Latency: {output.summary['avg_latency_ms']:.2f}ms")
 
-    model_config = ModelConfig(
-        model_id=model_specific_config.get_model_id(subset),
-        backend=InferenceBackend(backend_str),
-        api_key=get_api_key(backend_str),
-        api_base=api_base,
-        tensor_parallel_size=tensor_parallel,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        timeout=timeout,
-        max_retries=max_retries,
-        device=device,
-        dtype=dtype,
-        rate_limit_rpm=rate_limit_rpm,
-    )
+        metric_key = representative_metrics.get(format_type.value)
+        metric_value = output.metrics.get(metric_key) if metric_key else None
+        if metric_key and metric_value is None:
+            print(f"Warning: Missing representative metric '{metric_key}' for {subset}")
 
-    config = EvaluationConfig(
-        dataset_id=args.dataset,
-        subset=subset,
-        split=args.split,
-        format_type=format_type,
-        model=model_config,
-        batch_size=batch_size,
-        max_samples=args.max_samples,
-        output_dir=args.output_dir,
-        model_config_path=args.model_config,
-    )
+        return {
+            "subset": subset,
+            "format": format_type.value,
+            "metric_key": metric_key,
+            "metric_value": metric_value,
+            "model_id": model_config.model_id,
+            "backend": backend_str,
+        }
 
-    print(f"\nConfiguration:")
-    print(f"  Model: {model_config.model_id}")
-    print(f"  Backend: {backend_str}")
-    print(f"  Dataset: {args.dataset} ({subset}/{args.split})")
-    print(f"  Format: {format_type.value}")
-    print(f"  Batch Size: {batch_size}")
-    print(f"  Temperature: {temperature}")
-    print(f"  Max Tokens: {max_tokens}")
-    print(f"  Config File: {args.model_config}")
+    def subset_output_dir(base_dir: Path, subset: str, use_subdir: bool) -> Path:
+        if not use_subdir:
+            return base_dir
+        safe_subset = re.sub(r"[^A-Za-z0-9_-]", "_", subset)
+        subset_hash = hashlib.sha256(subset.encode("utf-8")).hexdigest()[:8]
+        return base_dir / f"{safe_subset}-{subset_hash}"
 
-    print(f"\nEvaluating {model_config.model_id} on {args.dataset}...")
-    pipeline = EvaluationPipeline(config)
-    output = pipeline.run()
+    default_subsets = [
+        FormatType.SENTENCE.value,
+        FormatType.TABLE.value,
+        FormatType.DOCUMENT.value,
+        FormatType.MARKDOWN.value,
+        FormatType.KIE.value,
+    ]
 
-    generator = ReportGenerator(output)
-    output_path = Path(args.output_dir)
-
-    if args.report_format == "all":
-        paths = generator.save_all(output_path)
-        print("\nReports saved:")
-        for fmt, path in paths.items():
-            print(f"  {fmt}: {path}")
+    if args.subset is None:
+        subsets = default_subsets
+        print("No --subset specified. Running for all default subsets.")
     else:
-        method = getattr(generator, f"to_{args.report_format}")
-        path = method(output_path / f"report.{args.report_format}")
-        print(f"\nReport saved: {path}")
+        subsets = [value.strip() for value in args.subset.split(",") if value.strip()]
+        if not subsets:
+            print("Error: --subset cannot be empty.", file=sys.stderr)
+            sys.exit(1)
 
-    print_results(output.metrics, format_type.value)
+    summary_entries = []
+    summary_output_dir = Path(args.output_dir)
 
-    print(
-        f"\nSamples: {output.summary['successful']}/{output.summary['total_samples']}"
-    )
-    print(f"Avg Latency: {output.summary['avg_latency_ms']:.2f}ms")
+    if len(subsets) == 1:
+        subset = subsets[0]
+        has_invalid_chars = bool(re.search(r"[^A-Za-z0-9_-]", subset))
+        summary_entries.append(
+            run_for_subset(
+                subset,
+                subset_output_dir(Path(args.output_dir), subset, has_invalid_chars),
+            )
+        )
+    else:
+        print("\n" + "=" * 60)
+        print("Running subsets:", ", ".join(subsets))
+        print("=" * 60)
+        for subset in subsets:
+            print("\n" + "=" * 60)
+            print(f"Running subset: {subset}")
+            print("=" * 60)
+            summary_entries.append(
+                run_for_subset(
+                    subset, subset_output_dir(Path(args.output_dir), subset, True)
+                )
+            )
+
+    metric_values = [
+        entry["metric_value"]
+        for entry in summary_entries
+        if isinstance(entry["metric_value"], (int, float))
+    ]
+    average_score = sum(metric_values) / len(metric_values) if metric_values else None
+
+    summary_entry = {
+        "model_id": summary_entries[0]["model_id"] if summary_entries else None,
+        "backend": summary_entries[0]["backend"] if summary_entries else None,
+        "dataset": args.dataset,
+        "split": args.split,
+        "subsets": summary_entries,
+        "average_score": average_score,
+    }
+
+    summary_path = summary_output_dir / "model_summary.json"
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    existing = []
+    if summary_path.exists():
+        try:
+            with open(summary_path, encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, list):
+                existing = loaded
+            elif isinstance(loaded, dict):
+                existing = [loaded]
+        except (json.JSONDecodeError, OSError) as exc:
+            corrupt_path = summary_path.with_suffix(".corrupt.json")
+            try:
+                if summary_path.exists():
+                    summary_path.replace(corrupt_path)
+            finally:
+                raise RuntimeError(
+                    f"Corrupt summary file moved to {corrupt_path}"
+                ) from exc
+
+    existing.append(summary_entry)
+
+    tmp_path = summary_path.with_suffix(".json.tmp")
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(existing, f, ensure_ascii=False, indent=2)
+    os.replace(tmp_path, summary_path)
+    print(f"\nModel summary saved: {summary_path}")
 
 
 def cmd_compare(args: argparse.Namespace) -> None:
@@ -220,7 +339,7 @@ def cmd_list_configs(args: argparse.Namespace) -> None:
 
     print("\nAvailable model configurations:")
     print("-" * 70)
-    print(f"  {'Config Name':<30} {'Dependency Group':<20} {'Backend'}")
+    print("  {:<30} {:<20} {}".format("Config Name", "Dependency Group", "Backend"))
     print("-" * 70)
     if configs:
         for config_name in configs:
@@ -347,7 +466,13 @@ def main() -> None:
         help="Inference backend (optional if model config exists)",
     )
     eval_parser.add_argument(
-        "-s", "--subset", default="default", help="Dataset subset (and format type)"
+        "-s",
+        "--subset",
+        default=None,
+        help=(
+            "Dataset subset(s) and format type. Use comma-separated values to run multiple. "
+            "If omitted, runs all default subsets"
+        ),
     )
     eval_parser.add_argument("--split", default="test", help="Dataset split")
     eval_parser.add_argument(
