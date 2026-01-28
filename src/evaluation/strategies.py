@@ -70,8 +70,21 @@ class TableEvaluator(BaseEvaluator):
             pred_html = extract_html_table(pred)
             pred_json = parse_model_output_as_json(pred) or {}
 
-            true_html = gt.get("html", "")
-            true_json = gt.get("json", {})
+            if isinstance(gt, dict):
+                gt_dict = gt
+            elif isinstance(gt, str):
+                try:
+                    gt_dict = json.loads(gt) if gt else {}
+                except (json.JSONDecodeError, TypeError):
+                    gt_dict = {}
+            else:
+                gt_dict = {}
+
+            if not isinstance(gt_dict, dict):
+                gt_dict = {}
+            true_html = gt_dict.get("html", "")
+            true_json = gt_dict.get("json", {})
+            
             if isinstance(true_json, str):
                 true_json = json.loads(true_json) if true_json else {}
 
@@ -112,7 +125,19 @@ class DocumentEvaluator(BaseEvaluator):
             pred_json = parse_model_output_as_json(pred) or {}
             pred_elements = pred_json.get("elements", [])
 
-            true_gt = gt.get("ground_truth", gt)
+            if isinstance(gt, dict):
+                gt_dict = gt
+            elif isinstance(gt, str):
+                try:
+                    gt_dict = json.loads(gt) if gt else {}
+                except (json.JSONDecodeError, TypeError):
+                    gt_dict = {}
+            else:
+                gt_dict = {}
+
+            if not isinstance(gt_dict, dict):
+                gt_dict = {}
+            true_gt = gt_dict.get("ground_truth", gt_dict)
             if isinstance(true_gt, str):
                 true_gt = json.loads(true_gt) if true_gt else {}
             true_elements = true_gt.get("elements", [])
@@ -206,8 +231,21 @@ class KIEEvaluator(BaseEvaluator):
                 except (json.JSONDecodeError, TypeError):
                     pred_entities = {}
 
+            if isinstance(gt, dict):
+                gt_dict = gt
+            elif isinstance(gt, str):
+                try:
+                    gt_dict = json.loads(gt) if gt else {}
+                except (json.JSONDecodeError, TypeError):
+                    gt_dict = {}
+            else:
+                gt_dict = {}
+
+            if not isinstance(gt_dict, dict):
+                gt_dict = {}
+
             # Extract ground truth entities
-            true_entities = gt.get("entities", {})
+            true_entities = gt_dict.get("entities", {})
             if isinstance(true_entities, str):
                 try:
                     true_entities = json.loads(true_entities)
@@ -215,7 +253,7 @@ class KIEEvaluator(BaseEvaluator):
                     true_entities = {}
 
             # Extract ground truth from nested structure if needed
-            true_gt = gt.get("ground_truth", {})
+            true_gt = gt_dict.get("ground_truth", {})
             if isinstance(true_gt, str):
                 try:
                     true_gt = json.loads(true_gt)

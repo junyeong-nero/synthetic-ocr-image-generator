@@ -95,6 +95,7 @@ paddle-ocr = [
     # PaddleOCR-VL requires specific transformers version
     # Note: paddlepaddle-gpu requires separate installation from PaddlePaddle index
     # See: https://www.paddlepaddle.org.cn/install/quick
+    "apted>=1.0.0",
     "transformers>=4.45.0,<4.50.0",
     "huggingface-hub>=0.23.2,<1.0",
     "paddleocr>=2.0.0",

@@ -332,6 +332,9 @@ def main() -> None:
         help="Path to model-specific config YAML",
     )
     eval_parser.add_argument(
+        "-d", "--dataset", required=True, help="Hugging Face dataset ID or local path"
+    )
+    eval_parser.add_argument(
         "-b",
         "--backend",
         choices=[
