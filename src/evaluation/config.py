@@ -25,6 +25,7 @@ class InferenceBackend(str, Enum):
     GOOGLE = "google"
     # Local backends
     TRANSFORMERS = "transformers"
+    PADDLEOCR = "paddleocr"
 
 
 class ModelConfig(BaseModel):
