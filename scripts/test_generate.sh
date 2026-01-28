@@ -2,13 +2,13 @@
 
 set -e
 
-REPO_ID="junyeong-nero/synthetic-ocr-images-japanese"
-FONT_PATH="fonts/NotoSansJP-VariableFont_wght.ttf"
-SIZE=1000
-LANG="ja"
+REPO_ID="test/korean-dataset"
+FONT_PATH="fonts/NotoSans-VariableFont_wdth,wght.ttf"
+SIZE=2
+LANG="ko"
 
 echo "=========================================="
-echo "Generating Japanese OCR images"
+echo "TESTING: Generating Korean OCR images (Size: $SIZE)"
 echo "=========================================="
 
 echo ""
@@ -59,6 +59,5 @@ uv run main.py generate \
 
 echo ""
 echo "=========================================="
-echo "Japanese dataset generated!"
-echo "Dataset: https://huggingface.co/datasets/$REPO_ID"
+echo "Test completed!"
 echo "=========================================="

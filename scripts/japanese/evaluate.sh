@@ -20,7 +20,7 @@ for subset in "${SUBSETS[@]}"; do
     echo "[$(date '+%H:%M:%S')] Evaluating subset: $subset"
     echo "=========================================="
 
-    uv run python -m evaluation.cli evaluate \
+    uv run main.py evaluate \
         --model-config "$MODEL_CONFIG" \
         -d "$DATASET_ID" \
         --subset "$subset" \

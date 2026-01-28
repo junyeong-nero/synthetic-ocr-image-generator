@@ -42,8 +42,8 @@ echo ""
 
 if [[ -z "$DEPENDENCY_GROUP" ]]; then
     echo "Warning: No dependency_group defined, running without --group"
-    uv run python -m evaluation.cli evaluate -m "$MODEL_ID" --model-config "$CONFIG_FILE" "$@"
+    uv run main.py evaluate -m "$MODEL_ID" --model-config "$CONFIG_FILE" "$@"
 else
-    echo "Running: uv run --group $DEPENDENCY_GROUP python -m evaluation.cli evaluate ..."
-    uv run --group "$DEPENDENCY_GROUP" python -m evaluation.cli evaluate -m "$MODEL_ID" --model-config "$CONFIG_FILE" "$@"
+    echo "Running: uv run --group $DEPENDENCY_GROUP main.py evaluate ..."
+    uv run --group "$DEPENDENCY_GROUP" main.py evaluate -m "$MODEL_ID" --model-config "$CONFIG_FILE" "$@"
 fi

@@ -13,7 +13,7 @@ echo "=========================================="
 
 echo ""
 echo "[1/5] Generating sentence format..."
-uv run main.py \
+uv run main.py generate \
     --repo-id "$REPO_ID" \
     --font-path "$FONT_PATH" \
     --format sentence \
@@ -23,7 +23,7 @@ uv run main.py \
 
 echo ""
 echo "[2/5] Generating table format..."
-uv run main.py \
+uv run main.py generate \
     --repo-id "$REPO_ID" \
     --font-path "$FONT_PATH" \
     --format table \
@@ -32,7 +32,7 @@ uv run main.py \
 
 echo ""
 echo "[3/5] Generating document format..."
-uv run main.py \
+uv run main.py generate \
     --repo-id "$REPO_ID" \
     --font-path "$FONT_PATH" \
     --format document \
@@ -41,7 +41,7 @@ uv run main.py \
 
 echo ""
 echo "[4/5] Generating markdown format..."
-uv run main.py \
+uv run main.py generate \
     --repo-id "$REPO_ID" \
     --font-path "$FONT_PATH" \
     --format markdown \
@@ -50,7 +50,7 @@ uv run main.py \
 
 echo ""
 echo "[5/5] Generating kie format..."
-uv run main.py \
+uv run main.py generate \
     --repo-id "$REPO_ID" \
     --font-path "$FONT_PATH" \
     --format kie \
