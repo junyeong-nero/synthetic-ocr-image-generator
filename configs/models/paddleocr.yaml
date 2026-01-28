@@ -5,6 +5,7 @@
 
 model_id: paddleocr
 backend: paddleocr
+dependency_group: paddle-ocr
 
 # Default generation parameters
 batch_size: 1
