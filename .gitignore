@@ -8,3 +8,4 @@ data/
 .claude/
 
 __pycache__/
+evaluation_results/
