@@ -2,6 +2,7 @@
 # https://huggingface.co/lightonai/LightOnOCR-2-1B
 model_id: lightonai/LightOnOCR-2-1B
 backend: transformers
+dependency_group: lighton-ocr2
 
 # Default generation parameters
 temperature: 0.0

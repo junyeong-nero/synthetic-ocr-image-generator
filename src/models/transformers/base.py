@@ -1,11 +1,24 @@
 """Base class for transformers-based OCR models."""
 
+import importlib.util
 from typing import List, Union
 
 from PIL import Image
 
 from evaluation.config import ModelConfig
 from models.base import VLMModel
+
+
+def is_flash_attn_available() -> bool:
+    """Check if flash-attn is available."""
+    return importlib.util.find_spec("flash_attn") is not None
+
+
+def get_attn_implementation() -> str:
+    """Get the best available attention implementation."""
+    if is_flash_attn_available():
+        return "flash_attention_2"
+    return "eager"
 
 
 class BaseTransformersOCR(VLMModel):

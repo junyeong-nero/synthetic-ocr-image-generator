@@ -2,6 +2,7 @@
 # https://huggingface.co/deepseek-ai/DeepSeek-OCR
 model_id: deepseek-ai/DeepSeek-OCR
 backend: transformers
+dependency_group: deepseek-ocr
 
 # Default generation parameters
 temperature: 0.0

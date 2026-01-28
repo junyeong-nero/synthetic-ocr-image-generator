@@ -1,0 +1,77 @@
+Downloading av (39.0MiB)
+ Downloaded av
+Uninstalled 1 package in 438ms
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 3 packages in 5.12s
+
+Configuration:
+  Model: Qwen/Qwen2-VL-7B-Instruct
+  Backend: transformers
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
+  Format: sentence
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 2048
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/qwen2-vl-7b.yaml
+
+Evaluating Qwen/Qwen2-VL-7B-Instruct on junyeong-nero/synthetic-ocr-images-korean...
+Downloading shards:   0%|          | 0/5 [00:00<?, ?it/s]/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/huggingface_hub/file_download.py:798: UserWarning: Not enough free disk space to download the file. The expected file size is: 3898.65 MB. The target location /root/.cache/huggingface/hub/models--Qwen--Qwen2-VL-7B-Instruct/blobs only has 60.01 MB free disk space.
+  warnings.warn(
+Downloading shards:   0%|          | 0/5 [00:01<?, ?it/s]
+Traceback (most recent call last):
+  File "/workspace/synthetic-ocr-image-generator/src/models/local/transformers_vlm.py", line 64, in __init__
+    self.model = AutoVisionModel.from_pretrained(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/models/auto/auto_factory.py", line 564, in from_pretrained
+    return model_class.from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/modeling_utils.py", line 3974, in from_pretrained
+    resolved_archive_file, sharded_metadata = get_checkpoint_shard_files(
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/utils/hub.py", line 1098, in get_checkpoint_shard_files
+    cached_filename = cached_file(
+                      ^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/utils/hub.py", line 403, in cached_file
+    resolved_file = hf_hub_download(
+                    ^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 1007, in hf_hub_download
+    return _hf_hub_download_to_cache_dir(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 1168, in _hf_hub_download_to_cache_dir
+    _download_to_tmp_and_move(
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 1720, in _download_to_tmp_and_move
+    xet_get(
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 626, in xet_get
+    download_files(
+RuntimeError: Data processing error: CAS service error : IO Error: No space left on device (os error 28)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/cli.py", line 425, in <module>
+    main()
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/cli.py", line 410, in main
+    cmd_evaluate(args)
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/cli.py", line 161, in cmd_evaluate
+    pipeline = EvaluationPipeline(config)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/pipeline.py", line 92, in __init__
+    self.model = create_model(config.model)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/models/registry.py", line 110, in create_model
+    return model_class(config)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/models/local/transformers_vlm.py", line 74, in __init__
+    self.model = AutoModelForCausalLM.from_pretrained(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/models/auto/auto_factory.py", line 567, in from_pretrained
+    raise ValueError(
+ValueError: Unrecognized configuration class <class 'transformers.models.qwen2_vl.configuration_qwen2_vl.Qwen2VLConfig'> for this kind of AutoModel: AutoModelForCausalLM.
+Model type should be one of BartConfig, BertConfig, BertGenerationConfig, BigBirdConfig, BigBirdPegasusConfig, BioGptConfig, BlenderbotConfig, BlenderbotSmallConfig, BloomConfig, CamembertConfig, LlamaConfig, CodeGenConfig, CohereConfig, CpmAntConfig, CTRLConfig, Data2VecTextConfig, DbrxConfig, ElectraConfig, ErnieConfig, FalconConfig, FalconMambaConfig, FuyuConfig, GemmaConfig, Gemma2Config, GitConfig, GlmConfig, GPT2Config, GPT2Config, GPTBigCodeConfig, GPTNeoConfig, GPTNeoXConfig, GPTNeoXJapaneseConfig, GPTJConfig, GraniteConfig, GraniteMoeConfig, JambaConfig, JetMoeConfig, LlamaConfig, MambaConfig, Mamba2Config, MarianConfig, MBartConfig, MegaConfig, MegatronBertConfig, MistralConfig, MixtralConfig, MllamaConfig, MoshiConfig, MptConfig, MusicgenConfig, MusicgenMelodyConfig, MvpConfig, NemotronConfig, OlmoConfig, OlmoeConfig, OpenLlamaConfig, OpenAIGPTConfig, OPTConfig, PegasusConfig, PersimmonConfig, PhiConfig, Phi3Config, PhimoeConfig, PLBartConfig, ProphetNetConfig, QDQBertConfig, Qwen2Config, Qwen2MoeConfig, RecurrentGemmaConfig, ReformerConfig, RemBertConfig, RobertaConfig, RobertaPreLayerNormConfig, RoCBertConfig, RoFormerConfig, RwkvConfig, Speech2Text2Config, StableLmConfig, Starcoder2Config, TransfoXLConfig, TrOCRConfig, WhisperConfig, XGLMConfig, XLMConfig, XLMProphetNetConfig, XLMRobertaConfig, XLMRobertaXLConfig, XLNetConfig, XmodConfig, ZambaConfig.

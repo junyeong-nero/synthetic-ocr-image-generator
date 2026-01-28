@@ -2,6 +2,7 @@
 # https://huggingface.co/PaddlePaddle/PaddleOCR-VL
 model_id: PaddlePaddle/PaddleOCR-VL
 backend: transformers
+dependency_group: paddle-ocr
 
 # Default generation parameters
 temperature: 0.0

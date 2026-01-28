@@ -2,6 +2,7 @@
 # https://huggingface.co/stepfun-ai/GOT-OCR-2.0-hf
 model_id: stepfun-ai/GOT-OCR-2.0-hf
 backend: transformers
+dependency_group: got-ocr
 
 # Default generation parameters
 # Note: GOT-OCR processes images directly without prompts

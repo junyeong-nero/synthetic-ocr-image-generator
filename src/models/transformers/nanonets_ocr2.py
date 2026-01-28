@@ -5,7 +5,7 @@ from typing import List, Union
 from PIL import Image
 from transformers import AutoModelForImageTextToText, AutoProcessor, AutoTokenizer
 
-from models.transformers.base import BaseTransformersOCR
+from models.transformers.base import BaseTransformersOCR, get_attn_implementation
 from models.config import ModelConfig
 
 
@@ -21,7 +21,7 @@ class NanonetsOCR2(BaseTransformersOCR):
             model_id,
             torch_dtype="auto",
             device_map="auto",
-            attn_implementation="flash_attention_2",
+            attn_implementation=get_attn_implementation(),
         )
         self.model.eval()
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)

@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from transformers import AutoModelForCausalLM, AutoProcessor
 
-from models.transformers.base import BaseTransformersOCR
+from models.transformers.base import BaseTransformersOCR, get_attn_implementation
 from models.config import ModelConfig
 
 
@@ -37,7 +37,7 @@ class DotsOCR(BaseTransformersOCR):
     def _load_model(self, model_id: str) -> None:
         self.model = AutoModelForCausalLM.from_pretrained(
             model_id,
-            attn_implementation="flash_attention_2",
+            attn_implementation=get_attn_implementation(),
             torch_dtype=torch.bfloat16,
             device_map="auto",
             trust_remote_code=True,

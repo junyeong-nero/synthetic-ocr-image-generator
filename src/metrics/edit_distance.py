@@ -31,6 +31,12 @@ def cer(reference: str, hypothesis: str) -> float:
     Calculates the Character Error Rate (CER).
     CER = (Substitutions + Insertions + Deletions) / Total number of characters in reference
     """
+    # Handle None values
+    if hypothesis is None:
+        hypothesis = ""
+    if reference is None:
+        reference = ""
+
     if not reference:
         return 1.0 if hypothesis else 0.0
     distance = levenshtein_distance(reference, hypothesis)
@@ -42,6 +48,12 @@ def wer(reference: str, hypothesis: str) -> float:
     Calculates the Word Error Rate (WER).
     WER = (Substitutions + Insertions + Deletions) / Total number of words in reference
     """
+    # Handle None values
+    if hypothesis is None:
+        hypothesis = ""
+    if reference is None:
+        reference = ""
+
     ref_words = reference.split()
     hyp_words = hypothesis.split()
 
@@ -107,6 +119,11 @@ def accuracy(reference: str, hypothesis: str) -> float:
     Returns:
         1.0 if exact match, 0.0 otherwise.
     """
+    # Handle None values
+    if hypothesis is None:
+        hypothesis = ""
+    if reference is None:
+        reference = ""
     return 1.0 if reference.strip() == hypothesis.strip() else 0.0
 
 
@@ -121,6 +138,12 @@ def word_accuracy(reference: str, hypothesis: str) -> float:
     Returns:
         Proportion of reference words found in hypothesis.
     """
+    # Handle None values
+    if hypothesis is None:
+        hypothesis = ""
+    if reference is None:
+        reference = ""
+
     ref_words = set(reference.split())
     hyp_words = set(hypothesis.split())
 
@@ -141,4 +164,9 @@ def character_accuracy(reference: str, hypothesis: str) -> float:
     Returns:
         Character accuracy value.
     """
+    # Handle None values (cer already handles this, but be explicit)
+    if hypothesis is None:
+        hypothesis = ""
+    if reference is None:
+        reference = ""
     return max(0.0, 1.0 - cer(reference, hypothesis))

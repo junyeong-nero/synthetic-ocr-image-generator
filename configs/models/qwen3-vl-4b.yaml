@@ -1,6 +1,7 @@
-# Qwen3-VL-2B Model Configuration
-model_id: Qwen/Qwen3-VL-2B-Instruct
+# Qwen3-VL-4B Model Configuration
+model_id: Qwen/Qwen3-VL-4B-Instruct
 backend: transformers
+dependency_group: qwen3-vl
 
 # Default generation parameters
 temperature: 0.0

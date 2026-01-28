@@ -1,0 +1,70 @@
+Uninstalled 1 package in 582ms
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 1 package in 2.74s
+A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR-2:
+- deepencoderv2.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR-2:
+- configuration_deepseek_v2.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR-2:
+- modeling_deepseekv2.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR-2:
+- conversation.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR-2:
+- modeling_deepseekocr2.py
+- deepencoderv2.py
+- configuration_deepseek_v2.py
+- modeling_deepseekv2.py
+- conversation.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+You are using a model of type deepseek_vl_v2 to instantiate a model of type DeepseekOCR2. This is not supported for all configurations of models and can yield errors.
+
+Configuration:
+  Model: deepseek-ai/DeepSeek-OCR-2
+  Backend: transformers
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (default/test)
+  Format: sentence
+  Batch Size: 32
+  Temperature: 0.0
+  Max Tokens: 512
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/deepseek-ocr-2.yaml
+
+Evaluating deepseek-ai/DeepSeek-OCR-2 on junyeong-nero/synthetic-ocr-images-korean...
+Downloading shards:   0%|          | 0/1 [00:00<?, ?it/s]Downloading shards: 100%|██████████| 1/1 [00:13<00:00, 13.18s/it]Downloading shards: 100%|██████████| 1/1 [00:13<00:00, 13.19s/it]
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/cli.py", line 425, in <module>
+    main()
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/cli.py", line 410, in main
+    cmd_evaluate(args)
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/cli.py", line 161, in cmd_evaluate
+    pipeline = EvaluationPipeline(config)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/pipeline.py", line 92, in __init__
+    self.model = create_model(config.model)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/models/registry.py", line 110, in create_model
+    return model_class(config)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/models/transformers/base.py", line 30, in __init__
+    self._load_model(model_id)
+  File "/workspace/synthetic-ocr-image-generator/src/models/transformers/deepseek_ocr2.py", line 31, in _load_model
+    self.model = AutoModel.from_pretrained(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/models/auto/auto_factory.py", line 559, in from_pretrained
+    return model_class.from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/modeling_utils.py", line 4091, in from_pretrained
+    config = cls._autoset_attn_implementation(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/modeling_utils.py", line 1617, in _autoset_attn_implementation
+    cls._check_and_enable_flash_attn_2(
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/modeling_utils.py", line 1747, in _check_and_enable_flash_attn_2
+    raise ImportError(f"{preface} the package flash_attn seems to be not installed. {install_message}")
+ImportError: FlashAttention2 has been toggled on, but it cannot be used due to the following error: the package flash_attn seems to be not installed. Please refer to the documentation of https://huggingface.co/docs/transformers/perf_infer_gpu_one#flashattention-2 to install Flash Attention 2.

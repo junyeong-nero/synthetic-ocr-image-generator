@@ -1,0 +1,304 @@
+==========================================
+Testing All OCR Models
+==========================================
+Dataset: junyeong-nero/synthetic-ocr-images-korean
+Format: sentence
+Max Samples: 10
+Output: /workspace/synthetic-ocr-image-generator/test_results/20260128_081455
+==========================================
+
+------------------------------------------
+Model: deepseek-ocr-2
+Model ID: deepseek-ai/DeepSeek-OCR-2
+Dependency Group: deepseek-ocr2
+------------------------------------------
+Command: uv run --group deepseek-ocr2 python -m evaluation.cli evaluate         -m "deepseek-ai/DeepSeek-OCR-2"         --model-config "/workspace/synthetic-ocr-image-generator/configs/models/deepseek-ocr-2.yaml"         -d "junyeong-nero/synthetic-ocr-images-korean"         --subset "sentence"         --split train         -f "sentence"         --max-samples 10         --output-dir "/workspace/synthetic-ocr-image-generator/test_results/20260128_081455/deepseek-ocr-2"
+
+PASSED
+
+------------------------------------------
+Model: deepseek-ocr
+Model ID: deepseek-ai/DeepSeek-OCR
+Dependency Group: deepseek-ocr
+------------------------------------------
+Command: uv run --group deepseek-ocr python -m evaluation.cli evaluate         -m "deepseek-ai/DeepSeek-OCR"         --model-config "/workspace/synthetic-ocr-image-generator/configs/models/deepseek-ocr.yaml"         -d "junyeong-nero/synthetic-ocr-images-korean"         --subset "sentence"         --split train         -f "sentence"         --max-samples 10         --output-dir "/workspace/synthetic-ocr-image-generator/test_results/20260128_081455/deepseek-ocr"
+
+PASSED
+
+------------------------------------------
+Model: gemma-3-4b-it
+Model ID: google/gemma-3-4b-it
+Dependency Group: gemma3
+------------------------------------------
+Command: uv run --group gemma3 python -m evaluation.cli evaluate         -m "google/gemma-3-4b-it"         --model-config "/workspace/synthetic-ocr-image-generator/configs/models/gemma-3-4b-it.yaml"         -d "junyeong-nero/synthetic-ocr-images-korean"         --subset "sentence"         --split train         -f "sentence"         --max-samples 10         --output-dir "/workspace/synthetic-ocr-image-generator/test_results/20260128_081455/gemma-3-4b-it"
+
+FAILED (see /workspace/synthetic-ocr-image-generator/test_results/20260128_081455/gemma-3-4b-it/test.log)
+Last 20 lines of error:
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/utils/hub.py", line 483, in cached_files
+    raise OSError(
+OSError: You are trying to access a gated repo.
+Make sure to have access to it at https://huggingface.co/google/gemma-3-4b-it.
+401 Client Error. (Request ID: Root=1-6979c6f4-2bc859e3082403a059d30971;2b586e1e-5e13-4f25-8b0b-ab5dc4e5821a)
+
+Cannot access gated repo for url https://huggingface.co/google/gemma-3-4b-it/resolve/main/config.json.
+Access to model google/gemma-3-4b-it is restricted. You must have access to it and be authenticated to access it. Please log in.
+
+Configuration:
+  Model: google/gemma-3-4b-it
+  Backend: transformers
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
+  Format: sentence
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 4096
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/gemma-3-4b-it.yaml
+
+Evaluating google/gemma-3-4b-it on junyeong-nero/synthetic-ocr-images-korean...
+
+------------------------------------------
+Model: got-ocr-2.0-hf
+Model ID: stepfun-ai/GOT-OCR-2.0-hf
+Dependency Group: got-ocr
+------------------------------------------
+Command: uv run --group got-ocr python -m evaluation.cli evaluate         -m "stepfun-ai/GOT-OCR-2.0-hf"         --model-config "/workspace/synthetic-ocr-image-generator/configs/models/got-ocr-2.0-hf.yaml"         -d "junyeong-nero/synthetic-ocr-images-korean"         --subset "sentence"         --split train         -f "sentence"         --max-samples 10         --output-dir "/workspace/synthetic-ocr-image-generator/test_results/20260128_081455/got-ocr-2.0-hf"
+
+FAILED (see /workspace/synthetic-ocr-image-generator/test_results/20260128_081455/got-ocr-2.0-hf/test.log)
+Last 20 lines of error:
+    self.model = AutoModelForImageTextToText.from_pretrained(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/models/auto/auto_factory.py", line 526, in from_pretrained
+    config, kwargs = AutoConfig.from_pretrained(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/models/auto/configuration_auto.py", line 1036, in from_pretrained
+    raise ValueError(
+ValueError: The checkpoint you are trying to load has model type `got_ocr2` but Transformers does not recognize this architecture. This could be because of an issue with the checkpoint, or because your version of Transformers is out of date.
+
+Configuration:
+  Model: stepfun-ai/GOT-OCR-2.0-hf
+  Backend: transformers
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
+  Format: sentence
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 4096
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/got-ocr-2.0-hf.yaml
+
+Evaluating stepfun-ai/GOT-OCR-2.0-hf on junyeong-nero/synthetic-ocr-images-korean...
+
+------------------------------------------
+Model: hunyuan-ocr
+Model ID: tencent/HunyuanOCR
+Dependency Group: hunyuan-ocr
+------------------------------------------
+Command: uv run --group hunyuan-ocr python -m evaluation.cli evaluate         -m "tencent/HunyuanOCR"         --model-config "/workspace/synthetic-ocr-image-generator/configs/models/hunyuan-ocr.yaml"         -d "junyeong-nero/synthetic-ocr-images-korean"         --subset "sentence"         --split train         -f "sentence"         --max-samples 10         --output-dir "/workspace/synthetic-ocr-image-generator/test_results/20260128_081455/hunyuan-ocr"
+
+FAILED (see /workspace/synthetic-ocr-image-generator/test_results/20260128_081455/hunyuan-ocr/test.log)
+Last 20 lines of error:
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/workspace/synthetic-ocr-image-generator/src/models/transformers/hunyuan_ocr.py", line 7, in <module>
+    from transformers import AutoProcessor, HunYuanVLForConditionalGeneration
+ImportError: cannot import name 'HunYuanVLForConditionalGeneration' from 'transformers' (/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/__init__.py)
+
+Configuration:
+  Model: tencent/HunyuanOCR
+  Backend: transformers
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
+  Format: sentence
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 16384
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/hunyuan-ocr.yaml
+
+Evaluating tencent/HunyuanOCR on junyeong-nero/synthetic-ocr-images-korean...
+
+------------------------------------------
+Model: lightonocr-2-1b
+Model ID: lightonai/LightOnOCR-2-1B
+Dependency Group: lighton-ocr2
+------------------------------------------
+Command: uv run --group lighton-ocr2 python -m evaluation.cli evaluate         -m "lightonai/LightOnOCR-2-1B"         --model-config "/workspace/synthetic-ocr-image-generator/configs/models/lightonocr-2-1b.yaml"         -d "junyeong-nero/synthetic-ocr-images-korean"         --subset "sentence"         --split train         -f "sentence"         --max-samples 10         --output-dir "/workspace/synthetic-ocr-image-generator/test_results/20260128_081455/lightonocr-2-1b"
+
+FAILED (see /workspace/synthetic-ocr-image-generator/test_results/20260128_081455/lightonocr-2-1b/test.log)
+Last 20 lines of error:
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/workspace/synthetic-ocr-image-generator/src/models/transformers/light_on_ocr2.py", line 7, in <module>
+    from transformers import LightOnOcrForConditionalGeneration, LightOnOcrProcessor
+ImportError: cannot import name 'LightOnOcrForConditionalGeneration' from 'transformers' (/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/__init__.py)
+
+Configuration:
+  Model: lightonai/LightOnOCR-2-1B
+  Backend: transformers
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
+  Format: sentence
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 1024
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/lightonocr-2-1b.yaml
+
+Evaluating lightonai/LightOnOCR-2-1B on junyeong-nero/synthetic-ocr-images-korean...
+
+------------------------------------------
+Model: paddleocr-vl
+Model ID: PaddlePaddle/PaddleOCR-VL
+Dependency Group: paddle-ocr
+------------------------------------------
+Command: uv run --group paddle-ocr python -m evaluation.cli evaluate         -m "PaddlePaddle/PaddleOCR-VL"         --model-config "/workspace/synthetic-ocr-image-generator/configs/models/paddleocr-vl.yaml"         -d "junyeong-nero/synthetic-ocr-images-korean"         --subset "sentence"         --split train         -f "sentence"         --max-samples 10         --output-dir "/workspace/synthetic-ocr-image-generator/test_results/20260128_081455/paddleocr-vl"
+
+FAILED (see /workspace/synthetic-ocr-image-generator/test_results/20260128_081455/paddleocr-vl/test.log)
+Last 20 lines of error:
+    return require_version(requirement, hint)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/utils/versions.py", line 111, in require_version
+    _compare_versions(op, got_ver, want_ver, requirement, pkg, hint)
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/utils/versions.py", line 44, in _compare_versions
+    raise ImportError(
+ImportError: huggingface-hub>=0.23.2,<1.0 is required for a normal functioning of this module, but found huggingface-hub==1.3.4.
+Try: `pip install transformers -U` or `pip install -e '.[dev]'` if you're working with git main
+
+Configuration:
+  Model: PaddlePaddle/PaddleOCR-VL
+  Backend: transformers
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
+  Format: sentence
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 4096
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/paddleocr-vl.yaml
+
+Evaluating PaddlePaddle/PaddleOCR-VL on junyeong-nero/synthetic-ocr-images-korean...
+
+------------------------------------------
+Model: qwen2-vl-7b
+Model ID: Qwen/Qwen2-VL-7B-Instruct
+Dependency Group: qwen2-vl
+------------------------------------------
+Command: uv run --group qwen2-vl python -m evaluation.cli evaluate         -m "Qwen/Qwen2-VL-7B-Instruct"         --model-config "/workspace/synthetic-ocr-image-generator/configs/models/qwen2-vl-7b.yaml"         -d "junyeong-nero/synthetic-ocr-images-korean"         --subset "sentence"         --split train         -f "sentence"         --max-samples 10         --output-dir "/workspace/synthetic-ocr-image-generator/test_results/20260128_081455/qwen2-vl-7b"
+
+FAILED (see /workspace/synthetic-ocr-image-generator/test_results/20260128_081455/qwen2-vl-7b/test.log)
+Last 20 lines of error:
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/cli.py", line 425, in <module>
+    main()
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/cli.py", line 410, in main
+    cmd_evaluate(args)
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/cli.py", line 161, in cmd_evaluate
+    pipeline = EvaluationPipeline(config)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/pipeline.py", line 92, in __init__
+    self.model = create_model(config.model)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/models/registry.py", line 110, in create_model
+    return model_class(config)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/models/local/transformers_vlm.py", line 74, in __init__
+    self.model = AutoModelForCausalLM.from_pretrained(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/models/auto/auto_factory.py", line 567, in from_pretrained
+    raise ValueError(
+ValueError: Unrecognized configuration class <class 'transformers.models.qwen2_vl.configuration_qwen2_vl.Qwen2VLConfig'> for this kind of AutoModel: AutoModelForCausalLM.
+Model type should be one of BartConfig, BertConfig, BertGenerationConfig, BigBirdConfig, BigBirdPegasusConfig, BioGptConfig, BlenderbotConfig, BlenderbotSmallConfig, BloomConfig, CamembertConfig, LlamaConfig, CodeGenConfig, CohereConfig, CpmAntConfig, CTRLConfig, Data2VecTextConfig, DbrxConfig, ElectraConfig, ErnieConfig, FalconConfig, FalconMambaConfig, FuyuConfig, GemmaConfig, Gemma2Config, GitConfig, GlmConfig, GPT2Config, GPT2Config, GPTBigCodeConfig, GPTNeoConfig, GPTNeoXConfig, GPTNeoXJapaneseConfig, GPTJConfig, GraniteConfig, GraniteMoeConfig, JambaConfig, JetMoeConfig, LlamaConfig, MambaConfig, Mamba2Config, MarianConfig, MBartConfig, MegaConfig, MegatronBertConfig, MistralConfig, MixtralConfig, MllamaConfig, MoshiConfig, MptConfig, MusicgenConfig, MusicgenMelodyConfig, MvpConfig, NemotronConfig, OlmoConfig, OlmoeConfig, OpenLlamaConfig, OpenAIGPTConfig, OPTConfig, PegasusConfig, PersimmonConfig, PhiConfig, Phi3Config, PhimoeConfig, PLBartConfig, ProphetNetConfig, QDQBertConfig, Qwen2Config, Qwen2MoeConfig, RecurrentGemmaConfig, ReformerConfig, RemBertConfig, RobertaConfig, RobertaPreLayerNormConfig, RoCBertConfig, RoFormerConfig, RwkvConfig, Speech2Text2Config, StableLmConfig, Starcoder2Config, TransfoXLConfig, TrOCRConfig, WhisperConfig, XGLMConfig, XLMConfig, XLMProphetNetConfig, XLMRobertaConfig, XLMRobertaXLConfig, XLNetConfig, XmodConfig, ZambaConfig.
+
+------------------------------------------
+Model: qwen3-vl-2b
+Model ID: Qwen/Qwen3-VL-2B-Instruct
+Dependency Group: qwen3-vl
+------------------------------------------
+Command: uv run --group qwen3-vl python -m evaluation.cli evaluate         -m "Qwen/Qwen3-VL-2B-Instruct"         --model-config "/workspace/synthetic-ocr-image-generator/configs/models/qwen3-vl-2b.yaml"         -d "junyeong-nero/synthetic-ocr-images-korean"         --subset "sentence"         --split train         -f "sentence"         --max-samples 10         --output-dir "/workspace/synthetic-ocr-image-generator/test_results/20260128_081455/qwen3-vl-2b"
+
+FAILED (see /workspace/synthetic-ocr-image-generator/test_results/20260128_081455/qwen3-vl-2b/test.log)
+Last 20 lines of error:
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/workspace/synthetic-ocr-image-generator/src/models/transformers/qwen3_vl.py", line 6, in <module>
+    from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
+ImportError: cannot import name 'Qwen3VLForConditionalGeneration' from 'transformers' (/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/__init__.py)
+
+Configuration:
+  Model: Qwen/Qwen3-VL-2B-Instruct
+  Backend: transformers
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
+  Format: sentence
+  Batch Size: 4
+  Temperature: 0.0
+  Max Tokens: 2048
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/qwen3-vl-2b.yaml
+
+Evaluating Qwen/Qwen3-VL-2B-Instruct on junyeong-nero/synthetic-ocr-images-korean...
+
+------------------------------------------
+Model: qwen3-vl-4b
+Model ID: Qwen/Qwen3-VL-4B-Instruct
+Dependency Group: qwen3-vl
+------------------------------------------
+Command: uv run --group qwen3-vl python -m evaluation.cli evaluate         -m "Qwen/Qwen3-VL-4B-Instruct"         --model-config "/workspace/synthetic-ocr-image-generator/configs/models/qwen3-vl-4b.yaml"         -d "junyeong-nero/synthetic-ocr-images-korean"         --subset "sentence"         --split train         -f "sentence"         --max-samples 10         --output-dir "/workspace/synthetic-ocr-image-generator/test_results/20260128_081455/qwen3-vl-4b"
+
+FAILED (see /workspace/synthetic-ocr-image-generator/test_results/20260128_081455/qwen3-vl-4b/test.log)
+Last 20 lines of error:
+  File "<frozen importlib._bootstrap>", line 1176, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1147, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/workspace/synthetic-ocr-image-generator/src/models/transformers/qwen3_vl.py", line 6, in <module>
+    from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
+ImportError: cannot import name 'Qwen3VLForConditionalGeneration' from 'transformers' (/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/__init__.py)
+
+Configuration:
+  Model: Qwen/Qwen3-VL-4B-Instruct
+  Backend: transformers
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
+  Format: sentence
+  Batch Size: 4
+  Temperature: 0.0
+  Max Tokens: 2048
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/qwen3-vl-4b.yaml
+
+Evaluating Qwen/Qwen3-VL-4B-Instruct on junyeong-nero/synthetic-ocr-images-korean...
+
+------------------------------------------
+Model: varco-vision-2.0-1.7b-ocr
+Model ID: NCSOFT/VARCO-VISION-2.0-1.7B-OCR
+Dependency Group: varco-ocr
+------------------------------------------
+Command: uv run --group varco-ocr python -m evaluation.cli evaluate         -m "NCSOFT/VARCO-VISION-2.0-1.7B-OCR"         --model-config "/workspace/synthetic-ocr-image-generator/configs/models/varco-vision-2.0-1.7b-ocr.yaml"         -d "junyeong-nero/synthetic-ocr-images-korean"         --subset "sentence"         --split train         -f "sentence"         --max-samples 10         --output-dir "/workspace/synthetic-ocr-image-generator/test_results/20260128_081455/varco-vision-2.0-1.7b-ocr"
+
+FAILED (see /workspace/synthetic-ocr-image-generator/test_results/20260128_081455/varco-vision-2.0-1.7b-ocr/test.log)
+Last 20 lines of error:
+    self.model = LlavaOnevisionForConditionalGeneration.from_pretrained(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/modeling_utils.py", line 4038, in from_pretrained
+    checkpoint_files, sharded_metadata = _get_resolved_checkpoint_files(
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/modeling_utils.py", line 721, in _get_resolved_checkpoint_files
+    raise OSError(
+OSError: Can't load the model for 'NCSOFT/VARCO-VISION-2.0-1.7B-OCR'. If you were trying to load it from 'https://huggingface.co/models', make sure you don't have a local directory with the same name. Otherwise, make sure 'NCSOFT/VARCO-VISION-2.0-1.7B-OCR' is the correct path to a directory containing a file named pytorch_model.bin.
+
+Configuration:
+  Model: NCSOFT/VARCO-VISION-2.0-1.7B-OCR
+  Backend: transformers
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
+  Format: sentence
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 4096
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/varco-vision-2.0-1.7b-ocr.yaml
+
+Evaluating NCSOFT/VARCO-VISION-2.0-1.7B-OCR on junyeong-nero/synthetic-ocr-images-korean...
+
+==========================================
+Summary
+==========================================
+Passed: 2
+Failed: 9
+Skipped: 0
+==========================================

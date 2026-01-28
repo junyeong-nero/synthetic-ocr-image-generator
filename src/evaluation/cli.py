@@ -224,17 +224,55 @@ def cmd_list_configs(args: argparse.Namespace) -> None:
     configs = loader.list_available_configs()
 
     print("\nAvailable model configurations:")
-    print("-" * 40)
+    print("-" * 70)
+    print(f"  {'Config Name':<30} {'Dependency Group':<20} {'Backend'}")
+    print("-" * 70)
     if configs:
         for config_name in configs:
-            print(f"  {config_name}")
+            if config_name.startswith("_"):
+                continue
+            try:
+                config = loader.load_from_path(
+                    Path("configs/models") / f"{config_name}.yaml"
+                )
+                dep_group = config.dependency_group or "-"
+                backend = config.backend
+            except Exception:
+                dep_group = "?"
+                backend = "?"
+            print(f"  {config_name:<30} {dep_group:<20} {backend}")
     else:
         print("  No model configs found in configs/models/")
+    print("-" * 70)
     print("\nConfig search paths:")
     for path in loader.config_dirs:
-        exists = "✓" if path.exists() else "✗"
+        exists = "+" if path.exists() else "-"
         print(f"  {exists} {path}")
     print()
+
+
+def cmd_get_run_command(args: argparse.Namespace) -> None:
+    """Generate the uv run command for a model."""
+    loader = ModelConfigLoader()
+    config_path = Path("configs/models") / f"{args.config}.yaml"
+
+    if not config_path.exists():
+        print(f"Error: Config not found: {config_path}", file=sys.stderr)
+        sys.exit(1)
+
+    config = loader.load_from_path(config_path)
+
+    if not config.dependency_group:
+        print(f"# No dependency_group defined for {args.config}")
+        print(f"uv run python -m evaluation.cli evaluate \\")
+    else:
+        print(f"uv run --group {config.dependency_group} python -m evaluation.cli evaluate \\")
+
+    print(f'  -m "{config.model_id}" \\')
+    print(f'  --model-config "{config_path}" \\')
+    print(f'  -d "<DATASET>" \\')
+    print(f'  -f sentence \\')
+    print(f'  --max-samples 10')
 
 
 def main() -> None:
@@ -360,6 +398,12 @@ Examples:
     # List configs command
     subparsers.add_parser("list-configs", help="List available model configurations")
 
+    # Get run command
+    run_cmd_parser = subparsers.add_parser(
+        "get-run-command", help="Generate uv run command for a model"
+    )
+    run_cmd_parser.add_argument("config", help="Config name (without .yaml)")
+
     args = parser.parse_args()
 
     if args.command == "evaluate":
@@ -370,6 +414,8 @@ Examples:
         cmd_list_backends(args)
     elif args.command == "list-configs":
         cmd_list_configs(args)
+    elif args.command == "get-run-command":
+        cmd_get_run_command(args)
     else:
         parser.print_help()
         sys.exit(1)

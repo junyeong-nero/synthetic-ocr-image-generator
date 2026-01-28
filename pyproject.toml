@@ -73,30 +73,44 @@ deepseek-ocr2 = [
 ]
 
 lighton-ocr2 = [
-    "transformers==4.46.3",
-    "tokenizers==0.20.3",
+    # LightOnOCR requires latest transformers from git
+    "transformers @ git+https://github.com/huggingface/transformers",
+    "tokenizers>=0.21.0",
     "pypdfium2>=4.0.0",
 ]
 
 hunyuan-ocr = [
-    "transformers==4.46.3",
-    "tokenizers==0.20.3",
+    # HunyuanOCR requires specific transformers commit
+    "transformers @ git+https://github.com/huggingface/transformers@82a06db03535c49aa987719ed0746a76093b1ec4",
+    "tokenizers>=0.21.0",
 ]
 
 varco-ocr = [
+    # VARCO-VISION-2.0 requires transformers >= 4.53.1
     "transformers>=4.53.1",
     "tokenizers>=0.20.3",
 ]
 
 paddle-ocr = [
+    # PaddleOCR-VL requires specific transformers version
     # Note: paddlepaddle-gpu requires separate installation from PaddlePaddle index
     # See: https://www.paddlepaddle.org.cn/install/quick
+    "transformers>=4.45.0,<4.50.0",
+    "huggingface-hub>=0.23.2,<1.0",
     "paddleocr>=2.0.0",
 ]
 
+qwen2-vl = [
+    # Qwen2-VL requires transformers with Qwen2VLForConditionalGeneration support
+    "transformers>=4.45.0",
+    "tokenizers>=0.20.3",
+    "qwen-vl-utils>=0.0.10",
+]
+
 qwen3-vl = [
-    "transformers==4.46.3",
-    "tokenizers==0.20.3",
+    # Qwen3-VL requires transformers >= 4.57.0
+    "transformers>=4.57.0",
+    "tokenizers>=0.21.0",
     "qwen-vl-utils>=0.0.10",
 ]
 
@@ -106,8 +120,9 @@ gemma3 = [
 ]
 
 got-ocr = [
-    "transformers==4.46.3",
-    "tokenizers==0.20.3",
+    # GOT-OCR-2.0-hf requires transformers >= 4.49.0
+    "transformers>=4.49.0",
+    "tokenizers>=0.20.3",
 ]
 
 kiri-ocr = [
@@ -138,6 +153,7 @@ conflicts = [
         { group = "hunyuan-ocr" },
         { group = "varco-ocr" },
         { group = "paddle-ocr" },
+        { group = "qwen2-vl" },
         { group = "qwen3-vl" },
         { group = "gemma3" },
         { group = "got-ocr" },

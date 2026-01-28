@@ -2,6 +2,7 @@
 # https://huggingface.co/NCSOFT/VARCO-VISION-2.0-1.7B-OCR
 model_id: NCSOFT/VARCO-VISION-2.0-1.7B-OCR
 backend: transformers
+dependency_group: varco-ocr
 
 # Default generation parameters
 temperature: 0.0

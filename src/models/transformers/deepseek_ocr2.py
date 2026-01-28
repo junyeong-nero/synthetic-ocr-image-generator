@@ -8,7 +8,7 @@ import torch
 from PIL import Image
 from transformers import AutoModel, AutoTokenizer
 
-from models.transformers.base import BaseTransformersOCR
+from models.transformers.base import BaseTransformersOCR, get_attn_implementation
 
 
 class DeepSeekOCR2(BaseTransformersOCR):
@@ -34,7 +34,7 @@ class DeepSeekOCR2(BaseTransformersOCR):
             use_safetensors=True,
             torch_dtype=torch.bfloat16,
             device_map="auto",
-            _attn_implementation="flash_attention_2",
+            _attn_implementation=get_attn_implementation(),
         )
         self.model = self.model.eval()
 

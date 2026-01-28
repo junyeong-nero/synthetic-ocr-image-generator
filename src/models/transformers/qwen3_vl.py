@@ -5,7 +5,7 @@ from typing import List
 from PIL import Image
 from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
 
-from models.transformers.base import BaseTransformersOCR
+from models.transformers.base import BaseTransformersOCR, get_attn_implementation
 
 
 class Qwen3VL(BaseTransformersOCR):
@@ -18,7 +18,7 @@ class Qwen3VL(BaseTransformersOCR):
             model_id,
             torch_dtype="auto",
             device_map="auto",
-            attn_implementation="flash_attention_2",
+            attn_implementation=get_attn_implementation(),
         )
         self.processor = AutoProcessor.from_pretrained(model_id)
 

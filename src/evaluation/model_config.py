@@ -36,6 +36,9 @@ class ModelSpecificConfig(BaseModel):
     # Model identification
     model_id: str = Field(description="Model identifier")
     backend: str = Field(description="Inference backend (openai, transformers, etc.)")
+    dependency_group: Optional[str] = Field(
+        default=None, description="uv dependency group for this model"
+    )
 
     # Default generation parameters
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)

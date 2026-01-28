@@ -2,6 +2,7 @@
 # https://huggingface.co/google/gemma-3-4b-it
 model_id: google/gemma-3-4b-it
 backend: transformers
+dependency_group: gemma3
 
 # Default generation parameters
 temperature: 0.0

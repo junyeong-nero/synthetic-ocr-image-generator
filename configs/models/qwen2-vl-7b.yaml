@@ -1,6 +1,7 @@
 # Qwen2-VL-7B Model Configuration
 model_id: Qwen/Qwen2-VL-7B-Instruct
 backend: transformers
+dependency_group: qwen2-vl
 
 # Default generation parameters
 temperature: 0.0

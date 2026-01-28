@@ -2,6 +2,7 @@
 # https://huggingface.co/tencent/HunyuanOCR
 model_id: tencent/HunyuanOCR
 backend: transformers
+dependency_group: hunyuan-ocr
 
 # Default generation parameters
 temperature: 0.0
