@@ -40,10 +40,41 @@ echo "Model: $MODEL_ID"
 echo "Dependency Group: ${DEPENDENCY_GROUP:-none}"
 echo ""
 
-if [[ -z "$DEPENDENCY_GROUP" ]]; then
-    echo "Warning: No dependency_group defined, running without --group"
-    uv run main.py evaluate --model-config "$CONFIG_FILE" "$@"
+# Check if --subset is passed in arguments
+HAS_SUBSET=false
+for arg in "$@"; do
+    if [[ "$arg" == "--subset" ]] || [[ "$arg" == "-s" ]]; then
+        HAS_SUBSET=true
+        break
+    fi
+done
+
+if [[ "$HAS_SUBSET" == "true" ]]; then
+    # Run once with provided arguments
+    if [[ -z "$DEPENDENCY_GROUP" ]]; then
+        echo "Warning: No dependency_group defined, running without --group"
+        uv run main.py evaluate --model-config "$CONFIG_FILE" "$@"
+    else
+        echo "Running: uv run --group $DEPENDENCY_GROUP main.py evaluate ..."
+        uv run --group "$DEPENDENCY_GROUP" main.py evaluate --model-config "$CONFIG_FILE" "$@"
+    fi
 else
-    echo "Running: uv run --group $DEPENDENCY_GROUP main.py evaluate ..."
-    uv run --group "$DEPENDENCY_GROUP" main.py evaluate --model-config "$CONFIG_FILE" "$@"
+    # Iterate over default subsets
+    echo "No --subset specified. Running for all default subsets."
+    SUBSETS=("sentence" "table" "document" "markdown" "kie")
+    
+    for subset in "${SUBSETS[@]}"; do
+        echo ""
+        echo "=========================================="
+        echo "Running subset: $subset"
+        echo "=========================================="
+        
+        if [[ -z "$DEPENDENCY_GROUP" ]]; then
+            echo "Cmd: uv run main.py evaluate --model-config $CONFIG_FILE --subset $subset $@"
+            uv run main.py evaluate --model-config "$CONFIG_FILE" --subset "$subset" "$@"
+        else
+            echo "Cmd: uv run --group $DEPENDENCY_GROUP main.py evaluate --model-config $CONFIG_FILE --subset $subset $@"
+            uv run --group "$DEPENDENCY_GROUP" main.py evaluate --model-config "$CONFIG_FILE" --subset "$subset" "$@"
+        fi
+    done
 fi
