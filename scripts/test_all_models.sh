@@ -1,6 +1,6 @@
 #!/bin/bash
 # Test all OCR models with 10 samples each
-# Usage: ./scripts/test_all_models.sh [DATASET] [FORMAT] [MAX_SAMPLES]
+# Usage: ./scripts/test_all_models.sh [DATASET] [SUBSET] [MAX_SAMPLES]
 #
 # Examples:
 #   ./scripts/test_all_models.sh
@@ -15,11 +15,11 @@ CONFIG_DIR="$PROJECT_DIR/configs/models"
 
 # Default settings
 DEFAULT_DATASET="junyeong-nero/synthetic-ocr-images-korean"
-DEFAULT_FORMAT="sentence"
+DEFAULT_SUBSET="sentence"
 DEFAULT_MAX_SAMPLES=10
 
 DATASET="${1:-$DEFAULT_DATASET}"
-FORMAT="${2:-$DEFAULT_FORMAT}"
+SUBSET="${2:-$DEFAULT_SUBSET}"
 MAX_SAMPLES="${3:-$DEFAULT_MAX_SAMPLES}"
 
 # Output directory
@@ -33,7 +33,7 @@ echo "==========================================" | tee "$SUMMARY_FILE"
 echo "Testing All OCR Models" | tee -a "$SUMMARY_FILE"
 echo "==========================================" | tee -a "$SUMMARY_FILE"
 echo "Dataset: $DATASET" | tee -a "$SUMMARY_FILE"
-echo "Format: $FORMAT" | tee -a "$SUMMARY_FILE"
+echo "Subset: $SUBSET" | tee -a "$SUMMARY_FILE"
 echo "Max Samples: $MAX_SAMPLES" | tee -a "$SUMMARY_FILE"
 echo "Output: $OUTPUT_BASE" | tee -a "$SUMMARY_FILE"
 echo "==========================================" | tee -a "$SUMMARY_FILE"
@@ -85,14 +85,12 @@ for config_file in "$CONFIG_DIR"/*.yaml; do
     mkdir -p "$MODEL_OUTPUT"
 
     # Build the evaluation command
-    # Note: For synthetic-ocr-images datasets, subset should match format
+    # Note: For synthetic-ocr-images datasets, subset determines format
     CMD="uv run --group $dependency_group main.py evaluate \
-        -m \"$model_id\" \
         --model-config \"$config_file\" \
         -d \"$DATASET\" \
-        --subset \"$FORMAT\" \
+        --subset \"$SUBSET\" \
         --split train \
-        -f \"$FORMAT\" \
         --max-samples $MAX_SAMPLES \
         --output-dir \"$MODEL_OUTPUT\""
 

@@ -3,8 +3,8 @@
 # Usage: ./scripts/run_model.sh <config_name> [options...]
 #
 # Examples:
-#   ./scripts/run_model.sh qwen3-vl-2b -d dataset -f sentence --max-samples 10
-#   ./scripts/run_model.sh deepseek-ocr-2 -d dataset -f markdown
+#   ./scripts/run_model.sh qwen3-vl-2b -d dataset --subset sentence --max-samples 10
+#   ./scripts/run_model.sh deepseek-ocr-2 -d dataset --subset markdown
 
 set -e
 
@@ -42,8 +42,8 @@ echo ""
 
 if [[ -z "$DEPENDENCY_GROUP" ]]; then
     echo "Warning: No dependency_group defined, running without --group"
-    uv run main.py evaluate -m "$MODEL_ID" --model-config "$CONFIG_FILE" "$@"
+    uv run main.py evaluate --model-config "$CONFIG_FILE" "$@"
 else
     echo "Running: uv run --group $DEPENDENCY_GROUP main.py evaluate ..."
-    uv run --group "$DEPENDENCY_GROUP" main.py evaluate -m "$MODEL_ID" --model-config "$CONFIG_FILE" "$@"
+    uv run --group "$DEPENDENCY_GROUP" main.py evaluate --model-config "$CONFIG_FILE" "$@"
 fi

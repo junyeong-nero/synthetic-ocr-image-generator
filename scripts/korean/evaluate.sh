@@ -24,7 +24,6 @@ for subset in "${SUBSETS[@]}"; do
         --model-config "$MODEL_CONFIG" \
         -d "$DATASET_ID" \
         --subset "$subset" \
-        -f "$subset" \
         --output-dir "$OUTPUT_DIR/$subset" \
         --split "train"
 
