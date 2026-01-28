@@ -3,24 +3,16 @@
 from typing import List
 
 from PIL import Image
-from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
+from transformers import Qwen3VLForConditionalGeneration
 
-from models.transformers.base import BaseTransformersOCR, get_attn_implementation
+from models.transformers.base import StandardTransformersOCR
 
 
-class Qwen3VL(BaseTransformersOCR):
+class Qwen3VL(StandardTransformersOCR):
     """Wrapper for the Qwen3-VL-2B-Instruct model."""
 
     DEFAULT_MODEL_ID = "Qwen/Qwen3-VL-2B-Instruct"
-
-    def _load_model(self, model_id: str) -> None:
-        self.model = Qwen3VLForConditionalGeneration.from_pretrained(
-            model_id,
-            torch_dtype="auto",
-            device_map="auto",
-            attn_implementation=get_attn_implementation(),
-        )
-        self.processor = AutoProcessor.from_pretrained(model_id)
+    MODEL_CLASS = Qwen3VLForConditionalGeneration
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
         """

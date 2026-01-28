@@ -4,21 +4,16 @@ from typing import List
 
 import torch
 from PIL import Image
-from transformers import AutoProcessor, Gemma3ForConditionalGeneration
+from transformers import Gemma3ForConditionalGeneration
 
-from models.transformers.base import BaseTransformersOCR
+from models.transformers.base import StandardTransformersOCR
 
 
-class Gemma3_4B_IT(BaseTransformersOCR):
+class Gemma3_4B_IT(StandardTransformersOCR):
     """Wrapper for the Gemma-3-4B-IT model."""
 
     DEFAULT_MODEL_ID = "google/gemma-3-4b-it"
-
-    def _load_model(self, model_id: str) -> None:
-        self.model = Gemma3ForConditionalGeneration.from_pretrained(
-            model_id, device_map="auto", torch_dtype=torch.bfloat16
-        ).eval()
-        self.processor = AutoProcessor.from_pretrained(model_id)
+    MODEL_CLASS = Gemma3ForConditionalGeneration
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
         """

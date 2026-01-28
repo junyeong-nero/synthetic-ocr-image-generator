@@ -89,3 +89,29 @@ class BaseTransformersOCR(VLMModel):
             List of model responses.
         """
         raise NotImplementedError("Subclasses must implement run")
+
+
+class StandardTransformersOCR(BaseTransformersOCR):
+    """
+    Standard OCR model using AutoModelForImageTextToText and AutoProcessor.
+    Suitable for most modern VLMs like Qwen2-VL, GOT-OCR, etc.
+    """
+
+    MODEL_CLASS = None  # Subclasses can override this
+
+    def _load_model(self, model_id: str) -> None:
+        model_cls = self.MODEL_CLASS
+        if model_cls is None:
+            from transformers import AutoModelForImageTextToText
+            model_cls = AutoModelForImageTextToText
+
+        self.model = model_cls.from_pretrained(
+            model_id,
+            torch_dtype="auto",
+            device_map="auto",
+            trust_remote_code=True,
+            attn_implementation=get_attn_implementation(),
+        )
+        from transformers import AutoProcessor
+        self.processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+        self.model.eval()

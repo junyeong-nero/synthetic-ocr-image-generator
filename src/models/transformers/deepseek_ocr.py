@@ -17,7 +17,7 @@ class DeepSeekOCR(BaseTransformersOCR):
     DEFAULT_MODEL_ID = "deepseek-ai/DeepSeek-OCR"
 
     def _load_model(self, model_id: str) -> None:
-        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_id, trust_remote_code=True
         )
@@ -26,7 +26,10 @@ class DeepSeekOCR(BaseTransformersOCR):
             trust_remote_code=True,
             use_safetensors=True,
         )
-        self.model = self.model.eval().cuda().to(torch.bfloat16)
+        if self.device == "cuda":
+            self.model = self.model.eval().cuda().to(torch.bfloat16)
+        else:
+            self.model = self.model.eval()
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
         """

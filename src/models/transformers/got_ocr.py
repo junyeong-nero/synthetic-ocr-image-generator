@@ -6,20 +6,15 @@ import torch
 from PIL import Image
 from transformers import AutoModelForImageTextToText, AutoProcessor
 
-from models.transformers.base import BaseTransformersOCR
+from models.transformers.base import StandardTransformersOCR
 
 
-class GotOCR(BaseTransformersOCR):
+class GotOCR(StandardTransformersOCR):
     """Wrapper for the GOT-OCR-2.0-hf model."""
 
     DEFAULT_MODEL_ID = "stepfun-ai/GOT-OCR-2.0-hf"
 
-    def _load_model(self, model_id: str) -> None:
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = AutoModelForImageTextToText.from_pretrained(
-            model_id, device_map=self.device
-        )
-        self.processor = AutoProcessor.from_pretrained(model_id)
+    # StandardTransformersOCR handles _load_model using AutoModelForImageTextToText
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
         """
@@ -36,7 +31,7 @@ class GotOCR(BaseTransformersOCR):
 
         results = []
         for image in images:
-            inputs = self.processor(image, return_tensors="pt").to(self.device)
+            inputs = self.processor(image, return_tensors="pt").to(self.model.device)
 
             generate_ids = self.model.generate(
                 **inputs,
