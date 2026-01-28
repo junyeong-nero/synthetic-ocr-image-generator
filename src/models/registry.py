@@ -24,6 +24,7 @@ SPECIALIZED_MODEL_REGISTRY: list[tuple[str, InferenceBackend, str, str]] = [
     ("lightonai/LightOnOCR-2", InferenceBackend.TRANSFORMERS, "models.transformers.light_on_ocr2", "LightOnOCR2"),
     ("LightOnOCR-2", InferenceBackend.TRANSFORMERS, "models.transformers.light_on_ocr2", "LightOnOCR2"),
     ("PaddlePaddle/PaddleOCR", InferenceBackend.TRANSFORMERS, "models.transformers.paddle_ocr", "PaddleOCR"),
+    ("paddleocr", InferenceBackend.PADDLEOCR, "models.local.paddle_ocr_engine", "PaddleOCREngine"),
     ("opendatalab/PDF-Extract-Kit-1.0", InferenceBackend.TRANSFORMERS, "models.transformers.paddle_ocr", "PaddleOCR"),
     ("google/gemma-3", InferenceBackend.TRANSFORMERS, "models.transformers.gemma3_4b_it", "Gemma3_4B_IT"),
 ]
@@ -92,6 +93,10 @@ def get_model_class(backend: InferenceBackend, model_id: str = "") -> Type[VLMMo
     if backend == InferenceBackend.TRANSFORMERS:
         from models.local.transformers_vlm import TransformersVLM
         return TransformersVLM
+
+    if backend == InferenceBackend.PADDLEOCR:
+        from models.local.paddle_ocr_engine import PaddleOCREngine
+        return PaddleOCREngine
 
     raise ValueError(f"Unknown backend: {backend}")
 
