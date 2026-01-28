@@ -134,6 +134,68 @@ class MarkdownDataGenerator:
         "# Handle user authentication",
     ]
 
+    # Japanese data
+    JAPANESE_TITLES = [
+        "プロジェクトを始める",
+        "インストールガイド",
+        "APIリファレンス",
+        "ユーザーマニュアル",
+        "開発環境の設定",
+        "デプロイガイド",
+        "テストの書き方",
+        "パフォーマンス最適化",
+    ]
+    JAPANESE_PARAGRAPHS = [
+        "このプロジェクトは、ユーザーの生産性を向上させるために設計されています。",
+        "拡張可能なアーキテクチャで様々な機能を提供しています。",
+        "インストールが簡単で、ドキュメントが充実しているため、すぐに始められます。",
+        "コミュニティのサポートにより継続的に改善されています。",
+        "オープンソースで提供され、誰でも貢献できます。",
+    ]
+    JAPANESE_FEATURES = [
+        "高速なパフォーマンス",
+        "簡単なインストール",
+        "豊富なプラグイン",
+        "詳細なドキュメント",
+        "活発なコミュニティ",
+    ]
+    JAPANESE_CODE_COMMENTS = [
+        "# 設定ファイルを読み込みます",
+        "# データベース接続を設定します",
+        "# ユーザー認証を処理します",
+    ]
+
+    # Hindi data
+    HINDI_TITLES = [
+        "प्रोजेक्ट शुरू करना",
+        "इंस्टॉलेशन गाइड",
+        "एपीआई संदर्भ",
+        "उपयोगकर्ता मैनुअल",
+        "विकास वातावरण सेटअप",
+        "डिप्लॉयमेंट गाइड",
+        "टेस्ट लिखना",
+        "प्रदर्शन अनुकूलन",
+    ]
+    HINDI_PARAGRAPHS = [
+        "यह प्रोजेक्ट उपयोगकर्ता की उत्पादकता बढ़ाने के लिए डिज़ाइन किया गया है।",
+        "यह विस्तार योग्य आर्किटेक्चर के साथ विभिन्न सुविधाएं प्रदान करता है।",
+        "इंस्टॉल करना आसान है और अच्छी तरह से प्रलेखित है।",
+        "समुदाय के समर्थन से लगातार सुधार किया जा रहा है।",
+        "ओपन सोर्स और किसी के भी योगदान के लिए खुला है।",
+    ]
+    HINDI_FEATURES = [
+        "तेज़ प्रदर्शन",
+        "आसान इंस्टॉलेशन",
+        "विभिन्न प्लगइन्स",
+        "विस्तृत दस्तावेज़",
+        "सक्रिय समुदाय",
+    ]
+    HINDI_CODE_COMMENTS = [
+        "# कॉन्फ़िगरेशन फ़ाइल लोड करें",
+        "# डेटाबेस कनेक्शन सेटअप करें",
+        "# उपयोगकर्ता प्रमाणीकरण संभालें",
+    ]
+
     def __init__(self, lang: str = "ko"):
         self.lang = lang
         if lang == "ko":
@@ -141,6 +203,16 @@ class MarkdownDataGenerator:
             self.paragraphs = self.KOREAN_PARAGRAPHS
             self.features = self.KOREAN_FEATURES
             self.code_comments = self.KOREAN_CODE_COMMENTS
+        elif lang == "ja":
+            self.titles = self.JAPANESE_TITLES
+            self.paragraphs = self.JAPANESE_PARAGRAPHS
+            self.features = self.JAPANESE_FEATURES
+            self.code_comments = self.JAPANESE_CODE_COMMENTS
+        elif lang == "hi":
+            self.titles = self.HINDI_TITLES
+            self.paragraphs = self.HINDI_PARAGRAPHS
+            self.features = self.HINDI_FEATURES
+            self.code_comments = self.HINDI_CODE_COMMENTS
         else:
             self.titles = self.ENGLISH_TITLES
             self.paragraphs = self.ENGLISH_PARAGRAPHS

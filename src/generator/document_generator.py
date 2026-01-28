@@ -580,14 +580,111 @@ class DocumentDataGenerator:
     ENGLISH_PRODUCTS = ["Laptop", "Smartphone", "Tablet", "Monitor", "Keyboard"]
     ENGLISH_DEPARTMENTS = ["Sales", "Marketing", "Finance", "HR", "Engineering"]
 
+    # Japanese data
+    JAPANESE_COMPANIES = ["東京電子", "大阪商事", "名古屋産業", "横浜貿易", "福岡企業"]
+    JAPANESE_NAMES = ["田中太郎", "鈴木花子", "山田一郎", "佐藤美咲", "伊藤健太"]
+    JAPANESE_ADDRESSES = ["東京都渋谷区神宮前1-2-3", "大阪府大阪市北区梅田4-5-6", "愛知県名古屋市中区栄7-8-9"]
+    JAPANESE_PRODUCTS = ["ノートパソコン", "スマートフォン", "タブレット", "モニター", "キーボード"]
+    JAPANESE_DEPARTMENTS = ["営業部", "マーケティング部", "財務部", "人事部", "開発部"]
+
+    # Hindi data
+    HINDI_COMPANIES = ["भारत इलेक्ट्रॉनिक्स", "दिल्ली ट्रेडिंग", "मुंबई इंडस्ट्रीज", "चेन्नई कॉर्पोरेशन", "कोलकाता एंटरप्राइज"]
+    HINDI_NAMES = ["राहुल शर्मा", "प्रिया गुप्ता", "अमित कुमार", "सुनीता देवी", "विकास सिंह"]
+    HINDI_ADDRESSES = ["123 महात्मा गांधी रोड, नई दिल्ली", "456 जुहू बीच रोड, मुंबई", "789 एमजी रोड, बैंगलोर"]
+    HINDI_PRODUCTS = ["लैपटॉप", "स्मार्टफोन", "टैबलेट", "मॉनिटर", "कीबोर्ड"]
+    HINDI_DEPARTMENTS = ["बिक्री विभाग", "मार्केटिंग विभाग", "वित्त विभाग", "मानव संसाधन विभाग", "विकास विभाग"]
+
+    # Language-specific labels
+    LABELS = {
+        "ko": {
+            "invoice": "인보이스", "receipt": "영수증", "form": "신청서", "letter": "공문", "report": "월간 보고서",
+            "date": "일자", "invoice_no": "인보이스 번호", "receipt_no": "영수증 번호",
+            "bill_to": "청구 대상", "items": "품목", "purchased_items": "구매 품목",
+            "subtotal": "소계", "tax": "세금", "total": "합계", "payment": "결제", "cash": "현금",
+            "thank_you": "거래해 주셔서 감사합니다!", "return_policy": "30일 이내 반품 가능.",
+            "personal_info": "개인 정보", "name": "이름", "department": "부서",
+            "options": "옵션", "option": "옵션", "signature": "서명", "to": "수신",
+            "subject": "제목", "request_info": "정보 요청 사항", "dear": "귀하께",
+            "letter_body": "다음 사항에 대해 귀하의 협조를 요청드립니다. 첨부 문서를 검토하시고 다음 주까지 피드백을 제공해 주시기 바랍니다.",
+            "regards": "감사합니다.", "month_summary": "월 요약", "exec_summary": "요약",
+            "summary_text": "이 보고서는 이번 달 주요 활동과 성과를 요약합니다. 전반적인 성과는 양호하며 주요 분야에서 주목할 만한 개선이 있었습니다.",
+            "highlights": "주요 성과", "achieved": "월간 목표의 {}% 달성", "launched": "{}개 신규 계획 발동",
+            "satisfaction": "고객 만족도: {}%", "next_steps": "다음 단계",
+            "review_items": "조치 사항 검토", "schedule_meetings": "후속 회의 일정 잡기", "prepare_plans": "상세 계획 수립",
+        },
+        "en": {
+            "invoice": "Invoice", "receipt": "Receipt", "form": "Application Form", "letter": "Official Letter", "report": "Monthly Report",
+            "date": "Date", "invoice_no": "Invoice #", "receipt_no": "Receipt #",
+            "bill_to": "Bill To", "items": "Items", "purchased_items": "Purchased Items",
+            "subtotal": "Subtotal", "tax": "Tax", "total": "Total", "payment": "Payment", "cash": "Cash",
+            "thank_you": "Thank you for your business!", "return_policy": "No returns after 30 days.",
+            "personal_info": "Personal Information", "name": "Name", "department": "Department",
+            "options": "Options", "option": "Option", "signature": "Signature", "to": "To",
+            "subject": "Subject", "request_info": "Request for Information", "dear": "Dear",
+            "letter_body": "We would like to request your assistance with the following matter. Please review the attached documents and provide your feedback by next week.",
+            "regards": "Best regards,", "month_summary": "Month Summary", "exec_summary": "Executive Summary",
+            "summary_text": "This report summarizes the key activities and achievements for the month. Overall performance has been satisfactory with notable improvements in key areas.",
+            "highlights": "Key Highlights", "achieved": "Achieved {}% of monthly targets", "launched": "Launched {} new initiatives",
+            "satisfaction": "Customer satisfaction: {}%", "next_steps": "Next Steps",
+            "review_items": "Review action items", "schedule_meetings": "Schedule follow-up meetings", "prepare_plans": "Prepare detailed plans",
+        },
+        "ja": {
+            "invoice": "請求書", "receipt": "領収書", "form": "申請書", "letter": "公文書", "report": "月次報告書",
+            "date": "日付", "invoice_no": "請求書番号", "receipt_no": "領収書番号",
+            "bill_to": "請求先", "items": "品目", "purchased_items": "購入品目",
+            "subtotal": "小計", "tax": "税金", "total": "合計", "payment": "支払い", "cash": "現金",
+            "thank_you": "ご利用ありがとうございます！", "return_policy": "30日以内に返品可能。",
+            "personal_info": "個人情報", "name": "名前", "department": "部署",
+            "options": "オプション", "option": "オプション", "signature": "署名", "to": "宛先",
+            "subject": "件名", "request_info": "情報依頼", "dear": "様",
+            "letter_body": "以下の件についてご協力をお願いいたします。添付の書類をご確認の上、来週までにフィードバックをお願いいたします。",
+            "regards": "敬具", "month_summary": "月の概要", "exec_summary": "概要",
+            "summary_text": "この報告書は今月の主要な活動と成果をまとめたものです。全体的なパフォーマンスは良好で、主要分野で顕著な改善が見られました。",
+            "highlights": "主なハイライト", "achieved": "月間目標の{}%を達成", "launched": "{}件の新規施策を開始",
+            "satisfaction": "顧客満足度: {}%", "next_steps": "次のステップ",
+            "review_items": "アクション項目の確認", "schedule_meetings": "フォローアップ会議の予定", "prepare_plans": "詳細計画の作成",
+        },
+        "hi": {
+            "invoice": "चालान", "receipt": "रसीद", "form": "आवेदन पत्र", "letter": "आधिकारिक पत्र", "report": "मासिक रिपोर्ट",
+            "date": "तारीख", "invoice_no": "चालान संख्या", "receipt_no": "रसीद संख्या",
+            "bill_to": "बिल प्राप्तकर्ता", "items": "वस्तुएं", "purchased_items": "खरीदी गई वस्तुएं",
+            "subtotal": "उप-योग", "tax": "कर", "total": "कुल", "payment": "भुगतान", "cash": "नकद",
+            "thank_you": "आपके व्यापार के लिए धन्यवाद!", "return_policy": "30 दिनों के बाद वापसी नहीं।",
+            "personal_info": "व्यक्तिगत जानकारी", "name": "नाम", "department": "विभाग",
+            "options": "विकल्प", "option": "विकल्प", "signature": "हस्ताक्षर", "to": "प्रति",
+            "subject": "विषय", "request_info": "जानकारी का अनुरोध", "dear": "प्रिय",
+            "letter_body": "हम निम्नलिखित मामले में आपकी सहायता का अनुरोध करना चाहते हैं। कृपया संलग्न दस्तावेजों की समीक्षा करें और अगले सप्ताह तक अपनी प्रतिक्रिया दें।",
+            "regards": "सादर,", "month_summary": "माह सारांश", "exec_summary": "कार्यकारी सारांश",
+            "summary_text": "यह रिपोर्ट इस महीने की प्रमुख गतिविधियों और उपलब्धियों का सारांश प्रस्तुत करती है। समग्र प्रदर्शन संतोषजनक रहा है।",
+            "highlights": "मुख्य विशेषताएं", "achieved": "मासिक लक्ष्य का {}% प्राप्त", "launched": "{} नई पहल शुरू",
+            "satisfaction": "ग्राहक संतुष्टि: {}%", "next_steps": "अगले कदम",
+            "review_items": "कार्य आइटम की समीक्षा", "schedule_meetings": "फॉलो-अप बैठकें निर्धारित करें", "prepare_plans": "विस्तृत योजना तैयार करें",
+        },
+    }
+
     def __init__(self, lang: str = "ko"):
         self.lang = lang
+        # Set labels based on language (default to English for unknown languages)
+        self.labels = self.LABELS.get(lang, self.LABELS["en"])
+
         if lang == "ko":
             self.companies = self.KOREAN_COMPANIES
             self.names = self.KOREAN_NAMES
             self.addresses = self.KOREAN_ADDRESSES
             self.products = self.KOREAN_PRODUCTS
             self.departments = self.KOREAN_DEPARTMENTS
+        elif lang == "ja":
+            self.companies = self.JAPANESE_COMPANIES
+            self.names = self.JAPANESE_NAMES
+            self.addresses = self.JAPANESE_ADDRESSES
+            self.products = self.JAPANESE_PRODUCTS
+            self.departments = self.JAPANESE_DEPARTMENTS
+        elif lang == "hi":
+            self.companies = self.HINDI_COMPANIES
+            self.names = self.HINDI_NAMES
+            self.addresses = self.HINDI_ADDRESSES
+            self.products = self.HINDI_PRODUCTS
+            self.departments = self.HINDI_DEPARTMENTS
         else:
             self.companies = self.ENGLISH_COMPANIES
             self.names = self.ENGLISH_NAMES
@@ -616,27 +713,22 @@ class DocumentDataGenerator:
 
     def _generate_invoice(self, style: DocumentStyle) -> Tuple[List[DocumentBlock], str, str]:
         blocks = []
+        L = self.labels
 
         # Header block
         header_elements = [
             TitleElement(
-                f"Invoice" if self.lang == "en" else "인보이스",
+                L["invoice"],
                 f"{random.choice(self.companies)}",
             ),
-            ParagraphElement(
-                f"Date: {self._random_date()}" if self.lang == "en"
-                else f"일자: {self._random_date()}"
-            ),
-            ParagraphElement(
-                f"Invoice #: INV-{random.randint(10000, 99999)}" if self.lang == "en"
-                else f"인보이스 번호: INV-{random.randint(10000, 99999)}"
-            ),
+            ParagraphElement(f"{L['date']}: {self._random_date()}"),
+            ParagraphElement(f"{L['invoice_no']}: INV-{random.randint(10000, 99999)}"),
         ]
         blocks.append(DocumentBlock(block_type="header", elements=header_elements))
 
         # Bill To block
         bill_elements = [
-            TitleElement(f"Bill To:" if self.lang == "en" else "청구 대상:", level=2),
+            TitleElement(f"{L['bill_to']}:", level=2),
             ParagraphElement(random.choice(self.names)),
             ParagraphElement(random.choice(self.addresses)),
         ]
@@ -644,9 +736,7 @@ class DocumentDataGenerator:
 
         # Items block
         item_elements = [
-            TitleElement(
-                f"Items:" if self.lang == "en" else "품목:", level=2
-            ),
+            TitleElement(f"{L['items']}:", level=2),
         ]
 
         table_data = []
@@ -667,27 +757,15 @@ class DocumentDataGenerator:
         total = subtotal + tax
 
         total_elements = [
-            ParagraphElement(
-                f"Subtotal: {subtotal:,}" if self.lang == "en"
-                else f"소계: {subtotal:,}"
-            ),
-            ParagraphElement(
-                f"Tax (10%): {tax:,}" if self.lang == "en"
-                else f"세금 (10%): {tax:,}"
-            ),
-            TitleElement(
-                f"Total: {total:,}" if self.lang == "en" else f"합계: {total:,}",
-                level=2,
-            ),
+            ParagraphElement(f"{L['subtotal']}: {subtotal:,}"),
+            ParagraphElement(f"{L['tax']} (10%): {tax:,}"),
+            TitleElement(f"{L['total']}: {total:,}", level=2),
         ]
         blocks.append(DocumentBlock(block_type="total", elements=total_elements))
 
         # Footer
         footer_elements = [
-            ParagraphElement(
-                f"Thank you for your business!" if self.lang == "en"
-                else f"거래해 주셔서 감사합니다!"
-            ),
+            ParagraphElement(L["thank_you"]),
         ]
         blocks.append(DocumentBlock(block_type="footer", elements=footer_elements))
 
@@ -698,29 +776,19 @@ class DocumentDataGenerator:
 
     def _generate_receipt(self, style: DocumentStyle) -> Tuple[List[DocumentBlock], str, str]:
         blocks = []
+        L = self.labels
 
         # Store info
         header_elements = [
-            TitleElement(
-                f"Receipt" if self.lang == "en" else "영수증",
-                random.choice(self.companies),
-            ),
-            ParagraphElement(
-                f"Date: {self._random_date()}" if self.lang == "en"
-                else f"일자: {self._random_date()}"
-            ),
-            ParagraphElement(
-                f"Receipt #: RCP-{random.randint(10000, 99999)}" if self.lang == "en"
-                else f"영수증 번호: RCP-{random.randint(10000, 99999)}"
-            ),
+            TitleElement(L["receipt"], random.choice(self.companies)),
+            ParagraphElement(f"{L['date']}: {self._random_date()}"),
+            ParagraphElement(f"{L['receipt_no']}: RCP-{random.randint(10000, 99999)}"),
         ]
         blocks.append(DocumentBlock(block_type="header", elements=header_elements))
 
         # Items
         item_elements = [
-            TitleElement(
-                f"Purchased Items:" if self.lang == "en" else "구매 품목:", level=2
-            ),
+            TitleElement(f"{L['purchased_items']}:", level=2),
         ]
 
         table_data = []
@@ -737,22 +805,14 @@ class DocumentDataGenerator:
         # Total
         total = sum(int(row[2].replace(",", "")) for row in table_data)
         total_elements = [
-            TitleElement(
-                f"Total: {total:,}" if self.lang == "en" else f"합계: {total:,}",
-                level=2,
-            ),
-            ParagraphElement(
-                f"Payment: Cash" if self.lang == "en" else f"결제: 현금"
-            ),
+            TitleElement(f"{L['total']}: {total:,}", level=2),
+            ParagraphElement(f"{L['payment']}: {L['cash']}"),
         ]
         blocks.append(DocumentBlock(block_type="total", elements=total_elements))
 
         # Footer
         footer_elements = [
-            ParagraphElement(
-                f"No returns after 30 days." if self.lang == "en"
-                else f"30일 이내 반품 가능."
-            ),
+            ParagraphElement(L["return_policy"]),
         ]
         blocks.append(DocumentBlock(block_type="footer", elements=footer_elements))
 
@@ -763,33 +823,31 @@ class DocumentDataGenerator:
 
     def _generate_form(self, style: DocumentStyle) -> Tuple[List[DocumentBlock], str, str]:
         blocks = []
+        L = self.labels
 
         header_elements = [
-            TitleElement(
-                f"Application Form" if self.lang == "en" else "신청서",
-                f"{random.choice(self.companies)}",
-            ),
+            TitleElement(L["form"], f"{random.choice(self.companies)}"),
         ]
         blocks.append(DocumentBlock(block_type="header", elements=header_elements))
 
         # Form fields
         form_elements = [
-            TitleElement(f"Personal Information", level=2),
+            TitleElement(L["personal_info"], level=2),
             ListElement([
-                f"Name: {random.choice(self.names)}",
-                f"Department: {random.choice(self.departments)}",
-                f"Date: {self._random_date()}",
+                f"{L['name']}: {random.choice(self.names)}",
+                f"{L['department']}: {random.choice(self.departments)}",
+                f"{L['date']}: {self._random_date()}",
             ], ordered=True),
         ]
         blocks.append(DocumentBlock(block_type="form", elements=form_elements))
 
         # Checkboxes
         check_elements = [
-            TitleElement(f"Options", level=2),
+            TitleElement(L["options"], level=2),
             ListElement([
-                "[ ] Option 1" if self.lang == "en" else "[ ] 옵션 1",
-                "[x] Option 2" if self.lang == "en" else "[x] 옵션 2",
-                "[ ] Option 3" if self.lang == "en" else "[ ] 옵션 3",
+                f"[ ] {L['option']} 1",
+                f"[x] {L['option']} 2",
+                f"[ ] {L['option']} 3",
             ], ordered=False),
         ]
         blocks.append(DocumentBlock(block_type="checkboxes", elements=check_elements))
@@ -798,9 +856,7 @@ class DocumentDataGenerator:
         sig_elements = [
             ParagraphElement(""),
             ParagraphElement("_" * 30),
-            ParagraphElement(
-                f"Signature / Date" if self.lang == "en" else f"서명 / 일자"
-            ),
+            ParagraphElement(f"{L['signature']} / {L['date']}"),
         ]
         blocks.append(DocumentBlock(block_type="signature", elements=sig_elements))
 
@@ -811,45 +867,31 @@ class DocumentDataGenerator:
 
     def _generate_letter(self, style: DocumentStyle) -> Tuple[List[DocumentBlock], str, str]:
         blocks = []
+        L = self.labels
+        recipient_name = random.choice(self.names)
 
         # Header
         header_elements = [
-            TitleElement(
-                f"Official Letter" if self.lang == "en" else "공문",
-                f"{random.choice(self.companies)}",
-            ),
-            ParagraphElement(f"Date: {self._random_date()}"),
-            ParagraphElement(f"To: {random.choice(self.names)}"),
+            TitleElement(L["letter"], f"{random.choice(self.companies)}"),
+            ParagraphElement(f"{L['date']}: {self._random_date()}"),
+            ParagraphElement(f"{L['to']}: {recipient_name}"),
         ]
         blocks.append(DocumentBlock(block_type="header", elements=header_elements))
 
         # Subject
         subject_elements = [
-            ParagraphElement(
-                f"Subject: Request for Information" if self.lang == "en"
-                else f"제목: 정보 요청 사항"
-            ),
+            ParagraphElement(f"{L['subject']}: {L['request_info']}"),
         ]
         blocks.append(DocumentBlock(block_type="subject", elements=subject_elements))
 
         # Body
-        body_text = (
-            f"Dear {random.choice(self.names)},\n\n"
-            f"We would like to request your assistance with the following matter. "
-            f"Please review the attached documents and provide your feedback by next week."
-            if self.lang == "en"
-            else f"{random.choice(self.names)} 귀하께,\n\n"
-            f"다음 사항에 대해 귀하의 협조를 요청드립니다. "
-            f"첨부 문서를 검토하시고 다음 주까지 피드백을 제공해 주시기 바랍니다."
-        )
+        body_text = f"{L['dear']} {recipient_name},\n\n{L['letter_body']}"
         body_elements = [ParagraphElement(body_text)]
         blocks.append(DocumentBlock(block_type="body", elements=body_elements))
 
         # Closing
         closing_elements = [
-            ParagraphElement(
-                f"Best regards," if self.lang == "en" else f"감사합니다."
-            ),
+            ParagraphElement(L["regards"]),
             ParagraphElement(""),
             ParagraphElement(random.choice(self.names)),
             ParagraphElement(random.choice(self.departments)),
@@ -863,52 +905,44 @@ class DocumentDataGenerator:
 
     def _generate_report(self, style: DocumentStyle) -> Tuple[List[DocumentBlock], str, str]:
         blocks = []
+        L = self.labels
+        month = self._random_date().split('-')[1]
 
         # Title
         title_elements = [
-            TitleElement(
-                f"Monthly Report" if self.lang == "en" else "월간 보고서",
-                f"{self._random_date().split('-')[1]} Month Summary" if self.lang == "en"
-                else f"{self._random_date().split('-')[1]}월 요약",
-            ),
+            TitleElement(L["report"], f"{month} {L['month_summary']}"),
         ]
         blocks.append(DocumentBlock(block_type="title", elements=title_elements))
 
         # Summary
         summary_elements = [
-            TitleElement(f"Executive Summary", level=2),
-            ParagraphElement(
-                f"This report summarizes the key activities and achievements for the month. "
-                f"Overall performance has been satisfactory with notable improvements in key areas."
-                if self.lang == "en"
-                else f"이 보고서는 이번 달 주요 활동과 성과를 요약합니다. "
-                f"전반적인 성과는 양호하며 주요 분야에서 주목할 만한 개선이 있었습니다."
-            ),
+            TitleElement(L["exec_summary"], level=2),
+            ParagraphElement(L["summary_text"]),
         ]
         blocks.append(DocumentBlock(block_type="summary", elements=summary_elements))
 
         # Highlights
+        achieved_pct = random.randint(90, 120)
+        launched_count = random.randint(1, 3)
+        satisfaction_pct = random.randint(85, 99)
         highlights = [
-            f"• Achieved {random.randint(90, 120)}% of monthly targets" if self.lang == "en"
-            else f"• 월간 목표의 {random.randint(90, 120)}% 달성",
-            f"• Launched {random.randint(1, 3)} new initiatives" if self.lang == "en"
-            else f"• {random.randint(1, 3)}개 신규 계획 발동",
-            f"• Customer satisfaction: {random.randint(85, 99)}%" if self.lang == "en"
-            else f"• 고객 만족도: {random.randint(85, 99)}%",
+            f"• {L['achieved'].format(achieved_pct)}",
+            f"• {L['launched'].format(launched_count)}",
+            f"• {L['satisfaction'].format(satisfaction_pct)}",
         ]
         highlights_elements = [
-            TitleElement(f"Key Highlights", level=2),
+            TitleElement(L["highlights"], level=2),
             ListElement(highlights, ordered=False),
         ]
         blocks.append(DocumentBlock(block_type="highlights", elements=highlights_elements))
 
         # Conclusion
         conclusion_elements = [
-            TitleElement(f"Next Steps", level=2),
+            TitleElement(L["next_steps"], level=2),
             ListElement([
-                f"1. Review action items" if self.lang == "en" else f"1. 조치 사항 검토",
-                f"2. Schedule follow-up meetings" if self.lang == "en" else f"2. 후속 회의 일정 잡기",
-                f"3. Prepare detailed plans" if self.lang == "en" else f"3. 상세 계획 수립",
+                f"1. {L['review_items']}",
+                f"2. {L['schedule_meetings']}",
+                f"3. {L['prepare_plans']}",
             ], ordered=True),
         ]
         blocks.append(DocumentBlock(block_type="conclusion", elements=conclusion_elements))

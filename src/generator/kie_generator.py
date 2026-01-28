@@ -177,6 +177,68 @@ class KIEDataGenerator:
     ENGLISH_DEPARTMENTS = ["Sales", "Marketing", "Engineering", "HR", "Finance", "Operations"]
     ENGLISH_POSITIONS = ["Manager", "Director", "VP", "Associate", "Senior", "Lead"]
 
+    # Japanese data
+    JAPANESE_STORE_NAMES = [
+        "セブンイレブン渋谷店", "ローソン新宿店", "ファミリーマート池袋店", "ミニストップ品川店",
+        "スターバックス表参道店", "ドトールコーヒー銀座店", "タリーズコーヒー六本木店",
+        "マクドナルド渋谷センター街店", "モスバーガー新宿西口店", "吉野家秋葉原店",
+        "マツモトキヨシ原宿店", "ダイソー渋谷店", "ドン・キホーテ新宿店",
+    ]
+    JAPANESE_COMPANY_NAMES = [
+        "トヨタ自動車株式会社", "ソニーグループ株式会社", "任天堂株式会社", "パナソニック株式会社",
+        "ソフトバンクグループ株式会社", "楽天グループ株式会社", "株式会社日立製作所",
+        "本田技研工業株式会社", "株式会社ファーストリテイリング", "株式会社メルカリ",
+    ]
+    JAPANESE_ADDRESSES = [
+        "東京都渋谷区神宮前1-2-3", "東京都新宿区西新宿4-5-6",
+        "東京都港区六本木7-8-9", "大阪府大阪市北区梅田10-11-12",
+        "神奈川県横浜市西区みなとみらい13-14-15", "愛知県名古屋市中区栄16-17-18",
+        "福岡県福岡市博多区博多駅前19-20-21", "京都府京都市下京区四条通22-23-24",
+    ]
+    JAPANESE_PRODUCT_NAMES = [
+        "アメリカーノ", "カフェラテ", "抹茶ラテ", "バニララテ", "キャラメルマキアート",
+        "おにぎり", "カップ麺", "弁当", "サンドイッチ", "おでん",
+        "牛乳", "ヨーグルト", "ジュース", "ミネラルウォーター", "炭酸水",
+        "チョコレート", "お菓子", "パン", "アイスクリーム", "ガム",
+    ]
+    JAPANESE_NAMES = [
+        "田中太郎", "鈴木花子", "山田一郎", "佐藤美咲", "伊藤健太",
+        "渡辺和子", "高橋誠", "中村優子", "小林大輔", "加藤恵",
+    ]
+    JAPANESE_DEPARTMENTS = ["営業部", "マーケティング部", "開発部", "人事部", "財務部", "企画部"]
+    JAPANESE_POSITIONS = ["係長", "課長", "次長", "部長", "取締役", "社員"]
+
+    # Hindi data
+    HINDI_STORE_NAMES = [
+        "रिलायंस फ्रेश दिल्ली", "बिग बाजार मुंबई", "डी-मार्ट बैंगलोर", "स्पेंसर्स कोलकाता",
+        "कैफे कॉफी डे कनॉट प्लेस", "बरिस्ता जुहू", "स्टारबक्स गुड़गांव",
+        "मैकडॉनल्ड्स साकेत", "डोमिनोज पिज्जा अंधेरी", "केएफसी नोएडा",
+        "अपोलो फार्मेसी चेन्नई", "मेडप्लस हैदराबाद", "नेटमेड्स पुणे",
+    ]
+    HINDI_COMPANY_NAMES = [
+        "टाटा कंसल्टेंसी सर्विसेज लिमिटेड", "रिलायंस इंडस्ट्रीज लिमिटेड", "इंफोसिस लिमिटेड",
+        "विप्रो लिमिटेड", "एचडीएफसी बैंक लिमिटेड", "आईसीआईसीआई बैंक लिमिटेड",
+        "भारती एयरटेल लिमिटेड", "हिंदुस्तान यूनिलीवर लिमिटेड", "आईटीसी लिमिटेड", "महिंद्रा एंड महिंद्रा लिमिटेड",
+    ]
+    HINDI_ADDRESSES = [
+        "123 महात्मा गांधी रोड, नई दिल्ली 110001", "456 जुहू बीच रोड, मुंबई 400049",
+        "789 एमजी रोड, बैंगलोर 560001", "321 पार्क स्ट्रीट, कोलकाता 700016",
+        "654 अन्ना सलाई, चेन्नई 600002", "987 बंजारा हिल्स, हैदराबाद 500034",
+        "147 शिवाजीनगर, पुणे 411005", "258 सी जी रोड, अहमदाबाद 380009",
+    ]
+    HINDI_PRODUCT_NAMES = [
+        "अमेरिकानो", "कैफे लाते", "ग्रीन टी लाते", "वनीला लाते", "कारमेल मैकियाटो",
+        "समोसा", "कप नूडल्स", "थाली", "सैंडविच", "पराठा",
+        "दूध", "दही", "जूस", "पानी", "लस्सी",
+        "चॉकलेट", "बिस्कुट", "रोटी", "आइसक्रीम", "च्युइंग गम",
+    ]
+    HINDI_NAMES = [
+        "राहुल शर्मा", "प्रिया गुप्ता", "अमित कुमार", "सुनीता देवी", "विकास सिंह",
+        "अनीता वर्मा", "राजेश पटेल", "नेहा अग्रवाल", "संजय मिश्रा", "पूजा राय",
+    ]
+    HINDI_DEPARTMENTS = ["बिक्री विभाग", "मार्केटिंग विभाग", "विकास विभाग", "मानव संसाधन विभाग", "वित्त विभाग", "योजना विभाग"]
+    HINDI_POSITIONS = ["सहायक प्रबंधक", "प्रबंधक", "वरिष्ठ प्रबंधक", "उप निदेशक", "निदेशक", "कार्यकारी"]
+
     def __init__(self, lang: str = "ko"):
         self.lang = lang
         if lang == "ko":
@@ -189,6 +251,26 @@ class KIEDataGenerator:
             self.positions = self.KOREAN_POSITIONS
             self.currency = "원"
             self.currency_format = "{:,}원"
+        elif lang == "ja":
+            self.store_names = self.JAPANESE_STORE_NAMES
+            self.company_names = self.JAPANESE_COMPANY_NAMES
+            self.addresses = self.JAPANESE_ADDRESSES
+            self.product_names = self.JAPANESE_PRODUCT_NAMES
+            self.names = self.JAPANESE_NAMES
+            self.departments = self.JAPANESE_DEPARTMENTS
+            self.positions = self.JAPANESE_POSITIONS
+            self.currency = "円"
+            self.currency_format = "{:,}円"
+        elif lang == "hi":
+            self.store_names = self.HINDI_STORE_NAMES
+            self.company_names = self.HINDI_COMPANY_NAMES
+            self.addresses = self.HINDI_ADDRESSES
+            self.product_names = self.HINDI_PRODUCT_NAMES
+            self.names = self.HINDI_NAMES
+            self.departments = self.HINDI_DEPARTMENTS
+            self.positions = self.HINDI_POSITIONS
+            self.currency = "₹"
+            self.currency_format = "₹{:,.2f}"
         else:
             self.store_names = self.ENGLISH_STORE_NAMES
             self.company_names = self.ENGLISH_COMPANY_NAMES

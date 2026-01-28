@@ -293,6 +293,20 @@ class TableDataGenerator:
         "contact": ["Name", "Phone", "Email"],
     }
 
+    JAPANESE_HEADERS = {
+        "invoice": ["品目", "数量", "価格", "合計"],
+        "schedule": ["時間", "月", "火", "水", "木", "金"],
+        "product": ["製品", "カテゴリ", "価格", "在庫"],
+        "contact": ["名前", "電話", "メール"],
+    }
+
+    HINDI_HEADERS = {
+        "invoice": ["वस्तु", "मात्रा", "मूल्य", "कुल"],
+        "schedule": ["समय", "सोम", "मंगल", "बुध", "गुरु", "शुक्र"],
+        "product": ["उत्पाद", "श्रेणी", "मूल्य", "स्टॉक"],
+        "contact": ["नाम", "फोन", "ईमेल"],
+    }
+
     KOREAN_ITEMS = ["사과", "바나나", "우유", "빵", "커피", "라면", "김치", "두부", "계란", "생수"]
     KOREAN_CATEGORIES = ["식품", "음료", "생활용품", "전자제품", "의류"]
     KOREAN_NAMES = ["김민수", "이영희", "박지영", "최동훈", "정수연", "강태호", "윤서연", "임재현"]
@@ -303,6 +317,16 @@ class TableDataGenerator:
     ENGLISH_NAMES = ["John Smith", "Jane Doe", "Mike Johnson", "Sarah Wilson", "Tom Brown"]
     ENGLISH_SUBJECTS = ["Math", "English", "Science", "History", "Art", "PE", "Music"]
 
+    JAPANESE_ITEMS = ["りんご", "バナナ", "牛乳", "パン", "コーヒー", "ラーメン", "寿司", "豆腐", "卵", "水"]
+    JAPANESE_CATEGORIES = ["食品", "飲料", "日用品", "電子機器", "衣料品"]
+    JAPANESE_NAMES = ["田中太郎", "鈴木花子", "山田一郎", "佐藤美咲", "伊藤健太", "渡辺和子", "高橋誠", "中村優子"]
+    JAPANESE_SUBJECTS = ["国語", "数学", "英語", "理科", "社会", "体育", "音楽", "美術"]
+
+    HINDI_ITEMS = ["सेब", "केला", "दूध", "रोटी", "कॉफी", "चावल", "दाल", "पनीर", "अंडा", "पानी"]
+    HINDI_CATEGORIES = ["खाद्य", "पेय", "घरेलू", "इलेक्ट्रॉनिक्स", "कपड़े"]
+    HINDI_NAMES = ["राहुल शर्मा", "प्रिया गुप्ता", "अमित कुमार", "सुनीता देवी", "विकास सिंह", "अनीता वर्मा", "राजेश पटेल", "नेहा अग्रवाल"]
+    HINDI_SUBJECTS = ["हिंदी", "गणित", "अंग्रेजी", "विज्ञान", "सामाजिक", "शारीरिक", "संगीत", "कला"]
+
     def __init__(self, lang: str = "ko"):
         self.lang = lang
         if lang == "ko":
@@ -311,6 +335,18 @@ class TableDataGenerator:
             self.names = self.KOREAN_NAMES
             self.subjects = self.KOREAN_SUBJECTS
             self.headers = self.KOREAN_HEADERS
+        elif lang == "ja":
+            self.items = self.JAPANESE_ITEMS
+            self.categories = self.JAPANESE_CATEGORIES
+            self.names = self.JAPANESE_NAMES
+            self.subjects = self.JAPANESE_SUBJECTS
+            self.headers = self.JAPANESE_HEADERS
+        elif lang == "hi":
+            self.items = self.HINDI_ITEMS
+            self.categories = self.HINDI_CATEGORIES
+            self.names = self.HINDI_NAMES
+            self.subjects = self.HINDI_SUBJECTS
+            self.headers = self.HINDI_HEADERS
         else:
             self.items = self.ENGLISH_ITEMS
             self.categories = self.ENGLISH_CATEGORIES
