@@ -82,10 +82,9 @@ uv run main.py evaluate [OPTIONS]
 **1. Evaluate HuggingFace Model (Transformers)**
 ```bash
 uv run main.py evaluate \
-    -m "Qwen/Qwen2.5-VL-7B-Instruct" \
-    -b transformers \
+    --model-config configs/models/qwen2-vl-7b.yaml \
     -d "junyeong-nero/synthetic-ocr-images-korean" \
-    -f sentence \
+    --subset sentence \
     --max-samples 100
 ```
 
@@ -93,27 +92,25 @@ uv run main.py evaluate \
 ```bash
 # Evaluate Korean subset
 uv run main.py evaluate \
-    -m paddleocr/korean \
-    -b paddleocr \
+    --model-config configs/models/paddleocr.yaml \
     -d "junyeong-nero/synthetic-ocr-images-korean" \
-    -f sentence
+    --subset sentence
 
 # Evaluate English subset
 uv run main.py evaluate \
-    -m paddleocr/en \
-    -b paddleocr \
+    --model-config configs/models/paddleocr.yaml \
     -d "junyeong-nero/synthetic-ocr-images-english" \
-    -f sentence
+    --subset sentence
 ```
 
 **3. Evaluate OpenAI Model (GPT-4o)**
 ```bash
 export OPENAI_API_KEY="sk-..."
+# Ensure configs/models/gpt-4o.yaml exists
 uv run main.py evaluate \
-    -m gpt-4o \
-    -b openai \
+    --model-config configs/models/gpt-4o.yaml \
     -d "junyeong-nero/synthetic-ocr-images-korean" \
-    -f table
+    --subset table
 ```
 
 ---
