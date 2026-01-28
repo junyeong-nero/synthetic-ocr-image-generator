@@ -4,7 +4,7 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from PIL import Image
 
@@ -53,6 +53,19 @@ class BaseGenerator(ABC):
 
         Returns:
             List of metadata dictionaries for each generated image.
+        """
+        pass
+
+    @abstractmethod
+    def generate_single(self, **kwargs) -> Tuple[Image.Image, Dict[str, Any]]:
+        """
+        Generate a single synthetic image.
+
+        Args:
+            **kwargs: Additional generator-specific parameters.
+
+        Returns:
+            Tuple of (generated image, metadata dictionary).
         """
         pass
 

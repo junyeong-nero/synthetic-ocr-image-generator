@@ -465,44 +465,60 @@ class TableGenerator(BaseGenerator):
     def generate(
         self,
         num_images: int,
-        template: Optional[str] = None,
-        row_range: Tuple[int, int] = (3, 8),
-        col_range: Tuple[int, int] = (3, 6),
-        font_size_range: Tuple[int, int] = (12, 18),
+        **kwargs
     ) -> List[Dict[str, Any]]:
-        templates = list(TableDataGenerator.TEMPLATES.keys()) if template is None else [template]
+        self.template = kwargs.get("template")
+        self.row_range = kwargs.get("row_range", (3, 8))
+        self.col_range = kwargs.get("col_range", (3, 6))
+        self.font_size_range = kwargs.get("font_size_range", (12, 18))
+
+        templates = list(TableDataGenerator.TEMPLATES.keys()) if self.template is None else [self.template]
+        self.templates = templates
 
         metadata = []
         for idx in tqdm(range(num_images), desc="Generating table images"):
-            selected_template = random.choice(templates) if template is None else template
-            num_rows = random.randint(*row_range)
-            num_cols = random.randint(*col_range)
-            font_size = random.randint(*font_size_range)
-
-            table = self.data_generator.generate_table(
-                template=selected_template,
-                num_rows=num_rows,
-                num_cols=num_cols,
-            )
-
-            font_path = random.choice(self.font_paths)
-            renderer = TableRenderer(font_path, font_size)
-            image = renderer.render(table)
+            image, meta = self.generate_single()
 
             filename = f"table_{idx:05d}.png"
             self.save_image(image, filename)
+            meta["file_name"] = str(self.output_dir / filename)
 
-            html_gt = table.to_html()
-            json_gt = table.to_json()
-
-            metadata.append({
-                "file_name": str(self.output_dir / filename),
-                "html": html_gt,
-                "json": json_gt,
-                "template": selected_template,
-                "num_rows": table.num_rows,
-                "num_cols": table.num_cols,
-                "font_size": font_size,
-            })
+            metadata.append(meta)
 
         return metadata
+
+    def generate_single(self, **kwargs) -> Tuple[Image.Image, Dict[str, Any]]:
+        if not hasattr(self, "templates"):
+             template = kwargs.get("template")
+             self.templates = list(TableDataGenerator.TEMPLATES.keys()) if template is None else [template]
+             self.row_range = kwargs.get("row_range", (3, 8))
+             self.col_range = kwargs.get("col_range", (3, 6))
+             self.font_size_range = kwargs.get("font_size_range", (12, 18))
+
+        selected_template = random.choice(self.templates)
+        num_rows = random.randint(*self.row_range)
+        num_cols = random.randint(*self.col_range)
+        font_size = random.randint(*self.font_size_range)
+
+        table = self.data_generator.generate_table(
+            template=selected_template,
+            num_rows=num_rows,
+            num_cols=num_cols,
+        )
+
+        font_path = random.choice(self.font_paths)
+        renderer = TableRenderer(font_path, font_size)
+        image = renderer.render(table)
+
+        html_gt = table.to_html()
+        json_gt = table.to_json()
+
+        metadata = {
+            "html": html_gt,
+            "json": json_gt,
+            "template": selected_template,
+            "num_rows": table.num_rows,
+            "num_cols": table.num_cols,
+            "font_size": font_size,
+        }
+        return image, metadata

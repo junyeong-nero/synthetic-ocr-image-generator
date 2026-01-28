@@ -1209,73 +1209,94 @@ class KIEGenerator(BaseGenerator):
     def generate(
         self,
         num_images: int,
-        doc_type: Optional[str] = None,
-        add_noise: bool = True,
-        add_blur: bool = False,
-        add_rotation: float = 0.0,
+        **kwargs
     ) -> List[Dict[str, Any]]:
         """
         Generate KIE document images.
 
         Args:
             num_images: Number of images to generate.
-            doc_type: Specific document type (receipt, invoice, form, business_card).
-                     If None, randomly selects from all types.
-            add_noise: Add noise effect.
-            add_blur: Add blur effect.
-            add_rotation: Max rotation angle in degrees.
+            **kwargs: Additional parameters like doc_type, add_noise, add_blur, add_rotation.
 
         Returns:
             List of metadata dictionaries.
         """
-        if doc_type:
+        self.doc_type = kwargs.get("doc_type")
+        self.add_noise = kwargs.get("add_noise", True)
+        self.add_blur = kwargs.get("add_blur", False)
+        self.add_rotation = kwargs.get("add_rotation", 0.0)
+
+        if self.doc_type:
             try:
-                selected_types = [KIEDocumentType(doc_type)]
+                selected_types = [KIEDocumentType(self.doc_type)]
             except ValueError:
-                logger.warning(f"Unknown doc_type '{doc_type}', using all types")
+                logger.warning(f"Unknown doc_type '{self.doc_type}', using all types")
                 selected_types = list(KIEDocumentType)
         else:
             selected_types = list(KIEDocumentType)
+        
+        self.selected_types = selected_types
 
         metadata = []
         for idx in tqdm(range(num_images), desc="Generating KIE images"):
-            # Select document type
-            current_type = random.choice(selected_types)
-
-            # Generate style
-            style = self.data_generator._random_style()
-            style.add_noise = add_noise
-            style.add_blur = add_blur
-            style.add_rotation = add_rotation
-
-            # Generate document data
-            document = self.data_generator.generate_document(current_type, style)
-
-            # Render document
-            font_path = random.choice(self.font_paths)
-            renderer = KIERenderer(font_path, style)
-
-            # Set language hint for price formatting
-            renderer._is_korean = self.lang == "ko"
-
-            image, raw_text = renderer.render(document)
+            image, meta = self.generate_single()
 
             # Save image
             filename = f"kie_{idx:05d}.png"
             self.save_image(image, filename)
+            meta["file_name"] = str(self.output_dir / filename)
 
-            # Build ground truth
-            gt = document.to_ground_truth()
-
-            metadata.append({
-                "file_name": str(self.output_dir / filename),
-                "document_type": current_type.value,
-                "ground_truth": gt,
-                "entities": {f.key: f.value for f in document.fields},
-                "raw_text": raw_text,
-                "lang": self.lang,
-                "add_noise": add_noise,
-                "add_blur": add_blur,
-            })
+            metadata.append(meta)
 
         return metadata
+
+    def generate_single(self, **kwargs) -> Tuple[Image.Image, Dict[str, Any]]:
+        if not hasattr(self, "selected_types"):
+             doc_type = kwargs.get("doc_type")
+             if doc_type:
+                try:
+                    selected_types = [KIEDocumentType(doc_type)]
+                except ValueError:
+                    selected_types = list(KIEDocumentType)
+             else:
+                selected_types = list(KIEDocumentType)
+             self.selected_types = selected_types
+             self.add_noise = kwargs.get("add_noise", True)
+             self.add_blur = kwargs.get("add_blur", False)
+             self.add_rotation = kwargs.get("add_rotation", 0.0)
+
+        current_type = random.choice(self.selected_types)
+
+        # Generate style
+        style = self.data_generator._random_style()
+        style.add_noise = self.add_noise
+        style.add_blur = self.add_blur
+        style.add_rotation = self.add_rotation
+
+        # Generate document data
+        document = self.data_generator.generate_document(current_type, style)
+
+        # Render document
+        font_path = random.choice(self.font_paths)
+        renderer = KIERenderer(font_path, style)
+
+        # Set language hint for price formatting
+        renderer._is_korean = self.lang == "ko"
+
+        image, raw_text = renderer.render(document)
+
+        # Build ground truth
+        gt = document.to_ground_truth()
+
+        metadata = {
+            "format": "kie",
+            "document_type": current_type.value,
+            "ground_truth": gt,
+            "entities": {f.key: f.value for f in document.fields},
+            "raw_text": raw_text,
+            "add_noise": self.add_noise,
+            "add_blur": self.add_blur,
+            "add_rotation": self.add_rotation,
+        }
+        return image, metadata
+

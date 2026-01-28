@@ -25,7 +25,7 @@ def _ensure_corpus_and_db(
     if not corpus_path.exists():
         logger.info("[CORPUS] Generating from Wikipedia...")
         create_corpus_from_wiki(
-            output_path=corpus_path, lang=lang, num_sentences=num_sentences
+            output_path=str(corpus_path), lang=lang, num_sentences=num_sentences
         )
     else:
         logger.info(f"[CORPUS] Using existing: {corpus_path}")
@@ -33,7 +33,7 @@ def _ensure_corpus_and_db(
     if not db_path.exists():
         logger.info("[DB] Generating character similarity DB...")
         generate_similar_chars_db(
-            corpus_path=corpus_path, db_path=db_path, font_path=font_path
+            corpus_path=str(corpus_path), db_path=str(db_path), font_path=font_path
         )
     else:
         logger.info(f"[DB] Using existing: {db_path}")
@@ -162,137 +162,56 @@ class MixedGenerator:
                 f"(weights: {format_weights})"
             )
 
-            for idx in range(num_images):
+            for idx in tqdm(range(num_images), desc="Generating mixed images"):
                 fmt = random.choices(
                     list(format_weights.keys()),
                     weights=list(format_weights.values()),
                 )[0]
 
                 if fmt == "sentence":
-                    original_text, typo_text = random.choice(
-                        self.sentence_generator._sentences
-                    ), random.choice(self.sentence_generator._sentences)
-                    params = self.sentence_generator._random_params((24, 48))
-                    from generator.effects import render_text_with_effects
-                    image = render_text_with_effects(text=typo_text, **params)
+                    image, meta = self.sentence_generator.generate_single(
+                        typo_ratio=typo_ratio
+                    )
                     filename = f"sentence_{idx:05d}.png"
                     self.sentence_generator.save_image(image, filename)
-                    all_metadata.append({
-                        "file_name": str(self.sentence_generator.output_dir / filename),
-                        "format": "sentence",
-                        "typo_text": typo_text,
-                        "original_text": original_text,
-                        **params,
-                    })
+                    meta["file_name"] = str(self.sentence_generator.output_dir / filename)
+                    meta["format"] = "sentence"
+                    all_metadata.append(meta)
 
                 elif fmt == "table":
-                    template = random.choice(list(self.table_generator.data_generator.TEMPLATES.keys()))
-                    num_rows = random.randint(*row_range)
-                    num_cols = random.randint(*col_range)
-                    font_size = random.randint(12, 18)
-
-                    table = self.table_generator.data_generator.generate_table(
-                        template=template,
-                        num_rows=num_rows,
-                        num_cols=num_cols,
+                    image, meta = self.table_generator.generate_single(
+                        row_range=row_range,
+                        col_range=col_range,
                     )
-
-                    font_path = random.choice(self.table_generator.font_paths)
-                    from generator.table_generator import TableRenderer
-                    renderer = TableRenderer(font_path, font_size)
-                    image = renderer.render(table)
-
                     filename = f"table_{idx:05d}.png"
                     self.table_generator.save_image(image, filename)
-
-                    all_metadata.append({
-                        "file_name": str(self.table_generator.output_dir / filename),
-                        "format": "table",
-                        "html": table.to_html(),
-                        "json": table.to_json(),
-                        "template": template,
-                        "num_rows": table.num_rows,
-                        "num_cols": table.num_cols,
-                        "font_size": font_size,
-                    })
+                    meta["file_name"] = str(self.table_generator.output_dir / filename)
+                    meta["format"] = "table"
+                    all_metadata.append(meta)
 
                 elif fmt == "document":
-                    from generator.document_generator import DocumentTemplate
-                    template = random.choice(list(DocumentTemplate))
-                    style = self.document_generator.data_generator._random_style()
-
-                    document = self.document_generator.data_generator.generate_document(
-                        template=template,
-                        style=style,
-                    )
-
-                    font_path = random.choice(self.document_generator.font_paths)
-                    from generator.document_generator import DocumentRenderer
-                    renderer = DocumentRenderer(font_path, random.randint(10, 14))
-                    image, _ = renderer.render(document)
-
+                    image, meta = self.document_generator.generate_single()
                     filename = f"document_{idx:05d}.png"
                     self.document_generator.save_image(image, filename)
-
-                    gt = document.to_ground_truth()
-                    all_metadata.append({
-                        "file_name": str(self.document_generator.output_dir / filename),
-                        "format": "document",
-                        "template": template.value,
-                        "ground_truth": gt,
-                        "elements_count": len(gt["elements"]),
-                    })
+                    meta["file_name"] = str(self.document_generator.output_dir / filename)
+                    meta["format"] = "document"
+                    all_metadata.append(meta)
 
                 elif fmt == "markdown":
-                    from generator.markdown_generator import MarkdownTemplate, MarkdownRenderer
-                    template = random.choice(list(MarkdownTemplate))
-                    style = self.markdown_generator._random_style()
-
-                    markdown_text = self.markdown_generator.data_generator.generate_markdown(
-                        template=template,
-                    )
-
-                    font_path = random.choice(self.markdown_generator.font_paths)
-                    renderer = MarkdownRenderer(font_path, style)
-                    image = renderer.render(markdown_text)
-
+                    image, meta = self.markdown_generator.generate_single()
                     filename = f"markdown_{idx:05d}.png"
                     self.markdown_generator.save_image(image, filename)
-
-                    all_metadata.append({
-                        "file_name": str(self.markdown_generator.output_dir / filename),
-                        "format": "markdown",
-                        "template": template.value,
-                        "markdown": markdown_text,
-                    })
+                    meta["file_name"] = str(self.markdown_generator.output_dir / filename)
+                    meta["format"] = "markdown"
+                    all_metadata.append(meta)
 
                 elif fmt == "kie":
-                    from generator.kie_generator import KIEDocumentType, KIERenderer
-                    doc_type = random.choice(list(KIEDocumentType))
-                    style = self.kie_generator.data_generator._random_style()
-
-                    document = self.kie_generator.data_generator.generate_document(
-                        doc_type=doc_type,
-                        style=style,
-                    )
-
-                    font_path = random.choice(self.kie_generator.font_paths)
-                    renderer = KIERenderer(font_path, style)
-                    renderer._is_korean = self.lang == "ko"
-                    image, raw_text = renderer.render(document)
-
+                    image, meta = self.kie_generator.generate_single()
                     filename = f"kie_{idx:05d}.png"
                     self.kie_generator.save_image(image, filename)
-
-                    gt = document.to_ground_truth()
-                    all_metadata.append({
-                        "file_name": str(self.kie_generator.output_dir / filename),
-                        "format": "kie",
-                        "document_type": doc_type.value,
-                        "ground_truth": gt,
-                        "entities": {f.key: f.value for f in document.fields},
-                        "raw_text": raw_text,
-                    })
+                    meta["file_name"] = str(self.kie_generator.output_dir / filename)
+                    meta["format"] = "kie"
+                    all_metadata.append(meta)
 
             metadata_path = self.output_dir / "metadata.jsonl"
             with open(metadata_path, "w", encoding="utf-8") as f:
@@ -306,6 +225,7 @@ class MixedGenerator:
         except Exception as e:
             logger.error(f"Generation failed: {e}", exc_info=True)
             return None
+
 
 
 def _upload_mixed_format_to_hub(repo_id: str, output_dir: Path):
@@ -415,85 +335,48 @@ def pipeline(
             table_size=table_size,
         )
 
-    elif format == "sentence":
-        from generator import SentenceGenerator
-
-        corpus_path, db_path = _ensure_corpus_and_db(base_dir, font_path, lang, corpus_size)
-        task_output_dir = base_dir / "images_sentence_typos"
-
-        generator = SentenceGenerator(
-            output_dir=str(task_output_dir),
-            font_dir=str(font_dir),
-            corpus_path=str(corpus_path),
-            similarity_db_path=str(db_path),
-            lang=lang,
-        )
-
-        generated_dir = generator.run(num_images=size, typo_ratio=typo_ratio)
-
-    elif format == "table":
-        from generator import TableGenerator
-
-        task_output_dir = base_dir / "images_tables"
-        min_rows, max_rows = _parse_table_size(table_size)
-        row_range = (min_rows, max_rows)
-        col_range = (min_rows, max_rows)
-
-        generator = TableGenerator(
-            output_dir=str(task_output_dir),
-            font_dir=str(font_dir),
-            lang=lang,
-        )
-
-        generated_dir = generator.run(
-            num_images=size,
-            template=template,
-            row_range=row_range,
-            col_range=col_range,
-        )
-
-    elif format == "document":
-        from generator import DocumentGenerator
-
-        task_output_dir = base_dir / "images_documents"
-
-        generator = DocumentGenerator(
-            output_dir=str(task_output_dir),
-            font_dir=str(font_dir),
-            lang=lang,
-        )
-
-        generated_dir = generator.run(num_images=size, template=template)
-
-    elif format == "markdown":
-        from generator import MarkdownGenerator
-
-        task_output_dir = base_dir / "images_markdown"
-
-        generator = MarkdownGenerator(
-            output_dir=str(task_output_dir),
-            font_dir=str(font_dir),
-            lang=lang,
-        )
-
-        generated_dir = generator.run(num_images=size, template=template)
-
-    elif format == "kie":
-        from generator import KIEGenerator
-
-        task_output_dir = base_dir / "images_kie"
-
-        generator = KIEGenerator(
-            output_dir=str(task_output_dir),
-            font_dir=str(font_dir),
-            lang=lang,
-        )
-
-        generated_dir = generator.run(num_images=size, doc_type=template)
-
     else:
-        logger.error(f"Unknown format: {format}")
-        return
+        from generator.registry import GeneratorRegistry
+        
+        try:
+            generator_cls = GeneratorRegistry.get_generator_class(format)
+        except ValueError:
+            logger.error(f"Unknown format: {format}")
+            return
+
+        task_output_dir = base_dir / f"images_{format}"
+        
+        # Prepare initialization arguments
+        init_kwargs = {
+            "output_dir": str(task_output_dir),
+            "font_dir": str(font_dir),
+            "lang": lang,
+        }
+        
+        if format == "sentence":
+            corpus_path, db_path = _ensure_corpus_and_db(base_dir, font_path, lang, corpus_size)
+            init_kwargs["corpus_path"] = str(corpus_path)
+            init_kwargs["similarity_db_path"] = str(db_path)
+            
+        generator = generator_cls(**init_kwargs)
+        
+        # Prepare run arguments
+        run_kwargs = {"num_images": size}
+        if format == "sentence":
+            run_kwargs["typo_ratio"] = typo_ratio
+        elif format == "table":
+            min_rows, max_rows = _parse_table_size(table_size)
+            run_kwargs["row_range"] = (min_rows, max_rows)
+            run_kwargs["col_range"] = (min_rows, max_rows)
+            run_kwargs["template"] = template
+        elif format == "document":
+            run_kwargs["template"] = template
+        elif format == "markdown":
+            run_kwargs["template"] = template
+        elif format == "kie":
+            run_kwargs["doc_type"] = template
+            
+        generated_dir = generator.run(**run_kwargs)
 
     if generated_dir:
         logger.info(f"\n--- Uploading to Hugging Face Hub: {repo_id} ---")

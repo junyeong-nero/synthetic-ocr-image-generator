@@ -814,55 +814,77 @@ class MarkdownGenerator(BaseGenerator):
     def generate(
         self,
         num_images: int,
-        template: Optional[str] = None,
-        add_noise: bool = True,
-        add_blur: bool = False,
+        **kwargs
     ) -> List[Dict[str, Any]]:
         """Generate markdown images."""
-        if template:
+        self.template = kwargs.get("template")
+        self.add_noise = kwargs.get("add_noise", True)
+        self.add_blur = kwargs.get("add_blur", False)
+
+        if self.template:
             try:
-                md_template = MarkdownTemplate(template)
+                md_template = MarkdownTemplate(self.template)
             except ValueError:
-                logger.warning(f"Unknown template '{template}', using random templates")
+                logger.warning(f"Unknown template '{self.template}', using random templates")
                 md_template = None
         else:
             md_template = None
 
-        templates = (
-            [MarkdownTemplate(template)] if md_template
+        self.templates = (
+            [MarkdownTemplate(self.template)] if md_template
             else list(MarkdownTemplate)
         )
 
         metadata = []
         for idx in tqdm(range(num_images), desc="Generating markdown images"):
-            selected_template = random.choice(templates)
-
-            # Generate markdown content
-            markdown_text = self.data_generator.generate_markdown(template=selected_template)
-
-            # Create style with random variations
-            style = self._random_style()
-            style.add_noise = add_noise
-            style.add_blur = add_blur
-
-            # Render markdown
-            font_path = random.choice(self.font_paths)
-            renderer = MarkdownRenderer(font_path, style)
-            image = renderer.render(markdown_text)
+            image, meta = self.generate_single()
 
             # Save image
             filename = f"markdown_{idx:05d}.png"
             self.save_image(image, filename)
+            meta["file_name"] = str(self.output_dir / filename)
 
-            metadata.append({
-                "file_name": str(self.output_dir / filename),
-                "template": selected_template.value,
-                "markdown": markdown_text,
-                "add_noise": add_noise,
-                "add_blur": add_blur,
-            })
+            metadata.append(meta)
 
         return metadata
+
+    def generate_single(self, **kwargs) -> Tuple[Image.Image, Dict[str, Any]]:
+        if not hasattr(self, "templates"):
+             template = kwargs.get("template")
+             if template:
+                try:
+                    md_template = MarkdownTemplate(template)
+                except ValueError:
+                    md_template = None
+             else:
+                md_template = None
+             
+             self.templates = ([MarkdownTemplate(template)] if md_template else list(MarkdownTemplate))
+             self.add_noise = kwargs.get("add_noise", True)
+             self.add_blur = kwargs.get("add_blur", False)
+
+        selected_template = random.choice(self.templates)
+
+        # Generate markdown content
+        markdown_text = self.data_generator.generate_markdown(template=selected_template)
+
+        # Create style with random variations
+        style = self._random_style()
+        style.add_noise = self.add_noise
+        style.add_blur = self.add_blur
+
+        # Render markdown
+        font_path = random.choice(self.font_paths)
+        renderer = MarkdownRenderer(font_path, style)
+        image = renderer.render(markdown_text)
+
+        metadata = {
+            "template": selected_template.value,
+            "markdown": markdown_text,
+            "add_noise": self.add_noise,
+            "add_blur": self.add_blur,
+        }
+        return image, metadata
 
     def _random_style(self) -> MarkdownStyle:
         """Generate random style variations."""

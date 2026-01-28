@@ -1001,59 +1001,82 @@ class DocumentGenerator(BaseGenerator):
     def generate(
         self,
         num_images: int,
-        template: Optional[str] = None,
-        font_size_range: Tuple[int, int] = (10, 14),
-        add_noise: bool = True,
-        add_blur: bool = False,
+        **kwargs
     ) -> List[Dict[str, Any]]:
-        if template:
+        self.template = kwargs.get("template")
+        self.font_size_range = kwargs.get("font_size_range", (10, 14))
+        self.add_noise = kwargs.get("add_noise", True)
+        self.add_blur = kwargs.get("add_blur", False)
+
+        if self.template:
             try:
-                doc_template = DocumentTemplate(template)
+                doc_template = DocumentTemplate(self.template)
             except ValueError:
-                logger.warning(f"Unknown template '{template}', using random templates")
+                logger.warning(f"Unknown template '{self.template}', using random templates")
                 doc_template = None
         else:
             doc_template = None
 
-        templates = (
-            [DocumentTemplate(template)] if doc_template
+        self.templates = (
+            [DocumentTemplate(self.template)] if doc_template
             else list(DocumentTemplate)
         )
 
         metadata = []
         for idx in tqdm(range(num_images), desc="Generating document images"):
-            selected_template = random.choice(templates)
-
-            # Generate document
-            style = self.data_generator._random_style()
-            style.add_noise = add_noise
-            style.add_blur = add_blur
-
-            document = self.data_generator.generate_document(
-                template=selected_template,
-                style=style,
-            )
-
-            # Render document
-            font_path = random.choice(self.font_paths)
-            font_size = random.randint(*font_size_range)
-            renderer = DocumentRenderer(font_path, font_size)
-            image, ground_truth = renderer.render(document)
+            image, meta = self.generate_single()
 
             # Save image
             filename = f"document_{idx:05d}.png"
             self.save_image(image, filename)
+            meta["file_name"] = str(self.output_dir / filename)
 
-            # Build metadata
-            gt = document.to_ground_truth()
-            metadata.append({
-                "file_name": str(self.output_dir / filename),
-                "template": selected_template.value,
-                "ground_truth": gt,
-                "elements_count": len(gt["elements"]),
-                "font_size": font_size,
-                "add_noise": add_noise,
-                "add_blur": add_blur,
-            })
+            metadata.append(meta)
 
         return metadata
+
+    def generate_single(self, **kwargs) -> Tuple[Image.Image, Dict[str, Any]]:
+        if not hasattr(self, "templates"):
+             template = kwargs.get("template")
+             if template:
+                try:
+                    doc_template = DocumentTemplate(template)
+                except ValueError:
+                    doc_template = None
+             else:
+                doc_template = None
+             
+             self.templates = ([DocumentTemplate(template)] if doc_template else list(DocumentTemplate))
+             self.font_size_range = kwargs.get("font_size_range", (10, 14))
+             self.add_noise = kwargs.get("add_noise", True)
+             self.add_blur = kwargs.get("add_blur", False)
+
+        selected_template = random.choice(self.templates)
+
+        # Generate document
+        style = self.data_generator._random_style()
+        style.add_noise = self.add_noise
+        style.add_blur = self.add_blur
+
+        document = self.data_generator.generate_document(
+            template=selected_template,
+            style=style,
+        )
+
+        # Render document
+        font_path = random.choice(self.font_paths)
+        font_size = random.randint(*self.font_size_range)
+        renderer = DocumentRenderer(font_path, font_size)
+        image, ground_truth = renderer.render(document)
+
+        # Build metadata
+        gt = document.to_ground_truth()
+        metadata = {
+            "template": selected_template.value,
+            "ground_truth": gt,
+            "elements_count": len(gt["elements"]),
+            "font_size": font_size,
+            "add_noise": self.add_noise,
+            "add_blur": self.add_blur,
+        }
+        return image, metadata
