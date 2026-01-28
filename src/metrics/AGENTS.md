@@ -9,7 +9,6 @@ Evaluation metrics for OCR outputs across sentence, table, document, markdown, a
 | CER/WER | `edit_distance.py` | Text error rates |
 | TEDS | `table_edit_distance.py` | Table structure similarity |
 | Layout/KIE | `table_document_metrics.py` | Layout + key-value scoring |
-| Normalization | `normalization.py` | Language-specific cleanup |
 
 ## CONVENTIONS
 - Metric outputs are dictionaries consumed by `src/evaluation/report.py`.

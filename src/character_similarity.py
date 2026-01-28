@@ -167,41 +167,6 @@ def generate_sentence_typos(
     return generated_sentences_with_original
 
 
-def inject_document_typos(
-    text: str, db: Dict[str, Any], typo_rate: float = 0.05, top_n: int = 1
-) -> str:
-    """
-    Injects typos into a given text based on character similarity.
-    A typo is introduced on a word-by-word basis with a given probability (typo_rate).
-    """
-    words = text.split(" ")
-    new_words = []
-    for word in words:
-        if random.random() < typo_rate and len(word) > 1:
-            # Introduce a typo in this word
-            char_index_to_change = random.randint(0, len(word) - 1)
-            original_char = word[char_index_to_change]
-
-            if original_char.isnumeric() or original_char.isspace():
-                new_words.append(word)
-                continue
-
-            similar_chars = find_similar_chars(original_char, db, top_n=top_n)
-            if similar_chars:
-                # Replace with a similar character
-                new_char = random.choice(similar_chars)[0]
-                word_list = list(word)
-                word_list[char_index_to_change] = new_char
-                new_words.append("".join(word_list))
-            else:
-                # No similar character found, keep original
-                new_words.append(word)
-        else:
-            # No typo for this word
-            new_words.append(word)
-    return " ".join(new_words)
-
-
 def generate_similar_chars_db(
     corpus_path="data/corpus.txt",
     db_path="data/char_similarity_db.json",

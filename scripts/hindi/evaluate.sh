@@ -2,38 +2,13 @@
 
 set -e
 
-DATASET_ID="junyeong-nero/synthetic-ocr-images-hindi"
-MODEL_CONFIG="configs/models/qwen3-vl-2b.yaml"
-OUTPUT_DIR="evaluation_results/hindi"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+COMMON_SCRIPT="$PROJECT_DIR/common/evaluate_dataset.sh"
 
-echo "=========================================="
-echo "Evaluating Hindi dataset with config: $MODEL_CONFIG"
-echo "=========================================="
-
-mkdir -p "$OUTPUT_DIR"
-
-SUBSETS=("sentence" "table" "document" "markdown" "kie")
-
-for subset in "${SUBSETS[@]}"; do
-    echo ""
-    echo "=========================================="
-    echo "[$(date '+%H:%M:%S')] Evaluating subset: $subset"
-    echo "=========================================="
-
-    uv run main.py evaluate \
-        --model-config "$MODEL_CONFIG" \
-        -d "$DATASET_ID" \
-        --subset "$subset" \
-        -f "$subset" \
-        --split "train" \
-        --output-dir "$OUTPUT_DIR/$subset"
-
-    echo ""
-    echo "[$(date '+%H:%M:%S')] Results saved to: $OUTPUT_DIR/$subset"
-done
-
-echo ""
-echo "=========================================="
-echo "Hindi evaluation completed!"
-echo "Results saved to: $OUTPUT_DIR/"
-echo "=========================================="
+"$COMMON_SCRIPT" \
+    --dataset-id "junyeong-nero/synthetic-ocr-images-hindi" \
+    --model-config "configs/models/qwen3-vl-2b.yaml" \
+    --output-dir "evaluation_results/hindi" \
+    --split "train" \
+    --label "Hindi"
