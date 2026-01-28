@@ -47,16 +47,11 @@ def print_results(metrics: dict, format_type: str) -> None:
 
 
 def load_model_config(
-    model_id: str,
-    model_config_path: Optional[str] = None,
-) -> Optional[ModelSpecificConfig]:
+    model_config_path: str,
+) -> ModelSpecificConfig:
     """Load model-specific configuration."""
     loader = ModelConfigLoader()
-
-    if model_config_path:
-        return loader.load_from_path(Path(model_config_path))
-
-    return loader.load(model_id)
+    return loader.load_from_path(Path(model_config_path))
 
 
 def cmd_generate(args: argparse.Namespace) -> None:
@@ -79,45 +74,42 @@ def cmd_generate(args: argparse.Namespace) -> None:
 
 def cmd_evaluate(args: argparse.Namespace) -> None:
     """Run evaluation command."""
-    model_specific_config = load_model_config(
-        args.model,
-        model_config_path=getattr(args, "model_config", None),
-    )
+    model_specific_config = load_model_config(args.model_config)
 
     backend_str = args.backend
-    if not backend_str and model_specific_config:
-        backend_str = model_specific_config.backend
     if not backend_str:
-        print(
-            "Error: Backend must be specified via --backend or model config",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        backend_str = model_specific_config.backend
 
     subset = args.subset
+    
+    # Try to map subset to FormatType, defaulting to SENTENCE if not found
+    try:
+        format_type = FormatType(subset)
+    except ValueError:
+        # If subset name doesn't match a format type (e.g. "korean_sentence"),
+        # we might need a heuristic or just default to sentence.
+        # For now, let's assume subset name IS the format type or contains it.
+        if "table" in subset:
+            format_type = FormatType.TABLE
+        elif "document" in subset:
+            format_type = FormatType.DOCUMENT
+        elif "markdown" in subset:
+            format_type = FormatType.MARKDOWN
+        elif "kie" in subset:
+            format_type = FormatType.KIE
+        else:
+            format_type = FormatType.SENTENCE
 
-    if model_specific_config:
-        temperature = model_specific_config.get_temperature(subset)
-        max_tokens = model_specific_config.get_max_tokens(subset)
-        batch_size = model_specific_config.get_batch_size(subset)
-        tensor_parallel = model_specific_config.tensor_parallel_size
-        api_base = model_specific_config.api_base
-        timeout = model_specific_config.timeout
-        max_retries = model_specific_config.max_retries
-        device = model_specific_config.device
-        dtype = model_specific_config.dtype
-        rate_limit_rpm = model_specific_config.rate_limit_rpm
-    else:
-        temperature = 0.0
-        max_tokens = 4096
-        batch_size = 1
-        tensor_parallel = 1
-        api_base = None
-        timeout = 120
-        max_retries = 3
-        device = "cuda"
-        dtype = "bfloat16"
-        rate_limit_rpm = None
+    temperature = model_specific_config.get_temperature(subset)
+    max_tokens = model_specific_config.get_max_tokens(subset)
+    batch_size = model_specific_config.get_batch_size(subset)
+    tensor_parallel = model_specific_config.tensor_parallel_size
+    api_base = model_specific_config.api_base
+    timeout = model_specific_config.timeout
+    max_retries = model_specific_config.max_retries
+    device = model_specific_config.device
+    dtype = model_specific_config.dtype
+    rate_limit_rpm = model_specific_config.rate_limit_rpm
 
     if hasattr(args, "temperature") and args.temperature is not None:
         temperature = args.temperature
@@ -131,7 +123,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         api_base = args.api_base
 
     model_config = ModelConfig(
-        model_id=args.model,
+        model_id=model_specific_config.get_model_id(subset),
         backend=InferenceBackend(backend_str),
         api_key=get_api_key(backend_str),
         api_base=api_base,
@@ -149,26 +141,25 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         dataset_id=args.dataset,
         subset=subset,
         split=args.split,
-        format_type=FormatType(args.format),
+        format_type=format_type,
         model=model_config,
         batch_size=batch_size,
         max_samples=args.max_samples,
         output_dir=args.output_dir,
-        model_config_path=getattr(args, "model_config", None),
+        model_config_path=args.model_config,
     )
 
     print(f"\nConfiguration:")
-    print(f"  Model: {args.model}")
+    print(f"  Model: {model_config.model_id}")
     print(f"  Backend: {backend_str}")
     print(f"  Dataset: {args.dataset} ({subset}/{args.split})")
-    print(f"  Format: {args.format}")
+    print(f"  Format: {format_type.value}")
     print(f"  Batch Size: {batch_size}")
     print(f"  Temperature: {temperature}")
     print(f"  Max Tokens: {max_tokens}")
-    if model_specific_config:
-        print(f"  Config File: {args.model_config or 'auto-detected'}")
+    print(f"  Config File: {args.model_config}")
 
-    print(f"\nEvaluating {args.model} on {args.dataset}...")
+    print(f"\nEvaluating {model_config.model_id} on {args.dataset}...")
     pipeline = EvaluationPipeline(config)
     output = pipeline.run()
 
@@ -185,7 +176,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         path = method(output_path / f"report.{args.report_format}")
         print(f"\nReport saved: {path}")
 
-    print_results(output.metrics, args.format)
+    print_results(output.metrics, format_type.value)
 
     print(
         f"\nSamples: {output.summary['successful']}/{output.summary['total_samples']}"
@@ -335,7 +326,11 @@ def main() -> None:
 
     # Evaluate command
     eval_parser = subparsers.add_parser("evaluate", help="Run model evaluation")
-    eval_parser.add_argument("-m", "--model", required=True, help="Model ID")
+    eval_parser.add_argument(
+        "--model-config",
+        required=True,
+        help="Path to model-specific config YAML",
+    )
     eval_parser.add_argument(
         "-b",
         "--backend",
@@ -349,22 +344,9 @@ def main() -> None:
         help="Inference backend (optional if model config exists)",
     )
     eval_parser.add_argument(
-        "-d", "--dataset", required=True, help="HuggingFace dataset ID"
+        "-s", "--subset", default="default", help="Dataset subset (and format type)"
     )
-    eval_parser.add_argument("--subset", default="default", help="Dataset subset")
     eval_parser.add_argument("--split", default="test", help="Dataset split")
-    eval_parser.add_argument(
-        "-f",
-        "--format",
-        default="sentence",
-        choices=["sentence", "table", "document", "markdown", "kie"],
-        help="Evaluation format type",
-    )
-    eval_parser.add_argument(
-        "--model-config",
-        default=None,
-        help="Path to model-specific config YAML",
-    )
     eval_parser.add_argument(
         "--max-samples", type=int, default=None, help="Max samples to evaluate"
     )

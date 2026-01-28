@@ -21,6 +21,9 @@ class PromptConfig(BaseModel):
 class SubsetConfig(BaseModel):
     """Configuration for a specific subset (format type)."""
 
+    model_id: Optional[str] = Field(
+        default=None, description="Override model ID for this subset"
+    )
     prompts: dict[str, PromptConfig] = Field(
         default_factory=dict,
         description="Prompts keyed by format type (sentence, table, etc.)",
@@ -115,6 +118,14 @@ class ModelSpecificConfig(BaseModel):
             if subset_max is not None:
                 return subset_max
         return self.max_tokens
+
+    def get_model_id(self, subset: Optional[str] = None) -> str:
+        """Get model ID, with optional subset override."""
+        if subset and subset in self.subsets:
+            subset_model_id = self.subsets[subset].model_id
+            if subset_model_id is not None:
+                return subset_model_id
+        return self.model_id
 
 
 class ModelConfigLoader:
