@@ -5,7 +5,7 @@ All commands run through `main.py`.
 ## Generate
 
 ```
-uv run main.py generate [OPTIONS]
+uv run --group generate main.py generate [OPTIONS]
 ```
 
 Options (defaults in brackets):
@@ -45,7 +45,7 @@ uv run main.py generate \
 ## Evaluate
 
 ```
-uv run main.py evaluate [OPTIONS]
+uv run --group evaluate --group <model> main.py evaluate [OPTIONS]
 ```
 
 Required:
@@ -60,6 +60,10 @@ Optional:
 - `--split` [train]: dataset split
 - `--max-samples` [None]: limit evaluation samples
 - `--seed` [None]: random seed for reproducible evaluation
+- `--batch-api` [false]: use OpenAI Batch API for evaluation (OpenAI backend only)
+- `--batch-poll-seconds` [60]: polling interval for batch status
+- `--batch-timeout-seconds` [86400]: max wait time for batch completion
+- `--batch-completion-window` [24h]: batch completion window (only `24h` supported)
 - `--output-dir` [./evaluation_results]: output directory
 - `--report-format` [all]: `json`, `markdown`, `html`, `all`
 
@@ -74,11 +78,18 @@ Overrides:
 Examples:
 
 ```bash
-uv run main.py evaluate \
-  --model-config configs/models/qwen2-vl-7b.yaml \
+uv run --group evaluate --group api main.py evaluate \
+  --model-config configs/models/gpt-5.yaml \
   -d "org/synth-ocr" \
   --subset sentence \
   --max-samples 100
+
+uv run --group evaluate --group api main.py evaluate \
+  --model-config configs/models/gpt-5.yaml \
+  -d "org/synth-ocr" \
+  --subset sentence \
+  --max-samples 100 \
+  --batch-api
 ```
 
 Artifacts per run:
@@ -90,7 +101,7 @@ Artifacts per run:
 ## Compare
 
 ```
-uv run main.py compare report1.json report2.json -o comparison
+uv run --group evaluate main.py compare report1.json report2.json -o comparison
 ```
 
 Outputs `comparison.json` and `comparison.md`.
@@ -98,8 +109,8 @@ Outputs `comparison.json` and `comparison.md`.
 ## List Backends and Configs
 
 ```
-uv run main.py list-backends
-uv run main.py list-configs
+uv run --group evaluate main.py list-backends
+uv run --group evaluate main.py list-configs
 ```
 
 ## Helper Scripts

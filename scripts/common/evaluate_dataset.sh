@@ -91,7 +91,7 @@ for subset in "${SUBSET_LIST[@]}"; do
     echo "[$(date '+%H:%M:%S')] Evaluating subset: $subset"
     echo "=========================================="
 
-    uv run main.py evaluate \
+    uv run --group evaluate main.py evaluate \
         --model-config "$MODEL_CONFIG" \
         -d "$DATASET_ID" \
         --subset "$subset" \

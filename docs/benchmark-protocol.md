@@ -40,6 +40,7 @@ Each evaluation run writes a protocol snapshot to `protocol.json`. It captures:
 - Set `--seed` for deterministic generation/evaluation.
 - Record environment metadata (python/torch/transformers versions, device).
 - Record dataset identifiers and fingerprints.
+- If `--batch-api` is used, record batch settings and output metadata.
 
 ## Reporting Outputs
 

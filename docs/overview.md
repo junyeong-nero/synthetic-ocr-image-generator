@@ -21,6 +21,13 @@ main.py
 - `scripts/` - Convenience shell scripts
 - `docs/benchmark-protocol.md` - Standardized evaluation protocol
 
+## Dependency Groups
+
+- `generate`: generation pipeline only
+- `evaluate`: evaluation pipeline + reporting
+- `api`: API backends (OpenAI/Anthropic/Gemini)
+- model groups (e.g., `qwen2-vl`, `paddle-ocr`) for specific backends
+
 ## Data Flow
 
 Generation:

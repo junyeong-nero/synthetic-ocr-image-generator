@@ -1,0 +1,33 @@
+# OpenAI GPT-5 Model Configuration
+model_id: gpt-5
+backend: openai
+dependency_group: api
+
+# Default generation parameters
+temperature: 0.0
+max_tokens: 1024
+
+# Default prompts for each format type
+prompts:
+    sentence:
+        prompt: |
+            Extract all text from the image verbatim, including typos.
+
+    table:
+        prompt: |
+            Extract the table from this image and format it as HTML.
+            Use <table>, <tr>, <th>, <td> tags.
+
+    document:
+        prompt: |
+            Extract all text elements from this document.
+            Return as JSON: {"elements": [{"type": "text", "text": "content", "reading_order": 0}]}
+
+    markdown:
+        prompt: |
+            Extract the content from this image as markdown format.
+
+    kie:
+        prompt: |
+            Extract key information from this document.
+            Return as JSON: {"entities": {"field": "value"}}

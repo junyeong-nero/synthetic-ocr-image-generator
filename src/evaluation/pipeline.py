@@ -12,7 +12,7 @@ from evaluation.runner import EvaluationRunner
 from evaluation.types import EvaluationOutput, InferenceResult
 from evaluation.strategies import EvaluatorRegistry
 from models.registry import create_model
-from utils import get_environment_metadata
+from env_utils import get_environment_metadata
 
 
 class EvaluationPipeline:
@@ -219,6 +219,10 @@ class EvaluationPipeline:
             "system_prompt": self.system_prompt,
             "prompt_source": self.prompt_source,
             "seed": self.config.seed,
+            "batch_api": self.config.batch_api,
+            "batch_poll_seconds": self.config.batch_poll_seconds,
+            "batch_timeout_seconds": self.config.batch_timeout_seconds,
+            "batch_completion_window": self.config.batch_completion_window,
             "dataset_fingerprint": self.dataset_fingerprint,
             "dataset_info": dataset_info,
             "environment": get_environment_metadata(),

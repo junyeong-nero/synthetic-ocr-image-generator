@@ -86,7 +86,7 @@ for config_file in "$CONFIG_DIR"/*.yaml; do
 
     # Build the evaluation command
     # Note: For synthetic-ocr-images datasets, subset determines format
-    CMD="uv run --group $dependency_group main.py evaluate \
+    CMD="uv run --group evaluate --group $dependency_group main.py evaluate \
         --model-config \"$config_file\" \
         -d \"$DATASET\" \
         --subset \"$SUBSET\" \

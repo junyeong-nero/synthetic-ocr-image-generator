@@ -54,9 +54,9 @@ if [[ "$HAS_SUBSET" == "false" ]]; then
 fi
 
 if [[ -z "$DEPENDENCY_GROUP" ]]; then
-    echo "Warning: No dependency_group defined, running without --group"
-    uv run main.py evaluate --model-config "$CONFIG_FILE" "$@"
+    echo "Warning: No dependency_group defined, running with evaluate group only"
+    uv run --group evaluate main.py evaluate --model-config "$CONFIG_FILE" "$@"
 else
-    echo "Running: uv run --group $DEPENDENCY_GROUP main.py evaluate ..."
-    uv run --group "$DEPENDENCY_GROUP" main.py evaluate --model-config "$CONFIG_FILE" "$@"
+    echo "Running: uv run --group evaluate --group $DEPENDENCY_GROUP main.py evaluate ..."
+    uv run --group evaluate --group "$DEPENDENCY_GROUP" main.py evaluate --model-config "$CONFIG_FILE" "$@"
 fi

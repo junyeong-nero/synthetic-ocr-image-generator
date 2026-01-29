@@ -3,7 +3,7 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class FormatType(str, Enum):
@@ -73,6 +73,29 @@ class EvaluationConfig(BaseModel):
     prompt: Optional[str] = Field(default=None, description="Custom prompt override")
     system_prompt: Optional[str] = Field(default=None, description="Custom system prompt")
     seed: Optional[int] = Field(default=None, description="Random seed for reproducibility")
+    batch_api: bool = Field(default=False, description="Use OpenAI Batch API for inference")
+    batch_poll_seconds: int = Field(
+        default=60,
+        description="Polling interval for batch status",
+        ge=5,
+    )
+    batch_timeout_seconds: int = Field(
+        default=86400,
+        description="Max wait time for batch completion",
+        ge=60,
+    )
+    batch_completion_window: str = Field(
+        default="24h",
+        description="Batch completion window",
+    )
+
+    @model_validator(mode="after")
+    def validate_batch_api(self) -> "EvaluationConfig":
+        if self.batch_api and self.model.backend != InferenceBackend.OPENAI:
+            raise ValueError("Batch API is only supported for OpenAI backend")
+        if self.batch_api and self.batch_completion_window != "24h":
+            raise ValueError("Only '24h' is supported for batch_completion_window")
+        return self
 
     # Output configuration
     output_dir: str = Field(default="./evaluation_results")

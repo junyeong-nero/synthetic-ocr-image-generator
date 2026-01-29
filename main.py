@@ -8,21 +8,13 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 sys.path.insert(0, "src")
-from pipeline import pipeline
-from utils import set_global_seed
-from evaluation.config import (
-    EvaluationConfig,
-    FormatType,
-    InferenceBackend,
-    ModelConfig,
-)
-from evaluation.model_config import ModelConfigLoader, ModelSpecificConfig
-from evaluation.pipeline import EvaluationPipeline
-from evaluation.report import ReportGenerator
-from evaluation.comparator import ModelComparator
+from env_utils import set_global_seed
+
+if TYPE_CHECKING:
+    from evaluation.model_config import ModelSpecificConfig
 
 
 def get_api_key(backend: str) -> Optional[str]:
@@ -170,14 +162,18 @@ def print_results(metrics: dict, format_type: str) -> None:
 
 def load_model_config(
     model_config_path: str,
-) -> ModelSpecificConfig:
+) -> "ModelSpecificConfig":
     """Load model-specific configuration."""
+    from evaluation.model_config import ModelConfigLoader
+
     loader = ModelConfigLoader()
     return loader.load_from_path(Path(model_config_path))
 
 
 def cmd_generate(args: argparse.Namespace) -> None:
     """Run generation command."""
+    from pipeline import pipeline
+
     set_global_seed(args.seed)
     pipeline_args = {
         "repo_id": args.repo_id,
@@ -198,6 +194,10 @@ def cmd_generate(args: argparse.Namespace) -> None:
 
 def cmd_evaluate(args: argparse.Namespace) -> None:
     """Run evaluation command."""
+    from evaluation.config import FormatType, InferenceBackend, ModelConfig, EvaluationConfig
+    from evaluation.pipeline import EvaluationPipeline
+    from evaluation.report import ReportGenerator
+
     model_specific_config = load_model_config(args.model_config)
 
     set_global_seed(args.seed)
@@ -280,6 +280,10 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
             max_samples=args.max_samples,
             output_dir=str(output_dir),
             seed=args.seed,
+            batch_api=args.batch_api,
+            batch_poll_seconds=args.batch_poll_seconds,
+            batch_timeout_seconds=args.batch_timeout_seconds,
+            batch_completion_window=args.batch_completion_window,
             model_config_path=args.model_config,
         )
 
@@ -439,6 +443,8 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
 
 def cmd_compare(args: argparse.Namespace) -> None:
     """Run comparison command."""
+    from evaluation.comparator import ModelComparator
+
     paths = [Path(p) for p in args.report_files]
 
     for path in paths:
@@ -468,6 +474,8 @@ def cmd_list_backends(args: argparse.Namespace) -> None:
 
 def cmd_list_configs(args: argparse.Namespace) -> None:
     """List available model configurations."""
+    from evaluation.model_config import ModelConfigLoader
+
     loader = ModelConfigLoader()
     configs = loader.list_available_configs()
 
@@ -623,6 +631,29 @@ def main() -> None:
         type=int,
         default=None,
         help="Random seed for reproducible evaluation",
+    )
+    eval_parser.add_argument(
+        "--batch-api",
+        action="store_true",
+        default=False,
+        help="Use OpenAI Batch API for evaluation",
+    )
+    eval_parser.add_argument(
+        "--batch-poll-seconds",
+        type=int,
+        default=60,
+        help="Polling interval for batch status",
+    )
+    eval_parser.add_argument(
+        "--batch-timeout-seconds",
+        type=int,
+        default=86400,
+        help="Max wait time for batch completion",
+    )
+    eval_parser.add_argument(
+        "--batch-completion-window",
+        default="24h",
+        help="Batch completion window",
     )
     eval_parser.add_argument(
         "--output-dir", default="./evaluation_results", help="Output directory"

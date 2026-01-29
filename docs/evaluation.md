@@ -40,6 +40,20 @@ When multiple subsets are provided, each subset gets a separate output directory
 
 The report format is controlled by `--report-format` (default `all`).
 
+## Batch API (OpenAI)
+
+Use `--batch-api` to submit evaluation requests via OpenAI's Batch API for cost savings (OpenAI backend only).
+
+- The batch API runs asynchronously and can take minutes to hours.
+- Results are mapped by `custom_id`, so order is not guaranteed.
+- Requests are written to `evaluation_results/<subset>/batch/requests.jsonl`.
+
+Batch settings:
+
+- `--batch-poll-seconds` (default 60)
+- `--batch-timeout-seconds` (default 86400)
+- `--batch-completion-window` (default 24h, only `24h` supported)
+
 ## Protocol Snapshot
 
 Each evaluation writes a `protocol.json` file in the output directory. It captures:

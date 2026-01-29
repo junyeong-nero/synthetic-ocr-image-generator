@@ -118,6 +118,27 @@ class VLMModel(ABC):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.run, prompts, images)
 
+    async def run_batch_async(
+        self,
+        prompts: List[str],
+        images: List[Image.Image],
+        custom_ids: List[str],
+        output_dir,
+        completion_window: str,
+        poll_interval: int,
+        timeout: int,
+    ) -> Dict[str, str]:
+        raise NotImplementedError
+
+    async def resume_batch_async(
+        self,
+        batch_id: str,
+        output_dir,
+        poll_interval: int,
+        timeout: int,
+    ) -> Dict[str, str]:
+        raise NotImplementedError
+
     def run_batch(
         self,
         prompts: List[str],
@@ -153,5 +174,3 @@ class VLMModel(ABC):
             "class": self.__class__.__name__,
             "module": self.__class__.__module__,
         }
-
-

@@ -40,13 +40,45 @@ eval = [
     "tabulate>=0.9.0",
 ]
 transformers = ["transformers==4.46.3", "tokenizers==0.20.3"]
-# NOTE: Install backends separately to avoid dependency conflicts:
-#   uv sync --extra api --extra eval
-#   uv sync --extra api --extra eval --extra transformers
+# NOTE: Use groups for isolated installs:
+#   uv sync --group generate
+#   uv sync --group evaluate
+#   uv sync --group api
 
 [dependency-groups]
 # Individual model groups with their specific requirements
 # Usage: uv sync --group <model-name>
+
+api = [
+    "opencv-python>=4.12.0.88",
+    "openai>=1.0.0",
+    "anthropic>=0.25.0",
+    "google-generativeai>=0.5.0",
+    "tenacity>=8.0.0",
+    "aiohttp>=3.9.0",
+]
+
+generate = [
+    "datasets>=4.2.0",
+    "opencv-python>=4.12.0.88",
+    "pillow>=12.0.0",
+    "scikit-image>=0.25.2",
+    "pyyaml>=6.0",
+    "huggingface-hub>=0.23.0",
+    "tqdm>=4.60.0",
+    "numpy>=1.24.0",
+]
+
+evaluate = [
+    "datasets>=4.2.0",
+    "pillow>=12.0.0",
+    "pyyaml>=6.0",
+    "pydantic>=2.0.0",
+    "tqdm>=4.60.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "tabulate>=0.9.0",
+]
 
 nanonets-ocr2 = [
     "transformers==4.46.3",

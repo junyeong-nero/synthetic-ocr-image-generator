@@ -1,16 +1,17 @@
 """Evaluation runner with checkpointing support."""
 
+import asyncio
+import json
 import time
-from dataclasses import asdict
 from pathlib import Path
-from typing import Any, List, Union
+from typing import Any, List
 
 from PIL import Image
 from tqdm import tqdm
 
 from evaluation.config import EvaluationConfig
 from evaluation.types import InferenceResult, RunnerState
-from models.base import Model, VLMModel
+from models.base import VLMModel
 
 
 class EvaluationRunner:
@@ -23,7 +24,7 @@ class EvaluationRunner:
     def __init__(
         self,
         config: EvaluationConfig,
-        model: Union[Model, VLMModel],
+        model: VLMModel,
     ):
         self.config = config
         self.model = model
@@ -70,6 +71,9 @@ class EvaluationRunner:
         Returns:
             List of InferenceResult objects.
         """
+        if self.config.batch_api:
+            return await self._run_batch_api(images, ground_truths, prompts)
+
         results: List[InferenceResult] = []
 
         # Get remaining indices (not yet completed)
@@ -165,6 +169,13 @@ class EvaluationRunner:
         Returns:
             List of InferenceResult objects.
         """
+        if self.config.batch_api:
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                return asyncio.run(self._run_batch_api(images, ground_truths, prompts))
+            raise RuntimeError("Batch API sync run() called inside event loop; use run_async")
+
         results: List[InferenceResult] = []
 
         # Get remaining indices
@@ -237,6 +248,128 @@ class EvaluationRunner:
         all_results.sort(key=lambda r: r.index)
 
         return all_results
+
+    async def _run_batch_api(
+        self,
+        images: List[Image.Image],
+        ground_truths: List[Any],
+        prompts: List[str],
+    ) -> List[InferenceResult]:
+        batch_dir = self.output_dir / f"batch_{self.config.subset}"
+        batch_info_path = batch_dir / "batch_info.json"
+
+        remaining = [
+            i for i in range(len(images)) if i not in self.state.completed
+        ]
+
+        if not remaining:
+            print("All samples already processed. Loading from checkpoint.")
+            return [InferenceResult(**r) for r in self.state.results]
+
+        if batch_info_path.exists() and hasattr(self.model, "resume_batch_async"):
+            with open(batch_info_path, "r", encoding="utf-8") as f:
+                batch_info = json.load(f)
+            batch_id = batch_info.get("batch_id")
+            batch_status = batch_info.get("status")
+            if batch_id and batch_status not in {"failed", "cancelled", "expired"}:
+                print(f"Resuming batch: {batch_id}")
+                try:
+                    prediction_map = await self.model.resume_batch_async(
+                        batch_id=batch_id,
+                        output_dir=batch_dir,
+                        poll_interval=self.config.batch_poll_seconds,
+                        timeout=self.config.batch_timeout_seconds,
+                    )
+                except NotImplementedError as exc:
+                    raise RuntimeError(
+                        "Batch API requested but model does not support batch."
+                    ) from exc
+                error_map = self._load_batch_errors(batch_dir)
+                return self._finalize_batch_results(
+                    prediction_map,
+                    remaining,
+                    ground_truths,
+                    error_map=error_map,
+                )
+
+        if not hasattr(self.model, "run_batch_async"):
+            raise RuntimeError("Batch API requested but model does not support batch.")
+
+        print(f"Submitting batch for {len(remaining)} samples...")
+
+        batch_indices = remaining
+        batch_images = [images[i] for i in batch_indices]
+        batch_prompts = [prompts[i] for i in batch_indices]
+        custom_ids = [str(i) for i in batch_indices]
+
+        start_time = time.time()
+        try:
+            prediction_map = await self.model.run_batch_async(
+                batch_prompts,
+                batch_images,
+                custom_ids,
+                output_dir=batch_dir,
+                completion_window=self.config.batch_completion_window,
+                poll_interval=self.config.batch_poll_seconds,
+                timeout=self.config.batch_timeout_seconds,
+            )
+        except NotImplementedError as exc:
+            raise RuntimeError(
+                "Batch API requested but model does not support batch."
+            ) from exc
+        latency = (time.time() - start_time) * 1000 / len(batch_indices)
+        error_map = self._load_batch_errors(batch_dir)
+        return self._finalize_batch_results(
+            prediction_map,
+            batch_indices,
+            ground_truths,
+            latency,
+            error_map=error_map,
+        )
+
+    def _finalize_batch_results(
+        self,
+        prediction_map: dict[str, str],
+        indices: List[int],
+        ground_truths: List[Any],
+        latency_ms: float = 0,
+        error_map: dict[str, str] | None = None,
+    ) -> List[InferenceResult]:
+        results: List[InferenceResult] = []
+        for idx in indices:
+            custom_id = str(idx)
+            prediction = prediction_map.get(custom_id)
+            error = None
+            if prediction is None:
+                prediction = ""
+                error = "Missing batch response"
+            if error_map and custom_id in error_map:
+                error = error_map[custom_id]
+
+            result = InferenceResult(
+                index=idx,
+                prediction=prediction,
+                ground_truth=ground_truths[idx],
+                latency_ms=latency_ms,
+                error=error,
+            )
+            if idx not in self.state.completed:
+                results.append(result)
+                self.state.completed.append(idx)
+                self.state.results.append(result.to_dict())
+
+        self._save_checkpoint()
+        all_results = [InferenceResult(**r) for r in self.state.results]
+        all_results.sort(key=lambda r: r.index)
+        return all_results
+
+    def _load_batch_errors(self, batch_dir: Path) -> dict[str, str]:
+        error_path = batch_dir / "batch_errors.json"
+        if not error_path.exists():
+            return {}
+        with open(error_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {str(k): str(v) for k, v in data.items()}
 
     def clear_checkpoint(self) -> None:
         """Clear the checkpoint file."""

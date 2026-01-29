@@ -84,7 +84,7 @@ for format in "${FORMATS_LIST[@]}"; do
     echo ""
     echo "[$INDEX/$TOTAL] Generating ${format} format..."
     if [[ "$format" == "sentence" ]]; then
-        uv run main.py generate \
+        uv run --group generate main.py generate \
             --repo-id "$REPO_ID" \
             --font-path "$FONT_PATH" \
             --format "$format" \
@@ -92,7 +92,7 @@ for format in "${FORMATS_LIST[@]}"; do
             --lang "$LANG" \
             --typo-ratio "$TYPO_RATIO"
     else
-        uv run main.py generate \
+        uv run --group generate main.py generate \
             --repo-id "$REPO_ID" \
             --font-path "$FONT_PATH" \
             --format "$format" \

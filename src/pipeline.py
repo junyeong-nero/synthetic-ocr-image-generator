@@ -8,7 +8,8 @@ from tqdm import tqdm
 
 from corpus_generator import create_corpus_from_wiki
 from character_similarity import generate_similar_chars_db
-from utils import upload_subset_to_hub, set_global_seed
+from env_utils import set_global_seed
+from utils import upload_subset_to_hub
 from generator.realism_stats import write_realism_stats
 
 logging.basicConfig(
