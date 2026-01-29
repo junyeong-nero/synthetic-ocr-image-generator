@@ -7,7 +7,7 @@ Generation is orchestrated by `src/pipeline.py` and format-specific generators i
 1. Ensure corpus and character similarity DB (sentence only).
 2. Instantiate the generator for the selected format.
 3. Generate images and metadata.
-4. Write `metadata.jsonl` and upload to Hugging Face.
+4. Write `metadata.jsonl` and `realism_stats.json`, then upload to Hugging Face.
 
 Output directory layout:
 
@@ -21,7 +21,15 @@ data/<lang>/
   images_markdown/
   images_kie/
   images_mixed/
+  realism_stats.json
 ```
+
+`realism_stats.json` includes:
+
+- `total_samples` and optional `format`/`format_counts`
+- `field_presence` counts per metadata key
+- length stats for text, list, and dict fields
+- numeric field summary stats (min/max/mean)
 
 ## Sentence
 
@@ -37,6 +45,7 @@ Notes:
 
 - Uses Wikipedia corpus and a character similarity DB.
 - `typo_ratio` controls typo injection.
+- Use `--seed` for reproducible generation.
 
 ## Table
 

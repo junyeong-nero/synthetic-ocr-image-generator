@@ -1,6 +1,12 @@
 import re
 import json
 import logging
+import os
+import platform
+import random
+import sys
+from importlib import metadata as importlib_metadata
+
 import pandas as pd
 
 from pathlib import Path
@@ -12,7 +18,7 @@ from datasets import (
     Value,
     Image as HFImage,
 )
-from huggingface_hub import login, whoami
+from huggingface_hub import whoami
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +65,70 @@ def save_txt(file_path, text):
         logger.info(f"Data successfully saved to '{file_path}'.")
     except Exception as e:
         logger.error(f"An error occurred while saving the file: {e}")
+
+
+def set_global_seed(seed: Optional[int]) -> None:
+    if seed is None:
+        return
+
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    random.seed(seed)
+
+    try:
+        import numpy as np
+
+        np.random.seed(seed)
+    except Exception:
+        pass
+
+    try:
+        import torch
+
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+    except Exception:
+        pass
+
+
+def _get_package_version(name: str) -> Optional[str]:
+    try:
+        return importlib_metadata.version(name)
+    except Exception:
+        return None
+
+
+def get_environment_metadata() -> Dict[str, Any]:
+    env: dict[str, Any] = {
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+    }
+
+    env["packages"] = {
+        "torch": _get_package_version("torch"),
+        "transformers": _get_package_version("transformers"),
+        "datasets": _get_package_version("datasets"),
+        "numpy": _get_package_version("numpy"),
+        "pandas": _get_package_version("pandas"),
+        "uv": _get_package_version("uv"),
+    }
+
+    try:
+        import torch
+
+        env["torch"] = {
+            "cuda_available": torch.cuda.is_available(),
+            "mps_available": bool(getattr(torch.backends, "mps", None))
+            and torch.backends.mps.is_available(),
+        }
+    except Exception:
+        env["torch"] = {
+            "cuda_available": False,
+            "mps_available": False,
+        }
+
+    return env
 
 
 def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
@@ -116,7 +186,7 @@ def _parse_metadata_schema(metadata_path: Path) -> Tuple[Optional[Dict], List[st
         if "file_name" not in sample_data:
             raise KeyError("Required key 'file_name' not found in 'metadata.jsonl'.")
 
-        feature_dict = {"image": HFImage()}
+        feature_dict: Dict[str, Any] = {"image": HFImage()}
         column_names = ["image"]
 
         type_mapping = {

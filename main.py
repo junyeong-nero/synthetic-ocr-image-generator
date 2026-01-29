@@ -6,11 +6,13 @@ import os
 import re
 import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, "src")
 from pipeline import pipeline
+from utils import set_global_seed
 from evaluation.config import (
     EvaluationConfig,
     FormatType,
@@ -32,6 +34,123 @@ def get_api_key(backend: str) -> Optional[str]:
     }
     env_var = key_map.get(backend)
     return os.environ.get(env_var) if env_var else None
+
+
+PROTOCOL_VERSION = "1.0"
+
+
+def _iso_timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _normalize_metric(metric_key: Optional[str], metric_value: Optional[float]) -> Optional[float]:
+    if metric_key is None or metric_value is None:
+        return None
+    lower_better = {"avg_cer", "avg_wer"}
+    normalized = 1.0 - metric_value if metric_key in lower_better else metric_value
+    return max(0.0, min(1.0, normalized))
+
+
+def _write_protocol_snapshot(
+    output_dir: Path,
+    output,
+    report_format: str,
+) -> Path:
+    snapshot = {
+        "protocol_version": PROTOCOL_VERSION,
+        "timestamp": _iso_timestamp(),
+        "command": "evaluate",
+        "report_format": report_format,
+        "config": output.config,
+        "summary": output.summary,
+        "prompt": output.config.get("prompt"),
+        "prompt_source": output.config.get("prompt_source"),
+        "system_prompt": output.config.get("system_prompt"),
+    }
+    path = output_dir / "protocol.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(snapshot, f, ensure_ascii=False, indent=2)
+    return path
+
+
+def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
+    leaderboard_entries = []
+    for entry in summary_entries:
+        subset_scores = []
+        subset_weights = []
+        normalized_subsets = []
+        for subset_entry in entry.get("subsets", []):
+            metric_key = subset_entry.get("metric_key")
+            metric_value = subset_entry.get("metric_value")
+            normalized = _normalize_metric(metric_key, metric_value)
+            normalized_subsets.append(
+                {
+                    **subset_entry,
+                    "normalized_value": normalized,
+                }
+            )
+            if isinstance(normalized, (int, float)):
+                subset_scores.append(normalized)
+                weight = subset_entry.get("total_samples")
+                subset_weights.append(weight if isinstance(weight, (int, float)) else 1)
+
+        if subset_scores:
+            weight_total = sum(subset_weights)
+            normalized_average = (
+                sum(score * weight for score, weight in zip(subset_scores, subset_weights))
+                / weight_total
+                if weight_total
+                else None
+            )
+        else:
+            normalized_average = None
+
+        leaderboard_entries.append(
+            {
+                "timestamp": entry.get("timestamp"),
+                "protocol_version": entry.get("protocol_version"),
+                "model_id": entry.get("model_id"),
+                "backend": entry.get("backend"),
+                "dataset": entry.get("dataset"),
+                "split": entry.get("split"),
+                "average_score": entry.get("average_score"),
+                "normalized_average_score": normalized_average,
+                "subsets": normalized_subsets,
+            }
+        )
+
+    leaderboard_entries.sort(
+        key=lambda item: (
+            item.get("normalized_average_score") is not None,
+            item.get("normalized_average_score") or 0,
+        ),
+        reverse=True,
+    )
+
+    leaderboard_path = output_dir / "leaderboard.json"
+    with open(leaderboard_path, "w", encoding="utf-8") as f:
+        json.dump(leaderboard_entries, f, ensure_ascii=False, indent=2)
+
+    lines = ["# OCR Benchmark Leaderboard", "", "| Rank | Model | Backend | Dataset | Split | Normalized | Raw |", "|---:|---|---|---|---|---:|---:|"]
+    for idx, entry in enumerate(leaderboard_entries, start=1):
+        normalized_score = entry.get("normalized_average_score")
+        raw_score = entry.get("average_score")
+        lines.append(
+            "| {} | {} | {} | {} | {} | {} | {} |".format(
+                idx,
+                entry.get("model_id") or "-",
+                entry.get("backend") or "-",
+                entry.get("dataset") or "-",
+                entry.get("split") or "-",
+                f"{normalized_score:.4f}" if isinstance(normalized_score, (int, float)) else "-",
+                f"{raw_score:.4f}" if isinstance(raw_score, (int, float)) else "-",
+            )
+        )
+
+    leaderboard_md = output_dir / "leaderboard.md"
+    with open(leaderboard_md, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
 
 
 def print_results(metrics: dict, format_type: str) -> None:
@@ -59,6 +178,7 @@ def load_model_config(
 
 def cmd_generate(args: argparse.Namespace) -> None:
     """Run generation command."""
+    set_global_seed(args.seed)
     pipeline_args = {
         "repo_id": args.repo_id,
         "font_path": args.font_path,
@@ -71,6 +191,7 @@ def cmd_generate(args: argparse.Namespace) -> None:
         "template": args.template,
         "table_size": args.table_size,
         "mixed": args.mixed,
+        "seed": args.seed,
     }
     pipeline(**pipeline_args)
 
@@ -78,6 +199,8 @@ def cmd_generate(args: argparse.Namespace) -> None:
 def cmd_evaluate(args: argparse.Namespace) -> None:
     """Run evaluation command."""
     model_specific_config = load_model_config(args.model_config)
+
+    set_global_seed(args.seed)
 
     representative_metrics = {
         FormatType.SENTENCE.value: "avg_cer",
@@ -156,6 +279,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
             batch_size=batch_size,
             max_samples=args.max_samples,
             output_dir=str(output_dir),
+            seed=args.seed,
             model_config_path=args.model_config,
         )
 
@@ -186,6 +310,9 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
             path = method(output_path / f"report.{args.report_format}")
             print(f"\nReport saved: {path}")
 
+        protocol_path = _write_protocol_snapshot(output_path, output, args.report_format)
+        print(f"Protocol snapshot saved: {protocol_path}")
+
         print_results(output.metrics, format_type.value)
 
         print(
@@ -205,6 +332,8 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
             "metric_value": metric_value,
             "model_id": model_config.model_id,
             "backend": backend_str,
+            "prompt_source": output.config.get("prompt_source"),
+            "total_samples": output.summary.get("total_samples"),
         }
 
     def subset_output_dir(base_dir: Path, subset: str, use_subdir: bool) -> Path:
@@ -265,10 +394,13 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     average_score = sum(metric_values) / len(metric_values) if metric_values else None
 
     summary_entry = {
+        "timestamp": _iso_timestamp(),
+        "protocol_version": PROTOCOL_VERSION,
         "model_id": summary_entries[0]["model_id"] if summary_entries else None,
         "backend": summary_entries[0]["backend"] if summary_entries else None,
         "dataset": args.dataset,
         "split": args.split,
+        "seed": args.seed,
         "subsets": summary_entries,
         "average_score": average_score,
     }
@@ -301,6 +433,8 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         json.dump(existing, f, ensure_ascii=False, indent=2)
     os.replace(tmp_path, summary_path)
     print(f"\nModel summary saved: {summary_path}")
+
+    _write_leaderboard(summary_output_dir, existing)
 
 
 def cmd_compare(args: argparse.Namespace) -> None:
@@ -400,6 +534,12 @@ def main() -> None:
         help="Language code (e.g., ko, en)",
     )
     gen_parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for reproducible generation",
+    )
+    gen_parser.add_argument(
         "--corpus-size",
         type=int,
         default=10000,
@@ -477,6 +617,12 @@ def main() -> None:
     eval_parser.add_argument("--split", default="train", help="Dataset split")
     eval_parser.add_argument(
         "--max-samples", type=int, default=None, help="Max samples to evaluate"
+    )
+    eval_parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for reproducible evaluation",
     )
     eval_parser.add_argument(
         "--output-dir", default="./evaluation_results", help="Output directory"

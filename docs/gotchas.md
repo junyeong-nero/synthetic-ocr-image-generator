@@ -9,6 +9,8 @@
 - `evaluate` defaults to `--split train` to match generated datasets.
 - `EvaluationRunner` uses `checkpoint.json` to resume runs; delete it to start fresh.
 - Uploading to Hugging Face requires `huggingface-cli login`.
+- Evaluation writes `protocol.json` and updates `leaderboard.json`/`leaderboard.md` in the output directory.
+- Generation writes `realism_stats.json` alongside `metadata.jsonl`.
 
 ## Dataset Column Expectations
 

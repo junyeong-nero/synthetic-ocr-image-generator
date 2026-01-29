@@ -14,6 +14,7 @@ Options (defaults in brackets):
 - `--font-path` (required): TTF font path used for similarity DB
 - `--output-dir` [./data]: base output directory
 - `--lang` [ko]: language code
+- `--seed` [None]: random seed for reproducible generation
 - `--corpus-size` [10000]: sentences to extract for corpus
 - `--size` [100]: number of images
 - `--typo-ratio` [0.15]: sentence typo injection ratio
@@ -58,6 +59,7 @@ Optional:
 - `-s, --subset`: comma-separated subset list (if omitted, runs all defaults)
 - `--split` [train]: dataset split
 - `--max-samples` [None]: limit evaluation samples
+- `--seed` [None]: random seed for reproducible evaluation
 - `--output-dir` [./evaluation_results]: output directory
 - `--report-format` [all]: `json`, `markdown`, `html`, `all`
 
@@ -78,6 +80,12 @@ uv run main.py evaluate \
   --subset sentence \
   --max-samples 100
 ```
+
+Artifacts per run:
+
+- `report.json` / `report.md` / `report.html`
+- `protocol.json`
+- `leaderboard.json` / `leaderboard.md`
 
 ## Compare
 

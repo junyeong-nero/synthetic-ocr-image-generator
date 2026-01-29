@@ -5,14 +5,14 @@ Evaluation is orchestrated by `src/evaluation/pipeline.py` and configured by `Ev
 ## Execution Flow
 
 1. Load dataset (`datasets.load_dataset`) with `dataset_id`, `subset`, `split`.
-2. Resolve prompt (subset prompt > format prompt > default prompt).
+2. Resolve prompt via `EvaluationPipeline._resolve_prompt` (subset > format > default).
 3. Run inference via `EvaluationRunner` with batching and checkpointing.
 4. Compute format-specific metrics via `EvaluatorRegistry`.
 5. Write reports and summary outputs.
 
 ## Prompts
 
-Prompt resolution is handled in `EvaluationPipeline._get_prompt`:
+Prompt resolution is handled in `EvaluationPipeline._resolve_prompt`:
 
 - Subset prompt in model YAML if present
 - Format prompt in model YAML if present
@@ -39,6 +39,39 @@ When multiple subsets are provided, each subset gets a separate output directory
 - `report.html`
 
 The report format is controlled by `--report-format` (default `all`).
+
+## Protocol Snapshot
+
+Each evaluation writes a `protocol.json` file in the output directory. It captures:
+
+- protocol version
+- dataset/split/subset
+- prompt and prompt source
+- model configuration and evaluation parameters
+- seed value (if provided)
+- environment metadata
+
+Use this file to verify that two runs follow the same benchmark protocol.
+
+## Leaderboard
+
+After evaluation, the CLI updates:
+
+- `model_summary.json` (append-only run history)
+- `leaderboard.json` and `leaderboard.md` (normalized scores)
+
+Normalization rules:
+
+- `avg_cer`, `avg_wer` -> `1 - score`
+- Other representative metrics are used as-is
+- Normalized averages are weighted by `total_samples` when available
+
+## Artifacts
+
+Per evaluation output directory:
+
+- `protocol.json` (protocol snapshot for the run)
+- `leaderboard.json` and `leaderboard.md` (normalized results table)
 
 ## Checkpointing
 

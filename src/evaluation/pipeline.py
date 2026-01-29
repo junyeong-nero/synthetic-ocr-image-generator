@@ -1,24 +1,18 @@
 """Main evaluation pipeline orchestrator."""
 
-import asyncio
-import json
 import os
-from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
-import numpy as np
 from datasets import Dataset, load_dataset
-from PIL import Image
 
 from evaluation.config import DEFAULT_PROMPTS, EvaluationConfig, FormatType, ModelConfig
 from evaluation.model_config import ModelConfigLoader, ModelSpecificConfig
 from evaluation.runner import EvaluationRunner
 from evaluation.types import EvaluationOutput, InferenceResult
 from evaluation.strategies import EvaluatorRegistry
-from models.base import Model, VLMModel
 from models.registry import create_model
-from evaluation.utils import extract_html_table, parse_model_output_as_json
+from utils import get_environment_metadata
 
 
 class EvaluationPipeline:
@@ -32,6 +26,11 @@ class EvaluationPipeline:
         self.config = config
         self.model = create_model(config.model)
         self.runner = EvaluationRunner(config, self.model)
+        self.prompt: Optional[str] = None
+        self.system_prompt: Optional[str] = None
+        self.prompt_source: Optional[str] = None
+        self.dataset_fingerprint: Optional[str] = None
+        self.dataset_info: Optional[Any] = None
 
         # Load model-specific config if available
         self.model_specific_config: Optional[ModelSpecificConfig] = None
@@ -59,6 +58,9 @@ class EvaluationPipeline:
                 split=self.config.split,
             )
 
+        self.dataset_fingerprint = getattr(dataset, "_fingerprint", None)
+        self.dataset_info = getattr(dataset, "info", None)
+
         # Apply max_samples limit
         if self.config.max_samples:
             dataset = dataset.select(
@@ -67,32 +69,26 @@ class EvaluationPipeline:
 
         return dataset
 
-    def _get_prompt(self) -> str:
-        """Get prompt for the format type.
-
-        Priority:
-        1. Custom prompt from config
-        2. Model-specific prompt (with subset override)
-        3. Default prompt for format type
-        """
-        # 1. Custom prompt from config takes highest priority
+    def _resolve_prompt(self) -> tuple[str, Optional[str], str]:
+        """Resolve prompt and system prompt with source labeling."""
         if self.config.prompt:
-            return self.config.prompt
+            return self.config.prompt, self.config.system_prompt, "cli"
 
-        # 2. Try model-specific prompt
         if self.model_specific_config:
-            prompt_config = self.model_specific_config.get_prompt(
-                self.config.format_type,
-                subset=self.config.subset,
-            )
-            if prompt_config:
-                return prompt_config.prompt
+            format_key = self.config.format_type.value
+            subset_config = self.model_specific_config.subsets.get(self.config.subset)
+            if subset_config and format_key in subset_config.prompts:
+                prompt_config = subset_config.prompts[format_key]
+                return prompt_config.prompt, prompt_config.system_prompt, "model_config_subset"
+            if format_key in self.model_specific_config.prompts:
+                prompt_config = self.model_specific_config.prompts[format_key]
+                return prompt_config.prompt, prompt_config.system_prompt, "model_config_format"
 
-        # 3. Fall back to default prompt
-        return DEFAULT_PROMPTS.get(
+        prompt = DEFAULT_PROMPTS.get(
             self.config.format_type,
             DEFAULT_PROMPTS[FormatType.SENTENCE],
         )
+        return prompt, None, "default"
 
     def _extract_ground_truths(self, dataset: Dataset) -> List[Any]:
         """Extract ground truths based on format type."""
@@ -123,7 +119,10 @@ class EvaluationPipeline:
         # Extract data
         images = list(dataset[self.config.image_column])
         ground_truths = self._extract_ground_truths(dataset)
-        prompt = self._get_prompt()
+        prompt, system_prompt, prompt_source = self._resolve_prompt()
+        self.prompt = prompt
+        self.system_prompt = system_prompt
+        self.prompt_source = prompt_source
         prompts = [prompt] * len(images)
 
         # Run inference
@@ -164,7 +163,10 @@ class EvaluationPipeline:
         # Extract data
         images = list(dataset[self.config.image_column])
         ground_truths = self._extract_ground_truths(dataset)
-        prompt = self._get_prompt()
+        prompt, system_prompt, prompt_source = self._resolve_prompt()
+        self.prompt = prompt
+        self.system_prompt = system_prompt
+        self.prompt_source = prompt_source
         prompts = [prompt] * len(images)
 
         # Run inference
@@ -197,6 +199,15 @@ class EvaluationPipeline:
 
     def _config_to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary for serialization."""
+        dataset_info = None
+        if self.dataset_info is not None:
+            dataset_info = {
+                "builder_name": getattr(self.dataset_info, "builder_name", None),
+                "version": str(getattr(self.dataset_info, "version", ""))
+                if getattr(self.dataset_info, "version", None)
+                else None,
+                "features": list(getattr(self.dataset_info, "features", {}).keys()),
+            }
         return {
             "dataset_id": self.config.dataset_id,
             "subset": self.config.subset,
@@ -204,6 +215,14 @@ class EvaluationPipeline:
             "format_type": self.config.format_type.value,
             "batch_size": self.config.batch_size,
             "max_samples": self.config.max_samples,
+            "prompt": self.prompt,
+            "system_prompt": self.system_prompt,
+            "prompt_source": self.prompt_source,
+            "seed": self.config.seed,
+            "dataset_fingerprint": self.dataset_fingerprint,
+            "dataset_info": dataset_info,
+            "environment": get_environment_metadata(),
+            "model_config_path": self.config.model_config_path,
             "model": {
                 "model_id": self.config.model.model_id,
                 "backend": self.config.model.backend.value,

@@ -57,6 +57,8 @@ subsets:
 
 ## Prompt Selection Order
 
+Implemented in `EvaluationPipeline._resolve_prompt`:
+
 1. Subset prompt in YAML (`subsets.<name>.prompts`)
 2. Format prompt in YAML (`prompts.<format>`)
 3. Default prompt in `src/evaluation/config.py`

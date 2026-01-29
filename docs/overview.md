@@ -19,6 +19,7 @@ main.py
 - `src/metrics/` - Metric implementations (CER/WER/TEDS/Layout/KIE)
 - `configs/models/` - Model YAML configs and prompts
 - `scripts/` - Convenience shell scripts
+- `docs/benchmark-protocol.md` - Standardized evaluation protocol
 
 ## Data Flow
 
@@ -31,9 +32,10 @@ Generation:
 Evaluation:
 
 1. `main.py evaluate` loads a model config and dataset.
-2. `EvaluationPipeline` selects a prompt (subset > format > default).
+2. `EvaluationPipeline._resolve_prompt` selects a prompt (subset > format > default).
 3. `EvaluationRunner` batches inference and writes `checkpoint.json`.
 4. Evaluators compute metrics and reports are written to `evaluation_results/`.
+5. `protocol.json` and `leaderboard.json`/`leaderboard.md` are updated per run.
 
 ## Dataset Schema (by Format)
 

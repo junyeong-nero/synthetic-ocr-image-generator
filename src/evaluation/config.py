@@ -61,7 +61,7 @@ class EvaluationConfig(BaseModel):
     # Dataset configuration
     dataset_id: str = Field(description="HuggingFace dataset ID")
     subset: str = Field(default="default", description="Dataset subset name")
-    split: str = Field(default="test", description="Dataset split")
+    split: str = Field(default="train", description="Dataset split")
     format_type: FormatType = Field(description="Evaluation format type")
 
     # Model configuration
@@ -72,6 +72,7 @@ class EvaluationConfig(BaseModel):
     max_samples: Optional[int] = Field(default=None, ge=1, description="Limit number of samples")
     prompt: Optional[str] = Field(default=None, description="Custom prompt override")
     system_prompt: Optional[str] = Field(default=None, description="Custom system prompt")
+    seed: Optional[int] = Field(default=None, description="Random seed for reproducibility")
 
     # Output configuration
     output_dir: str = Field(default="./evaluation_results")

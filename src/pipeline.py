@@ -4,9 +4,12 @@ import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from tqdm import tqdm
+
 from corpus_generator import create_corpus_from_wiki
 from character_similarity import generate_similar_chars_db
-from utils import upload_subset_to_hub
+from utils import upload_subset_to_hub, set_global_seed
+from generator.realism_stats import write_realism_stats
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -219,6 +222,7 @@ class MixedGenerator:
                     f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
             logger.info(f"Saved metadata to '{metadata_path}'")
+            write_realism_stats(self.output_dir, all_metadata, format_name="mixed")
             logger.info(f"Successfully generated {len(all_metadata):,} mixed format images")
             return str(self.output_dir)
 
@@ -295,12 +299,14 @@ def pipeline(
     lang: str,
     typo_ratio: float = 0.15,
     format: str = "sentence",
-    template: str = None,
+    template: Optional[str] = None,
     table_size: str = "3-8",
     mixed: bool = False,
+    seed: Optional[int] = None,
     **kwargs: Any,
 ) -> None:
     logger.info("=" * 80)
+    set_global_seed(seed)
     if mixed:
         logger.info(" Synthetic OCR Dataset Generator (Mixed Format) ".center(80))
     else:
@@ -361,7 +367,7 @@ def pipeline(
         generator = generator_cls(**init_kwargs)
         
         # Prepare run arguments
-        run_kwargs = {"num_images": size}
+        run_kwargs: Dict[str, Any] = {"num_images": size}
         if format == "sentence":
             run_kwargs["typo_ratio"] = typo_ratio
         elif format == "table":

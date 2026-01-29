@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from PIL import Image
 
+from generator.realism_stats import write_realism_stats
+
 logger = logging.getLogger(__name__)
 
 
@@ -85,6 +87,7 @@ class BaseGenerator(ABC):
                 f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
         logger.info(f"Saved metadata to '{metadata_path}'")
+        write_realism_stats(self.output_dir, metadata)
         return metadata_path
 
     def save_image(self, image: Image.Image, filename: str) -> Path:

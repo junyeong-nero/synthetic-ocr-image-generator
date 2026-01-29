@@ -53,6 +53,9 @@ uv run main.py evaluate \
 - Generated data and reports live in `data/`, `evaluation_results/`, and `test_results/`.
 - Dependency groups live in `pyproject.toml`; use `uv run --group <name> ...`.
 - `evaluate` defaults to `--split train` to match generated datasets.
+- Use `--seed` for reproducible generation/evaluation.
+- Evaluation writes `protocol.json` and updates `leaderboard.json`/`leaderboard.md` per run.
+- Generation writes `realism_stats.json` alongside `metadata.jsonl`.
 
 ## Documentation
 
@@ -63,3 +66,4 @@ uv run main.py evaluate \
 - `docs/evaluation.md`
 - `docs/metrics.md`
 - `docs/gotchas.md`
+- `docs/benchmark-protocol.md`
