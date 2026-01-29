@@ -1,4 +1,5 @@
 import json
+
 from typing import Optional, Dict
 
 def parse_model_output_as_json(output: str) -> Optional[Dict]:

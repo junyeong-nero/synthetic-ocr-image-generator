@@ -34,6 +34,7 @@ BACKEND_DISPLAY_NAMES: Dict[InferenceBackend, str] = {
     InferenceBackend.ANTHROPIC: "Anthropic API (Claude 3.5/4)",
     InferenceBackend.GOOGLE: "Google API (Gemini 1.5/2.0)",
     InferenceBackend.TRANSFORMERS: "HuggingFace Transformers",
+    InferenceBackend.PADDLEOCR: "PaddleOCR",
 }
 
 

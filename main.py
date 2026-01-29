@@ -434,7 +434,7 @@ def main() -> None:
         "--table-size",
         type=str,
         default="3-8",
-        help="Table size range as 'min_rows-max_cols'",
+        help="Table size range as 'min-max' applied to rows and cols",
     )
     gen_parser.add_argument(
         "--mixed",
@@ -474,7 +474,7 @@ def main() -> None:
             "If omitted, runs all default subsets"
         ),
     )
-    eval_parser.add_argument("--split", default="test", help="Dataset split")
+    eval_parser.add_argument("--split", default="train", help="Dataset split")
     eval_parser.add_argument(
         "--max-samples", type=int, default=None, help="Max samples to evaluate"
     )
