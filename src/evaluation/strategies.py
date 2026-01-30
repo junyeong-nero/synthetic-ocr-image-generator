@@ -74,8 +74,8 @@ class TableEvaluator(BaseEvaluator):
                 gt_dict = gt
             elif isinstance(gt, str):
                 try:
-                    gt_dict = json_module.loads(gt) if gt else {}
-                except (json_module.JSONDecodeError, TypeError):
+                    gt_dict = json.loads(gt) if gt else {}
+                except (json.JSONDecodeError, TypeError):
                     gt_dict = {}
             else:
                 gt_dict = {}
@@ -86,7 +86,7 @@ class TableEvaluator(BaseEvaluator):
             true_json = gt_dict.get("json", {})
             
             if isinstance(true_json, str):
-                true_json = json_module.loads(true_json) if true_json else {}
+                true_json = json.loads(true_json) if true_json else {}
 
             metrics = evaluate_table(pred_html, pred_json, true_html, true_json)
 
