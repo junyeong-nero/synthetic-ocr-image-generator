@@ -19,7 +19,12 @@ logger = logging.getLogger(__name__)
 
 
 def _ensure_corpus_and_db(
-    base_dir: Path, font_path: str, lang: str, num_sentences: int
+    base_dir: Path,
+    font_path: str,
+    lang: str,
+    num_sentences: int,
+    similarity_threshold: float,
+    similarity_top_k: int,
 ) -> tuple[Path, Path]:
     corpus_path = base_dir / f"corpus_{lang}.txt"
     db_path = base_dir / f"char_similarity_db_{lang}.json"
@@ -37,7 +42,11 @@ def _ensure_corpus_and_db(
     if not db_path.exists():
         logger.info("[DB] Generating character similarity DB...")
         generate_similar_chars_db(
-            corpus_path=str(corpus_path), db_path=str(db_path), font_path=font_path
+            corpus_path=str(corpus_path),
+            db_path=str(db_path),
+            font_path=font_path,
+            threshold=similarity_threshold,
+            top_k=similarity_top_k,
         )
     else:
         logger.info(f"[DB] Using existing: {db_path}")
@@ -299,6 +308,8 @@ def pipeline(
     output_dir: str,
     lang: str,
     typo_ratio: float = 0.15,
+    similarity_threshold: float = 0.6,
+    similarity_top_k: int = 8,
     format: str = "sentence",
     template: Optional[str] = None,
     table_size: str = "3-8",
@@ -323,7 +334,14 @@ def pipeline(
     font_dir = Path(f"fonts/{lang}")
 
     if mixed:
-        corpus_path, db_path = _ensure_corpus_and_db(base_dir, font_path, lang, corpus_size)
+        corpus_path, db_path = _ensure_corpus_and_db(
+            base_dir,
+            font_path,
+            lang,
+            corpus_size,
+            similarity_threshold,
+            similarity_top_k,
+        )
         task_output_dir = base_dir / "images_mixed"
 
         mixed_gen = MixedGenerator(
@@ -361,7 +379,14 @@ def pipeline(
         }
         
         if format == "sentence":
-            corpus_path, db_path = _ensure_corpus_and_db(base_dir, font_path, lang, corpus_size)
+            corpus_path, db_path = _ensure_corpus_and_db(
+                base_dir,
+                font_path,
+                lang,
+                corpus_size,
+                similarity_threshold,
+                similarity_top_k,
+            )
             init_kwargs["corpus_path"] = str(corpus_path)
             init_kwargs["similarity_db_path"] = str(db_path)
             

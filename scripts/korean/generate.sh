@@ -12,4 +12,6 @@ COMMON_SCRIPT="$PROJECT_DIR/common/generate_dataset.sh"
     --lang "ko" \
     --size 1000 \
     --typo-ratio 0.15 \
+    --similarity-threshold 0.6 \
+    --similarity-top-k 8 \
     --label "Korean"

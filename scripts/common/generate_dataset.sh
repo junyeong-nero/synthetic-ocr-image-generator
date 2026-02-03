@@ -8,6 +8,8 @@ usage() {
     echo "Options:"
     echo "  --size <n>            Number of samples per format (default: 1000)"
     echo "  --typo-ratio <ratio>  Typo ratio for sentence format (default: 0.15)"
+    echo "  --similarity-threshold <t>  SSIM threshold for similar chars (default: 0.6)"
+    echo "  --similarity-top-k <k>      Max similar chars per char (default: 8)"
     echo "  --formats <list>      Comma-separated formats (default: sentence,table,document,markdown,kie)"
     echo "  --label <label>       Display label for logs (optional)"
     echo "  --repo-id <repo>      Hugging Face dataset repo id (required)"
@@ -21,6 +23,8 @@ FONT_PATH=""
 LANG=""
 SIZE=1000
 TYPO_RATIO=0.15
+SIMILARITY_THRESHOLD=0.6
+SIMILARITY_TOP_K=8
 FORMATS="sentence,table,document,markdown,kie"
 LABEL=""
 
@@ -44,6 +48,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --typo-ratio)
             TYPO_RATIO="$2"
+            shift 2
+            ;;
+        --similarity-threshold)
+            SIMILARITY_THRESHOLD="$2"
+            shift 2
+            ;;
+        --similarity-top-k)
+            SIMILARITY_TOP_K="$2"
             shift 2
             ;;
         --formats)
@@ -90,7 +102,9 @@ for format in "${FORMATS_LIST[@]}"; do
             --format "$format" \
             --size "$SIZE" \
             --lang "$LANG" \
-            --typo-ratio "$TYPO_RATIO"
+            --typo-ratio "$TYPO_RATIO" \
+            --similarity-threshold "$SIMILARITY_THRESHOLD" \
+            --similarity-top-k "$SIMILARITY_TOP_K"
     else
         uv run --group generate main.py generate \
             --repo-id "$REPO_ID" \

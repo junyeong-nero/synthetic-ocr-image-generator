@@ -183,6 +183,8 @@ def cmd_generate(args: argparse.Namespace) -> None:
         "corpus_size": args.corpus_size,
         "size": args.size,
         "typo_ratio": args.typo_ratio,
+        "similarity_threshold": args.similarity_threshold,
+        "similarity_top_k": args.similarity_top_k,
         "format": args.format,
         "template": args.template,
         "table_size": args.table_size,
@@ -564,6 +566,18 @@ def main() -> None:
         type=float,
         default=0.15,
         help="Ratio of words to introduce typos",
+    )
+    gen_parser.add_argument(
+        "--similarity-threshold",
+        type=float,
+        default=0.6,
+        help="SSIM threshold for storing similar characters",
+    )
+    gen_parser.add_argument(
+        "--similarity-top-k",
+        type=int,
+        default=8,
+        help="Max similar characters to store per character",
     )
     gen_parser.add_argument(
         "--format",
