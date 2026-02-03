@@ -37,7 +37,7 @@ LANG_CONFIG = {
     },
     "en": {
         "dataset_id": "20231101.en",
-        "char_regex": r"[^a-zA-Z0-9\s.?!]",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
     },
     "ja": {
         "dataset_id": "20231101.ja",
@@ -53,11 +53,243 @@ LANG_CONFIG = {
     },
     "vi": {
         "dataset_id": "20231101.vi",
-        "char_regex": r"[^a-zA-Z\u00C0-\u017F0-9\s.?!]",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
     },
     "th": {
         "dataset_id": "20231101.th",
         "char_regex": r"[^\u0E00-\u0E7F0-9\s.?!]",
+    },
+    "zh": {
+        "dataset_id": "20231101.zh",
+        "char_regex": r"[^\u3400-\u4DBF\u4E00-\u9FFF0-9\s.?!]",
+    },
+    "fr": {
+        "dataset_id": "20231101.fr",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "de": {
+        "dataset_id": "20231101.de",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "es": {
+        "dataset_id": "20231101.es",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "pt": {
+        "dataset_id": "20231101.pt",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "it": {
+        "dataset_id": "20231101.it",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "nl": {
+        "dataset_id": "20231101.nl",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "sv": {
+        "dataset_id": "20231101.sv",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "no": {
+        "dataset_id": "20231101.no",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "da": {
+        "dataset_id": "20231101.da",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "fi": {
+        "dataset_id": "20231101.fi",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "is": {
+        "dataset_id": "20231101.is",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "et": {
+        "dataset_id": "20231101.et",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "lv": {
+        "dataset_id": "20231101.lv",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "lt": {
+        "dataset_id": "20231101.lt",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "pl": {
+        "dataset_id": "20231101.pl",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "cs": {
+        "dataset_id": "20231101.cs",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "sk": {
+        "dataset_id": "20231101.sk",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "sl": {
+        "dataset_id": "20231101.sl",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "hr": {
+        "dataset_id": "20231101.hr",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "ro": {
+        "dataset_id": "20231101.ro",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "hu": {
+        "dataset_id": "20231101.hu",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "tr": {
+        "dataset_id": "20231101.tr",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "id": {
+        "dataset_id": "20231101.id",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "ms": {
+        "dataset_id": "20231101.ms",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "sw": {
+        "dataset_id": "20231101.sw",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "af": {
+        "dataset_id": "20231101.af",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "sq": {
+        "dataset_id": "20231101.sq",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "ca": {
+        "dataset_id": "20231101.ca",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "gl": {
+        "dataset_id": "20231101.gl",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "eu": {
+        "dataset_id": "20231101.eu",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "ga": {
+        "dataset_id": "20231101.ga",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "mt": {
+        "dataset_id": "20231101.mt",
+        "char_regex": r"[^A-Za-z\u00C0-\u024F\u1E00-\u1EFF0-9\s.?!]",
+    },
+    "ru": {
+        "dataset_id": "20231101.ru",
+        "char_regex": r"[^\u0400-\u04FF\u0500-\u052F0-9\s.?!]",
+    },
+    "uk": {
+        "dataset_id": "20231101.uk",
+        "char_regex": r"[^\u0400-\u04FF\u0500-\u052F0-9\s.?!]",
+    },
+    "bg": {
+        "dataset_id": "20231101.bg",
+        "char_regex": r"[^\u0400-\u04FF\u0500-\u052F0-9\s.?!]",
+    },
+    "sr": {
+        "dataset_id": "20231101.sr",
+        "char_regex": r"[^\u0400-\u04FF\u0500-\u052F0-9\s.?!]",
+    },
+    "mk": {
+        "dataset_id": "20231101.mk",
+        "char_regex": r"[^\u0400-\u04FF\u0500-\u052F0-9\s.?!]",
+    },
+    "be": {
+        "dataset_id": "20231101.be",
+        "char_regex": r"[^\u0400-\u04FF\u0500-\u052F0-9\s.?!]",
+    },
+    "kk": {
+        "dataset_id": "20231101.kk",
+        "char_regex": r"[^\u0400-\u04FF\u0500-\u052F0-9\s.?!]",
+    },
+    "el": {
+        "dataset_id": "20231101.el",
+        "char_regex": r"[^\u0370-\u03FF0-9\s.?!]",
+    },
+    "he": {
+        "dataset_id": "20231101.he",
+        "char_regex": r"[^\u0590-\u05FF0-9\s.?!]",
+    },
+    "fa": {
+        "dataset_id": "20231101.fa",
+        "char_regex": r"[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF0-9\s.?!]",
+    },
+    "ur": {
+        "dataset_id": "20231101.ur",
+        "char_regex": r"[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF0-9\s.?!]",
+    },
+    "bn": {
+        "dataset_id": "20231101.bn",
+        "char_regex": r"[^\u0980-\u09FF0-9\s.?!]",
+    },
+    "pa": {
+        "dataset_id": "20231101.pa",
+        "char_regex": r"[^\u0A00-\u0A7F0-9\s.?!]",
+    },
+    "gu": {
+        "dataset_id": "20231101.gu",
+        "char_regex": r"[^\u0A80-\u0AFF0-9\s.?!]",
+    },
+    "ta": {
+        "dataset_id": "20231101.ta",
+        "char_regex": r"[^\u0B80-\u0BFF0-9\s.?!]",
+    },
+    "te": {
+        "dataset_id": "20231101.te",
+        "char_regex": r"[^\u0C00-\u0C7F0-9\s.?!]",
+    },
+    "kn": {
+        "dataset_id": "20231101.kn",
+        "char_regex": r"[^\u0C80-\u0CFF0-9\s.?!]",
+    },
+    "ml": {
+        "dataset_id": "20231101.ml",
+        "char_regex": r"[^\u0D00-\u0D7F0-9\s.?!]",
+    },
+    "si": {
+        "dataset_id": "20231101.si",
+        "char_regex": r"[^\u0D80-\u0DFF0-9\s.?!]",
+    },
+    "lo": {
+        "dataset_id": "20231101.lo",
+        "char_regex": r"[^\u0E80-\u0EFF0-9\s.?!]",
+    },
+    "my": {
+        "dataset_id": "20231101.my",
+        "char_regex": r"[^\u1000-\u109F0-9\s.?!]",
+    },
+    "km": {
+        "dataset_id": "20231101.km",
+        "char_regex": r"[^\u1780-\u17FF0-9\s.?!]",
+    },
+    "ka": {
+        "dataset_id": "20231101.ka",
+        "char_regex": r"[^\u10A0-\u10FF0-9\s.?!]",
+    },
+    "hy": {
+        "dataset_id": "20231101.hy",
+        "char_regex": r"[^\u0530-\u058F0-9\s.?!]",
+    },
+    "am": {
+        "dataset_id": "20231101.am",
+        "char_regex": r"[^\u1200-\u137F0-9\s.?!]",
     },
 }
 
