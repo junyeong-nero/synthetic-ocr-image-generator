@@ -53,11 +53,6 @@ class SentenceGenerator(BaseGenerator):
         
         if self._similarity_db is None:
              raise ValueError("Similarity DB not loaded")
-             
-        original_typo_pairs = generate_sentence_typos(
-            self._sentences, self._similarity_db, typo_ratio=typo_ratio
-        )
-        self._original_typo_pairs = original_typo_pairs
 
         metadata = []
         for idx in tqdm(range(num_images), desc="Generating sentence images"):
@@ -72,12 +67,14 @@ class SentenceGenerator(BaseGenerator):
         return metadata
 
     def generate_single(self, **kwargs) -> Tuple[Image.Image, Dict[str, Any]]:
-        if not hasattr(self, "_original_typo_pairs"):
-             self._original_typo_pairs = generate_sentence_typos(
-                self._sentences, self._similarity_db, typo_ratio=kwargs.get("typo_ratio", 0.15)
-            )
-
-        original_text, typo_text = random.choice(self._original_typo_pairs)
+        typo_ratio = kwargs.get("typo_ratio", getattr(self, "typo_ratio", 0.15))
+        if not self._sentences:
+            original_text, typo_text = "", ""
+        else:
+            sentence = random.choice(self._sentences)
+            original_text, typo_text = generate_sentence_typos(
+                [sentence], self._similarity_db, typo_ratio=typo_ratio
+            )[0]
         resolution_range = kwargs.get("resolution_range", (24, 48))
         if hasattr(self, "resolution_range"):
             resolution_range = self.resolution_range
