@@ -1,0 +1,42 @@
+# GLM-OCR Model Configuration
+# https://huggingface.co/zai-org/GLM-OCR
+model_id: zai-org/GLM-OCR
+backend: transformers
+dependency_group: glm-ocr
+
+# Default generation parameters
+temperature: 0.0
+max_tokens: 8192
+top_p: 1.0
+batch_size: 1
+timeout: 180
+max_retries: 3
+
+# Local model specific
+device: cuda
+dtype: float16
+tensor_parallel_size: 1
+
+# GLM-OCR uses prompt prefixes such as "Text Recognition:" and "Table Recognition:"
+prompts:
+    sentence:
+        prompt: |
+            Text Recognition:
+
+    table:
+        prompt: |
+            Table Recognition:
+
+    document:
+        prompt: |
+            Text Recognition:
+
+    markdown:
+        prompt: |
+            Text Recognition:
+
+    kie:
+        prompt: |
+            Information Extraction:
+            Please extract key information and return JSON:
+            {"entities": {"field": "value"}, "line_items": [...]}

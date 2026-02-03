@@ -1,99 +1,60 @@
-# Model Configs
+# Model Configurations
 
-Model configs live in `configs/models/*.yaml`. Use `configs/models/_template.yaml` as the baseline. Configs are loaded by `ModelConfigLoader` and override defaults at runtime.
+Model behavior in the evaluation pipeline is defined by YAML configuration files located in `configs/models/`. These files serve as the source of truth for prompts, inference parameters, and backend selection.
 
-## File Naming
+## Structure
 
-- Lowercase, model-specific name: `qwen2-vl-7b.yaml`
-- For HF models, use the last path segment
-- Full paths are normalized (`Qwen/Qwen2-VL` -> `qwen_qwen2-vl.yaml`)
+A typical model configuration looks like this:
 
-## Required Keys
+```yaml
+model_id: "my-model-v1"
+backend: "transformers"  # or "openai", "anthropic", "google", etc.
+dependency_group: "my-model-group" # Optional: for uv dependency isolation
 
-- `model_id`: model identifier used by the backend
-- `backend`: inference backend (see supported backends below)
+# Default inference parameters
+temperature: 0.1
+max_tokens: 1024
 
-## Common Keys
-
-```
-temperature: 0.0
-max_tokens: 4096
-top_p: 1.0
-batch_size: 1
-timeout: 120
-max_retries: 3
-api_base: https://custom-api.example.com/v1
-rate_limit_rpm: 500
-device: cuda
-dtype: bfloat16
-tensor_parallel_size: 1
-max_model_len: 32768
-```
-
-## Prompts
-
-```
+# Prompts by format
 prompts:
-  sentence:
-    prompt: |
-      Extract all text from the image verbatim.
-  table:
-    prompt: |
-      Extract the table from this image as HTML.
-```
+  sentence: "Transcribe the text in this image exactly."
+  table: "Convert the table in this image to HTML."
 
-## Subset Overrides
-
-```
+# Per-subset overrides
 subsets:
-  korean:
-    batch_size: 4
-    temperature: 0.1
-    prompts:
-      sentence:
-        prompt: |
-          Extract text for Korean subset.
+  korean_handwriting:
+    temperature: 0.2
+    prompt: "Transcribe this Korean handwriting."
 ```
 
-## Prompt Selection Order
+## Key Fields
 
-Implemented in `EvaluationPipeline._resolve_prompt`:
+| Field | Description |
+| :--- | :--- |
+| `model_id` | Unique identifier for the model (passed to the backend). |
+| `backend` | The inference backend to use. Must match a registered backend. |
+| `dependency_group` | The `uv` dependency group required to run this model (see `pyproject.toml`). |
+| `prompts` | A dictionary mapping format types (e.g., `sentence`, `table`) to system or user prompts. |
+| `subsets` | specific configurations for dataset subsets, overriding defaults. |
 
-1. Subset prompt in YAML (`subsets.<name>.prompts`)
-2. Format prompt in YAML (`prompts.<format>`)
-3. Default prompt in `src/evaluation/config.py`
+## Creating a New Config
 
-`EvaluationConfig.prompt` exists for programmatic overrides, but it is not exposed as a CLI flag in `main.py`.
-
-## Supported Backends
-
-`main.py` and `InferenceBackend` support:
-
-- `openai`
-- `anthropic`
-- `google`
-- `transformers`
-- `paddleocr`
-
-If the YAML uses other backend names, they will require code changes to `InferenceBackend` and the model registry.
+1.  **Copy the Template**: Start by copying `configs/models/_template.yaml`.
+2.  **Define Backend**: Set the `backend` and `model_id`.
+3.  **Set Dependencies**: If the model requires specific libraries (e.g., a specific `transformers` version), add a group to `pyproject.toml` and reference it in `dependency_group`.
+4.  **Tune Prompts**: Adjust prompts for each target format.
 
 ## Dependency Groups
 
-Optional `dependency_group` maps to `pyproject.toml` under `[dependency-groups]`.
+This project uses `uv` dependency groups to manage conflicts. For example, `deepseek-ocr` might need a different environment than `qwen2-vl`.
 
-```
-dependency_group: qwen3-vl
-```
-
-Notes:
-
-- `scripts/run_model.sh` and `scripts/test_all_models.sh` parse `model_id` and `dependency_group` with `grep`.
-- Keep `model_id:` and `dependency_group:` at column 0 (no indentation).
-- If you add a new group, update `[dependency-groups]` and `[tool.uv.conflicts]` in `pyproject.toml`.
-
-## Config Search Paths
-
-`ModelConfigLoader` searches:
-
-- `configs/models`
-- `~/.config/ocr-eval/models`
+-   **In `pyproject.toml`**: Define the group.
+    ```toml
+    [dependency-groups]
+    deepseek-ocr = ["transformers==4.38.0", ...]
+    ```
+-   **In YAML**: Reference it.
+    ```yaml
+    dependency_group: "deepseek-ocr"
+    ```
+-   **Execution**: Use `scripts/run_model.sh`, which parses the YAML and runs `uv run --group deepseek-ocr ...`.

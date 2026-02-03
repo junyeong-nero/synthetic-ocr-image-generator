@@ -1,117 +1,59 @@
-# Evaluation
+# Evaluation Pipeline
 
-Evaluation is orchestrated by `src/evaluation/pipeline.py` and configured by `EvaluationConfig` and model YAML configs.
+The evaluation pipeline assesses the performance of OCR and VLM models against generated datasets. It handles inference, metric calculation, and report generation.
 
-## Execution Flow
+## Usage
 
-1. Load dataset (`datasets.load_dataset`) with `dataset_id`, `subset`, `split`.
-2. Resolve prompt via `EvaluationPipeline._resolve_prompt` (subset > format > default).
-3. Run inference via `EvaluationRunner` with batching and checkpointing.
-4. Compute format-specific metrics via `EvaluatorRegistry`.
-5. Write reports and summary outputs.
+To evaluate a model:
 
-## Prompts
+```bash
+uv run main.py evaluate \
+    --model-config configs/models/gpt-4o.yaml \
+    --dataset ./data/ko \
+    --subset sentence
+```
 
-Prompt resolution is handled in `EvaluationPipeline._resolve_prompt`:
+## Workflow
 
-- Subset prompt in model YAML if present
-- Format prompt in model YAML if present
-- Default prompt in `src/evaluation/config.py`
+1.  **Configuration**: Load the model-specific YAML config.
+2.  **Dataset Loading**: Load the specified dataset (Hugging Face ID or local path).
+3.  **Inference**: Run the model on the dataset samples using the configured backend.
+4.  **Metric Calculation**: Compute relevant metrics (CER, WER, TEDS, etc.) based on the format.
+5.  **Reporting**: Generate JSON and Markdown reports.
 
-`EvaluationConfig.prompt` can override this when the pipeline is used programmatically.
+## Arguments
 
-## Subset and Format
+-   **`--model-config`**: Path to the YAML configuration file for the model.
+-   **`--dataset`**: Path to the local dataset or Hugging Face Dataset ID.
+-   **`--subset`**: The format/subset to evaluate (e.g., `sentence`, `table`). Can be comma-separated for multiple.
+-   **`--split`**: Dataset split to use (default: `train`).
+-   **`--backend`**: (Optional) Override the backend defined in the config.
+-   **`--max-samples`**: Limit the number of samples for quick testing.
+-   **`--batch-api`**: Use OpenAI Batch API (if applicable) for lower costs.
+-   **`--output-dir`**: Directory to save results and reports.
 
-`main.py` maps `--subset` to a format type:
+## Batch Evaluation
 
-- Exact match to a format name: `sentence`, `table`, `document`, `markdown`, `kie`
-- Heuristic: subset name containing `table`, `document`, `markdown`, `kie`
-- Default: `sentence`
+To evaluate multiple models or run a full benchmark, use the provided scripts:
 
-When multiple subsets are provided, each subset gets a separate output directory with a safe name and hash.
+```bash
+# Run a specific model config (handles dependency groups)
+./scripts/run_model.sh configs/models/deepseek-ocr.yaml -d ./data/ko
+
+# Run all models (caution: resource intensive)
+./scripts/test_all_models.sh ./data/ko
+```
 
 ## Reports
 
-`ReportGenerator` produces:
+Evaluation produces several artifacts in the `output_dir`:
 
-- `report.json` (config, metrics, summary, per_sample_results)
-- `report.md`
-- `report.html`
+-   **`report.json` / `report.md`**: Detailed results including individual metrics.
+-   **`protocol.json`**: A snapshot of the evaluation parameters and summary (see [Benchmark Protocol](benchmark-protocol.md)).
+-   **`leaderboard.json` / `leaderboard.md`**: Rankings if multiple models/subsets are run.
 
-The report format is controlled by `--report-format` (default `all`).
+## Dependency Management
 
-## Batch API (OpenAI)
+Different local models often require conflicting library versions (e.g., different Transformers versions). The project uses `uv` dependency groups to handle this. The `scripts/run_model.sh` script automatically detects the `dependency_group` in the model YAML and runs the command in the correct environment.
 
-Use `--batch-api` to submit evaluation requests via OpenAI's Batch API for cost savings (OpenAI backend only).
-
-- The batch API runs asynchronously and can take minutes to hours.
-- Results are mapped by `custom_id`, so order is not guaranteed.
-- Requests are written to `evaluation_results/<subset>/batch/requests.jsonl`.
-
-Batch settings:
-
-- `--batch-poll-seconds` (default 60)
-- `--batch-timeout-seconds` (default 86400)
-- `--batch-completion-window` (default 24h, only `24h` supported)
-
-## Protocol Snapshot
-
-Each evaluation writes a `protocol.json` file in the output directory. It captures:
-
-- protocol version
-- dataset/split/subset
-- prompt and prompt source
-- model configuration and evaluation parameters
-- seed value (if provided)
-- environment metadata
-
-Use this file to verify that two runs follow the same benchmark protocol.
-
-## Leaderboard
-
-After evaluation, the CLI updates:
-
-- `model_summary.json` (append-only run history)
-- `leaderboard.json` and `leaderboard.md` (normalized scores)
-
-Normalization rules:
-
-- `avg_cer`, `avg_wer` -> `1 - score`
-- Other representative metrics are used as-is
-- Normalized averages are weighted by `total_samples` when available
-
-## Artifacts
-
-Per evaluation output directory:
-
-- `protocol.json` (protocol snapshot for the run)
-- `leaderboard.json` and `leaderboard.md` (normalized results table)
-
-## Checkpointing
-
-`EvaluationRunner` writes `checkpoint.json` in the output directory. If `resume_from_checkpoint` is true, it resumes incomplete runs.
-
-## Model Summary
-
-`main.py` writes `model_summary.json` in the output directory after evaluation:
-
-- Appends a summary entry per run
-- If the summary file is corrupt, it is renamed to `model_summary.corrupt.json`
-- For multi-subset runs, `average_score` is computed over representative metrics
-
-Representative metric mapping:
-
-- `sentence` -> `avg_cer`
-- `table` -> `avg_teds`
-- `document` -> `avg_overall_f1`
-- `markdown` -> `avg_cer`
-- `kie` -> `avg_entity_f1`
-
-## Compare
-
-`main.py compare` loads multiple JSON reports and writes:
-
-- `<output>.json`
-- `<output>.md`
-
-The comparator also prints a summary table to the console.
+```

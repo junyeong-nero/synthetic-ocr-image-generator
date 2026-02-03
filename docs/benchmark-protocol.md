@@ -1,66 +1,37 @@
 # Benchmark Protocol
 
-This document defines the standardized protocol used for OCR benchmarking in this project.
+To ensure reproducibility and fair comparison, the evaluation pipeline generates a **Protocol Snapshot** for every run.
 
-## Protocol Version
+## Protocol Versioning
 
-- Version: 1.0
+The current protocol version is **1.0**.
 
-## Dataset Rules
+## Snapshot Content (`protocol.json`)
 
-- Default split: `train`
-- Default subsets: `sentence`, `table`, `document`, `markdown`, `kie`
-- If `--subset` is omitted, all default subsets are evaluated.
+Every evaluation run produces a `protocol.json` file containing:
 
-## Prompt Resolution
+-   **`protocol_version`**: Version of the protocol used.
+-   **`timestamp`**: UTC timestamp of the run.
+-   **`command`**: The exact command (or equivalent) executed.
+-   **`config`**: The full configuration state, including resolved defaults.
+-   **`summary`**: High-level results (accuracy, latency).
+-   **`prompt`**: The exact prompt template used.
 
-Prompt selection order (implemented in `EvaluationPipeline._resolve_prompt`):
+## Leaderboard
 
-1. CLI override (`--prompt` if provided programmatically)
-2. Subset prompt in model config (`subsets.<name>.prompts.<format>`)
-3. Format prompt in model config (`prompts.<format>`)
-4. Default prompt in `src/evaluation/config.py`
+When running multiple subsets or models, a `leaderboard.json` and `leaderboard.md` are generated.
 
-The resolved prompt and its source are recorded in `protocol.json` and `report.json`.
+### Ranking Logic
 
-## Protocol Snapshot
+1.  **Normalization**: All metrics are normalized to a 0-1 scale where 1 is best.
+    -   CER/WER are inverted: $1 - Metric$.
+    -   TEDS/F1 are used as-is.
+2.  **Aggregation**: Scores are averaged across all evaluated subsets.
+3.  **Sorting**: Models are ranked by their normalized average score.
 
-Each evaluation run writes a protocol snapshot to `protocol.json`. It captures:
+## Reproducibility
 
-- protocol version
-- dataset ID, split, subset, and dataset fingerprint
-- prompt, system prompt, and prompt source
-- evaluation parameters (batch size, max samples)
-- model config path, model ID, backend, and sampling parameters
-- seed value (if provided)
-- environment metadata
-
-## Reproducibility Requirements
-
-- Set `--seed` for deterministic generation/evaluation.
-- Record environment metadata (python/torch/transformers versions, device).
-- Record dataset identifiers and fingerprints.
-- If `--batch-api` is used, record batch settings and output metadata.
-
-## Reporting Outputs
-
-Each evaluation run produces:
-
-- `report.json` / `report.md` / `report.html`
-- `protocol.json`
-- `model_summary.json` (append-only)
-- `leaderboard.json` / `leaderboard.md`
-
-## Representative Metrics
-
-- `sentence` -> `avg_cer` (lower is better)
-- `table` -> `avg_teds` (higher is better)
-- `document` -> `avg_overall_f1` (higher is better)
-- `markdown` -> `avg_cer` (lower is better)
-- `kie` -> `avg_entity_f1` (higher is better)
-
-Normalization for leaderboard:
-
-- `avg_cer`, `avg_wer` => `1 - score`
-- other metrics are used as-is
-- normalized averages are weighted by subset `total_samples` when available
+To reproduce a result from a `protocol.json`:
+1.  Check the `config` section for the exact model parameters.
+2.  Use the same `dataset` and `split`.
+3.  Ensure the `seed` matches if stochastic elements (like temperature) were non-zero.

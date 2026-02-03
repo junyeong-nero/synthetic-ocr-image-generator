@@ -15,6 +15,8 @@ SPECIALIZED_MODEL_REGISTRY: list[tuple[str, InferenceBackend, str, str]] = [
     ("DeepSeek-OCR-2", InferenceBackend.TRANSFORMERS, "models.transformers.deepseek_ocr2", "DeepSeekOCR2"),
     ("deepseek-ai/DeepSeek-OCR", InferenceBackend.TRANSFORMERS, "models.transformers.deepseek_ocr", "DeepSeekOCR"),
     ("DeepSeek-OCR", InferenceBackend.TRANSFORMERS, "models.transformers.deepseek_ocr", "DeepSeekOCR"),
+    ("zai-org/GLM-OCR", InferenceBackend.TRANSFORMERS, "models.transformers.glm_ocr", "GlmOCR"),
+    ("GLM-OCR", InferenceBackend.TRANSFORMERS, "models.transformers.glm_ocr", "GlmOCR"),
     ("Qwen/Qwen3-VL", InferenceBackend.TRANSFORMERS, "models.transformers.qwen3_vl", "Qwen3VL"),
     ("Qwen3-VL", InferenceBackend.TRANSFORMERS, "models.transformers.qwen3_vl", "Qwen3VL"),
     ("NCSOFT/VARCO-VISION", InferenceBackend.TRANSFORMERS, "models.transformers.varco_ocr", "VarcoOCR"),

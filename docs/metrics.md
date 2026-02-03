@@ -1,61 +1,43 @@
-# Metrics
+# Evaluation Metrics
 
-Metrics are computed by evaluators in `src/evaluation/strategies.py` and implementations in `src/metrics/`.
+The pipeline calculates specific metrics depending on the format of the generated data.
 
-## Sentence Metrics
+## Text Recognition Metrics
 
-Computed in `SentenceEvaluator` using CER/WER:
+Used for `sentence`, `document` (text parts), and `markdown` formats.
 
-- `avg_cer`, `std_cer`, `min_cer`, `max_cer`
-- `avg_wer`, `std_wer`
+### Character Error Rate (CER)
+The Levenshtein distance between the predicted text and ground truth, normalized by the length of the ground truth.
+
+$$ CER = \frac{S + D + I}{N} $$
+
+Where $S$ is substitutions, $D$ is deletions, $I$ is insertions, and $N$ is the total number of characters in the reference. Lower is better.
+
+### Word Error Rate (WER)
+Similar to CER but calculated at the word level. Lower is better.
 
 ## Table Metrics
 
-Computed in `TableEvaluator` using `evaluate_table`:
+Used for the `table` format.
 
-- `avg_teds`, `std_teds`
-- `avg_cell_accuracy`, `std_cell_accuracy`
-- `avg_structure_f1`, `std_structure_f1`
+### Tree Edit Distance based Similarity (TEDS)
+Measures the similarity between the tree structure of the predicted HTML table and the ground truth HTML table. It accounts for both structure (rows, cols) and cell content. Scores range from 0 to 1. Higher is better.
 
-Implementation details:
+## Key Information Extraction (KIE) Metrics
 
-- TEDS is computed from HTML tables (`metrics/table_edit_distance.py`).
-- Cell accuracy uses CER over matched cells (`metrics/table_document_metrics.py`).
+Used for the `kie` format.
 
-## Document Metrics
+### Entity F1 Score
+Measures the precision and recall of extracted key-value pairs.
 
-Computed in `DocumentEvaluator` using `evaluate_document`:
+-   **Precision**: Correctly extracted pairs / Total extracted pairs.
+-   **Recall**: Correctly extracted pairs / Total reference pairs.
+-   **F1**: Harmonic mean of Precision and Recall.
 
-- `avg_layout_f1`, `std_layout_f1`
-- `avg_reading_order`, `std_reading_order`
-- `avg_kv_f1`, `std_kv_f1`
-- `avg_overall_f1`, `std_overall_f1`
+$$ F1 = 2 \cdot \frac{Precision \cdot Recall}{Precision + Recall} $$
 
-Implementation details:
+## Aggregation
 
-- Layout detection uses IoU and per-type F1.
-- Reading order uses Kendall tau, Spearman rho, and adjacent pair accuracy.
-- Key-value extraction computes F1 over matched pairs.
-
-## Markdown Metrics
-
-Computed in `MarkdownEvaluator`:
-
-- `avg_cer`, `std_cer`, `min_cer`, `max_cer`
-- `exact_match_rate`
-- `normalized_match_rate`
-
-Normalization collapses whitespace and empty lines before comparison.
-
-## KIE Metrics
-
-Computed in `KIEEvaluator` using `evaluate_kie` and `aggregate_kie_metrics`:
-
-- `avg_entity_f1`, `std_entity_f1`
-- `avg_entity_precision`, `avg_entity_recall`
-- `avg_entity_accuracy`, `std_entity_accuracy`
-- `avg_overall_f1`, `std_overall_f1`
-- `avg_item_f1`, `std_item_f1` (if line items exist)
-- `per_field_metrics` (per-field accuracy summaries)
-
-KIE evaluation aggregates entity-level matches using normalized edit distance and optional line item matching.
+Metrics are aggregated across the dataset:
+-   **Average**: Mean score across all samples.
+-   **Normalized**: Some metrics are inverted (e.g., 1 - CER) to ensure "higher is better" for leaderboard ranking.

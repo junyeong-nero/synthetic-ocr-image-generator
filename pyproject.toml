@@ -159,6 +159,12 @@ got-ocr = [
     "tokenizers>=0.20.3",
 ]
 
+glm-ocr = [
+    # GLM-OCR requires latest transformers from git
+    "transformers @ git+https://github.com/huggingface/transformers",
+    "tokenizers>=0.20.3",
+]
+
 kiri-ocr = [
     "kiri-ocr>=0.1.0",
 ]
@@ -191,6 +197,7 @@ conflicts = [
         { group = "qwen3-vl" },
         { group = "gemma3" },
         { group = "got-ocr" },
+        { group = "glm-ocr" },
         { group = "kiri-ocr" },
         { group = "dots-ocr" },
     ],

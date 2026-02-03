@@ -1,98 +1,61 @@
-# Generation
+# Generation Pipeline
 
-Generation is orchestrated by `src/pipeline.py` and format-specific generators in `src/generator/`.
+The generation pipeline creates synthetic OCR datasets with ground truth labels. It is capable of generating various document types to test different aspects of OCR and VLM performance.
 
-## Common Flow
+## Usage
 
-1. Ensure corpus and character similarity DB (sentence only).
-2. Instantiate the generator for the selected format.
-3. Generate images and metadata.
-4. Write `metadata.jsonl` and `realism_stats.json`, then upload to Hugging Face.
+The primary command is `generate`:
 
-Output directory layout:
-
-```
-data/<lang>/
-  corpus_<lang>.txt
-  char_similarity_db_<lang>.json
-  images_sentence/
-  images_table/
-  images_document/
-  images_markdown/
-  images_kie/
-  images_mixed/
-  realism_stats.json
+```bash
+uv run main.py generate \
+    --repo-id <huggingface-repo-id> \
+    --font-path <path-to-font> \
+    --output-dir ./data \
+    --lang ko \
+    --format sentence
 ```
 
-`realism_stats.json` includes:
+## Supported Formats
 
-- `total_samples` and optional `format`/`format_counts`
-- `field_presence` counts per metadata key
-- length stats for text, list, and dict fields
-- numeric field summary stats (min/max/mean)
+The `--format` argument controls the type of image generated:
 
-## Sentence
+| Format | Description | Target Use Case |
+| :--- | :--- | :--- |
+| `sentence` | Single lines or blocks of text. | Basic OCR text recognition. |
+| `table` | Structured tables with borders and headers. | Table structure recognition. |
+| `document` | Full-page layouts with mixed content. | Document understanding, layout analysis. |
+| `markdown` | Rendered Markdown content. | Structured text and formatting preservation. |
+| `kie` | Key Information Extraction forms (receipts, etc.). | Entity extraction and field recognition. |
 
-Generator: `SentenceGenerator`
+## Configuration Options
 
-Metadata fields:
+-   **`--lang`**: Language code (e.g., `ko`, `en`). Determines the corpus source (Wikipedia) and character sets.
+-   **`--font-path`**: Path to a TTF/OTF font file. Required for rendering.
+-   **`--size`**: Number of images to generate.
+-   **`--typo-ratio`**: Probability of introducing typos into the text (0.0 to 1.0).
+-   **`--corpus-size`**: Number of sentences to fetch from Wikipedia for the text corpus.
+-   **`--template`**: Optional template file for structured generation.
+-   **`--table-size`**: For tables, the range of rows/columns (e.g., "3-8").
+-   **`--mixed`**: If set, generates a mix of all supported formats.
+-   **`--seed`**: Random seed for reproducibility.
 
-- `typo_text` (target for evaluation)
-- `original_text`
-- rendering params (font path, background, blur, etc.)
+## Output Structure
 
-Notes:
+Generated data is saved to the `output_dir`:
 
-- Uses Wikipedia corpus and a character similarity DB.
-- `typo_ratio` controls typo injection.
-- Use `--seed` for reproducible generation.
+```
+data/
+    └── <lang>/
+        └── <format>/
+            ├── images/
+            │   ├── image_001.png
+            │   └── ...
+            └── metadata.jsonl
+```
 
-## Table
+The `metadata.jsonl` file contains the ground truth for each image, compatible with Hugging Face Datasets.
 
-Generator: `TableGenerator`
+## Conventions
 
-Metadata fields:
-
-- `html` (table HTML)
-- `json` (table structure and cells)
-- `template`, `num_rows`, `num_cols`, `font_size`
-
-Template choices: `invoice`, `schedule`, `product`, `contact`.
-
-## Document
-
-Generator: `DocumentGenerator`
-
-Metadata fields:
-
-- `ground_truth` (elements with `type`, `text`, `bounding_box`, `reading_order`)
-- `template`, `elements_count`, `font_size`
-- `add_noise`, `add_blur`
-
-Template choices: `invoice`, `receipt`, `form`, `letter`, `report`.
-
-## Markdown
-
-Generator: `MarkdownGenerator`
-
-Metadata fields:
-
-- `markdown` (raw markdown)
-- `template`, `add_noise`, `add_blur`
-
-Template choices: `readme`, `technical_doc`, `blog_post`, `api_doc`, `tutorial`.
-
-## KIE
-
-Generator: `KIEGenerator`
-
-Metadata fields:
-
-- `document_type`
-- `ground_truth` (entities, line_items, raw_text)
-
-Document types: `receipt`, `invoice`, `form`, `business_card`.
-
-## Mixed
-
-`--mixed` uses `MixedGenerator` to combine formats. It writes a single `metadata.jsonl` containing a `format` field, then uploads each format as its own dataset subset.
+-   **Metadata**: The `file_name` in `metadata.jsonl` is the relative path to the image.
+-   **Fonts**: Ensure the provided font supports the characters of the target language.

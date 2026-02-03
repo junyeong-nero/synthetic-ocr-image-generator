@@ -1,70 +1,67 @@
-# Synthetic OCR Image Generator and Evaluation
+# Synthetic OCR Image Generator & Benchmark
 
-Generate synthetic OCR datasets across multiple formats and evaluate OCR or VLM models with consistent metrics and reports.
+![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-## Quickstart
+A comprehensive toolkit for generating synthetic OCR datasets and evaluating Vision-Language Models (VLMs) on OCR tasks.
+
+## 📚 Documentation
+
+-   [**Overview**](docs/overview.md): High-level introduction.
+-   [**Generation Guide**](docs/generation.md): How to create datasets.
+-   [**Evaluation Guide**](docs/evaluation.md): How to run benchmarks.
+-   [**Model Configs**](docs/model-configs.md): Configuring models and dependencies.
+-   [**Metrics**](docs/metrics.md): Understanding the scores (CER, TEDS, etc.).
+-   [**CLI Reference**](docs/cli.md): Command usage.
+
+## 🚀 Quick Start
+
+### 1. Installation
+
+This project uses `uv` for dependency management.
 
 ```bash
-# Install dependencies
+# Install uv if you haven't already
+pip install uv
+
+# Sync dependencies
 uv sync
-uv sync --group generate
-uv sync --group evaluate
-uv sync --group api
-
-# Generate a dataset
-uv run --group generate main.py generate \
-  --repo-id "your-org/synth-ocr" \
-  --lang en \
-  --font-path "fonts/en/YourFont.ttf" \
-  --format sentence \
-  --size 100
-
-# Evaluate a model
-uv run --group evaluate --group api main.py evaluate \
-  --model-config configs/models/gpt-5.yaml \
-  -d "your-org/synth-ocr" \
-  --subset sentence \
-  --max-samples 100
 ```
 
-## Core Commands
+### 2. Generate Data
 
-- `uv run --group generate main.py generate` - Create synthetic datasets (single format or mixed)
-- `uv run --group evaluate --group <model> main.py evaluate` - Run evaluation and generate reports
-- `uv run --group evaluate main.py compare` - Compare multiple JSON reports
-- `uv run --group evaluate main.py list-backends` - Show supported backends
-- `uv run --group evaluate main.py list-configs` - Show available model configs
-- `./scripts/run_model.sh <config> ...` - Run eval with dependency group
-- `./scripts/test_all_models.sh [DATASET] [SUBSET] [MAX_SAMPLES]` - Batch eval
+Generate a small Korean sentence dataset:
 
-## Key Paths
+```bash
+uv run main.py generate \
+    --repo-id my-ocr-dataset \
+    --font-path fonts/ko/NanumGothic.ttf \
+    --lang ko \
+    --format sentence \
+    --size 50
+```
 
-- `main.py` - CLI entry point
-- `src/pipeline.py` - Generation pipeline
-- `src/evaluation/` - Evaluation pipeline, runner, reports
-- `src/models/` - Inference backends and registry
-- `src/metrics/` - CER/WER/TEDS/Layout/KIE metrics
-- `configs/models/` - Model YAML configs and prompts
-- `scripts/` - Helper scripts
+### 3. Evaluate a Model
 
-## Notes
+Evaluate GPT-4o on the generated data:
 
-- Fonts are required for generation and `--font-path` is required by the CLI.
-- Generated data and reports live in `data/`, `evaluation_results/`, and `test_results/`.
-- Dependency groups live in `pyproject.toml` (generate/evaluate/api + model groups).
-- `evaluate` defaults to `--split train` to match generated datasets.
-- Use `--seed` for reproducible generation/evaluation.
-- Evaluation writes `protocol.json` and updates `leaderboard.json`/`leaderboard.md` per run.
-- Generation writes `realism_stats.json` alongside `metadata.jsonl`.
-- Use `--batch-api` for OpenAI Batch API cost savings.
+```bash
+# Ensure you have your API key set
+export OPENAI_API_KEY=sk-...
 
-## Documentation
+uv run main.py evaluate \
+    --model-config configs/models/gpt-4o.yaml \
+    --dataset ./data/ko \
+    --subset sentence
+```
 
-- `docs/overview.md`
-- `docs/cli.md`
-- `docs/generation.md`
-- `docs/model-configs.md`
-- `docs/evaluation.md`
-- `docs/metrics.md`
-- `docs/gotchas.md`
-- `docs/benchmark-protocol.md`
+## 🏗️ Project Structure
+
+-   `configs/models/`: Model YAML configurations.
+-   `src/generator/`: Synthetic data generation logic.
+-   `src/evaluation/`: Evaluation pipeline.
+-   `scripts/`: Helper scripts for batch processing.
+
+## 🤝 Contributing
+
+See `AGENTS.md` files in source directories for development conventions.
