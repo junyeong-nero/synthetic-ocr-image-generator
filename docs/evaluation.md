@@ -38,10 +38,10 @@ To evaluate multiple models or run a full benchmark, use the provided scripts:
 
 ```bash
 # Run a specific model config (handles dependency groups)
-./scripts/run_model.sh configs/models/deepseek-ocr.yaml -d ./data/ko
+./scripts/models/run.sh configs/models/deepseek-ocr.yaml -d ./data/ko
 
 # Run all models (caution: resource intensive)
-./scripts/test_all_models.sh ./data/ko
+./scripts/models/test_all.sh ./data/ko
 ```
 
 ## Reports

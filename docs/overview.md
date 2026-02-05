@@ -4,7 +4,7 @@ The **Synthetic OCR Image Generator and VLM Evaluation Pipeline** is a comprehen
 
 ## Key Features
 
--   **Synthetic Data Generation**: Create realistic OCR images in various formats including sentences, tables, documents, markdown, and KIE (Key Information Extraction) forms.
+-   **Synthetic Data Generation**: Create realistic OCR images in various formats including sentences, tables, documents, markdown, and KIE (Key Information Extraction) forms. Integrated with **Faker** for realistic names, addresses, and multi-language entity variety.
 -   **Model Evaluation**: A robust pipeline to evaluate VLMs using different backends (local Transformers, OpenAI, Anthropic, Google, PaddleOCR).
 -   **Dependency Isolation**: Uses `uv` dependency groups to manage conflicting requirements for different model backends.
 -   **Configurable Benchmarks**: flexible YAML configurations for defining model prompts, parameters, and subsets.
@@ -16,13 +16,16 @@ The **Synthetic OCR Image Generator and VLM Evaluation Pipeline** is a comprehen
 ./
 ├── configs/models/        # Model YAML configs (prompts, backends, dependency_group)
 ├── src/                   # Core pipeline and packages
-│   ├── generator/         # Synthetic data generation logic
+│   ├── generator/         # Synthetic data generation logic (DataProvider, etc.)
 │   ├── evaluation/        # Evaluation pipeline and reporting
 │   ├── models/            # Model backends and registry
 │   └── metrics/           # Evaluation metrics (CER, WER, TEDS, etc.)
 ├── scripts/               # CLI helpers and batch scripts
+│   ├── corpus/            # LLM-based corpus generation
+│   ├── dataset/           # Multi-language dataset automation
+│   └── models/            # Model benchmark execution
 ├── fonts/                 # Local font assets
-├── data/                  # Generated datasets
+├── data/                  # Generated datasets and corpus files
 └── test_results/          # Evaluation output and logs
 ```
 

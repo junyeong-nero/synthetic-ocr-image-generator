@@ -1,16 +1,28 @@
 """
-Data provider module that combines Faker with hardcoded data for variation.
+Data provider module that combines external corpus, Faker, and hardcoded data.
 
 This module provides a unified interface for generating various types of data
-(names, addresses, products, etc.) using Faker library with fallback to
-curated hardcoded data for domain-specific content.
+(names, addresses, products, etc.) with the following priority:
+1. External corpus files (LLM-generated, large-scale data)
+2. Faker library (dynamic generation)
+3. Curated hardcoded data (fallback)
+
+For 100k+ image generation, use external corpus to minimize duplicates.
+Generate corpus with: python scripts/generate_corpus.py
 """
 
+import logging
 import random
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Dict, List, Optional, Set
 
 from faker import Faker
+
+logger = logging.getLogger(__name__)
+
+# Default corpus directory
+DEFAULT_CORPUS_DIR = Path(__file__).parent.parent.parent / "data" / "corpus"
 
 
 @dataclass
@@ -306,28 +318,57 @@ FAKER_LOCALES: Dict[str, str] = {
 
 class DataProvider:
     """
-    Unified data provider that combines Faker with hardcoded data.
+    Unified data provider that combines external corpus, Faker, and hardcoded data.
 
-    Uses Faker for dynamic data generation (names, addresses, companies, etc.)
-    and falls back to curated hardcoded data for domain-specific content
-    (products, store names, technical terms, etc.).
+    Data source priority:
+    1. External corpus files (for large-scale generation with minimal duplicates)
+    2. Faker library (dynamic generation for names, addresses, etc.)
+    3. Curated hardcoded data (fallback for domain-specific content)
 
-    The mix_ratio parameter controls how often Faker vs hardcoded data is used
-    for fields where both are available.
+    For 100k+ image generation, generate corpus first with:
+        python scripts/generate_corpus.py --lang ko --count 10000
     """
 
-    def __init__(self, lang: str = "ko", mix_ratio: float = 0.7, seed: Optional[int] = None):
+    # Mapping from data type to corpus filename
+    CORPUS_FILES = {
+        "product_names": "product_names.txt",
+        "store_names": "store_names.txt",
+        "company_names": "company_names.txt",
+        "person_names": "person_names.txt",
+        "addresses": "addresses.txt",
+        "departments": "departments.txt",
+        "positions": "positions.txt",
+        "titles": "titles.txt",
+        "paragraphs": "paragraphs.txt",
+        "features": "features.txt",
+    }
+
+    def __init__(
+        self,
+        lang: str = "ko",
+        mix_ratio: float = 0.7,
+        seed: Optional[int] = None,
+        corpus_dir: Optional[Path] = None,
+        use_corpus: bool = True,
+    ):
         """
         Initialize the data provider.
 
         Args:
             lang: Language code ('ko', 'en', 'ja', 'hi')
-            mix_ratio: Probability of using Faker data vs hardcoded (0.0 to 1.0)
-                       0.7 means 70% Faker, 30% hardcoded
+            mix_ratio: Probability of using Faker vs hardcoded (0.0 to 1.0)
+                       Only used when corpus is not available
             seed: Random seed for reproducibility
+            corpus_dir: Directory containing corpus files (default: data/corpus)
+            use_corpus: Whether to use external corpus files when available
         """
         self.lang = lang
         self.mix_ratio = mix_ratio
+        self.use_corpus = use_corpus
+
+        # Set corpus directory
+        self.corpus_dir = corpus_dir or DEFAULT_CORPUS_DIR
+        self.lang_corpus_dir = self.corpus_dir / lang
 
         # Initialize Faker with appropriate locale
         locale = FAKER_LOCALES.get(lang, "en_US")
@@ -340,18 +381,91 @@ class DataProvider:
         # Load hardcoded data for the language
         self._data = LANGUAGE_DATA.get(lang, ENGLISH_DATA)
 
+        # Cache for loaded corpus data
+        self._corpus_cache: Dict[str, List[str]] = {}
+        self._corpus_indices: Dict[str, int] = {}  # Track position for sequential access
+
+        # Load corpus files
+        if use_corpus:
+            self._load_all_corpus()
+
+    def _load_corpus_file(self, data_type: str) -> List[str]:
+        """Load a single corpus file."""
+        if data_type not in self.CORPUS_FILES:
+            return []
+
+        filepath = self.lang_corpus_dir / self.CORPUS_FILES[data_type]
+        if not filepath.exists():
+            return []
+
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                items = [line.strip() for line in f if line.strip()]
+            if items:
+                logger.debug(f"Loaded {len(items)} items from {filepath}")
+                random.shuffle(items)  # Shuffle for randomness
+            return items
+        except Exception as e:
+            logger.warning(f"Failed to load corpus {filepath}: {e}")
+            return []
+
+    def _load_all_corpus(self):
+        """Load all available corpus files."""
+        for data_type in self.CORPUS_FILES:
+            items = self._load_corpus_file(data_type)
+            if items:
+                self._corpus_cache[data_type] = items
+                self._corpus_indices[data_type] = 0
+
+        if self._corpus_cache:
+            logger.info(
+                f"Loaded corpus for {self.lang}: "
+                f"{', '.join(f'{k}({len(v)})' for k, v in self._corpus_cache.items())}"
+            )
+
+    def _get_from_corpus(self, data_type: str) -> Optional[str]:
+        """Get an item from corpus, cycling through to minimize duplicates."""
+        if data_type not in self._corpus_cache:
+            return None
+
+        items = self._corpus_cache[data_type]
+        if not items:
+            return None
+
+        # Get current index and advance
+        idx = self._corpus_indices.get(data_type, 0)
+        item = items[idx]
+
+        # Advance index, wrap around when reaching end
+        self._corpus_indices[data_type] = (idx + 1) % len(items)
+
+        # Reshuffle when we've gone through all items
+        if self._corpus_indices[data_type] == 0:
+            random.shuffle(items)
+
+        return item
+
     def _use_faker(self) -> bool:
         """Determine whether to use Faker based on mix_ratio."""
         return random.random() < self.mix_ratio
+
+    def has_corpus(self, data_type: str) -> bool:
+        """Check if corpus is available for a data type."""
+        return data_type in self._corpus_cache and len(self._corpus_cache[data_type]) > 0
+
+    def corpus_size(self, data_type: str) -> int:
+        """Get the size of corpus for a data type."""
+        return len(self._corpus_cache.get(data_type, []))
 
     # ==================== Names ====================
 
     def name(self) -> str:
         """Generate a person's name."""
-        if self._use_faker():
-            return self.faker.name()
-        # Fallback to generating name from first/last name parts
-        return self.faker.name()  # Faker always works well for names
+        # Try corpus first
+        if corpus_item := self._get_from_corpus("person_names"):
+            return corpus_item
+        # Fallback to Faker
+        return self.faker.name()
 
     def first_name(self) -> str:
         """Generate a first name."""
@@ -369,9 +483,11 @@ class DataProvider:
 
     def address(self) -> str:
         """Generate an address."""
-        if self._use_faker():
-            return self.faker.address().replace("\n", ", ")
-        return random.choice(self._data.store_names).split()[0] + " " + self.faker.address().split("\n")[0]
+        # Try corpus first
+        if corpus_item := self._get_from_corpus("addresses"):
+            return corpus_item
+        # Fallback to Faker
+        return self.faker.address().replace("\n", ", ")
 
     def city(self) -> str:
         """Generate a city name."""
@@ -389,9 +505,11 @@ class DataProvider:
 
     def company(self) -> str:
         """Generate a company name."""
-        if self._use_faker():
-            return self.faker.company()
-        return self.faker.company()  # Faker works well for companies
+        # Try corpus first
+        if corpus_item := self._get_from_corpus("company_names"):
+            return corpus_item
+        # Fallback to Faker
+        return self.faker.company()
 
     def company_suffix(self) -> str:
         """Generate a company suffix (Inc., LLC, etc.)."""
@@ -449,6 +567,8 @@ class DataProvider:
 
     def store_name(self) -> str:
         """Get a random store name."""
+        if corpus_item := self._get_from_corpus("store_names"):
+            return corpus_item
         return random.choice(self._data.store_names)
 
     def store_names(self, count: int = 1) -> List[str]:
@@ -457,6 +577,8 @@ class DataProvider:
 
     def product_name(self) -> str:
         """Get a random product name."""
+        if corpus_item := self._get_from_corpus("product_names"):
+            return corpus_item
         return random.choice(self._data.product_names)
 
     def product_names(self, count: int = 1) -> List[str]:
@@ -465,6 +587,8 @@ class DataProvider:
 
     def department(self) -> str:
         """Get a random department name."""
+        if corpus_item := self._get_from_corpus("departments"):
+            return corpus_item
         return random.choice(self._data.departments)
 
     def departments(self, count: int = 1) -> List[str]:
@@ -473,6 +597,8 @@ class DataProvider:
 
     def position(self) -> str:
         """Get a random job position/title."""
+        if corpus_item := self._get_from_corpus("positions"):
+            return corpus_item
         return random.choice(self._data.positions)
 
     def positions(self, count: int = 1) -> List[str]:
@@ -495,6 +621,8 @@ class DataProvider:
 
     def title(self) -> str:
         """Get a random document title."""
+        if corpus_item := self._get_from_corpus("titles"):
+            return corpus_item
         return random.choice(self._data.titles)
 
     def titles(self, count: int = 1) -> List[str]:
@@ -503,6 +631,8 @@ class DataProvider:
 
     def paragraph(self) -> str:
         """Get a random paragraph."""
+        if corpus_item := self._get_from_corpus("paragraphs"):
+            return corpus_item
         if self._use_faker():
             return self.faker.paragraph(nb_sentences=3)
         return random.choice(self._data.paragraphs)
@@ -513,6 +643,8 @@ class DataProvider:
 
     def feature(self) -> str:
         """Get a random feature description."""
+        if corpus_item := self._get_from_corpus("features"):
+            return corpus_item
         return random.choice(self._data.features)
 
     def features(self, count: int = 1) -> List[str]:

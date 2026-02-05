@@ -39,6 +39,29 @@ The `--format` argument controls the type of image generated:
 -   **`--mixed`**: If set, generates a mix of all supported formats.
 -   **`--seed`**: Random seed for reproducibility.
 
+## Data Variety and Realism
+
+To ensure high-quality synthetic data, the generator uses a centralized `DataProvider` (located in `src/generator/data_provider.py`) with a tiered data source strategy.
+
+### Tiered Data Sources:
+1.  **External Corpus (Priority 1)**: For large-scale generation (100k+ images), the provider loads data from pre-generated corpus files in `data/corpus/<lang>/`. This minimizes duplicates and ensures high variety.
+2.  **Faker Integration (Priority 2)**: If corpus data is unavailable, it leverages the `Faker` library to generate realistic names, addresses, emails, phone numbers, and dates.
+3.  **Curated Hardcoded Data (Fallback)**: Built-in datasets for domain-specific content like product names and technical terms.
+
+### External Corpus Generation
+
+You can generate a large-scale corpus using LLMs (OpenAI or Anthropic) to provide even more variety:
+
+```bash
+# Generate 1000 items for all categories in Korean using OpenAI
+uv run python scripts/corpus/generate.py --lang ko --count 1000
+
+# Generate using Anthropic
+uv run python scripts/corpus/generate.py --lang en --provider anthropic --count 1000
+```
+
+Supported categories include `product_names`, `store_names`, `company_names`, `person_names`, `addresses`, `departments`, `positions`, `titles`, `paragraphs`, and `features`.
+
 ## Output Structure
 
 Generated data is saved to the `output_dir`:
