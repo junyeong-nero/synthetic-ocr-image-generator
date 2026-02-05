@@ -20,6 +20,7 @@ from tqdm import tqdm
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
 from generator.base import BaseGenerator
+from generator.data_provider import DataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -112,9 +113,10 @@ class KIEStyle:
 
 
 class KIEDataGenerator:
-    """Generates KIE document data for various languages."""
+    """Generates KIE document data using DataProvider for variety."""
 
-    # Korean data
+    # Legacy hardcoded data kept for backward compatibility
+    # New code should use DataProvider through self.data
     KOREAN_STORE_NAMES = [
         "GS25 강남점", "CU 서초역점", "세븐일레븐 역삼점", "이마트24 삼성점",
         "스타벅스 테헤란로점", "투썸플레이스 강남역점", "이디야커피 선릉점",
@@ -239,48 +241,14 @@ class KIEDataGenerator:
     HINDI_DEPARTMENTS = ["बिक्री विभाग", "मार्केटिंग विभाग", "विकास विभाग", "मानव संसाधन विभाग", "वित्त विभाग", "योजना विभाग"]
     HINDI_POSITIONS = ["सहायक प्रबंधक", "प्रबंधक", "वरिष्ठ प्रबंधक", "उप निदेशक", "निदेशक", "कार्यकारी"]
 
-    def __init__(self, lang: str = "ko"):
+    def __init__(self, lang: str = "ko", data_provider: Optional[DataProvider] = None):
         self.lang = lang
-        if lang == "ko":
-            self.store_names = self.KOREAN_STORE_NAMES
-            self.company_names = self.KOREAN_COMPANY_NAMES
-            self.addresses = self.KOREAN_ADDRESSES
-            self.product_names = self.KOREAN_PRODUCT_NAMES
-            self.names = self.KOREAN_NAMES
-            self.departments = self.KOREAN_DEPARTMENTS
-            self.positions = self.KOREAN_POSITIONS
-            self.currency = "원"
-            self.currency_format = "{:,}원"
-        elif lang == "ja":
-            self.store_names = self.JAPANESE_STORE_NAMES
-            self.company_names = self.JAPANESE_COMPANY_NAMES
-            self.addresses = self.JAPANESE_ADDRESSES
-            self.product_names = self.JAPANESE_PRODUCT_NAMES
-            self.names = self.JAPANESE_NAMES
-            self.departments = self.JAPANESE_DEPARTMENTS
-            self.positions = self.JAPANESE_POSITIONS
-            self.currency = "円"
-            self.currency_format = "{:,}円"
-        elif lang == "hi":
-            self.store_names = self.HINDI_STORE_NAMES
-            self.company_names = self.HINDI_COMPANY_NAMES
-            self.addresses = self.HINDI_ADDRESSES
-            self.product_names = self.HINDI_PRODUCT_NAMES
-            self.names = self.HINDI_NAMES
-            self.departments = self.HINDI_DEPARTMENTS
-            self.positions = self.HINDI_POSITIONS
-            self.currency = "₹"
-            self.currency_format = "₹{:,.2f}"
-        else:
-            self.store_names = self.ENGLISH_STORE_NAMES
-            self.company_names = self.ENGLISH_COMPANY_NAMES
-            self.addresses = self.ENGLISH_ADDRESSES
-            self.product_names = self.ENGLISH_PRODUCT_NAMES
-            self.names = self.ENGLISH_NAMES
-            self.departments = self.ENGLISH_DEPARTMENTS
-            self.positions = self.ENGLISH_POSITIONS
-            self.currency = "$"
-            self.currency_format = "${:,.2f}"
+        self.data = data_provider or DataProvider(lang=lang)
+
+        # Keep legacy attributes for backward compatibility
+        # but they now pull from DataProvider's underlying data
+        self.currency = self.data.currency
+        self.currency_format = self.data.currency_format
 
     def generate_document(
         self,
@@ -305,7 +273,7 @@ class KIEDataGenerator:
         fields = []
 
         # Store name
-        store_name = random.choice(self.store_names)
+        store_name = self.data.store_name()
         fields.append(KIEField(
             key="company",
             value=store_name,
@@ -313,7 +281,7 @@ class KIEDataGenerator:
         ))
 
         # Address
-        address = random.choice(self.addresses)
+        address = self.data.address()
         fields.append(KIEField(
             key="address",
             value=address,
@@ -321,13 +289,13 @@ class KIEDataGenerator:
         ))
 
         # Date and time
-        date = self._random_date()
-        time = self._random_time()
+        date = self.data.date()
+        time = self.data.time()
         fields.append(KIEField(key="date", value=date, category="header"))
         fields.append(KIEField(key="time", value=time, category="header"))
 
         # Receipt number
-        receipt_no = f"R{random.randint(100000, 999999)}"
+        receipt_no = f"R{self.data.random_int(100000, 999999)}"
         fields.append(KIEField(
             key="receipt_number",
             value=receipt_no,
@@ -336,16 +304,16 @@ class KIEDataGenerator:
 
         # Line items
         line_items = []
-        num_items = random.randint(2, 6)
+        num_items = self.data.random_int(2, 6)
         subtotal = 0
 
         for _ in range(num_items):
-            product = random.choice(self.product_names)
-            qty = random.randint(1, 3)
+            product = self.data.product_name()
+            qty = self.data.quantity(1, 3)
             if self.lang == "ko":
-                unit_price = random.randint(1, 15) * 1000
+                unit_price = self.data.random_price(1000, 15000, 1000)
             else:
-                unit_price = random.randint(1, 20) * 100  # cents
+                unit_price = self.data.random_price(100, 2000, 100)  # cents
             total = qty * unit_price
             subtotal += total
 
@@ -403,16 +371,16 @@ class KIEDataGenerator:
         fields = []
 
         # Company info
-        company = random.choice(self.company_names)
+        company = self.data.company()
         fields.append(KIEField(key="company", value=company, category="header"))
         fields.append(KIEField(
             key="company_address",
-            value=random.choice(self.addresses),
+            value=self.data.address(),
             category="header",
         ))
 
         # Invoice number and date
-        invoice_no = f"INV-{random.randint(2024, 2025)}-{random.randint(10000, 99999)}"
+        invoice_no = f"INV-{self.data.random_int(2024, 2025)}-{self.data.random_int(10000, 99999)}"
         fields.append(KIEField(
             key="invoice_number",
             value=invoice_no,
@@ -420,17 +388,17 @@ class KIEDataGenerator:
         ))
         fields.append(KIEField(
             key="invoice_date",
-            value=self._random_date(),
+            value=self.data.date(),
             category="header",
         ))
         fields.append(KIEField(
             key="due_date",
-            value=self._random_date(offset_days=30),
+            value=self.data.date(),
             category="header",
         ))
 
         # Bill to
-        customer_name = random.choice(self.names)
+        customer_name = self.data.name()
         fields.append(KIEField(
             key="customer_name",
             value=customer_name,
@@ -438,22 +406,22 @@ class KIEDataGenerator:
         ))
         fields.append(KIEField(
             key="customer_address",
-            value=random.choice(self.addresses),
+            value=self.data.address(),
             category="customer",
         ))
 
         # Line items
         line_items = []
-        num_items = random.randint(2, 5)
+        num_items = self.data.random_int(2, 5)
         subtotal = 0
 
         for _ in range(num_items):
-            product = random.choice(self.product_names)
-            qty = random.randint(1, 10)
+            product = self.data.product_name()
+            qty = self.data.quantity(1, 10)
             if self.lang == "ko":
-                unit_price = random.randint(10, 500) * 1000
+                unit_price = self.data.random_price(10000, 500000, 10000)
             else:
-                unit_price = random.randint(10, 500) * 100
+                unit_price = self.data.random_price(1000, 50000, 100)
             total = qty * unit_price
             subtotal += total
 
@@ -510,39 +478,32 @@ class KIEDataGenerator:
         ))
 
         # Form number
-        form_no = f"F-{random.randint(2024, 2025)}-{random.randint(1000, 9999)}"
+        form_no = f"F-{self.data.random_int(2024, 2025)}-{self.data.random_int(1000, 9999)}"
         fields.append(KIEField(key="form_number", value=form_no, category="header"))
 
         # Date
         fields.append(KIEField(
             key="date",
-            value=self._random_date(),
+            value=self.data.date(),
             category="header",
         ))
 
         # Personal information
-        name = random.choice(self.names)
+        name = self.data.name()
         fields.append(KIEField(key="name", value=name, category="personal"))
 
         # Phone number
-        if self.lang == "ko":
-            phone = f"010-{random.randint(1000, 9999)}-{random.randint(1000, 9999)}"
-        else:
-            phone = f"({random.randint(100, 999)}) {random.randint(100, 999)}-{random.randint(1000, 9999)}"
+        phone = self.data.phone_number()
         fields.append(KIEField(key="phone", value=phone, category="personal"))
 
         # Email
-        email_name = name.lower().replace(" ", ".").replace(".", "")
-        if self.lang == "ko":
-            email = f"{email_name}@example.co.kr"
-        else:
-            email = f"{email_name}@example.com"
+        email = self.data.email()
         fields.append(KIEField(key="email", value=email, category="personal"))
 
         # Address
         fields.append(KIEField(
             key="address",
-            value=random.choice(self.addresses),
+            value=self.data.address(),
             category="personal",
         ))
 
@@ -550,14 +511,14 @@ class KIEDataGenerator:
         if random.random() > 0.5:
             fields.append(KIEField(
                 key="department",
-                value=random.choice(self.departments),
+                value=self.data.department(),
                 category="organization",
             ))
 
         # Signature fields
         fields.append(KIEField(
             key="signature_date",
-            value=self._random_date(),
+            value=self.data.date(),
             category="signature",
         ))
 
@@ -571,47 +532,39 @@ class KIEDataGenerator:
         fields = []
 
         # Name
-        name = random.choice(self.names)
+        name = self.data.name()
         fields.append(KIEField(key="name", value=name, category="personal"))
 
         # Position and department
-        position = random.choice(self.positions)
-        department = random.choice(self.departments)
+        position = self.data.position()
+        department = self.data.department()
         fields.append(KIEField(key="position", value=position, category="organization"))
         fields.append(KIEField(key="department", value=department, category="organization"))
 
         # Company
-        company = random.choice(self.company_names)
+        company = self.data.company()
         fields.append(KIEField(key="company", value=company, category="organization"))
 
         # Phone
-        if self.lang == "ko":
-            phone = f"010-{random.randint(1000, 9999)}-{random.randint(1000, 9999)}"
-            office_phone = f"02-{random.randint(100, 999)}-{random.randint(1000, 9999)}"
-        else:
-            phone = f"({random.randint(100, 999)}) {random.randint(100, 999)}-{random.randint(1000, 9999)}"
-            office_phone = f"({random.randint(100, 999)}) {random.randint(100, 999)}-{random.randint(1000, 9999)}"
+        phone = self.data.phone_number()
+        office_phone = self.data.phone_number()
         fields.append(KIEField(key="mobile", value=phone, category="contact"))
         fields.append(KIEField(key="phone", value=office_phone, category="contact"))
 
         # Email
-        email_name = name.lower().replace(" ", ".").replace(".", "")
-        company_domain = company.lower().split()[0].replace(",", "").replace(".", "")
-        if self.lang == "ko":
-            email = f"{email_name}@{company_domain}.co.kr"
-        else:
-            email = f"{email_name}@{company_domain}.com"
+        email = self.data.email()
         fields.append(KIEField(key="email", value=email, category="contact"))
 
         # Address
         fields.append(KIEField(
             key="address",
-            value=random.choice(self.addresses),
+            value=self.data.address(),
             category="contact",
         ))
 
         # Website (optional)
         if random.random() > 0.5:
+            company_domain = company.lower().split()[0].replace(",", "").replace(".", "")
             website = f"www.{company_domain}.{'co.kr' if self.lang == 'ko' else 'com'}"
             fields.append(KIEField(key="website", value=website, category="contact"))
 

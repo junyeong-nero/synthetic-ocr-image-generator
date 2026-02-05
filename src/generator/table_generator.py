@@ -8,6 +8,7 @@ from tqdm import tqdm
 from PIL import Image, ImageDraw, ImageFont
 
 from generator.base import BaseGenerator
+from generator.data_provider import DataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -259,100 +260,26 @@ class TableRenderer:
 
 
 class TableDataGenerator:
+    """Generates table data using DataProvider for variety."""
 
     TEMPLATES = {
         "invoice": {
-            "headers": ["Item", "Qty", "Price", "Total"],
             "row_generator": "_generate_invoice_row",
         },
         "schedule": {
-            "headers": ["Time", "Mon", "Tue", "Wed", "Thu", "Fri"],
             "row_generator": "_generate_schedule_row",
         },
         "product": {
-            "headers": ["Product", "Category", "Price", "Stock"],
             "row_generator": "_generate_product_row",
         },
         "contact": {
-            "headers": ["Name", "Phone", "Email"],
             "row_generator": "_generate_contact_row",
         },
     }
 
-    KOREAN_HEADERS = {
-        "invoice": ["품목", "수량", "가격", "합계"],
-        "schedule": ["시간", "월", "화", "수", "목", "금"],
-        "product": ["제품", "분류", "가격", "재고"],
-        "contact": ["이름", "전화", "이메일"],
-    }
-
-    ENGLISH_HEADERS = {
-        "invoice": ["Item", "Qty", "Price", "Total"],
-        "schedule": ["Time", "Mon", "Tue", "Wed", "Thu", "Fri"],
-        "product": ["Product", "Category", "Price", "Stock"],
-        "contact": ["Name", "Phone", "Email"],
-    }
-
-    JAPANESE_HEADERS = {
-        "invoice": ["品目", "数量", "価格", "合計"],
-        "schedule": ["時間", "月", "火", "水", "木", "金"],
-        "product": ["製品", "カテゴリ", "価格", "在庫"],
-        "contact": ["名前", "電話", "メール"],
-    }
-
-    HINDI_HEADERS = {
-        "invoice": ["वस्तु", "मात्रा", "मूल्य", "कुल"],
-        "schedule": ["समय", "सोम", "मंगल", "बुध", "गुरु", "शुक्र"],
-        "product": ["उत्पाद", "श्रेणी", "मूल्य", "स्टॉक"],
-        "contact": ["नाम", "फोन", "ईमेल"],
-    }
-
-    KOREAN_ITEMS = ["사과", "바나나", "우유", "빵", "커피", "라면", "김치", "두부", "계란", "생수"]
-    KOREAN_CATEGORIES = ["식품", "음료", "생활용품", "전자제품", "의류"]
-    KOREAN_NAMES = ["김민수", "이영희", "박지영", "최동훈", "정수연", "강태호", "윤서연", "임재현"]
-    KOREAN_SUBJECTS = ["국어", "수학", "영어", "과학", "사회", "체육", "음악", "미술"]
-
-    ENGLISH_ITEMS = ["Apple", "Banana", "Milk", "Bread", "Coffee", "Pasta", "Cheese", "Eggs", "Water", "Juice"]
-    ENGLISH_CATEGORIES = ["Food", "Beverage", "Household", "Electronics", "Clothing"]
-    ENGLISH_NAMES = ["John Smith", "Jane Doe", "Mike Johnson", "Sarah Wilson", "Tom Brown"]
-    ENGLISH_SUBJECTS = ["Math", "English", "Science", "History", "Art", "PE", "Music"]
-
-    JAPANESE_ITEMS = ["りんご", "バナナ", "牛乳", "パン", "コーヒー", "ラーメン", "寿司", "豆腐", "卵", "水"]
-    JAPANESE_CATEGORIES = ["食品", "飲料", "日用品", "電子機器", "衣料品"]
-    JAPANESE_NAMES = ["田中太郎", "鈴木花子", "山田一郎", "佐藤美咲", "伊藤健太", "渡辺和子", "高橋誠", "中村優子"]
-    JAPANESE_SUBJECTS = ["国語", "数学", "英語", "理科", "社会", "体育", "音楽", "美術"]
-
-    HINDI_ITEMS = ["सेब", "केला", "दूध", "रोटी", "कॉफी", "चावल", "दाल", "पनीर", "अंडा", "पानी"]
-    HINDI_CATEGORIES = ["खाद्य", "पेय", "घरेलू", "इलेक्ट्रॉनिक्स", "कपड़े"]
-    HINDI_NAMES = ["राहुल शर्मा", "प्रिया गुप्ता", "अमित कुमार", "सुनीता देवी", "विकास सिंह", "अनीता वर्मा", "राजेश पटेल", "नेहा अग्रवाल"]
-    HINDI_SUBJECTS = ["हिंदी", "गणित", "अंग्रेजी", "विज्ञान", "सामाजिक", "शारीरिक", "संगीत", "कला"]
-
-    def __init__(self, lang: str = "ko"):
+    def __init__(self, lang: str = "ko", data_provider: Optional[DataProvider] = None):
         self.lang = lang
-        if lang == "ko":
-            self.items = self.KOREAN_ITEMS
-            self.categories = self.KOREAN_CATEGORIES
-            self.names = self.KOREAN_NAMES
-            self.subjects = self.KOREAN_SUBJECTS
-            self.headers = self.KOREAN_HEADERS
-        elif lang == "ja":
-            self.items = self.JAPANESE_ITEMS
-            self.categories = self.JAPANESE_CATEGORIES
-            self.names = self.JAPANESE_NAMES
-            self.subjects = self.JAPANESE_SUBJECTS
-            self.headers = self.JAPANESE_HEADERS
-        elif lang == "hi":
-            self.items = self.HINDI_ITEMS
-            self.categories = self.HINDI_CATEGORIES
-            self.names = self.HINDI_NAMES
-            self.subjects = self.HINDI_SUBJECTS
-            self.headers = self.HINDI_HEADERS
-        else:
-            self.items = self.ENGLISH_ITEMS
-            self.categories = self.ENGLISH_CATEGORIES
-            self.names = self.ENGLISH_NAMES
-            self.subjects = self.ENGLISH_SUBJECTS
-            self.headers = self.ENGLISH_HEADERS
+        self.data = data_provider or DataProvider(lang=lang)
 
     def generate_table(
         self,
@@ -367,7 +294,7 @@ class TableDataGenerator:
     def _generate_from_template(self, template: str, num_rows: int) -> Table:
         config = self.TEMPLATES[template]
         row_gen = getattr(self, config["row_generator"])
-        headers = self.headers.get(template, config["headers"])
+        headers = self.data.headers(template)
 
         cells = []
         header_row = [TableCell(text=h, is_header=True) for h in headers]
@@ -380,29 +307,29 @@ class TableDataGenerator:
         return Table(cells=cells, style=self._random_style())
 
     def _generate_invoice_row(self) -> List[Any]:
-        item = random.choice(self.items)
-        qty = random.randint(1, 10)
-        price = random.randint(1, 50) * 1000
+        item = self.data.item()
+        qty = self.data.quantity(1, 10)
+        price = self.data.random_price(1000, 50000, 1000)
         total = qty * price
         return [item, str(qty), f"{price:,}", f"{total:,}"]
 
     def _generate_schedule_row(self) -> List[Any]:
         hour = random.randint(9, 17)
         time = f"{hour:02d}:00"
-        subjects = [random.choice(self.subjects) if random.random() > 0.3 else "-" for _ in range(5)]
+        subjects = [self.data.subject() if random.random() > 0.3 else "-" for _ in range(5)]
         return [time] + subjects
 
     def _generate_product_row(self) -> List[Any]:
-        product = random.choice(self.items)
-        category = random.choice(self.categories)
-        price = random.randint(1, 100) * 1000
-        stock = random.randint(0, 500)
+        product = self.data.item()
+        category = self.data.category()
+        price = self.data.random_price(1000, 100000, 1000)
+        stock = self.data.random_int(0, 500)
         return [product, category, f"{price:,}", str(stock)]
 
     def _generate_contact_row(self) -> List[Any]:
-        name = random.choice(self.names)
-        phone = f"010-{random.randint(1000, 9999)}-{random.randint(1000, 9999)}"
-        email = f"{name.lower().replace(' ', '.')}@example.com"
+        name = self.data.name()
+        phone = self.data.phone_number()
+        email = self.data.email()
         return [name, phone, email]
 
     def _generate_random_table(self, num_rows: int, num_cols: int) -> Table:
@@ -418,11 +345,11 @@ class TableDataGenerator:
             row = []
             for col_idx in range(num_cols):
                 if random.random() < 0.3:
-                    text = str(random.randint(1, 1000))
+                    text = str(self.data.random_int(1, 1000))
                 elif random.random() < 0.5:
-                    text = random.choice(self.items)
+                    text = self.data.item()
                 else:
-                    text = random.choice(self.names)
+                    text = self.data.name()
                 row.append(TableCell(text=text))
             cells.append(row)
 

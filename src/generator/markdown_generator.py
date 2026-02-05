@@ -18,6 +18,7 @@ from tqdm import tqdm
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
 from generator.base import BaseGenerator
+from generator.data_provider import DataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -196,28 +197,9 @@ class MarkdownDataGenerator:
         "# उपयोगकर्ता प्रमाणीकरण संभालें",
     ]
 
-    def __init__(self, lang: str = "ko"):
+    def __init__(self, lang: str = "ko", data_provider: Optional[DataProvider] = None):
         self.lang = lang
-        if lang == "ko":
-            self.titles = self.KOREAN_TITLES
-            self.paragraphs = self.KOREAN_PARAGRAPHS
-            self.features = self.KOREAN_FEATURES
-            self.code_comments = self.KOREAN_CODE_COMMENTS
-        elif lang == "ja":
-            self.titles = self.JAPANESE_TITLES
-            self.paragraphs = self.JAPANESE_PARAGRAPHS
-            self.features = self.JAPANESE_FEATURES
-            self.code_comments = self.JAPANESE_CODE_COMMENTS
-        elif lang == "hi":
-            self.titles = self.HINDI_TITLES
-            self.paragraphs = self.HINDI_PARAGRAPHS
-            self.features = self.HINDI_FEATURES
-            self.code_comments = self.HINDI_CODE_COMMENTS
-        else:
-            self.titles = self.ENGLISH_TITLES
-            self.paragraphs = self.ENGLISH_PARAGRAPHS
-            self.features = self.ENGLISH_FEATURES
-            self.code_comments = self.ENGLISH_CODE_COMMENTS
+        self.data = data_provider or DataProvider(lang=lang)
 
     def generate_markdown(
         self,
@@ -229,11 +211,11 @@ class MarkdownDataGenerator:
 
     def _generate_readme(self) -> str:
         """Generate README-style markdown."""
-        title = random.choice(self.titles)
+        title = self.data.title()
         lines = [
             f"# {title}",
             "",
-            random.choice(self.paragraphs),
+            self.data.paragraph(),
             "",
             "## " + ("기능" if self.lang == "ko" else "Features"),
             "",
@@ -241,7 +223,7 @@ class MarkdownDataGenerator:
 
         # Add feature list
         num_features = random.randint(3, 5)
-        for feature in random.sample(self.features, min(num_features, len(self.features))):
+        for feature in self.data.features(num_features):
             lines.append(f"- {feature}")
         lines.append("")
 
@@ -260,7 +242,7 @@ class MarkdownDataGenerator:
             "## " + ("사용법" if self.lang == "ko" else "Usage"),
             "",
             "```python",
-            random.choice(self.code_comments),
+            self.data.code_comment(),
             "import my_package",
             "",
             "client = my_package.Client()",
@@ -271,7 +253,7 @@ class MarkdownDataGenerator:
 
         # Add quote
         lines.extend([
-            "> " + random.choice(self.paragraphs),
+            "> " + self.data.paragraph(),
             "",
         ])
 
@@ -279,13 +261,13 @@ class MarkdownDataGenerator:
 
     def _generate_technical_doc(self) -> str:
         """Generate technical documentation style markdown."""
-        title = random.choice(self.titles)
+        title = self.data.title()
         lines = [
             f"# {title}",
             "",
             f"## " + ("개요" if self.lang == "ko" else "Overview"),
             "",
-            random.choice(self.paragraphs),
+            self.data.paragraph(),
             "",
             f"## " + ("요구사항" if self.lang == "ko" else "Requirements"),
             "",
@@ -330,8 +312,8 @@ class MarkdownDataGenerator:
 
     def _generate_blog_post(self) -> str:
         """Generate blog post style markdown."""
-        title = random.choice(self.titles)
-        date = f"{random.randint(2023, 2025)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}"
+        title = self.data.title()
+        date = self.data.date()
 
         lines = [
             f"# {title}",
@@ -340,20 +322,20 @@ class MarkdownDataGenerator:
             "",
             "---",
             "",
-            random.choice(self.paragraphs),
+            self.data.paragraph(),
             "",
             f"## " + ("주요 내용" if self.lang == "ko" else "Key Points"),
             "",
         ]
 
         # Add bullet points
-        for feature in random.sample(self.features, min(3, len(self.features))):
-            lines.append(f"- **{feature}**: " + random.choice(self.paragraphs)[:50] + "...")
+        for feature in self.data.features(3):
+            lines.append(f"- **{feature}**: " + self.data.paragraph()[:50] + "...")
         lines.append("")
 
         # Add blockquote
         lines.extend([
-            "> " + ("중요" if self.lang == "ko" else "Important") + ": " + random.choice(self.paragraphs),
+            "> " + ("중요" if self.lang == "ko" else "Important") + ": " + self.data.paragraph(),
             "",
         ])
 
@@ -420,11 +402,11 @@ class MarkdownDataGenerator:
 
     def _generate_tutorial(self) -> str:
         """Generate tutorial style markdown."""
-        title = random.choice(self.titles)
+        title = self.data.title()
         lines = [
             f"# " + ("튜토리얼" if self.lang == "ko" else "Tutorial") + f": {title}",
             "",
-            random.choice(self.paragraphs),
+            self.data.paragraph(),
             "",
             f"## " + ("시작하기 전에" if self.lang == "ko" else "Before You Begin"),
             "",
@@ -447,14 +429,14 @@ class MarkdownDataGenerator:
             ("설정 파일을 생성합니다:" if self.lang == "ko" else "Create a configuration file:"),
             "",
             "```python",
-            random.choice(self.code_comments),
+            self.data.code_comment(),
             "config = {",
             '    "api_key": "your-api-key",',
             '    "debug": True',
             "}",
             "```",
             "",
-            "> **" + ("팁" if self.lang == "ko" else "Tip") + "**: " + random.choice(self.paragraphs)[:60],
+            "> **" + ("팁" if self.lang == "ko" else "Tip") + "**: " + self.data.paragraph()[:60],
             "",
             f"## " + ("3단계" if self.lang == "ko" else "Step 3") + ": " + ("실행" if self.lang == "ko" else "Run"),
             "",

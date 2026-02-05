@@ -19,6 +19,7 @@ from tqdm import tqdm
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
 from generator.base import BaseGenerator
+from generator.data_provider import DataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -662,35 +663,11 @@ class DocumentDataGenerator:
         },
     }
 
-    def __init__(self, lang: str = "ko"):
+    def __init__(self, lang: str = "ko", data_provider: Optional[DataProvider] = None):
         self.lang = lang
+        self.data = data_provider or DataProvider(lang=lang)
         # Set labels based on language (default to English for unknown languages)
         self.labels = self.LABELS.get(lang, self.LABELS["en"])
-
-        if lang == "ko":
-            self.companies = self.KOREAN_COMPANIES
-            self.names = self.KOREAN_NAMES
-            self.addresses = self.KOREAN_ADDRESSES
-            self.products = self.KOREAN_PRODUCTS
-            self.departments = self.KOREAN_DEPARTMENTS
-        elif lang == "ja":
-            self.companies = self.JAPANESE_COMPANIES
-            self.names = self.JAPANESE_NAMES
-            self.addresses = self.JAPANESE_ADDRESSES
-            self.products = self.JAPANESE_PRODUCTS
-            self.departments = self.JAPANESE_DEPARTMENTS
-        elif lang == "hi":
-            self.companies = self.HINDI_COMPANIES
-            self.names = self.HINDI_NAMES
-            self.addresses = self.HINDI_ADDRESSES
-            self.products = self.HINDI_PRODUCTS
-            self.departments = self.HINDI_DEPARTMENTS
-        else:
-            self.companies = self.ENGLISH_COMPANIES
-            self.names = self.ENGLISH_NAMES
-            self.addresses = self.ENGLISH_ADDRESSES
-            self.products = self.ENGLISH_PRODUCTS
-            self.departments = self.ENGLISH_DEPARTMENTS
 
     def generate_document(
         self,
@@ -719,18 +696,18 @@ class DocumentDataGenerator:
         header_elements = [
             TitleElement(
                 L["invoice"],
-                f"{random.choice(self.companies)}",
+                self.data.company(),
             ),
-            ParagraphElement(f"{L['date']}: {self._random_date()}"),
-            ParagraphElement(f"{L['invoice_no']}: INV-{random.randint(10000, 99999)}"),
+            ParagraphElement(f"{L['date']}: {self.data.date()}"),
+            ParagraphElement(f"{L['invoice_no']}: INV-{self.data.random_int(10000, 99999)}"),
         ]
         blocks.append(DocumentBlock(block_type="header", elements=header_elements))
 
         # Bill To block
         bill_elements = [
             TitleElement(f"{L['bill_to']}:", level=2),
-            ParagraphElement(random.choice(self.names)),
-            ParagraphElement(random.choice(self.addresses)),
+            ParagraphElement(self.data.name()),
+            ParagraphElement(self.data.address()),
         ]
         blocks.append(DocumentBlock(block_type="bill_to", elements=bill_elements))
 
@@ -741,10 +718,10 @@ class DocumentDataGenerator:
 
         table_data = []
         headers = ["Item", "Qty", "Price", "Total"]
-        for _ in range(random.randint(3, 6)):
-            product = random.choice(self.products)
-            qty = random.randint(1, 5)
-            price = random.randint(100, 1000) * 1000
+        for _ in range(self.data.random_int(3, 6)):
+            product = self.data.product_name()
+            qty = self.data.quantity(1, 5)
+            price = self.data.random_price(100000, 1000000, 100000)
             total = qty * price
             table_data.append([product, str(qty), f"{price:,}", f"{total:,}"])
 
@@ -769,8 +746,8 @@ class DocumentDataGenerator:
         ]
         blocks.append(DocumentBlock(block_type="footer", elements=footer_elements))
 
-        date = self._random_date()
-        page_num = str(random.randint(1, 10))
+        date = self.data.date()
+        page_num = str(self.data.random_int(1, 10))
 
         return blocks, page_num, date
 
@@ -780,9 +757,9 @@ class DocumentDataGenerator:
 
         # Store info
         header_elements = [
-            TitleElement(L["receipt"], random.choice(self.companies)),
-            ParagraphElement(f"{L['date']}: {self._random_date()}"),
-            ParagraphElement(f"{L['receipt_no']}: RCP-{random.randint(10000, 99999)}"),
+            TitleElement(L["receipt"], self.data.store_name()),
+            ParagraphElement(f"{L['date']}: {self.data.date()}"),
+            ParagraphElement(f"{L['receipt_no']}: RCP-{self.data.random_int(10000, 99999)}"),
         ]
         blocks.append(DocumentBlock(block_type="header", elements=header_elements))
 
@@ -793,10 +770,10 @@ class DocumentDataGenerator:
 
         table_data = []
         headers = ["Item", "Qty", "Price"]
-        for _ in range(random.randint(2, 5)):
-            product = random.choice(self.products)
-            qty = random.randint(1, 3)
-            price = random.randint(10, 200) * 1000
+        for _ in range(self.data.random_int(2, 5)):
+            product = self.data.product_name()
+            qty = self.data.quantity(1, 3)
+            price = self.data.random_price(10000, 200000, 10000)
             table_data.append([product, str(qty), f"{price:,}"])
 
         item_elements.append(TableElement(table_data=table_data, headers=headers))
@@ -816,7 +793,7 @@ class DocumentDataGenerator:
         ]
         blocks.append(DocumentBlock(block_type="footer", elements=footer_elements))
 
-        date = self._random_date()
+        date = self.data.date()
         page_num = "1"
 
         return blocks, page_num, date
@@ -826,7 +803,7 @@ class DocumentDataGenerator:
         L = self.labels
 
         header_elements = [
-            TitleElement(L["form"], f"{random.choice(self.companies)}"),
+            TitleElement(L["form"], self.data.company()),
         ]
         blocks.append(DocumentBlock(block_type="header", elements=header_elements))
 
@@ -834,9 +811,9 @@ class DocumentDataGenerator:
         form_elements = [
             TitleElement(L["personal_info"], level=2),
             ListElement([
-                f"{L['name']}: {random.choice(self.names)}",
-                f"{L['department']}: {random.choice(self.departments)}",
-                f"{L['date']}: {self._random_date()}",
+                f"{L['name']}: {self.data.name()}",
+                f"{L['department']}: {self.data.department()}",
+                f"{L['date']}: {self.data.date()}",
             ], ordered=True),
         ]
         blocks.append(DocumentBlock(block_type="form", elements=form_elements))
@@ -860,7 +837,7 @@ class DocumentDataGenerator:
         ]
         blocks.append(DocumentBlock(block_type="signature", elements=sig_elements))
 
-        date = self._random_date()
+        date = self.data.date()
         page_num = "1"
 
         return blocks, page_num, date
@@ -868,12 +845,12 @@ class DocumentDataGenerator:
     def _generate_letter(self, style: DocumentStyle) -> Tuple[List[DocumentBlock], str, str]:
         blocks = []
         L = self.labels
-        recipient_name = random.choice(self.names)
+        recipient_name = self.data.name()
 
         # Header
         header_elements = [
-            TitleElement(L["letter"], f"{random.choice(self.companies)}"),
-            ParagraphElement(f"{L['date']}: {self._random_date()}"),
+            TitleElement(L["letter"], self.data.company()),
+            ParagraphElement(f"{L['date']}: {self.data.date()}"),
             ParagraphElement(f"{L['to']}: {recipient_name}"),
         ]
         blocks.append(DocumentBlock(block_type="header", elements=header_elements))
@@ -893,12 +870,12 @@ class DocumentDataGenerator:
         closing_elements = [
             ParagraphElement(L["regards"]),
             ParagraphElement(""),
-            ParagraphElement(random.choice(self.names)),
-            ParagraphElement(random.choice(self.departments)),
+            ParagraphElement(self.data.name()),
+            ParagraphElement(self.data.department()),
         ]
         blocks.append(DocumentBlock(block_type="closing", elements=closing_elements))
 
-        date = self._random_date()
+        date = self.data.date()
         page_num = "1"
 
         return blocks, page_num, date
@@ -906,7 +883,7 @@ class DocumentDataGenerator:
     def _generate_report(self, style: DocumentStyle) -> Tuple[List[DocumentBlock], str, str]:
         blocks = []
         L = self.labels
-        month = self._random_date().split('-')[1]
+        month = self.data.date().split('-')[1]
 
         # Title
         title_elements = [
@@ -922,9 +899,9 @@ class DocumentDataGenerator:
         blocks.append(DocumentBlock(block_type="summary", elements=summary_elements))
 
         # Highlights
-        achieved_pct = random.randint(90, 120)
-        launched_count = random.randint(1, 3)
-        satisfaction_pct = random.randint(85, 99)
+        achieved_pct = self.data.random_int(90, 120)
+        launched_count = self.data.random_int(1, 3)
+        satisfaction_pct = self.data.random_int(85, 99)
         highlights = [
             f"• {L['achieved'].format(achieved_pct)}",
             f"• {L['launched'].format(launched_count)}",
@@ -947,7 +924,7 @@ class DocumentDataGenerator:
         ]
         blocks.append(DocumentBlock(block_type="conclusion", elements=conclusion_elements))
 
-        date = self._random_date()
+        date = self.data.date()
         page_num = "1"
 
         return blocks, page_num, date
