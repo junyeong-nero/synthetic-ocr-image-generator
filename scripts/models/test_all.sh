@@ -3,9 +3,9 @@
 # Usage: ./scripts/models/test_all.sh [DATASET] [SUBSET] [MAX_SAMPLES]
 #
 # Examples:
-#   ./scripts/test_all_models.sh
-#   ./scripts/test_all_models.sh junyeong-nero/synthetic-ocr-images-korean sentence 10
-#   ./scripts/test_all_models.sh my-dataset table 5
+#   ./scripts/models/test_all.sh
+#   ./scripts/models/test_all.sh junyeong-nero/synthetic-ocr-images-korean sentence 10
+#   ./scripts/models/test_all.sh my-dataset table 5
 
 set -e
 
