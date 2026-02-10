@@ -1,0 +1,24 @@
+[
+  {
+    "timestamp": "2026-02-10T11:50:18.817705Z",
+    "protocol_version": "1.0",
+    "model_id": "paddleocr/korean",
+    "backend": "paddleocr",
+    "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+    "split": "train",
+    "seed": null,
+    "subsets": [
+      {
+        "subset": "sentence",
+        "format": "sentence",
+        "metric_key": "avg_cer",
+        "metric_value": 0.41145993179880647,
+        "model_id": "paddleocr/korean",
+        "backend": "paddleocr",
+        "prompt_source": "model_config_format",
+        "total_samples": 10
+      }
+    ],
+    "average_score": 0.41145993179880647
+  }
+]

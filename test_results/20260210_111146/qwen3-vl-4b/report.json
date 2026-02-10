@@ -1,0 +1,149 @@
+{
+  "config": {
+    "dataset_id": "junyeong-nero/synthetic-ocr-images-korean",
+    "subset": "sentence",
+    "split": "train",
+    "format_type": "sentence",
+    "batch_size": 4,
+    "max_samples": 10,
+    "prompt": "Extract all text from the image verbatim.\nInclude typos exactly as shown. Do not translate.\n",
+    "system_prompt": null,
+    "prompt_source": "model_config_format",
+    "seed": null,
+    "batch_api": false,
+    "batch_poll_seconds": 60,
+    "batch_timeout_seconds": 86400,
+    "batch_completion_window": "24h",
+    "dataset_fingerprint": "959ada02e15f2f39",
+    "dataset_info": {
+      "builder_name": "parquet",
+      "version": "0.0.0",
+      "features": [
+        "image",
+        "typo_text",
+        "original_text",
+        "font_path",
+        "background_color",
+        "font_size",
+        "bold",
+        "tilt",
+        "shadow",
+        "distortion",
+        "blur",
+        "contrast"
+      ]
+    },
+    "environment": {
+      "python": "3.11.10",
+      "platform": "Linux-5.15.0-102-generic-x86_64-with-glibc2.35",
+      "machine": "x86_64",
+      "packages": {
+        "torch": "2.6.0",
+        "transformers": "5.0.0",
+        "datasets": "4.5.0",
+        "numpy": "2.2.6",
+        "pandas": "2.3.3",
+        "uv": null
+      },
+      "torch": {
+        "cuda_available": true,
+        "mps_available": false
+      }
+    },
+    "model_config_path": "/workspace/synthetic-ocr-image-generator/configs/models/qwen3-vl-4b.yaml",
+    "model": {
+      "model_id": "Qwen/Qwen3-VL-4B-Instruct",
+      "backend": "transformers",
+      "temperature": 0.0,
+      "max_tokens": 2048
+    }
+  },
+  "metrics": {
+    "avg_cer": 0.1041811182901841,
+    "std_cer": 0.06873298156605694,
+    "min_cer": 0.0,
+    "max_cer": 0.2222222222222222,
+    "avg_wer": 0.28,
+    "std_wer": 0.16
+  },
+  "summary": {
+    "total_samples": 10,
+    "successful": 10,
+    "failed": 0,
+    "avg_latency_ms": 913.2508277893066,
+    "model_id": "Qwen/Qwen3-VL-4B-Instruct",
+    "backend": "transformers"
+  },
+  "per_sample_results": [
+    {
+      "index": 0,
+      "prediction": "호텔 및 관광경영 프밍그램 역시",
+      "ground_truth": "호텔 및 관관경영 프믿그램 역시",
+      "latency_ms": 993.1650161743164,
+      "error": null
+    },
+    {
+      "index": 1,
+      "prediction": "옷자락은 양쪽에 대칭으로 둥쳐서 새의",
+      "ground_truth": "옷자락은 양쪽에 대칭으로 등쳐서 새의",
+      "latency_ms": 993.1650161743164,
+      "error": null
+    },
+    {
+      "index": 2,
+      "prediction": "피핀 1host와 그의 부인 인고베르그",
+      "ground_truth": "피핀 1훗와 그의 부인 인고베르그",
+      "latency_ms": 993.1650161743164,
+      "error": null
+    },
+    {
+      "index": 3,
+      "prediction": "구이는 그래픽 사용자 인터페이싱 의",
+      "ground_truth": "구이는 그래픽 사용자 인터페윙스 의",
+      "latency_ms": 993.1650161743164,
+      "error": null
+    },
+    {
+      "index": 4,
+      "prediction": "불안정 호모토피 군은 낮은 호원에서는",
+      "ground_truth": "불안정 호모토피 군은 낮은 훗원에서는",
+      "latency_ms": 836.387574672699,
+      "error": null
+    },
+    {
+      "index": 5,
+      "prediction": "민영화 당초 민류메 여가지 4.9",
+      "ground_truth": "민영화 당초 믿루메 역까지 4.9",
+      "latency_ms": 836.387574672699,
+      "error": null
+    },
+    {
+      "index": 6,
+      "prediction": "임프루브드 센돔넬은 탐지게리가 갈어져서 호크",
+      "ground_truth": "임프루브드 센등넬은 탐지거리가 길어져서 호크",
+      "latency_ms": 836.387574672699,
+      "error": null
+    },
+    {
+      "index": 7,
+      "prediction": "리가 오스트리아의 축등 선수",
+      "ground_truth": "리가 오스트리아의 축등 선수",
+      "latency_ms": 836.387574672699,
+      "error": null
+    },
+    {
+      "index": 8,
+      "prediction": "참조 달의 혹다 13 쿼드랭글",
+      "ground_truth": "참조 달의 훗다 13 쿼드랭글",
+      "latency_ms": 907.1489572525024,
+      "error": null
+    },
+    {
+      "index": 9,
+      "prediction": "로린츠 근의 표현론은 상등론적 양자장론에서",
+      "ground_truth": "로런츠 군의 표현론은 상등론적 양자장론에서",
+      "latency_ms": 907.1489572525024,
+      "error": null
+    }
+  ]
+}

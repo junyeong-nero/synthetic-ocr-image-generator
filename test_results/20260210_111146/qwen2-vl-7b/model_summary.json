@@ -1,0 +1,24 @@
+[
+  {
+    "timestamp": "2026-02-10T11:56:36.534140Z",
+    "protocol_version": "1.0",
+    "model_id": "Qwen/Qwen2-VL-7B-Instruct",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+    "split": "train",
+    "seed": null,
+    "subsets": [
+      {
+        "subset": "sentence",
+        "format": "sentence",
+        "metric_key": "avg_cer",
+        "metric_value": 9.97514834881321,
+        "model_id": "Qwen/Qwen2-VL-7B-Instruct",
+        "backend": "transformers",
+        "prompt_source": "model_config_format",
+        "total_samples": 10
+      }
+    ],
+    "average_score": 9.97514834881321
+  }
+]

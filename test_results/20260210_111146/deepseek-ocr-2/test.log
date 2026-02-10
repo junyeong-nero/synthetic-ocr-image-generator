@@ -1,0 +1,237 @@
+Using CPython 3.11.10 interpreter at: /usr/bin/python3.11
+Creating virtual environment at: .venv
+   Building synthetic-ocr-image-benchmark @ file:///workspace/synthetic-ocr-image-generator
+Downloading torch (731.2MiB)
+Downloading nvidia-cudnn-cu12 (634.0MiB)
+Downloading nvidia-cublas-cu12 (346.6MiB)
+Downloading nvidia-cufft-cu12 (201.7MiB)
+Downloading kiwisolver (1.4MiB)
+Downloading jedi (1.5MiB)
+Downloading aiohttp (1.7MiB)
+Downloading pygments (1.2MiB)
+Downloading plotly (9.4MiB)
+Downloading pydantic-core (2.0MiB)
+Downloading fonttools (4.8MiB)
+Downloading torchvision (6.9MiB)
+Downloading faker (1.9MiB)
+Downloading nvidia-nvjitlink-cu12 (20.1MiB)
+Downloading tokenizers (2.9MiB)
+Downloading scipy (33.5MiB)
+Downloading matplotlib (8.3MiB)
+Downloading numpy (16.0MiB)
+Downloading nvidia-curand-cu12 (53.7MiB)
+Downloading triton (241.4MiB)
+Downloading nvidia-cusparselt-cu12 (143.1MiB)
+Downloading nvidia-cusparse-cu12 (197.8MiB)
+Downloading nvidia-cuda-cupti-cu12 (13.2MiB)
+Downloading statsmodels (9.9MiB)
+Downloading babel (9.7MiB)
+Downloading notebook (13.8MiB)
+Downloading jupyterlab (11.8MiB)
+Downloading widgetsnbextension (2.1MiB)
+Downloading scikit-image (13.1MiB)
+Downloading sympy (5.9MiB)
+Downloading pillow (6.7MiB)
+Downloading nvidia-cuda-nvrtc-cu12 (23.5MiB)
+Downloading pandas (12.2MiB)
+Downloading nvidia-nccl-cu12 (179.9MiB)
+Downloading opencv-python (69.5MiB)
+Downloading pyarrow (45.3MiB)
+Downloading nvidia-cusolver-cu12 (122.0MiB)
+Downloading networkx (2.0MiB)
+Downloading setuptools (1.0MiB)
+Downloading transformers (9.6MiB)
+Downloading hf-xet (3.2MiB)
+Downloading debugpy (3.0MiB)
+ Downloaded kiwisolver
+ Downloaded pygments
+ Downloaded aiohttp
+ Downloaded setuptools
+ Downloaded pydantic-core
+ Downloaded widgetsnbextension
+ Downloaded networkx
+ Downloaded tokenizers
+      Built synthetic-ocr-image-benchmark @ file:///workspace/synthetic-ocr-image-generator
+ Downloaded hf-xet
+ Downloaded debugpy
+ Downloaded faker
+ Downloaded fonttools
+ Downloaded pillow
+ Downloaded torchvision
+ Downloaded sympy
+ Downloaded matplotlib
+ Downloaded babel
+ Downloaded jedi
+ Downloaded jupyterlab
+ Downloaded nvidia-cuda-cupti-cu12
+ Downloaded plotly
+ Downloaded notebook
+ Downloaded scikit-image
+ Downloaded numpy
+ Downloaded statsmodels
+ Downloaded transformers
+ Downloaded nvidia-nvjitlink-cu12
+ Downloaded nvidia-cuda-nvrtc-cu12
+ Downloaded scipy
+ Downloaded nvidia-curand-cu12
+ Downloaded opencv-python
+ Downloaded nvidia-cusolver-cu12
+ Downloaded pandas
+ Downloaded nvidia-cusparselt-cu12
+ Downloaded nvidia-nccl-cu12
+ Downloaded pyarrow
+ Downloaded nvidia-cusparse-cu12
+ Downloaded nvidia-cufft-cu12
+ Downloaded nvidia-cublas-cu12
+ Downloaded triton
+ Downloaded nvidia-cudnn-cu12
+ Downloaded torch
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 169 packages in 2m 38s
+A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR-2:
+- configuration_deepseek_v2.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR-2:
+- modeling_deepseekv2.py
+- configuration_deepseek_v2.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR-2:
+- deepencoderv2.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR-2:
+- conversation.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR-2:
+- modeling_deepseekocr2.py
+- modeling_deepseekv2.py
+- deepencoderv2.py
+- conversation.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+You are using a model of type deepseek_vl_v2 to instantiate a model of type DeepseekOCR2. This is not supported for all configurations of models and can yield errors.
+
+Configuration:
+  Model: deepseek-ai/DeepSeek-OCR-2
+  Backend: transformers
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
+  Format: sentence
+  Batch Size: 32
+  Temperature: 0.0
+  Max Tokens: 512
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/deepseek-ocr-2.yaml
+
+Evaluating deepseek-ai/DeepSeek-OCR-2 on junyeong-nero/synthetic-ocr-images-korean...
+Downloading shards:   0%|          | 0/1 [00:00<?, ?it/s]Downloading shards: 100%|██████████| 1/1 [00:05<00:00,  5.60s/it]Downloading shards: 100%|██████████| 1/1 [00:05<00:00,  5.60s/it]
+Loading dataset: junyeong-nero/synthetic-ocr-images-korean
+Generating train split:   0%|          | 0/1000 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 1000/1000 [00:00<00:00, 8125.35 examples/s]Generating train split: 100%|██████████| 1000/1000 [00:00<00:00, 8039.50 examples/s]
+Loaded 10 samples
+Processing 10 remaining samples...
+Evaluating:   0%|          | 0/1 [00:00<?, ?batch/s]/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/generation/configuration_utils.py:590: UserWarning: `do_sample` is set to `False`. However, `temperature` is set to `0.0` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `temperature`.
+  warnings.warn(
+The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
+The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+The `seen_tokens` attribute is deprecated and will be removed in v4.41. Use the `cache_position` model input instead.
+`get_max_cache()` is deprecated for all Cache classes. Use `get_max_cache_shape()` instead. Calling `get_max_cache()` will raise error from v4.48
+The attention layers in this model are transitioning from computing the RoPE embeddings internally through `position_ids` (2D tensor with the indexes of the tokens), to using externally computed `position_embeddings` (Tuple of tensors, containing cos and sin). In v4.46 `position_ids` will be removed and `position_embeddings` will be mandatory.
+=====================
+BASE:  torch.Size([1, 256, 1280])
+NO PATCHES
+=====================
+이렇게 보면 당신의 일을 내리게 된다.
+The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
+=====================
+BASE:  torch.Size([1, 256, 1280])
+NO PATCHES
+=====================
+뒤집니다.  
+뒤집니다.
+The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
+=====================
+BASE:  torch.Size([1, 256, 1280])
+NO PATCHES
+=====================
+파핀 1쌍의 두껍이 아닌 세트
+The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
+=====================
+BASE:  torch.Size([1, 256, 1280])
+NO PATCHES
+=====================
+राज्य सरकार के निम्नलिखित शब्दों से谁的/किसी किसी सेवा के लिए जिम्मेदार न होना चाहिए?
+The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
+=====================
+BASE:  torch.Size([1, 256, 1280])
+NO PATCHES
+=====================
+이것은  
+무엇인가를  
+선호하는지  
+보아볼까요?
+The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
+=====================
+BASE:  torch.Size([1, 256, 1280])
+NO PATCHES
+=====================
+이중한 상호 관계의 관계가 4.9
+The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
+=====================
+BASE:  torch.Size([1, 256, 1280])
+NO PATCHES
+=====================
+a) \[ \sum_{i=1}^{n} \frac{1}{i} \] \[ \in \]  
+b) \[ \sum_{i=1}^{n} \frac{1}{i} \in \]  
+c) \[ \sum_{i=1}^{n} \frac{1}{i} \geq \]  
+d) \[ \sum_{i=1}^{n} \frac{1}{i} > \]  
+e) \[ \sum_{i=1}^{n} \frac{1}{i} \neq \]  
+f) \[ \sum_{i=1}^{n} \frac{1}{i} = \]
+The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
+=====================
+BASE:  torch.Size([1, 256, 1280])
+NO PATCHES
+=====================
+21년 오후 2시 10분에 출석
+The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
+=====================
+BASE:  torch.Size([1, 256, 1280])
+NO PATCHES
+=====================
+잠재 할 일은 13일 이내임
+The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
+=====================
+BASE:  torch.Size([1, 256, 1280])
+PATCHES:  torch.Size([6, 144, 1280])
+=====================
+로컬스 구의 표현론은 상득론적 양자장로에너
+Evaluating:   0%|          | 0/1 [00:13<?, ?batch/s, latency=1338.3ms]Evaluating: 100%|██████████| 1/1 [00:13<00:00, 13.39s/batch, latency=1338.3ms]Evaluating: 100%|██████████| 1/1 [00:13<00:00, 13.39s/batch, latency=1338.3ms]
+
+Reports saved:
+  json: /workspace/synthetic-ocr-image-generator/test_results/20260210_111146/deepseek-ocr-2/report.json
+  markdown: /workspace/synthetic-ocr-image-generator/test_results/20260210_111146/deepseek-ocr-2/report.md
+  html: /workspace/synthetic-ocr-image-generator/test_results/20260210_111146/deepseek-ocr-2/report.html
+Protocol snapshot saved: /workspace/synthetic-ocr-image-generator/test_results/20260210_111146/deepseek-ocr-2/protocol.json
+
+============================================================
+ SENTENCE EVALUATION RESULTS 
+============================================================
+  avg_cer: 1.0000
+  std_cer: 0.0000
+  min_cer: 1.0000
+  max_cer: 1.0000
+  avg_wer: 1.0000
+  std_wer: 0.0000
+============================================================
+
+Samples: 10/10
+Avg Latency: 1338.32ms
+
+Model summary saved: /workspace/synthetic-ocr-image-generator/test_results/20260210_111146/deepseek-ocr-2/model_summary.json

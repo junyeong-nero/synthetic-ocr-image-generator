@@ -1,0 +1,149 @@
+{
+  "config": {
+    "dataset_id": "junyeong-nero/synthetic-ocr-images-korean",
+    "subset": "sentence",
+    "split": "train",
+    "format_type": "sentence",
+    "batch_size": 1,
+    "max_samples": 10,
+    "prompt": "OCR this image.",
+    "system_prompt": null,
+    "prompt_source": "model_config_format",
+    "seed": null,
+    "batch_api": false,
+    "batch_poll_seconds": 60,
+    "batch_timeout_seconds": 86400,
+    "batch_completion_window": "24h",
+    "dataset_fingerprint": "959ada02e15f2f39",
+    "dataset_info": {
+      "builder_name": "parquet",
+      "version": "0.0.0",
+      "features": [
+        "image",
+        "typo_text",
+        "original_text",
+        "font_path",
+        "background_color",
+        "font_size",
+        "bold",
+        "tilt",
+        "shadow",
+        "distortion",
+        "blur",
+        "contrast"
+      ]
+    },
+    "environment": {
+      "python": "3.11.10",
+      "platform": "Linux-5.15.0-102-generic-x86_64-with-glibc2.35",
+      "machine": "x86_64",
+      "packages": {
+        "torch": "2.6.0",
+        "transformers": "4.46.3",
+        "datasets": "4.5.0",
+        "numpy": "2.2.6",
+        "pandas": "2.3.3",
+        "uv": null
+      },
+      "torch": {
+        "cuda_available": true,
+        "mps_available": false
+      }
+    },
+    "model_config_path": "/workspace/synthetic-ocr-image-generator/configs/models/deepseek-ocr.yaml",
+    "model": {
+      "model_id": "deepseek-ai/DeepSeek-OCR",
+      "backend": "transformers",
+      "temperature": 0.0,
+      "max_tokens": 4096
+    }
+  },
+  "metrics": {
+    "avg_cer": 1.0,
+    "std_cer": 0.0,
+    "min_cer": 1.0,
+    "max_cer": 1.0,
+    "avg_wer": 1.0,
+    "std_wer": 0.0
+  },
+  "summary": {
+    "total_samples": 10,
+    "successful": 10,
+    "failed": 0,
+    "avg_latency_ms": 1097.106409072876,
+    "model_id": "deepseek-ai/DeepSeek-OCR",
+    "backend": "transformers"
+  },
+  "per_sample_results": [
+    {
+      "index": 0,
+      "prediction": null,
+      "ground_truth": "호텔 및 관관경영 프믿그램 역시",
+      "latency_ms": 1589.585304260254,
+      "error": null
+    },
+    {
+      "index": 1,
+      "prediction": null,
+      "ground_truth": "옷자락은 양쪽에 대칭으로 등쳐서 새의",
+      "latency_ms": 557.2564601898193,
+      "error": null
+    },
+    {
+      "index": 2,
+      "prediction": null,
+      "ground_truth": "피핀 1훗와 그의 부인 인고베르그",
+      "latency_ms": 612.8571033477783,
+      "error": null
+    },
+    {
+      "index": 3,
+      "prediction": null,
+      "ground_truth": "구이는 그래픽 사용자 인터페윙스 의",
+      "latency_ms": 640.566349029541,
+      "error": null
+    },
+    {
+      "index": 4,
+      "prediction": null,
+      "ground_truth": "불안정 호모토피 군은 낮은 훗원에서는",
+      "latency_ms": 728.8856506347656,
+      "error": null
+    },
+    {
+      "index": 5,
+      "prediction": null,
+      "ground_truth": "민영화 당초 믿루메 역까지 4.9",
+      "latency_ms": 947.8211402893066,
+      "error": null
+    },
+    {
+      "index": 6,
+      "prediction": null,
+      "ground_truth": "임프루브드 센등넬은 탐지거리가 길어져서 호크",
+      "latency_ms": 3806.187152862549,
+      "error": null
+    },
+    {
+      "index": 7,
+      "prediction": null,
+      "ground_truth": "리가 오스트리아의 축등 선수",
+      "latency_ms": 461.8067741394043,
+      "error": null
+    },
+    {
+      "index": 8,
+      "prediction": null,
+      "ground_truth": "참조 달의 훗다 13 쿼드랭글",
+      "latency_ms": 494.3203926086426,
+      "error": null
+    },
+    {
+      "index": 9,
+      "prediction": null,
+      "ground_truth": "로런츠 군의 표현론은 상등론적 양자장론에서",
+      "latency_ms": 1131.7777633666992,
+      "error": null
+    }
+  ]
+}

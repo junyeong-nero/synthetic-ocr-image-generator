@@ -1,0 +1,25 @@
+[
+  {
+    "timestamp": "2026-02-10T12:19:40.030080Z",
+    "protocol_version": "1.0",
+    "model_id": "NCSOFT/VARCO-VISION-2.0-1.7B-OCR",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+    "split": "train",
+    "average_score": 1.0,
+    "normalized_average_score": 0.0,
+    "subsets": [
+      {
+        "subset": "sentence",
+        "format": "sentence",
+        "metric_key": "avg_cer",
+        "metric_value": 1.0,
+        "model_id": "NCSOFT/VARCO-VISION-2.0-1.7B-OCR",
+        "backend": "transformers",
+        "prompt_source": "model_config_format",
+        "total_samples": 10,
+        "normalized_value": 0.0
+      }
+    ]
+  }
+]

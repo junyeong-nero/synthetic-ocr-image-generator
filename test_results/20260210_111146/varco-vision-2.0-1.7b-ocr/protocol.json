@@ -1,0 +1,76 @@
+{
+  "protocol_version": "1.0",
+  "timestamp": "2026-02-10T12:19:39.932541Z",
+  "command": "evaluate",
+  "report_format": "all",
+  "config": {
+    "dataset_id": "junyeong-nero/synthetic-ocr-images-korean",
+    "subset": "sentence",
+    "split": "train",
+    "format_type": "sentence",
+    "batch_size": 1,
+    "max_samples": 10,
+    "prompt": "Extract all text from the image verbatim.\nInclude typos exactly as shown. Do not translate.\n",
+    "system_prompt": null,
+    "prompt_source": "model_config_format",
+    "seed": null,
+    "batch_api": false,
+    "batch_poll_seconds": 60,
+    "batch_timeout_seconds": 86400,
+    "batch_completion_window": "24h",
+    "dataset_fingerprint": "959ada02e15f2f39",
+    "dataset_info": {
+      "builder_name": "parquet",
+      "version": "0.0.0",
+      "features": [
+        "image",
+        "typo_text",
+        "original_text",
+        "font_path",
+        "background_color",
+        "font_size",
+        "bold",
+        "tilt",
+        "shadow",
+        "distortion",
+        "blur",
+        "contrast"
+      ]
+    },
+    "environment": {
+      "python": "3.11.10",
+      "platform": "Linux-5.15.0-102-generic-x86_64-with-glibc2.35",
+      "machine": "x86_64",
+      "packages": {
+        "torch": "2.6.0",
+        "transformers": "5.0.0",
+        "datasets": "4.5.0",
+        "numpy": "2.2.6",
+        "pandas": "2.3.3",
+        "uv": null
+      },
+      "torch": {
+        "cuda_available": true,
+        "mps_available": false
+      }
+    },
+    "model_config_path": "/workspace/synthetic-ocr-image-generator/configs/models/varco-vision-2.0-1.7b-ocr.yaml",
+    "model": {
+      "model_id": "NCSOFT/VARCO-VISION-2.0-1.7B-OCR",
+      "backend": "transformers",
+      "temperature": 0.0,
+      "max_tokens": 4096
+    }
+  },
+  "summary": {
+    "total_samples": 10,
+    "successful": 10,
+    "failed": 0,
+    "avg_latency_ms": 116591.3724899292,
+    "model_id": "NCSOFT/VARCO-VISION-2.0-1.7B-OCR",
+    "backend": "transformers"
+  },
+  "prompt": "Extract all text from the image verbatim.\nInclude typos exactly as shown. Do not translate.\n",
+  "prompt_source": "model_config_format",
+  "system_prompt": null
+}

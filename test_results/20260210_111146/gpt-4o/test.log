@@ -1,0 +1,45 @@
+Downloading google-api-python-client (14.2MiB)
+Downloading grpcio (6.3MiB)
+Downloading cryptography (4.3MiB)
+Downloading openai (1.0MiB)
+Downloading google-ai-generativelanguage (1.3MiB)
+ Downloaded grpcio
+ Downloaded cryptography
+ Downloaded google-ai-generativelanguage
+ Downloaded google-api-python-client
+ Downloaded openai
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 24 packages in 12.29s
+
+Configuration:
+  Model: gpt-4o
+  Backend: openai
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
+  Format: sentence
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 1024
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/gpt-4o.yaml
+
+Evaluating gpt-4o on junyeong-nero/synthetic-ocr-images-korean...
+Traceback (most recent call last):
+  File "/workspace/synthetic-ocr-image-generator/main.py", line 748, in <module>
+    main()
+  File "/workspace/synthetic-ocr-image-generator/main.py", line 734, in main
+    cmd_evaluate(args)
+  File "/workspace/synthetic-ocr-image-generator/main.py", line 376, in cmd_evaluate
+    run_for_subset(
+  File "/workspace/synthetic-ocr-image-generator/main.py", line 303, in run_for_subset
+    pipeline = EvaluationPipeline(config)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/pipeline.py", line 27, in __init__
+    self.model = create_model(config.model)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/models/registry.py", line 118, in create_model
+    return model_class(config)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/models/api/openai_vision.py", line 48, in __init__
+    raise ValueError(
+ValueError: OpenAI API key is required. Set OPENAI_API_KEY environment variable or pass api_key in config.

@@ -1,0 +1,51 @@
+A new version of the following files was downloaded from https://huggingface.co/PaddlePaddle/PaddleOCR-VL:
+- configuration_paddleocr_vl.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+A new version of the following files was downloaded from https://huggingface.co/PaddlePaddle/PaddleOCR-VL:
+- modeling_paddleocr_vl.py
+. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
+
+Configuration:
+  Model: PaddlePaddle/PaddleOCR-VL
+  Backend: transformers
+  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
+  Format: sentence
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 4096
+  Config File: /workspace/synthetic-ocr-image-generator/configs/models/paddleocr-vl.yaml
+
+Evaluating PaddlePaddle/PaddleOCR-VL on junyeong-nero/synthetic-ocr-images-korean...
+Traceback (most recent call last):
+  File "/workspace/synthetic-ocr-image-generator/main.py", line 748, in <module>
+    main()
+  File "/workspace/synthetic-ocr-image-generator/main.py", line 734, in main
+    cmd_evaluate(args)
+  File "/workspace/synthetic-ocr-image-generator/main.py", line 376, in cmd_evaluate
+    run_for_subset(
+  File "/workspace/synthetic-ocr-image-generator/main.py", line 303, in run_for_subset
+    pipeline = EvaluationPipeline(config)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/evaluation/pipeline.py", line 27, in __init__
+    self.model = create_model(config.model)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/models/registry.py", line 118, in create_model
+    return model_class(config)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/src/models/transformers/base.py", line 43, in __init__
+    self._load_model(model_id)
+  File "/workspace/synthetic-ocr-image-generator/src/models/transformers/paddle_ocr.py", line 20, in _load_model
+    AutoModelForCausalLM.from_pretrained(
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/models/auto/auto_factory.py", line 553, in from_pretrained
+    model_class = get_class_from_dynamic_module(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/dynamic_module_utils.py", line 552, in get_class_from_dynamic_module
+    return get_class_in_module(class_name, final_module, force_reload=force_download)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/dynamic_module_utils.py", line 249, in get_class_in_module
+    module_spec.loader.exec_module(module)
+  File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "/root/.cache/huggingface/modules/transformers_modules/PaddlePaddle/PaddleOCR-VL/2b77538ef936207f60c16b45082841068987d08c/modeling_paddleocr_vl.py", line 34, in <module>
+    from transformers.integrations import use_kernel_forward_from_hub
+ImportError: cannot import name 'use_kernel_forward_from_hub' from 'transformers.integrations' (/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/integrations/__init__.py)

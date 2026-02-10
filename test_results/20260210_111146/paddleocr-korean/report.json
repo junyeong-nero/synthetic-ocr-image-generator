@@ -1,0 +1,149 @@
+{
+  "config": {
+    "dataset_id": "junyeong-nero/synthetic-ocr-images-korean",
+    "subset": "sentence",
+    "split": "train",
+    "format_type": "sentence",
+    "batch_size": 1,
+    "max_samples": 10,
+    "prompt": "ignored",
+    "system_prompt": null,
+    "prompt_source": "model_config_format",
+    "seed": null,
+    "batch_api": false,
+    "batch_poll_seconds": 60,
+    "batch_timeout_seconds": 86400,
+    "batch_completion_window": "24h",
+    "dataset_fingerprint": "959ada02e15f2f39",
+    "dataset_info": {
+      "builder_name": "parquet",
+      "version": "0.0.0",
+      "features": [
+        "image",
+        "typo_text",
+        "original_text",
+        "font_path",
+        "background_color",
+        "font_size",
+        "bold",
+        "tilt",
+        "shadow",
+        "distortion",
+        "blur",
+        "contrast"
+      ]
+    },
+    "environment": {
+      "python": "3.11.10",
+      "platform": "Linux-5.15.0-102-generic-x86_64-with-glibc2.35",
+      "machine": "x86_64",
+      "packages": {
+        "torch": "2.6.0",
+        "transformers": "4.46.3",
+        "datasets": "4.5.0",
+        "numpy": "2.2.6",
+        "pandas": "2.3.3",
+        "uv": null
+      },
+      "torch": {
+        "cuda_available": true,
+        "mps_available": false
+      }
+    },
+    "model_config_path": "/workspace/synthetic-ocr-image-generator/configs/models/paddleocr-korean.yaml",
+    "model": {
+      "model_id": "paddleocr/korean",
+      "backend": "paddleocr",
+      "temperature": 0.0,
+      "max_tokens": 4096
+    }
+  },
+  "metrics": {
+    "avg_cer": 0.41145993179880647,
+    "std_cer": 0.2949166048341782,
+    "min_cer": 0.0,
+    "max_cer": 0.8823529411764706,
+    "avg_wer": 0.51,
+    "std_wer": 0.37
+  },
+  "summary": {
+    "total_samples": 10,
+    "successful": 10,
+    "failed": 0,
+    "avg_latency_ms": 3694.487142562866,
+    "model_id": "paddleocr/korean",
+    "backend": "paddleocr"
+  },
+  "per_sample_results": [
+    {
+      "index": 0,
+      "prediction": "웅유균균宮歸p 물금뇨 YE",
+      "ground_truth": "호텔 및 관관경영 프믿그램 역시",
+      "latency_ms": 2969.369649887085,
+      "error": null
+    },
+    {
+      "index": 1,
+      "prediction": "옷자락은 양쪽에 대칭으로 해Y유을",
+      "ground_truth": "옷자락은 양쪽에 대칭으로 등쳐서 새의",
+      "latency_ms": 6193.285942077637,
+      "error": null
+    },
+    {
+      "index": 2,
+      "prediction": "1훗와 그의 부인",
+      "ground_truth": "피핀 1훗와 그의 부인 인고베르그",
+      "latency_ms": 5281.232118606567,
+      "error": null
+    },
+    {
+      "index": 3,
+      "prediction": "구이는 그래픽 사용자 인터페윙스 의",
+      "ground_truth": "구이는 그래픽 사용자 인터페윙스 의",
+      "latency_ms": 3496.1371421813965,
+      "error": null
+    },
+    {
+      "index": 4,
+      "prediction": "불안정 호모토피 군은 낮은 훗원에서는",
+      "ground_truth": "불안정 호모토피 군은 낮은 훗원에서는",
+      "latency_ms": 1606.971025466919,
+      "error": null
+    },
+    {
+      "index": 5,
+      "prediction": "너lo 49 민영화 당초",
+      "ground_truth": "민영화 당초 믿루메 역까지 4.9",
+      "latency_ms": 1290.0714874267578,
+      "error": null
+    },
+    {
+      "index": 6,
+      "prediction": "임프누브드 센등넬은 걸어져서 호크",
+      "ground_truth": "임프루브드 센등넬은 탐지거리가 길어져서 호크",
+      "latency_ms": 3881.809949874878,
+      "error": null
+    },
+    {
+      "index": 7,
+      "prediction": "오스트리아의 축등 선수 1니2",
+      "ground_truth": "리가 오스트리아의 축등 선수",
+      "latency_ms": 1490.0710582733154,
+      "error": null
+    },
+    {
+      "index": 8,
+      "prediction": "달의훗다13뤄드랭글 참조",
+      "ground_truth": "참조 달의 훗다 13 쿼드랭글",
+      "latency_ms": 6092.083692550659,
+      "error": null
+    },
+    {
+      "index": 9,
+      "prediction": "로런츠 군의 긍굴으표 상등론적 양자장론에서",
+      "ground_truth": "로런츠 군의 표현론은 상등론적 양자장론에서",
+      "latency_ms": 4643.839359283447,
+      "error": null
+    }
+  ]
+}

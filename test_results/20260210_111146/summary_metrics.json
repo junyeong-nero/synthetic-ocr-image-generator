@@ -1,0 +1,278 @@
+{
+  "generated_at_utc": "2026-02-10T12:51:29.203038+00:00",
+  "input_dir": "test_results/20260210_111146",
+  "total_reports": 11,
+  "total_models": 11,
+  "metric_keys_by_subset": {
+    "sentence": [
+      "cer",
+      "wer"
+    ]
+  },
+  "rows": [
+    {
+      "model": "deepseek-ocr",
+      "model_id": "deepseek-ai/DeepSeek-OCR",
+      "backend": "transformers",
+      "subset": "sentence",
+      "format": "sentence",
+      "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+      "split": "train",
+      "total_samples": 10,
+      "successful": 10,
+      "failed": 0,
+      "avg_latency_ms": 1097.106409072876,
+      "metrics": {
+        "avg_cer": 1.0,
+        "std_cer": 0.0,
+        "avg_wer": 1.0,
+        "std_wer": 0.0
+      },
+      "metrics_display": {
+        "cer": "1.0000 (0.0000)",
+        "wer": "1.0000 (0.0000)"
+      },
+      "report_path": "test_results/20260210_111146/deepseek-ocr/report.json"
+    },
+    {
+      "model": "deepseek-ocr-2",
+      "model_id": "deepseek-ai/DeepSeek-OCR-2",
+      "backend": "transformers",
+      "subset": "sentence",
+      "format": "sentence",
+      "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+      "split": "train",
+      "total_samples": 10,
+      "successful": 10,
+      "failed": 0,
+      "avg_latency_ms": 1338.3196830749512,
+      "metrics": {
+        "avg_cer": 1.0,
+        "std_cer": 0.0,
+        "avg_wer": 1.0,
+        "std_wer": 0.0
+      },
+      "metrics_display": {
+        "cer": "1.0000 (0.0000)",
+        "wer": "1.0000 (0.0000)"
+      },
+      "report_path": "test_results/20260210_111146/deepseek-ocr-2/report.json"
+    },
+    {
+      "model": "glm-ocr",
+      "model_id": "zai-org/GLM-OCR",
+      "backend": "transformers",
+      "subset": "sentence",
+      "format": "sentence",
+      "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+      "split": "train",
+      "total_samples": 10,
+      "successful": 10,
+      "failed": 0,
+      "avg_latency_ms": 718.0563449859619,
+      "metrics": {
+        "avg_cer": 0.6631935283648165,
+        "std_cer": 0.13395884099579394,
+        "avg_wer": 0.7350000000000001,
+        "std_wer": 0.21914607000811126
+      },
+      "metrics_display": {
+        "cer": "0.6632 (0.1340)",
+        "wer": "0.7350 (0.2191)"
+      },
+      "report_path": "test_results/20260210_111146/glm-ocr/report.json"
+    },
+    {
+      "model": "got-ocr-2.0-hf",
+      "model_id": "stepfun-ai/GOT-OCR-2.0-hf",
+      "backend": "transformers",
+      "subset": "sentence",
+      "format": "sentence",
+      "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+      "split": "train",
+      "total_samples": 10,
+      "successful": 10,
+      "failed": 0,
+      "avg_latency_ms": 86531.74953460693,
+      "metrics": {
+        "avg_cer": 1330.1695744716649,
+        "std_cer": 368.29060716610536,
+        "avg_wer": 399.285,
+        "std_wer": 141.6401674137672
+      },
+      "metrics_display": {
+        "cer": "1330.1696 (368.2906)",
+        "wer": "399.2850 (141.6402)"
+      },
+      "report_path": "test_results/20260210_111146/got-ocr-2.0-hf/report.json"
+    },
+    {
+      "model": "lightonocr-2-1b",
+      "model_id": "lightonai/LightOnOCR-2-1B",
+      "backend": "transformers",
+      "subset": "sentence",
+      "format": "sentence",
+      "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+      "split": "train",
+      "total_samples": 10,
+      "successful": 10,
+      "failed": 0,
+      "avg_latency_ms": 3841.969871520996,
+      "metrics": {
+        "avg_cer": 11.687958937198067,
+        "std_cer": 32.377859664138306,
+        "avg_wer": 3.410000000000001,
+        "std_wer": 7.411673225392497
+      },
+      "metrics_display": {
+        "cer": "11.6880 (32.3779)",
+        "wer": "3.4100 (7.4117)"
+      },
+      "report_path": "test_results/20260210_111146/lightonocr-2-1b/report.json"
+    },
+    {
+      "model": "paddleocr",
+      "model_id": "paddleocr",
+      "backend": "paddleocr",
+      "subset": "sentence",
+      "format": "sentence",
+      "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+      "split": "train",
+      "total_samples": 10,
+      "successful": 10,
+      "failed": 0,
+      "avg_latency_ms": 3295.870304107666,
+      "metrics": {
+        "avg_cer": 0.9830555555555556,
+        "std_cer": 0.04834370897573814,
+        "avg_wer": 0.96,
+        "std_wer": 0.07999999999999999
+      },
+      "metrics_display": {
+        "cer": "0.9831 (0.0483)",
+        "wer": "0.9600 (0.0800)"
+      },
+      "report_path": "test_results/20260210_111146/paddleocr/report.json"
+    },
+    {
+      "model": "paddleocr-korean",
+      "model_id": "paddleocr/korean",
+      "backend": "paddleocr",
+      "subset": "sentence",
+      "format": "sentence",
+      "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+      "split": "train",
+      "total_samples": 10,
+      "successful": 10,
+      "failed": 0,
+      "avg_latency_ms": 3694.487142562866,
+      "metrics": {
+        "avg_cer": 0.41145993179880647,
+        "std_cer": 0.2949166048341782,
+        "avg_wer": 0.51,
+        "std_wer": 0.37
+      },
+      "metrics_display": {
+        "cer": "0.4115 (0.2949)",
+        "wer": "0.5100 (0.3700)"
+      },
+      "report_path": "test_results/20260210_111146/paddleocr-korean/report.json"
+    },
+    {
+      "model": "qwen2-vl-7b",
+      "model_id": "Qwen/Qwen2-VL-7B-Instruct",
+      "backend": "transformers",
+      "subset": "sentence",
+      "format": "sentence",
+      "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+      "split": "train",
+      "total_samples": 10,
+      "successful": 10,
+      "failed": 0,
+      "avg_latency_ms": 799.6013164520264,
+      "metrics": {
+        "avg_cer": 9.97514834881321,
+        "std_cer": 1.3539426489594135,
+        "avg_wer": 6.6,
+        "std_wer": 0.4816637831516917
+      },
+      "metrics_display": {
+        "cer": "9.9751 (1.3539)",
+        "wer": "6.6000 (0.4817)"
+      },
+      "report_path": "test_results/20260210_111146/qwen2-vl-7b/report.json"
+    },
+    {
+      "model": "qwen3-vl-2b",
+      "model_id": "Qwen/Qwen3-VL-2B-Instruct",
+      "backend": "transformers",
+      "subset": "sentence",
+      "format": "sentence",
+      "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+      "split": "train",
+      "total_samples": 10,
+      "successful": 10,
+      "failed": 0,
+      "avg_latency_ms": 847.5321292877197,
+      "metrics": {
+        "avg_cer": 0.10896585827313383,
+        "std_cer": 0.09506821068028345,
+        "avg_wer": 0.2800000000000001,
+        "std_wer": 0.1833030277982336
+      },
+      "metrics_display": {
+        "cer": "0.1090 (0.0951)",
+        "wer": "0.2800 (0.1833)"
+      },
+      "report_path": "test_results/20260210_111146/qwen3-vl-2b/report.json"
+    },
+    {
+      "model": "qwen3-vl-4b",
+      "model_id": "Qwen/Qwen3-VL-4B-Instruct",
+      "backend": "transformers",
+      "subset": "sentence",
+      "format": "sentence",
+      "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+      "split": "train",
+      "total_samples": 10,
+      "successful": 10,
+      "failed": 0,
+      "avg_latency_ms": 913.2508277893066,
+      "metrics": {
+        "avg_cer": 0.1041811182901841,
+        "std_cer": 0.06873298156605694,
+        "avg_wer": 0.28,
+        "std_wer": 0.16
+      },
+      "metrics_display": {
+        "cer": "0.1042 (0.0687)",
+        "wer": "0.2800 (0.1600)"
+      },
+      "report_path": "test_results/20260210_111146/qwen3-vl-4b/report.json"
+    },
+    {
+      "model": "varco-vision-2.0-1.7b-ocr",
+      "model_id": "NCSOFT/VARCO-VISION-2.0-1.7B-OCR",
+      "backend": "transformers",
+      "subset": "sentence",
+      "format": "sentence",
+      "dataset": "junyeong-nero/synthetic-ocr-images-korean",
+      "split": "train",
+      "total_samples": 10,
+      "successful": 10,
+      "failed": 0,
+      "avg_latency_ms": 116591.3724899292,
+      "metrics": {
+        "avg_cer": 1.0,
+        "std_cer": 0.0,
+        "avg_wer": 1.0,
+        "std_wer": 0.0
+      },
+      "metrics_display": {
+        "cer": "1.0000 (0.0000)",
+        "wer": "1.0000 (0.0000)"
+      },
+      "report_path": "test_results/20260210_111146/varco-vision-2.0-1.7b-ocr/report.json"
+    }
+  ]
+}
