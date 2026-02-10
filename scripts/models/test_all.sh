@@ -15,11 +15,10 @@ CONFIG_DIR="$PROJECT_DIR/configs/models"
 
 # Default settings
 DEFAULT_DATASET="junyeong-nero/synthetic-ocr-images-korean"
-DEFAULT_SUBSET="sentence"
 DEFAULT_MAX_SAMPLES=10
 
 DATASET="${1:-$DEFAULT_DATASET}"
-SUBSET="${2:-$DEFAULT_SUBSET}"
+SUBSET="${2:-}"
 MAX_SAMPLES="${3:-$DEFAULT_MAX_SAMPLES}"
 
 # Output directory
@@ -33,7 +32,11 @@ echo "==========================================" | tee "$SUMMARY_FILE"
 echo "Testing All OCR Models" | tee -a "$SUMMARY_FILE"
 echo "==========================================" | tee -a "$SUMMARY_FILE"
 echo "Dataset: $DATASET" | tee -a "$SUMMARY_FILE"
-echo "Subset: $SUBSET" | tee -a "$SUMMARY_FILE"
+if [[ -n "$SUBSET" ]]; then
+    echo "Subset: $SUBSET" | tee -a "$SUMMARY_FILE"
+else
+    echo "Subset: all (main.py default subsets)" | tee -a "$SUMMARY_FILE"
+fi
 echo "Max Samples: $MAX_SAMPLES" | tee -a "$SUMMARY_FILE"
 echo "Output: $OUTPUT_BASE" | tee -a "$SUMMARY_FILE"
 echo "==========================================" | tee -a "$SUMMARY_FILE"
@@ -86,13 +89,22 @@ for config_file in "$CONFIG_DIR"/*.yaml; do
 
     # Build the evaluation command
     # Note: For synthetic-ocr-images datasets, subset determines format
-    CMD="uv run --group evaluate --group $dependency_group main.py evaluate \
-        --model-config \"$config_file\" \
-        -d \"$DATASET\" \
-        --subset \"$SUBSET\" \
-        --split train \
-        --max-samples $MAX_SAMPLES \
-        --output-dir \"$MODEL_OUTPUT\""
+    if [[ -n "$SUBSET" ]]; then
+        CMD="uv run --group evaluate --group $dependency_group main.py evaluate \
+            --model-config \"$config_file\" \
+            -d \"$DATASET\" \
+            --subset \"$SUBSET\" \
+            --split train \
+            --max-samples $MAX_SAMPLES \
+            --output-dir \"$MODEL_OUTPUT\""
+    else
+        CMD="uv run --group evaluate --group $dependency_group main.py evaluate \
+            --model-config \"$config_file\" \
+            -d \"$DATASET\" \
+            --split train \
+            --max-samples $MAX_SAMPLES \
+            --output-dir \"$MODEL_OUTPUT\""
+    fi
 
     echo "Command: $CMD" | tee -a "$SUMMARY_FILE"
     echo "" | tee -a "$SUMMARY_FILE"

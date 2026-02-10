@@ -99,9 +99,12 @@ class EvaluationPipeline:
         self, results: List[InferenceResult]
     ) -> Dict[str, float]:
         """Compute metrics based on format type."""
-        
+
         # Filter valid results
         valid_results = [r for r in results if r.error is None]
+        if not valid_results:
+            return {}
+
         predictions = [r.prediction for r in valid_results]
         ground_truths = [r.ground_truth for r in valid_results]
 

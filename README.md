@@ -41,17 +41,32 @@ uv run main.py generate \
     --size 50
 ```
 
-### 3. Evaluate a Model
+### 3. Evaluate Models
 
-Evaluate GPT-4o on the generated data:
+You can evaluate models individually or in batches. The evaluation scripts automatically manage environment dependencies using `uv` groups.
+
+#### Batch Evaluation
+Use `test_all.sh` to run benchmarks across all configured models. This script automatically identifies and syncs the required `uv` dependency groups for each model (e.g., syncing the `glm-ocr` group when testing `configs/models/glm-ocr.yaml`).
 
 ```bash
-# Ensure you have your API key set
-export OPENAI_API_KEY=sk-...
+# Test all models on a specific dataset and subset
+# Usage: ./scripts/models/test_all.sh [DATASET] [SUBSET] [MAX_SAMPLES]
+./scripts/models/test_all.sh junyeong-nero/synthetic-ocr-images-korean sentence 10
+```
 
-uv run main.py evaluate \
-    --model-config configs/models/gpt-4o.yaml \
-    --dataset ./data/ko \
+#### Single Model Evaluation
+To evaluate a specific model like **GLM-OCR** with automatic dependency handling:
+
+```bash
+# Using the helper script (automatically syncs 'glm-ocr' uv group)
+./scripts/models/run.sh glm-ocr \
+    --dataset junyeong-nero/synthetic-ocr-images-ko \
+    --subset sentence
+
+# Or run directly via uv
+uv run --group evaluate --group glm-ocr main.py evaluate \
+    --model-config configs/models/glm-ocr.yaml \
+    --dataset junyeong-nero/synthetic-ocr-images-ko \
     --subset sentence
 ```
 

@@ -83,6 +83,26 @@ class TransformersVLM(VLMModel):
 
         self.model.eval()
 
+    @staticmethod
+    def _postprocess_decoded_text(text: str) -> str:
+        """Remove chat-template scaffolding from decoded model output."""
+        cleaned = text.strip()
+
+        if "Assistant:" in cleaned:
+            cleaned = cleaned.split("Assistant:")[-1].strip()
+
+        lower_cleaned = cleaned.lower()
+        if "assistant\n" in lower_cleaned and (
+            "system\n" in lower_cleaned or "user\n" in lower_cleaned
+        ):
+            marker_index = lower_cleaned.rfind("assistant\n")
+            cleaned = cleaned[marker_index + len("assistant\n") :].strip()
+
+        if cleaned.lower().startswith("assistant\n"):
+            cleaned = cleaned[len("assistant\n") :].strip()
+
+        return cleaned
+
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
         """
         Run inference on a batch of images.
@@ -140,10 +160,9 @@ class TransformersVLM(VLMModel):
                 )
 
             # Decode, trimming input tokens
-            input_len = inputs.get("input_ids", inputs.get("pixel_values")).shape[-1]
-            if hasattr(inputs, "input_ids"):
-                input_len = inputs["input_ids"].shape[-1]
-                generated_ids_trimmed = outputs[0][input_len:]
+            input_ids = inputs.get("input_ids")
+            if input_ids is not None:
+                generated_ids_trimmed = outputs[0][input_ids.shape[-1] :]
             else:
                 generated_ids_trimmed = outputs[0]
 
@@ -153,11 +172,7 @@ class TransformersVLM(VLMModel):
                 clean_up_tokenization_spaces=False,
             )
 
-            # Clean up common patterns
-            if "Assistant:" in decoded:
-                decoded = decoded.split("Assistant:")[-1].strip()
-
-            results.append(decoded)
+            results.append(self._postprocess_decoded_text(decoded))
 
         return results
 

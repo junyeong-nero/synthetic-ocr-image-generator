@@ -54,6 +54,15 @@ class EvaluationRunner:
         """Save current state to checkpoint."""
         self.state.save(self.checkpoint_path)
 
+    def _merge_results(self, current_results: List[InferenceResult]) -> List[InferenceResult]:
+        """Merge checkpointed results with current run results by sample index."""
+        merged: dict[int, InferenceResult] = {
+            int(r["index"]): InferenceResult(**r) for r in self.state.results
+        }
+        for result in current_results:
+            merged[result.index] = result
+        return sorted(merged.values(), key=lambda r: r.index)
+
     async def run_async(
         self,
         images: List[Image.Image],
@@ -144,13 +153,7 @@ class EvaluationRunner:
                     )
                     results.append(result)
 
-        # Combine with previously completed results
-        all_results = [InferenceResult(**r) for r in self.state.results]
-
-        # Sort by index
-        all_results.sort(key=lambda r: r.index)
-
-        return all_results
+        return self._merge_results(results)
 
     def run(
         self,
@@ -241,13 +244,7 @@ class EvaluationRunner:
                     )
                     results.append(result)
 
-        # Combine with previously completed results
-        all_results = [InferenceResult(**r) for r in self.state.results]
-
-        # Sort by index
-        all_results.sort(key=lambda r: r.index)
-
-        return all_results
+        return self._merge_results(results)
 
     async def _run_batch_api(
         self,
