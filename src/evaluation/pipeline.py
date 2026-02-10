@@ -101,11 +101,13 @@ class EvaluationPipeline:
         """Compute metrics based on format type."""
 
         # Filter valid results
-        valid_results = [r for r in results if r.error is None]
+        valid_results = [
+            r for r in results if r.error is None and r.prediction is not None
+        ]
         if not valid_results:
             return {}
 
-        predictions = [r.prediction for r in valid_results]
+        predictions = [str(r.prediction) for r in valid_results]
         ground_truths = [r.ground_truth for r in valid_results]
 
         evaluator = EvaluatorRegistry.get_evaluator(self.config.format_type)
@@ -120,7 +122,7 @@ class EvaluationPipeline:
         print(f"Loaded {len(dataset)} samples")
 
         # Extract data
-        images = list(dataset[self.config.image_column])
+        images = dataset[self.config.image_column]
         ground_truths = self._extract_ground_truths(dataset)
         prompt, system_prompt, prompt_source = self._resolve_prompt()
         self.prompt = prompt
@@ -164,7 +166,7 @@ class EvaluationPipeline:
         print(f"Loaded {len(dataset)} samples")
 
         # Extract data
-        images = list(dataset[self.config.image_column])
+        images = dataset[self.config.image_column]
         ground_truths = self._extract_ground_truths(dataset)
         prompt, system_prompt, prompt_source = self._resolve_prompt()
         self.prompt = prompt

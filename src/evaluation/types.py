@@ -27,6 +27,7 @@ class RunnerState:
 
     completed: list[int] = field(default_factory=list)
     results: list[dict[str, Any]] = field(default_factory=list)
+    context: dict[str, Any] = field(default_factory=dict)
 
     def save(self, path: Path) -> None:
         """Save state to checkpoint file."""

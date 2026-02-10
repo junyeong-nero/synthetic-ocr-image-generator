@@ -4,7 +4,7 @@ import asyncio
 import json
 import time
 from pathlib import Path
-from typing import Any, List
+from typing import Any, Sequence
 
 from PIL import Image
 from tqdm import tqdm
@@ -37,24 +37,50 @@ class EvaluationRunner:
         # Load or create state
         self.state = self._load_or_create_state()
 
+    def _checkpoint_context(self) -> dict[str, Any]:
+        return {
+            "dataset_id": self.config.dataset_id,
+            "subset": self.config.subset,
+            "split": self.config.split,
+            "format_type": self.config.format_type.value,
+            "model_id": self.config.model.model_id,
+            "backend": self.config.model.backend.value,
+        }
+
     def _load_or_create_state(self) -> RunnerState:
         """Load checkpoint if exists and resuming is enabled."""
+        expected_context = self._checkpoint_context()
         if self.config.resume_from_checkpoint and self.checkpoint_path.exists():
             try:
                 state = RunnerState.load(self.checkpoint_path)
+                if state.context and state.context != expected_context:
+                    print(
+                        "Checkpoint context mismatch; ignoring existing checkpoint and "
+                        "starting fresh."
+                    )
+                    return RunnerState(context=expected_context)
+                state.context = expected_context
                 if state.completed:
                     print(f"Resuming from checkpoint: {len(state.completed)} samples completed")
                 return state
-            except Exception as e:
-                print(f"Failed to load checkpoint: {e}. Starting fresh.")
+            except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
+                corrupt_path = self.checkpoint_path.with_suffix(".corrupt.json")
+                try:
+                    self.checkpoint_path.replace(corrupt_path)
+                    print(
+                        f"Failed to load checkpoint: {e}. Corrupt checkpoint moved to "
+                        f"{corrupt_path}. Starting fresh."
+                    )
+                except OSError:
+                    print(f"Failed to load checkpoint: {e}. Starting fresh.")
 
-        return RunnerState()
+        return RunnerState(context=expected_context)
 
     def _save_checkpoint(self) -> None:
         """Save current state to checkpoint."""
         self.state.save(self.checkpoint_path)
 
-    def _merge_results(self, current_results: List[InferenceResult]) -> List[InferenceResult]:
+    def _merge_results(self, current_results: list[InferenceResult]) -> list[InferenceResult]:
         """Merge checkpointed results with current run results by sample index."""
         merged: dict[int, InferenceResult] = {
             int(r["index"]): InferenceResult(**r) for r in self.state.results
@@ -65,10 +91,10 @@ class EvaluationRunner:
 
     async def run_async(
         self,
-        images: List[Image.Image],
-        ground_truths: List[Any],
-        prompts: List[str],
-    ) -> List[InferenceResult]:
+        images: Sequence[Image.Image],
+        ground_truths: Sequence[Any],
+        prompts: Sequence[str],
+    ) -> list[InferenceResult]:
         """
         Run async inference with batching and checkpointing.
 
@@ -83,7 +109,7 @@ class EvaluationRunner:
         if self.config.batch_api:
             return await self._run_batch_api(images, ground_truths, prompts)
 
-        results: List[InferenceResult] = []
+        results: list[InferenceResult] = []
 
         # Get remaining indices (not yet completed)
         remaining = [
@@ -115,31 +141,17 @@ class EvaluationRunner:
             try:
                 start_time = time.time()
 
-                # Run inference
                 if hasattr(self.model, "run_async"):
                     predictions = await self.model.run_async(batch_prompts, batch_images)
                 else:
                     predictions = self.model.run(batch_prompts, batch_images)
 
-                latency = (time.time() - start_time) * 1000 / len(batch_indices)
-
-                # Create results
-                for idx, pred, gt in zip(batch_indices, predictions, batch_gts):
-                    result = InferenceResult(
-                        index=idx,
-                        prediction=pred,
-                        ground_truth=gt,
-                        latency_ms=latency,
+                predictions_list = list(predictions)
+                if len(predictions_list) != len(batch_indices):
+                    raise RuntimeError(
+                        "Model returned mismatched batch size: "
+                        f"expected {len(batch_indices)}, got {len(predictions_list)}"
                     )
-                    results.append(result)
-                    self.state.completed.append(idx)
-                    self.state.results.append(result.to_dict())
-
-                # Save checkpoint
-                self._save_checkpoint()
-
-                # Update progress
-                progress.set_postfix({"latency": f"{latency:.1f}ms"})
 
             except Exception as e:
                 print(f"Error processing batch: {e}")
@@ -152,15 +164,33 @@ class EvaluationRunner:
                         error=str(e),
                     )
                     results.append(result)
+                continue
+
+            latency = (time.time() - start_time) * 1000 / len(batch_indices)
+
+            for idx, pred, gt in zip(batch_indices, predictions_list, batch_gts):
+                result = InferenceResult(
+                    index=idx,
+                    prediction=pred,
+                    ground_truth=gt,
+                    latency_ms=latency,
+                )
+                results.append(result)
+                if idx not in self.state.completed:
+                    self.state.completed.append(idx)
+                    self.state.results.append(result.to_dict())
+
+            self._save_checkpoint()
+            progress.set_postfix({"latency": f"{latency:.1f}ms"})
 
         return self._merge_results(results)
 
     def run(
         self,
-        images: List[Image.Image],
-        ground_truths: List[Any],
-        prompts: List[str],
-    ) -> List[InferenceResult]:
+        images: Sequence[Image.Image],
+        ground_truths: Sequence[Any],
+        prompts: Sequence[str],
+    ) -> list[InferenceResult]:
         """
         Run synchronous inference with batching and checkpointing.
 
@@ -179,7 +209,7 @@ class EvaluationRunner:
                 return asyncio.run(self._run_batch_api(images, ground_truths, prompts))
             raise RuntimeError("Batch API sync run() called inside event loop; use run_async")
 
-        results: List[InferenceResult] = []
+        results: list[InferenceResult] = []
 
         # Get remaining indices
         remaining = [
@@ -209,28 +239,13 @@ class EvaluationRunner:
             try:
                 start_time = time.time()
 
-                # Run inference
                 predictions = self.model.run(batch_prompts, batch_images)
-
-                latency = (time.time() - start_time) * 1000 / len(batch_indices)
-
-                # Create results
-                for idx, pred, gt in zip(batch_indices, predictions, batch_gts):
-                    result = InferenceResult(
-                        index=idx,
-                        prediction=pred,
-                        ground_truth=gt,
-                        latency_ms=latency,
+                predictions_list = list(predictions)
+                if len(predictions_list) != len(batch_indices):
+                    raise RuntimeError(
+                        "Model returned mismatched batch size: "
+                        f"expected {len(batch_indices)}, got {len(predictions_list)}"
                     )
-                    results.append(result)
-                    self.state.completed.append(idx)
-                    self.state.results.append(result.to_dict())
-
-                # Save checkpoint
-                self._save_checkpoint()
-
-                # Update progress
-                progress.set_postfix({"latency": f"{latency:.1f}ms"})
 
             except Exception as e:
                 print(f"Error processing batch: {e}")
@@ -243,15 +258,33 @@ class EvaluationRunner:
                         error=str(e),
                     )
                     results.append(result)
+                continue
+
+            latency = (time.time() - start_time) * 1000 / len(batch_indices)
+
+            for idx, pred, gt in zip(batch_indices, predictions_list, batch_gts):
+                result = InferenceResult(
+                    index=idx,
+                    prediction=pred,
+                    ground_truth=gt,
+                    latency_ms=latency,
+                )
+                results.append(result)
+                if idx not in self.state.completed:
+                    self.state.completed.append(idx)
+                    self.state.results.append(result.to_dict())
+
+            self._save_checkpoint()
+            progress.set_postfix({"latency": f"{latency:.1f}ms"})
 
         return self._merge_results(results)
 
     async def _run_batch_api(
         self,
-        images: List[Image.Image],
-        ground_truths: List[Any],
-        prompts: List[str],
-    ) -> List[InferenceResult]:
+        images: Sequence[Image.Image],
+        ground_truths: Sequence[Any],
+        prompts: Sequence[str],
+    ) -> list[InferenceResult]:
         batch_dir = self.output_dir / f"batch_{self.config.subset}"
         batch_info_path = batch_dir / "batch_info.json"
 
@@ -327,12 +360,12 @@ class EvaluationRunner:
     def _finalize_batch_results(
         self,
         prediction_map: dict[str, str],
-        indices: List[int],
-        ground_truths: List[Any],
+        indices: list[int],
+        ground_truths: Sequence[Any],
         latency_ms: float = 0,
         error_map: dict[str, str] | None = None,
-    ) -> List[InferenceResult]:
-        results: List[InferenceResult] = []
+    ) -> list[InferenceResult]:
+        results: list[InferenceResult] = []
         for idx in indices:
             custom_id = str(idx)
             prediction = prediction_map.get(custom_id)

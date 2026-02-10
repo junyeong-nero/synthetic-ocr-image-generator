@@ -86,7 +86,12 @@ class TableEvaluator(BaseEvaluator):
             true_json = gt_dict.get("json", {})
             
             if isinstance(true_json, str):
-                true_json = json.loads(true_json) if true_json else {}
+                try:
+                    true_json = json.loads(true_json) if true_json else {}
+                except (json.JSONDecodeError, TypeError):
+                    true_json = {}
+            if not isinstance(true_json, dict):
+                true_json = {}
 
             metrics = evaluate_table(pred_html, pred_json, true_html, true_json)
 
@@ -139,7 +144,12 @@ class DocumentEvaluator(BaseEvaluator):
                 gt_dict = {}
             true_gt = gt_dict.get("ground_truth", gt_dict)
             if isinstance(true_gt, str):
-                true_gt = json.loads(true_gt) if true_gt else {}
+                try:
+                    true_gt = json.loads(true_gt) if true_gt else {}
+                except (json.JSONDecodeError, TypeError):
+                    true_gt = {}
+            if not isinstance(true_gt, dict):
+                true_gt = {}
             true_elements = true_gt.get("elements", [])
 
             metrics = evaluate_document(pred_elements, true_elements)
