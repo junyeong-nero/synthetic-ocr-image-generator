@@ -1,5 +1,7 @@
 """VARCO-VISION OCR model wrapper."""
 
+import re
+
 from typing import List
 
 import torch
@@ -35,6 +37,26 @@ class VarcoOCR(BaseTransformersOCR):
         new_w = int(w * scaling_factor)
         new_h = int(h * scaling_factor)
         return image.resize((new_w, new_h))
+
+    @staticmethod
+    def _postprocess_output(text: str) -> str:
+        """Extract OCR text from tagged output, with fallback for untagged responses."""
+        cleaned = text.replace("\r\n", "\n").strip()
+        if not cleaned:
+            return ""
+
+        chars = [segment.strip() for segment in extract_tag(cleaned, tag="char") if segment.strip()]
+        if chars:
+            return " ".join(chars).strip()
+
+        if "assistant\n" in cleaned.lower():
+            cleaned = cleaned.split("\n", maxsplit=1)[-1].strip()
+        if "Assistant:" in cleaned:
+            cleaned = cleaned.split("Assistant:")[-1].strip()
+
+        # Remove remaining markup-like wrappers if model produced XML-ish text.
+        fallback = re.sub(r"</?[^>]+>", "", cleaned).strip()
+        return fallback or cleaned
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
         """
@@ -79,6 +101,5 @@ class VarcoOCR(BaseTransformersOCR):
             output = self.processor.decode(
                 generate_ids_trimmed[0], skip_special_tokens=False
             )
-            output = " ".join([""] + extract_tag(output, tag="char"))
-            results.append(output)
+            results.append(self._postprocess_output(output))
         return results

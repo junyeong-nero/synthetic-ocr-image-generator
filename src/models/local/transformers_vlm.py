@@ -1,5 +1,7 @@
 """HuggingFace Transformers-based VLM model."""
 
+import re
+
 from typing import List
 
 from PIL import Image
@@ -79,14 +81,31 @@ class TransformersVLM(VLMModel):
             )
 
         if self.device == "cpu":
-            self.model = self.model.to(self.device)
+            self.model = self.model.to("cpu")
 
         self.model.eval()
 
     @staticmethod
     def _postprocess_decoded_text(text: str) -> str:
         """Remove chat-template scaffolding from decoded model output."""
-        cleaned = text.strip()
+        cleaned = text.replace("\r\n", "\n").strip()
+
+        if not cleaned:
+            return ""
+
+        # Handle templates that include explicit role blocks on separate lines.
+        lines = cleaned.split("\n")
+        role_lines = {"system", "user", "assistant"}
+        role_positions = [
+            i for i, line in enumerate(lines) if line.strip().lower() in role_lines
+        ]
+        if role_positions:
+            for i in reversed(role_positions):
+                if lines[i].strip().lower() == "assistant":
+                    candidate = "\n".join(lines[i + 1 :]).strip()
+                    if candidate:
+                        cleaned = candidate
+                    break
 
         if "Assistant:" in cleaned:
             cleaned = cleaned.split("Assistant:")[-1].strip()
@@ -100,6 +119,11 @@ class TransformersVLM(VLMModel):
 
         if cleaned.lower().startswith("assistant\n"):
             cleaned = cleaned[len("assistant\n") :].strip()
+
+        # Some templates include role markers with special tokens.
+        cleaned = re.sub(r"<\|im_start\|>assistant\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"<\|im_end\|>", "", cleaned, flags=re.IGNORECASE)
+        cleaned = cleaned.strip()
 
         return cleaned
 
@@ -161,10 +185,11 @@ class TransformersVLM(VLMModel):
 
             # Decode, trimming input tokens
             input_ids = inputs.get("input_ids")
-            if input_ids is not None:
-                generated_ids_trimmed = outputs[0][input_ids.shape[-1] :]
-            else:
+            if input_ids is None:
                 generated_ids_trimmed = outputs[0]
+            else:
+                input_length = input_ids.shape[-1]
+                generated_ids_trimmed = outputs[0][input_length:]
 
             decoded = self.processor.decode(
                 generated_ids_trimmed,
