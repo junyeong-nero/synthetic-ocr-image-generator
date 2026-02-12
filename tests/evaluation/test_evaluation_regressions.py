@@ -10,7 +10,7 @@ from PIL import Image
 from evaluation.config import EvaluationConfig, FormatType, InferenceBackend, ModelConfig
 from evaluation.pipeline import EvaluationPipeline
 from evaluation.runner import EvaluationRunner
-from evaluation.strategies import DocumentEvaluator, TableEvaluator
+from evaluation.strategies import DocumentEvaluator, MarkdownEvaluator, TableEvaluator
 from evaluation.types import InferenceResult
 
 
@@ -211,3 +211,14 @@ def test_pipeline_compute_metrics_skips_none_predictions(
 
     assert metrics["avg_cer"] == 0.0
     assert metrics["avg_wer"] == 0.0
+
+
+def test_markdown_evaluator_normalized_match_rate_strips_markdown_syntax() -> None:
+    evaluator = MarkdownEvaluator()
+    metrics = evaluator.compute_metrics(
+        predictions=["# Title\n- total +$100"],
+        ground_truths=["Title\ntotal 100"],
+    )
+
+    assert metrics["exact_match_rate"] == 0.0
+    assert metrics["normalized_match_rate"] == 1.0

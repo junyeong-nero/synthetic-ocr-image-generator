@@ -587,7 +587,15 @@ class MarkdownEvaluator(BaseEvaluator):
         ]
 
         def normalize_markdown(text: str) -> str:
-            lines = [line.strip() for line in text.strip().split("\n") if line.strip()]
+            lines: list[str] = []
+            for line in text.strip().split("\n"):
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                plain_text = re.sub(r"[#$`*_>\-+|\[\]()!~]", "", stripped)
+                plain_text = re.sub(r"\s+", " ", plain_text).strip()
+                if plain_text:
+                    lines.append(plain_text)
             return "\n".join(lines)
 
         normalized_match_list = [
