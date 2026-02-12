@@ -52,12 +52,14 @@ class EvaluationOutput:
     metrics: dict[str, float]
     per_sample_results: list[dict[str, Any]]
     summary: dict[str, Any]
+    metric_views: dict[str, dict[str, float]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "config": self.config,
             "metrics": self.metrics,
+            "metric_views": self.metric_views,
             "per_sample_results": self.per_sample_results,
             "summary": self.summary,
         }

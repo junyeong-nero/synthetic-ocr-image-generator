@@ -6,7 +6,13 @@ from typing import Any, Dict, List, Optional
 
 from datasets import Dataset, load_dataset
 
-from evaluation.config import DEFAULT_PROMPTS, EvaluationConfig, FormatType, ModelConfig
+from evaluation.config import (
+    DEFAULT_PROMPTS,
+    FORMAT_OUTPUT_CONTRACTS,
+    EvaluationConfig,
+    FormatType,
+    ModelConfig,
+)
 from evaluation.model_config import ModelConfigLoader, ModelSpecificConfig
 from evaluation.runner import EvaluationRunner
 from evaluation.types import EvaluationOutput, InferenceResult
@@ -29,6 +35,7 @@ class EvaluationPipeline:
         self.prompt: Optional[str] = None
         self.system_prompt: Optional[str] = None
         self.prompt_source: Optional[str] = None
+        self.metric_views: Dict[str, Dict[str, float]] = {}
         self.dataset_fingerprint: Optional[str] = None
         self.dataset_info: Optional[Any] = None
 
@@ -71,24 +78,43 @@ class EvaluationPipeline:
 
     def _resolve_prompt(self) -> tuple[str, Optional[str], str]:
         """Resolve prompt and system prompt with source labeling."""
-        if self.config.prompt:
-            return self.config.prompt, self.config.system_prompt, "cli"
+        base_prompt: Optional[str] = None
+        base_system_prompt: Optional[str] = None
+        source: Optional[str] = None
 
-        if self.model_specific_config:
+        if self.config.prompt:
+            base_prompt = self.config.prompt
+            base_system_prompt = self.config.system_prompt
+            source = "cli"
+
+        if base_prompt is None and self.model_specific_config:
             format_key = self.config.format_type.value
             subset_config = self.model_specific_config.subsets.get(self.config.subset)
             if subset_config and format_key in subset_config.prompts:
                 prompt_config = subset_config.prompts[format_key]
-                return prompt_config.prompt, prompt_config.system_prompt, "model_config_subset"
-            if format_key in self.model_specific_config.prompts:
+                base_prompt = prompt_config.prompt
+                base_system_prompt = prompt_config.system_prompt
+                source = "model_config_subset"
+            elif format_key in self.model_specific_config.prompts:
                 prompt_config = self.model_specific_config.prompts[format_key]
-                return prompt_config.prompt, prompt_config.system_prompt, "model_config_format"
+                base_prompt = prompt_config.prompt
+                base_system_prompt = prompt_config.system_prompt
+                source = "model_config_format"
 
-        prompt = DEFAULT_PROMPTS.get(
-            self.config.format_type,
-            DEFAULT_PROMPTS[FormatType.SENTENCE],
-        )
-        return prompt, None, "default"
+        if base_prompt is None:
+            base_prompt = DEFAULT_PROMPTS.get(
+                self.config.format_type,
+                DEFAULT_PROMPTS[FormatType.SENTENCE],
+            )
+            base_system_prompt = None
+            source = "default"
+
+        contract = FORMAT_OUTPUT_CONTRACTS.get(self.config.format_type)
+        if contract and contract.strip() not in base_prompt:
+            base_prompt = f"{base_prompt.rstrip()}\n\n{contract}"
+            source = f"{source}_with_contract"
+
+        return base_prompt, base_system_prompt, source or "default"
 
     def _extract_ground_truths(self, dataset: Dataset) -> List[Any]:
         """Extract ground truths based on format type."""
@@ -105,13 +131,16 @@ class EvaluationPipeline:
             r for r in results if r.error is None and r.prediction is not None
         ]
         if not valid_results:
+            self.metric_views = {"raw": {}, "normalized": {}}
             return {}
 
         predictions = [str(r.prediction) for r in valid_results]
         ground_truths = [r.ground_truth for r in valid_results]
 
         evaluator = EvaluatorRegistry.get_evaluator(self.config.format_type)
-        return evaluator.compute_metrics(predictions, ground_truths)
+        metric_views = evaluator.compute_metric_views(predictions, ground_truths)
+        self.metric_views = metric_views
+        return metric_views.get("normalized", {})
 
 
     async def run_async(self) -> EvaluationOutput:
@@ -147,6 +176,7 @@ class EvaluationPipeline:
         return EvaluationOutput(
             config=self._config_to_dict(),
             metrics=metrics,
+            metric_views=getattr(self, "metric_views", {}),
             per_sample_results=[r.to_dict() for r in results],
             summary={
                 "total_samples": len(results),
@@ -191,6 +221,7 @@ class EvaluationPipeline:
         return EvaluationOutput(
             config=self._config_to_dict(),
             metrics=metrics,
+            metric_views=getattr(self, "metric_views", {}),
             per_sample_results=[r.to_dict() for r in results],
             summary={
                 "total_samples": len(results),

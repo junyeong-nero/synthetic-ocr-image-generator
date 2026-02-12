@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from evaluation.types import EvaluationOutput
 
@@ -33,6 +33,7 @@ class ReportGenerator:
         report = {
             "config": self.output.config,
             "metrics": self.output.metrics,
+            "metric_views": self.output.metric_views,
             "summary": self.output.summary,
             "per_sample_results": self.output.per_sample_results,
         }
@@ -58,6 +59,7 @@ class ReportGenerator:
         config = self.output.config
         metrics = self.output.metrics
         summary = self.output.summary
+        metric_views = self.output.metric_views
 
         lines = [
             "# OCR Evaluation Report",
@@ -83,6 +85,34 @@ class ReportGenerator:
                 lines.append(f"| {key} | {value:.4f} |")
             else:
                 lines.append(f"| {key} | {value} |")
+
+        normalized_metrics = metric_views.get("normalized", {})
+        raw_metrics = metric_views.get("raw", {})
+        if normalized_metrics or raw_metrics:
+            lines.extend([
+                "",
+                "## Metric Views",
+                "",
+            ])
+            if normalized_metrics:
+                lines.extend([
+                    "### Normalized",
+                    "",
+                    "| Metric | Value |",
+                    "|--------|-------|",
+                ])
+                for key, value in normalized_metrics.items():
+                    lines.append(f"| {key} | {value:.4f} |" if isinstance(value, float) else f"| {key} | {value} |")
+                lines.append("")
+            if raw_metrics:
+                lines.extend([
+                    "### Raw",
+                    "",
+                    "| Metric | Value |",
+                    "|--------|-------|",
+                ])
+                for key, value in raw_metrics.items():
+                    lines.append(f"| {key} | {value:.4f} |" if isinstance(value, float) else f"| {key} | {value} |")
 
         lines.extend(
             [
@@ -118,6 +148,7 @@ class ReportGenerator:
         config = self.output.config
         metrics = self.output.metrics
         summary = self.output.summary
+        metric_views = self.output.metric_views
 
         # Build metrics table rows
         metrics_rows = ""
@@ -126,6 +157,27 @@ class ReportGenerator:
                 metrics_rows += f"<tr><td>{key}</td><td>{value:.4f}</td></tr>\n"
             else:
                 metrics_rows += f"<tr><td>{key}</td><td>{value}</td></tr>\n"
+
+        metric_view_sections = ""
+        for view_name in ("normalized", "raw"):
+            view_metrics = metric_views.get(view_name, {})
+            if not view_metrics:
+                continue
+            view_rows = ""
+            for key, value in view_metrics.items():
+                if isinstance(value, float):
+                    view_rows += f"<tr><td>{key}</td><td>{value:.4f}</td></tr>\n"
+                else:
+                    view_rows += f"<tr><td>{key}</td><td>{value}</td></tr>\n"
+            metric_view_sections += f"""
+    <div class=\"card\">
+        <h2>Metric View: {view_name.title()}</h2>
+        <table>
+            <tr><th>Metric</th><th>Value</th></tr>
+            {view_rows}
+        </table>
+    </div>
+"""
 
         # Get error samples
         error_samples = [
@@ -240,6 +292,8 @@ class ReportGenerator:
         </table>
     </div>
 
+    {metric_view_sections}
+
     {"<div class='card'><h2>Errors (first 10)</h2><table><tr><th>Index</th><th>Error</th></tr>" + error_rows + "</table></div>" if error_samples else ""}
 
 </body>
@@ -289,18 +343,18 @@ def generate_report(
         Dict mapping format to file path.
     """
     generator = ReportGenerator(output)
-    output_dir = Path(output_dir)
+    output_path = Path(output_dir)
 
     if formats is None:
-        return generator.save_all(output_dir)
+        return generator.save_all(output_path)
 
     results = {}
     for fmt in formats:
         if fmt == "json":
-            results["json"] = generator.to_json(output_dir / "report.json")
+            results["json"] = generator.to_json(output_path / "report.json")
         elif fmt == "markdown":
-            results["markdown"] = generator.to_markdown(output_dir / "report.md")
+            results["markdown"] = generator.to_markdown(output_path / "report.md")
         elif fmt == "html":
-            results["html"] = generator.to_html(output_dir / "report.html")
+            results["html"] = generator.to_html(output_path / "report.html")
 
     return results

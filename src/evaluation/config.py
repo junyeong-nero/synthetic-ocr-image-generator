@@ -139,3 +139,25 @@ DEFAULT_PROMPTS: dict[FormatType, str] = {
         "'unit_price', and 'total_price' fields."
     ),
 }
+
+
+FORMAT_OUTPUT_CONTRACTS: dict[FormatType, str] = {
+    FormatType.TABLE: (
+        "Output contract:\n"
+        "1) Return only a single HTML <table>...</table>.\n"
+        "2) Do not include prose, markdown fences, or explanations.\n"
+        "3) Preserve merged cells using colspan/rowspan when present."
+    ),
+    FormatType.DOCUMENT: (
+        "Output contract:\n"
+        "1) Return valid JSON object only.\n"
+        "2) JSON schema: {\"elements\": [{\"type\": str, \"text\": str, \"bounding_box\": [x1,y1,x2,y2], \"reading_order\": int, \"metadata\": object|string}]}.\n"
+        "3) No markdown fences, no additional wrapper keys, no extra commentary."
+    ),
+    FormatType.KIE: (
+        "Output contract:\n"
+        "1) Return valid JSON object only.\n"
+        "2) JSON schema: {\"entities\": {\"field_name\": \"value\"}, \"line_items\": [{\"name\": str, \"quantity\": str|number, \"unit_price\": str|number, \"total_price\": str|number}]}.\n"
+        "3) Always include \"entities\" key even if empty. No markdown fences or commentary."
+    ),
+}

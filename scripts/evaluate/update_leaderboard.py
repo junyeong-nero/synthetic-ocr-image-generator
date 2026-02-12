@@ -132,12 +132,11 @@ def _sort_rows(rows: list[dict[str, Any]], metric_key: str | None) -> list[dict[
     return sorted(rows, key=key_fn)
 
 
-def _write_subset_outputs(output_dir: Path, subset: str, rows: list[dict[str, Any]]) -> None:
+def _build_subset_payload(subset: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
     metric_key = _pick_metric(subset, rows)
     sorted_rows = _sort_rows(rows, metric_key)
 
-    payload = {
-        "generated_at_utc": datetime.utcnow().isoformat() + "Z",
+    return {
         "subset": subset,
         "metric_key": metric_key,
         "metric_direction": "ascending" if metric_key in LOWER_BETTER_METRICS else "descending",
@@ -151,39 +150,59 @@ def _write_subset_outputs(output_dir: Path, subset: str, rows: list[dict[str, An
         ],
     }
 
-    json_path = output_dir / f"leaderboard_{subset}.json"
-    md_path = output_dir / f"leaderboard_{subset}.md"
+
+def _write_leaderboard_outputs(output_dir: Path, subsets: list[dict[str, Any]]) -> None:
+    payload = {
+        "generated_at_utc": datetime.utcnow().isoformat() + "Z",
+        "count": len(subsets),
+        "subsets": subsets,
+    }
+
+    json_path = output_dir / "leaderboard.json"
+    md_path = output_dir / "leaderboard.md"
     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    lines = [
-        f"# Leaderboard ({subset})",
-        "",
-        f"- Sorted by: `{metric_key or 'N/A'}` ({'lower is better' if metric_key in LOWER_BETTER_METRICS else 'higher is better'})",
-        f"- Entries: {len(sorted_rows)}",
-        "",
-        "| Rank | Model | Backend | Metric | Dataset | Split | Success/Total | Updated (UTC) |",
-        "|---:|---|---|---:|---|---|---|---|",
-    ]
+    lines = ["# Leaderboard", "", f"- Subsets: {len(subsets)}", ""]
 
-    for rank, row in enumerate(sorted_rows, start=1):
-        metric_value = None
-        if metric_key:
-            metric_value = row.get("metrics", {}).get(metric_key)
-        success = row.get("successful")
-        total = row.get("total_samples")
-        lines.append(
-            "| {} | {} | {} | {} | {} | {} | {}/{} | {} |".format(
-                rank,
-                row.get("model_id") or "-",
-                row.get("backend") or "-",
-                _format_metric_value(metric_value),
-                row.get("dataset") or "-",
-                row.get("split") or "-",
-                success if isinstance(success, int) else "-",
-                total if isinstance(total, int) else "-",
-                row["timestamp"].isoformat(),
-            )
+    for subset_payload in subsets:
+        subset = str(subset_payload.get("subset") or "unknown")
+        metric_key = str(subset_payload.get("metric_key") or "") or None
+        metric_note = "lower is better" if metric_key in LOWER_BETTER_METRICS else "higher is better"
+        rows = subset_payload.get("rows", [])
+
+        lines.extend(
+            [
+                f"## {subset}",
+                "",
+                f"- Sorted by: `{metric_key or 'N/A'}` ({metric_note})",
+                f"- Entries: {len(rows)}",
+                "",
+                "| Rank | Model | Backend | Metric | Dataset | Split | Success/Total | Updated (UTC) |",
+                "|---:|---|---|---:|---|---|---|---|",
+            ]
         )
+
+        for rank, row in enumerate(rows, start=1):
+            metric_value = None
+            if metric_key:
+                metric_value = row.get("metrics", {}).get(metric_key)
+            success = row.get("successful")
+            total = row.get("total_samples")
+            lines.append(
+                "| {} | {} | {} | {} | {} | {} | {}/{} | {} |".format(
+                    rank,
+                    row.get("model_id") or "-",
+                    row.get("backend") or "-",
+                    _format_metric_value(metric_value),
+                    row.get("dataset") or "-",
+                    row.get("split") or "-",
+                    success if isinstance(success, int) else "-",
+                    total if isinstance(total, int) else "-",
+                    row.get("timestamp") or "-",
+                )
+            )
+
+        lines.append("")
 
     md_path.write_text("\n".join(lines), encoding="utf-8")
 
@@ -200,12 +219,15 @@ def update_leaderboards(base_dir: Path) -> None:
     for row in rows:
         grouped[str(row.get("subset") or "unknown")].append(row)
 
-    for subset, subset_rows in grouped.items():
-        _write_subset_outputs(base_dir, subset, subset_rows)
+    subset_payloads = [
+        _build_subset_payload(subset, subset_rows)
+        for subset, subset_rows in sorted(grouped.items(), key=lambda item: item[0])
+    ]
+    _write_leaderboard_outputs(base_dir, subset_payloads)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build per-subset leaderboards from evaluation_result.")
+    parser = argparse.ArgumentParser(description="Build consolidated leaderboard files from evaluation_result.")
     parser.add_argument(
         "--base-dir",
         default="evaluation_result",

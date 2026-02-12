@@ -42,12 +42,14 @@ prompts:
         prompt: |
             Extract the table from this image as HTML format.
             Use proper <table>, <thead>, <tbody>, <tr>, <th>, <td> tags.
-            Return only the HTML table.
+            Return only one HTML <table>...</table> block.
+            Do not include markdown fences, explanations, or extra text.
 
     document:
         prompt: |
             Extract all text elements from this document.
-            Return as JSON: {"elements": [{"type": "...", "text": "...", "reading_order": N}]}
+            Return valid JSON only (no markdown fences).
+            JSON schema: {"elements": [{"type": "...", "text": "...", "bounding_box": [x1,y1,x2,y2], "reading_order": N, "metadata": {}}]}
 
     markdown:
         prompt: |
@@ -57,7 +59,9 @@ prompts:
     kie:
         prompt: |
             Extract key information from this document.
-            Return as JSON: {"entities": {"field": "value"}, "line_items": [...]}
+            Return valid JSON only (no markdown fences).
+            Always include "entities" key even if empty.
+            JSON schema: {"entities": {"field": "value"}, "line_items": [{"name": "...", "quantity": "...", "unit_price": "...", "total_price": "..."}]}
 
 # Subset-specific overrides
 # Use this to customize behavior for specific dataset subsets

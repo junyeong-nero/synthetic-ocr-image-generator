@@ -12,6 +12,7 @@ class GlmOCR(StandardTransformersOCR):
 
     DEFAULT_MODEL_ID = "zai-org/GLM-OCR"
     DEFAULT_MAX_TOKENS = 8192
+    _TRAILING_USER_TOKEN = "<|user|>"
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
         """
@@ -52,5 +53,8 @@ class GlmOCR(StandardTransformersOCR):
             decoded = self.processor.decode(
                 generated_ids[0][prompt_len:], skip_special_tokens=False
             )
+            while decoded.rstrip().endswith(self._TRAILING_USER_TOKEN):
+                decoded = decoded.rstrip()
+                decoded = decoded[: -len(self._TRAILING_USER_TOKEN)].rstrip()
             results.append(decoded)
         return results
