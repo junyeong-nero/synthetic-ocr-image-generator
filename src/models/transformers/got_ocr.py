@@ -2,9 +2,7 @@
 
 from typing import List
 
-import torch
 from PIL import Image
-from transformers import AutoModelForImageTextToText, AutoProcessor
 
 from models.transformers.base import StandardTransformersOCR
 

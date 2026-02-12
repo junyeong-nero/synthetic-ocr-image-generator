@@ -13,7 +13,6 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
-from pathlib import Path
 
 from tqdm import tqdm
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance

@@ -1,12 +1,11 @@
 """Nanonets-OCR2 model wrapper."""
 
-from typing import List, Union
+from typing import List
 
 from PIL import Image
 from transformers import AutoModelForImageTextToText, AutoProcessor, AutoTokenizer
 
 from models.transformers.base import BaseTransformersOCR, get_attn_implementation
-from models.config import ModelConfig
 
 
 class NanonetsOCR2(BaseTransformersOCR):

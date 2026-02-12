@@ -7,7 +7,7 @@ This module provides metrics for evaluating KIE results:
 - End-to-end F1: Overall extraction performance
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 import numpy as np
 from collections import defaultdict
 

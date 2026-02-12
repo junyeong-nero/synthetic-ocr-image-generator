@@ -1,13 +1,12 @@
 """DotsOCR model wrapper."""
 
-from typing import List, Union
+from typing import List
 
 import torch
 from PIL import Image
 from transformers import AutoModelForCausalLM, AutoProcessor
 
 from models.transformers.base import BaseTransformersOCR, get_attn_implementation
-from models.config import ModelConfig
 
 
 class DotsOCR(BaseTransformersOCR):

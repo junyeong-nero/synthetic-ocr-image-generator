@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys
-from collections import deque
-from typing import Dict, List, Any
+from typing import Dict, Any
 from lxml import etree
 from apted import APTED, Config
 

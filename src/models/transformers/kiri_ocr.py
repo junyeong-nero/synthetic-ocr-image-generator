@@ -1,11 +1,10 @@
 """Kiri-OCR model wrapper."""
 
-from typing import List, Union
+from typing import List
 
 from PIL import Image
 
 from models.transformers.base import BaseTransformersOCR
-from models.config import ModelConfig
 
 
 class KiriOCR(BaseTransformersOCR):

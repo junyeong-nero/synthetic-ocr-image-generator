@@ -9,10 +9,9 @@ This module provides comprehensive markdown document generation capabilities inc
 
 import random
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
-from pathlib import Path
 
 from tqdm import tqdm
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
@@ -265,11 +264,11 @@ class MarkdownDataGenerator:
         lines = [
             f"# {title}",
             "",
-            f"## " + ("개요" if self.lang == "ko" else "Overview"),
+            "## " + ("개요" if self.lang == "ko" else "Overview"),
             "",
             self.data.paragraph(),
             "",
-            f"## " + ("요구사항" if self.lang == "ko" else "Requirements"),
+            "## " + ("요구사항" if self.lang == "ko" else "Requirements"),
             "",
         ]
 
@@ -285,7 +284,7 @@ class MarkdownDataGenerator:
 
         # Add table
         lines.extend([
-            f"## " + ("지원 버전" if self.lang == "ko" else "Supported Versions"),
+            "## " + ("지원 버전" if self.lang == "ko" else "Supported Versions"),
             "",
             "| " + ("버전" if self.lang == "ko" else "Version") + " | " + ("상태" if self.lang == "ko" else "Status") + " |",
             "|--------|--------|",
@@ -297,7 +296,7 @@ class MarkdownDataGenerator:
 
         # Add code block
         lines.extend([
-            f"## " + ("설정" if self.lang == "ko" else "Configuration"),
+            "## " + ("설정" if self.lang == "ko" else "Configuration"),
             "",
             "```yaml",
             "config:",
@@ -318,13 +317,13 @@ class MarkdownDataGenerator:
         lines = [
             f"# {title}",
             "",
-            f"*" + ("작성일" if self.lang == "ko" else "Published") + f": {date}*",
+            "*" + ("작성일" if self.lang == "ko" else "Published") + f": {date}*",
             "",
             "---",
             "",
             self.data.paragraph(),
             "",
-            f"## " + ("주요 내용" if self.lang == "ko" else "Key Points"),
+            "## " + ("주요 내용" if self.lang == "ko" else "Key Points"),
             "",
         ]
 
@@ -358,7 +357,7 @@ class MarkdownDataGenerator:
         lines = [
             "# API " + ("레퍼런스" if self.lang == "ko" else "Reference"),
             "",
-            f"## " + ("엔드포인트" if self.lang == "ko" else "Endpoints"),
+            "## " + ("엔드포인트" if self.lang == "ko" else "Endpoints"),
             "",
             "### GET /api/users",
             "",
@@ -404,11 +403,11 @@ class MarkdownDataGenerator:
         """Generate tutorial style markdown."""
         title = self.data.title()
         lines = [
-            f"# " + ("튜토리얼" if self.lang == "ko" else "Tutorial") + f": {title}",
+            "# " + ("튜토리얼" if self.lang == "ko" else "Tutorial") + f": {title}",
             "",
             self.data.paragraph(),
             "",
-            f"## " + ("시작하기 전에" if self.lang == "ko" else "Before You Begin"),
+            "## " + ("시작하기 전에" if self.lang == "ko" else "Before You Begin"),
             "",
             ("다음 항목이 필요합니다:" if self.lang == "ko" else "You will need:"),
             "",
@@ -416,7 +415,7 @@ class MarkdownDataGenerator:
             "- [ ] pip",
             "- [ ] " + ("텍스트 에디터" if self.lang == "ko" else "Text editor"),
             "",
-            f"## " + ("1단계" if self.lang == "ko" else "Step 1") + ": " + ("설치" if self.lang == "ko" else "Installation"),
+            "## " + ("1단계" if self.lang == "ko" else "Step 1") + ": " + ("설치" if self.lang == "ko" else "Installation"),
             "",
             ("먼저 패키지를 설치합니다:" if self.lang == "ko" else "First, install the package:"),
             "",
@@ -424,7 +423,7 @@ class MarkdownDataGenerator:
             "pip install example-package",
             "```",
             "",
-            f"## " + ("2단계" if self.lang == "ko" else "Step 2") + ": " + ("설정" if self.lang == "ko" else "Configuration"),
+            "## " + ("2단계" if self.lang == "ko" else "Step 2") + ": " + ("설정" if self.lang == "ko" else "Configuration"),
             "",
             ("설정 파일을 생성합니다:" if self.lang == "ko" else "Create a configuration file:"),
             "",
@@ -438,7 +437,7 @@ class MarkdownDataGenerator:
             "",
             "> **" + ("팁" if self.lang == "ko" else "Tip") + "**: " + self.data.paragraph()[:60],
             "",
-            f"## " + ("3단계" if self.lang == "ko" else "Step 3") + ": " + ("실행" if self.lang == "ko" else "Run"),
+            "## " + ("3단계" if self.lang == "ko" else "Step 3") + ": " + ("실행" if self.lang == "ko" else "Run"),
             "",
             "```bash",
             "python main.py",

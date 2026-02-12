@@ -17,7 +17,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 from tqdm import tqdm
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 from generator.base import BaseGenerator
 from generator.data_provider import DataProvider
@@ -991,7 +991,6 @@ class KIERenderer:
 
                 # Label
                 label_text = f"{label}:"
-                label_bbox = draw.textbbox((0, 0), label_text, font=self.body_font)
                 draw.text((style.margin, y), label_text, font=self.body_font, fill=style.text_color)
 
                 # Value box
@@ -1252,4 +1251,3 @@ class KIEGenerator(BaseGenerator):
             "add_rotation": self.add_rotation,
         }
         return image, metadata
-

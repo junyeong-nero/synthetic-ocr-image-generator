@@ -1,7 +1,7 @@
-from generator.base import BaseGenerator
-from generator.sentence_generator import SentenceGenerator
-from generator.table_generator import TableGenerator
-from generator.document_generator import DocumentGenerator
-from generator.markdown_generator import MarkdownGenerator
-from generator.kie_generator import KIEGenerator
-from generator.effects import render_text_with_effects
+from generator.base import BaseGenerator as BaseGenerator
+from generator.sentence_generator import SentenceGenerator as SentenceGenerator
+from generator.table_generator import TableGenerator as TableGenerator
+from generator.document_generator import DocumentGenerator as DocumentGenerator
+from generator.markdown_generator import MarkdownGenerator as MarkdownGenerator
+from generator.kie_generator import KIEGenerator as KIEGenerator
+from generator.effects import render_text_with_effects as render_text_with_effects
