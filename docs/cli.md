@@ -36,6 +36,8 @@ Evaluates a model on a dataset.
 | `--batch-api` | flag | `False` | Use Batch API where available. |
 | `--output-dir` | str | `./evaluation_results` | Results directory. |
 
+Note: helper scripts under `scripts/evaluate/` default to `evaluation_result/{model_id}/{subset}/` and inject dataset defaults when omitted.
+
 ### `compare`
 Compares multiple evaluation reports.
 
@@ -73,5 +75,10 @@ uv run python scripts/corpus/generate.py --lang ko --count 1000
 - `scripts/dataset/evaluate.sh`: Evaluate models on generated datasets.
 
 ### Model Benchmarking
-- `scripts/models/run.sh`: Run a model evaluation (handles dependency isolation).
-- `scripts/models/test_all.sh`: Run evaluation for all configured models.
+- `scripts/evaluate/run.sh`: Run one model (accepts config name or `--model-id`).
+- `scripts/evaluate/run-all.sh`: Run all configs in `configs/models/` (excluding `_*.yaml`).
+- `scripts/evaluate/update-leaderboard.sh`: Build latest per-subset leaderboards from `evaluation_result/`.
+
+Compatibility wrappers remain available:
+- `scripts/models/run.sh` -> forwards to `scripts/evaluate/run.sh`
+- `scripts/models/test_all.sh` -> forwards to `scripts/evaluate/run-all.sh`

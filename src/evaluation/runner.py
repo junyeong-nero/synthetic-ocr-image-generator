@@ -32,7 +32,8 @@ class EvaluationRunner:
         # Setup output directory and checkpoint
         self.output_dir = Path(config.output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.checkpoint_path = self.output_dir / "checkpoint.json"
+        self.checkpoint_path = self.output_dir / "checkpoints.json"
+        self.legacy_checkpoint_path = self.output_dir / "checkpoint.json"
 
         # Load or create state
         self.state = self._load_or_create_state()
@@ -50,9 +51,13 @@ class EvaluationRunner:
     def _load_or_create_state(self) -> RunnerState:
         """Load checkpoint if exists and resuming is enabled."""
         expected_context = self._checkpoint_context()
-        if self.config.resume_from_checkpoint and self.checkpoint_path.exists():
+        checkpoint_to_load = self.checkpoint_path
+        if not checkpoint_to_load.exists() and self.legacy_checkpoint_path.exists():
+            checkpoint_to_load = self.legacy_checkpoint_path
+
+        if self.config.resume_from_checkpoint and checkpoint_to_load.exists():
             try:
-                state = RunnerState.load(self.checkpoint_path)
+                state = RunnerState.load(checkpoint_to_load)
                 if state.context and state.context != expected_context:
                     print(
                         "Checkpoint context mismatch; ignoring existing checkpoint and "
@@ -64,9 +69,9 @@ class EvaluationRunner:
                     print(f"Resuming from checkpoint: {len(state.completed)} samples completed")
                 return state
             except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
-                corrupt_path = self.checkpoint_path.with_suffix(".corrupt.json")
+                corrupt_path = checkpoint_to_load.with_suffix(".corrupt.json")
                 try:
-                    self.checkpoint_path.replace(corrupt_path)
+                    checkpoint_to_load.replace(corrupt_path)
                     print(
                         f"Failed to load checkpoint: {e}. Corrupt checkpoint moved to "
                         f"{corrupt_path}. Starting fresh."

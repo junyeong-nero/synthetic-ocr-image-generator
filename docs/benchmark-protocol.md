@@ -19,7 +19,11 @@ Every evaluation run produces a `protocol.json` file containing:
 
 ## Leaderboard
 
-When running multiple subsets or models, a `leaderboard.json` and `leaderboard.md` are generated.
+Use `scripts/evaluate/update-leaderboard.sh` to generate latest per-subset leaderboards from `evaluation_result/`.
+
+Outputs:
+- `evaluation_result/leaderboard_{subset}.json`
+- `evaluation_result/leaderboard_{subset}.md`
 
 ### Ranking Logic
 

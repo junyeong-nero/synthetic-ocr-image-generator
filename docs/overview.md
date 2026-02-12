@@ -23,10 +23,11 @@ The **Synthetic OCR Image Generator and VLM Evaluation Pipeline** is a comprehen
 ├── scripts/               # CLI helpers and batch scripts
 │   ├── corpus/            # LLM-based corpus generation
 │   ├── dataset/           # Multi-language dataset automation
-│   └── models/            # Model benchmark execution
+│   ├── evaluate/          # Evaluation orchestration scripts
+│   └── models/            # Compatibility wrappers to evaluate scripts
 ├── fonts/                 # Local font assets
 ├── data/                  # Generated datasets and corpus files
-└── test_results/          # Evaluation output and logs
+└── evaluation_result/     # Model/subset evaluation outputs and leaderboards
 ```
 
 ## Core Components

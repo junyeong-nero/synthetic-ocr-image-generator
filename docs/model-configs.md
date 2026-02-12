@@ -57,4 +57,4 @@ This project uses `uv` dependency groups to manage conflicts. For example, `deep
     ```yaml
     dependency_group: "deepseek-ocr"
     ```
--   **Execution**: Use `scripts/models/run.sh`, which parses the YAML and runs `uv run --group deepseek-ocr ...`.
+-   **Execution**: Use `scripts/evaluate/run.sh`, which parses the YAML and runs `uv run --group evaluate --group <dependency_group> ...`.

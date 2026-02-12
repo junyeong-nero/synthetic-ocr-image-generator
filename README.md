@@ -49,12 +49,12 @@ uv run main.py generate \
 You can evaluate models individually or in batches. The evaluation scripts automatically manage environment dependencies using `uv` groups.
 
 #### Batch Evaluation
-Use `test_all.sh` to run benchmarks across all configured models. This script automatically identifies and syncs the required `uv` dependency groups for each model (e.g., syncing the `glm-ocr` group when testing `configs/models/glm-ocr.yaml`).
+Use `run-all.sh` to run benchmarks across all configured models in `configs/models/`.
 
 ```bash
 # Test all models on a specific dataset and subset
-# Usage: ./scripts/models/test_all.sh [DATASET] [SUBSET] [MAX_SAMPLES]
-./scripts/models/test_all.sh junyeong-nero/synthetic-ocr-images-korean sentence 200
+# Usage: ./scripts/evaluate/run-all.sh [DATASET] [SUBSET] [MAX_SAMPLES]
+./scripts/evaluate/run-all.sh junyeong-nero/synthetic-ocr-images-korean sentence 200
 ```
 
 #### Single Model Evaluation
@@ -62,8 +62,7 @@ To evaluate a specific model like **GLM-OCR** with automatic dependency handling
 
 ```bash
 # Using the helper script (automatically syncs 'glm-ocr' uv group)
-./scripts/models/run.sh glm-ocr \
-    --dataset junyeong-nero/synthetic-ocr-images-ko \
+./scripts/evaluate/run.sh --model-id glm-ocr \
     --subset sentence
 
 # Or run directly via uv
@@ -71,6 +70,14 @@ uv run --group evaluate --group glm-ocr main.py evaluate \
     --model-config configs/models/glm-ocr.yaml \
     --dataset junyeong-nero/synthetic-ocr-images-ko \
     --subset sentence
+```
+
+By default, `scripts/evaluate/run.sh` uses dataset `junyeong-nero/synthetic-ocr-images-ko` if `--dataset` is omitted, and writes results to `evaluation_result/{model_id}/{subset}/` with `checkpoints.json`.
+
+To build latest per-subset leaderboards from saved results:
+
+```bash
+./scripts/evaluate/update-leaderboard.sh
 ```
 
 ## 🏗️ Project Structure
