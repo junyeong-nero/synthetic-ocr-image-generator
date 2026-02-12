@@ -37,6 +37,117 @@ class EvaluationRunner:
 
         # Load or create state
         self.state = self._load_or_create_state()
+        self._empty_prediction_max_retries = 1
+        self._empty_prediction_retry_backoff_seconds = 0.5
+
+    @staticmethod
+    def _is_empty_prediction(prediction: Any) -> bool:
+        if prediction is None:
+            return True
+        return isinstance(prediction, str) and prediction.strip() == ""
+
+    async def _retry_empty_predictions_async(
+        self,
+        predictions: list[str],
+        batch_prompts: list[str],
+        batch_images: list[Image.Image],
+    ) -> tuple[list[str], dict[int, str]]:
+        errors: dict[int, str] = {}
+        current = list(predictions)
+
+        for attempt in range(1, self._empty_prediction_max_retries + 1):
+            empty_positions = [
+                pos for pos, pred in enumerate(current) if self._is_empty_prediction(pred)
+            ]
+            if not empty_positions:
+                break
+
+            retry_prompts = [batch_prompts[pos] for pos in empty_positions]
+            retry_images = [batch_images[pos] for pos in empty_positions]
+
+            try:
+                if hasattr(self.model, "run_async"):
+                    retried = await self.model.run_async(retry_prompts, retry_images)
+                else:
+                    retried = self.model.run(retry_prompts, retry_images)
+                retried_list = [
+                    pred if isinstance(pred, str) else str(pred)
+                    for pred in list(retried)
+                ]
+            except Exception as exc:
+                for pos in empty_positions:
+                    errors[pos] = f"Empty prediction retry failed: {exc}"
+                break
+
+            if len(retried_list) != len(empty_positions):
+                for pos in empty_positions:
+                    errors[pos] = (
+                        "Empty prediction retry returned mismatched batch size"
+                    )
+                break
+
+            for pos, retried_pred in zip(empty_positions, retried_list):
+                current[pos] = retried_pred
+
+            if attempt < self._empty_prediction_max_retries:
+                await asyncio.sleep(
+                    self._empty_prediction_retry_backoff_seconds * attempt
+                )
+
+        for pos, pred in enumerate(current):
+            if self._is_empty_prediction(pred):
+                errors[pos] = errors.get(pos) or "Empty prediction after retries"
+
+        return current, errors
+
+    def _retry_empty_predictions_sync(
+        self,
+        predictions: list[str],
+        batch_prompts: list[str],
+        batch_images: list[Image.Image],
+    ) -> tuple[list[str], dict[int, str]]:
+        errors: dict[int, str] = {}
+        current = list(predictions)
+
+        for attempt in range(1, self._empty_prediction_max_retries + 1):
+            empty_positions = [
+                pos for pos, pred in enumerate(current) if self._is_empty_prediction(pred)
+            ]
+            if not empty_positions:
+                break
+
+            retry_prompts = [batch_prompts[pos] for pos in empty_positions]
+            retry_images = [batch_images[pos] for pos in empty_positions]
+
+            try:
+                retried = self.model.run(retry_prompts, retry_images)
+                retried_list = [
+                    pred if isinstance(pred, str) else str(pred)
+                    for pred in list(retried)
+                ]
+            except Exception as exc:
+                for pos in empty_positions:
+                    errors[pos] = f"Empty prediction retry failed: {exc}"
+                break
+
+            if len(retried_list) != len(empty_positions):
+                for pos in empty_positions:
+                    errors[pos] = (
+                        "Empty prediction retry returned mismatched batch size"
+                    )
+                break
+
+            for pos, retried_pred in zip(empty_positions, retried_list):
+                current[pos] = retried_pred
+
+            if attempt < self._empty_prediction_max_retries:
+                time.sleep(self._empty_prediction_retry_backoff_seconds * attempt)
+
+        for pos, pred in enumerate(current):
+            if self._is_empty_prediction(pred):
+                errors[pos] = errors.get(pos) or "Empty prediction after retries"
+
+        return current, errors
 
     def _checkpoint_context(self) -> dict[str, Any]:
         return {
@@ -151,12 +262,21 @@ class EvaluationRunner:
                 else:
                     predictions = self.model.run(batch_prompts, batch_images)
 
-                predictions_list = list(predictions)
+                predictions_list = [
+                    pred if isinstance(pred, str) else str(pred)
+                    for pred in list(predictions)
+                ]
                 if len(predictions_list) != len(batch_indices):
                     raise RuntimeError(
                         "Model returned mismatched batch size: "
                         f"expected {len(batch_indices)}, got {len(predictions_list)}"
                     )
+
+                predictions_list, retry_errors = await self._retry_empty_predictions_async(
+                    predictions_list,
+                    batch_prompts,
+                    batch_images,
+                )
 
             except Exception as e:
                 print(f"Error processing batch: {e}")
@@ -173,12 +293,15 @@ class EvaluationRunner:
 
             latency = (time.time() - start_time) * 1000 / len(batch_indices)
 
-            for idx, pred, gt in zip(batch_indices, predictions_list, batch_gts):
+            for pos, (idx, pred, gt) in enumerate(
+                zip(batch_indices, predictions_list, batch_gts)
+            ):
                 result = InferenceResult(
                     index=idx,
                     prediction=pred,
                     ground_truth=gt,
                     latency_ms=latency,
+                    error=retry_errors.get(pos),
                 )
                 results.append(result)
                 if idx not in self.state.completed:
@@ -245,12 +368,21 @@ class EvaluationRunner:
                 start_time = time.time()
 
                 predictions = self.model.run(batch_prompts, batch_images)
-                predictions_list = list(predictions)
+                predictions_list = [
+                    pred if isinstance(pred, str) else str(pred)
+                    for pred in list(predictions)
+                ]
                 if len(predictions_list) != len(batch_indices):
                     raise RuntimeError(
                         "Model returned mismatched batch size: "
                         f"expected {len(batch_indices)}, got {len(predictions_list)}"
                     )
+
+                predictions_list, retry_errors = self._retry_empty_predictions_sync(
+                    predictions_list,
+                    batch_prompts,
+                    batch_images,
+                )
 
             except Exception as e:
                 print(f"Error processing batch: {e}")
@@ -267,12 +399,15 @@ class EvaluationRunner:
 
             latency = (time.time() - start_time) * 1000 / len(batch_indices)
 
-            for idx, pred, gt in zip(batch_indices, predictions_list, batch_gts):
+            for pos, (idx, pred, gt) in enumerate(
+                zip(batch_indices, predictions_list, batch_gts)
+            ):
                 result = InferenceResult(
                     index=idx,
                     prediction=pred,
                     ground_truth=gt,
                     latency_ms=latency,
+                    error=retry_errors.get(pos),
                 )
                 results.append(result)
                 if idx not in self.state.completed:
@@ -378,6 +513,8 @@ class EvaluationRunner:
             if prediction is None:
                 prediction = ""
                 error = "Missing batch response"
+            elif self._is_empty_prediction(prediction):
+                error = "Empty prediction in batch response"
             if error_map and custom_id in error_map:
                 error = error_map[custom_id]
 

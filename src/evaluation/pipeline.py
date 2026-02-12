@@ -17,6 +17,7 @@ from evaluation.model_config import ModelConfigLoader, ModelSpecificConfig
 from evaluation.runner import EvaluationRunner
 from evaluation.types import EvaluationOutput, InferenceResult
 from evaluation.strategies import EvaluatorRegistry
+from evaluation.utils import extract_html_table, parse_model_output_as_json
 from models.registry import create_model
 from env_utils import get_environment_metadata
 
@@ -128,7 +129,11 @@ class EvaluationPipeline:
 
         # Filter valid results
         valid_results = [
-            r for r in results if r.error is None and r.prediction is not None
+            r
+            for r in results
+            if r.error is None
+            and r.prediction is not None
+            and str(r.prediction).strip() != ""
         ]
         if not valid_results:
             self.metric_views = {"raw": {}, "normalized": {}}
@@ -141,6 +146,47 @@ class EvaluationPipeline:
         metric_views = evaluator.compute_metric_views(predictions, ground_truths)
         self.metric_views = metric_views
         return metric_views.get("normalized", {})
+
+    def _compute_quality_metrics(self, results: List[InferenceResult]) -> Dict[str, float]:
+        total = len(results)
+        if total == 0:
+            return {
+                "empty_count": 0.0,
+                "empty_rate": 0.0,
+                "parse_fail_count": 0.0,
+                "parse_fail_rate": 0.0,
+            }
+
+        empty_count = float(
+            sum(1 for r in results if str(r.prediction).strip() == "")
+        )
+
+        parse_fail_count = 0.0
+        for r in results:
+            if r.error is not None:
+                continue
+            prediction = str(r.prediction)
+            if prediction.strip() == "":
+                continue
+
+            if self.config.format_type in {FormatType.DOCUMENT, FormatType.KIE}:
+                if parse_model_output_as_json(prediction) is None:
+                    parse_fail_count += 1.0
+            elif self.config.format_type == FormatType.TABLE:
+                parsed_json = parse_model_output_as_json(prediction) or {}
+                has_html = "<table" in extract_html_table(prediction).lower()
+                has_table_json = isinstance(parsed_json, dict) and (
+                    "table" in parsed_json or "cells" in parsed_json or "html" in parsed_json
+                )
+                if not has_html and not has_table_json:
+                    parse_fail_count += 1.0
+
+        return {
+            "empty_count": empty_count,
+            "empty_rate": empty_count / float(total),
+            "parse_fail_count": parse_fail_count,
+            "parse_fail_rate": parse_fail_count / float(total),
+        }
 
 
     async def run_async(self) -> EvaluationOutput:
@@ -164,6 +210,8 @@ class EvaluationPipeline:
 
         # Compute metrics
         metrics = self._compute_metrics(results)
+        quality_metrics = self._compute_quality_metrics(results)
+        merged_metrics = {**metrics, **quality_metrics}
 
         # Build summary
         successful = len([r for r in results if r.error is None])
@@ -175,7 +223,7 @@ class EvaluationPipeline:
         # Build output
         return EvaluationOutput(
             config=self._config_to_dict(),
-            metrics=metrics,
+            metrics=merged_metrics,
             metric_views=getattr(self, "metric_views", {}),
             per_sample_results=[r.to_dict() for r in results],
             summary={
@@ -185,6 +233,10 @@ class EvaluationPipeline:
                 "avg_latency_ms": avg_latency,
                 "model_id": self.config.model.model_id,
                 "backend": self.config.model.backend.value,
+                "empty_count": int(quality_metrics["empty_count"]),
+                "empty_rate": quality_metrics["empty_rate"],
+                "parse_fail_count": int(quality_metrics["parse_fail_count"]),
+                "parse_fail_rate": quality_metrics["parse_fail_rate"],
             },
         )
 
@@ -209,6 +261,8 @@ class EvaluationPipeline:
 
         # Compute metrics
         metrics = self._compute_metrics(results)
+        quality_metrics = self._compute_quality_metrics(results)
+        merged_metrics = {**metrics, **quality_metrics}
 
         # Build summary
         successful = len([r for r in results if r.error is None])
@@ -220,7 +274,7 @@ class EvaluationPipeline:
         # Build output
         return EvaluationOutput(
             config=self._config_to_dict(),
-            metrics=metrics,
+            metrics=merged_metrics,
             metric_views=getattr(self, "metric_views", {}),
             per_sample_results=[r.to_dict() for r in results],
             summary={
@@ -230,6 +284,10 @@ class EvaluationPipeline:
                 "avg_latency_ms": avg_latency,
                 "model_id": self.config.model.model_id,
                 "backend": self.config.model.backend.value,
+                "empty_count": int(quality_metrics["empty_count"]),
+                "empty_rate": quality_metrics["empty_rate"],
+                "parse_fail_count": int(quality_metrics["parse_fail_count"]),
+                "parse_fail_rate": quality_metrics["parse_fail_rate"],
             },
         )
 

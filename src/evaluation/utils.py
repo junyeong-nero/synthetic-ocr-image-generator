@@ -112,6 +112,14 @@ def _extract_markdown_table(output: str) -> Optional[str]:
     return "\n".join(table_lines)
 
 
+def _extract_html_tag_block(output: str, tag: str) -> Optional[str]:
+    pattern = re.compile(rf"<{tag}\b[^>]*>.*?</{tag}>", re.IGNORECASE | re.DOTALL)
+    match = pattern.search(output)
+    if not match:
+        return None
+    return match.group(0)
+
+
 def _markdown_table_to_html(markdown_table: str) -> str:
     rows = []
     for line in markdown_table.splitlines():
@@ -177,20 +185,31 @@ def extract_html_table(output: str) -> str:
 
     output = output.strip()
 
-    if "<table" in output.lower():
-        start = output.lower().find("<table")
-        end = output.lower().find("</table>")
-        if end > start:
-            return output[start : end + 8]
+    table_block = _extract_html_tag_block(output, "table")
+    if table_block:
+        return table_block
+
+    parsed_json = parse_model_output_as_json(output)
+    if isinstance(parsed_json, dict):
+        html_candidate = parsed_json.get("html")
+        if isinstance(html_candidate, str):
+            html_table = _extract_html_tag_block(html_candidate, "table")
+            if html_table:
+                return html_table
+
+        table_candidate = parsed_json.get("table")
+        if isinstance(table_candidate, dict):
+            nested_html = table_candidate.get("html")
+            if isinstance(nested_html, str):
+                html_table = _extract_html_tag_block(nested_html, "table")
+                if html_table:
+                    return html_table
 
     for match in _JSON_FENCE_PATTERN.finditer(output):
         content = match.group(1).strip()
-        if "<table" in content.lower():
-            lower = content.lower()
-            start = lower.find("<table")
-            end = lower.find("</table>", start)
-            if end > start:
-                return content[start : end + 8]
+        html_table = _extract_html_tag_block(content, "table")
+        if html_table:
+            return html_table
 
     markdown_table = _extract_markdown_table(output)
     if markdown_table:
@@ -198,4 +217,4 @@ def extract_html_table(output: str) -> str:
         if html_from_markdown:
             return html_from_markdown
 
-    return output
+    return ""

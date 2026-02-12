@@ -122,6 +122,8 @@ class ReportGenerator:
                 f"- **Total Samples**: {summary.get('total_samples', 0)}",
                 f"- **Successful**: {summary.get('successful', 0)}",
                 f"- **Failed**: {summary.get('failed', 0)}",
+                f"- **Empty Rate**: {summary.get('empty_rate', 0.0):.4f}",
+                f"- **Parse Fail Rate**: {summary.get('parse_fail_rate', 0.0):.4f}",
                 f"- **Average Latency**: {summary.get('avg_latency_ms', 0):.2f} ms",
                 "",
             ]
@@ -280,6 +282,14 @@ class ReportGenerator:
             <div class="summary-item">
                 <div class="summary-value">{summary.get('avg_latency_ms', 0):.1f}ms</div>
                 <div class="summary-label">Avg Latency</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-value">{summary.get('empty_rate', 0.0):.2%}</div>
+                <div class="summary-label">Empty Rate</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-value">{summary.get('parse_fail_rate', 0.0):.2%}</div>
+                <div class="summary-label">Parse Fail Rate</div>
             </div>
         </div>
     </div>

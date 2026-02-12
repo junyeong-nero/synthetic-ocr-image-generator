@@ -104,6 +104,9 @@ def stub_table_document_metrics(monkeypatch: pytest.MonkeyPatch) -> None:
             "layout_detection": {"overall_f1": 1.0},
             "reading_order": {"order_accuracy": 1.0},
             "key_value_extraction": {"f1": 1.0},
+            "text_score": 1.0,
+            "table_teds": 1.0,
+            "overall_score": 1.0,
             "overall_f1": 1.0,
         }
 
@@ -136,6 +139,9 @@ def test_document_evaluator_handles_malformed_nested_ground_truth_json(
 
     assert metrics["avg_overall_f1"] == 1.0
     assert metrics["avg_layout_f1"] == 1.0
+    assert metrics["avg_text_table_score"] == 1.0
+    assert metrics["avg_formula_edit_distance"] == 0.0
+    assert metrics["avg_text_table_formula_score"] == 1.0
 
 
 def test_pipeline_compute_metrics_skips_none_predictions(
