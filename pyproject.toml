@@ -80,6 +80,8 @@ evaluate = [
     "numpy>=1.24.0",
     "pandas>=2.0.0",
     "tabulate>=0.9.0",
+    "lxml>=5.0.0",
+    "apted>=1.0.0",
 ]
 
 nanonets-ocr2 = [
