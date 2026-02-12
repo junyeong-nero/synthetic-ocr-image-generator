@@ -38,7 +38,7 @@ To evaluate multiple models or run a full benchmark, use the provided scripts:
 
 ```bash
 # Run a specific model config (handles dependency groups)
-./scripts/models/run.sh configs/models/deepseek-ocr.yaml -d ./data/ko
+./scripts/models/run.sh deepseek-ocr --dataset ./data/ko
 
 # Run all models (caution: resource intensive)
 ./scripts/models/test_all.sh ./data/ko
@@ -54,6 +54,6 @@ Evaluation produces several artifacts in the `output_dir`:
 
 ## Dependency Management
 
-Different local models often require conflicting library versions (e.g., different Transformers versions). The project uses `uv` dependency groups to handle this. The `scripts/run_model.sh` script automatically detects the `dependency_group` in the model YAML and runs the command in the correct environment.
+Different local models often require conflicting library versions (e.g., different Transformers versions). The project uses `uv` dependency groups to handle this. The `scripts/models/run.sh` script automatically detects the `dependency_group` in the model YAML and runs the command in the correct environment.
 
 ```

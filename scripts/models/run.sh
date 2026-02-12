@@ -3,8 +3,8 @@
 # Usage: ./scripts/models/run.sh <config_name> [options...]
 #
 # Examples:
-#   ./scripts/run_model.sh qwen3-vl-2b -d dataset --subset sentence --max-samples 200
-#   ./scripts/run_model.sh deepseek-ocr-2 -d dataset --subset markdown
+#   ./scripts/models/run.sh qwen3-vl-2b --dataset dataset --subset sentence --max-samples 200
+#   ./scripts/models/run.sh deepseek-ocr-2 --dataset dataset --subset markdown
 
 set -e
 
