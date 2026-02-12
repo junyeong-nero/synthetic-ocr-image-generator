@@ -1,10 +1,10 @@
 #!/bin/bash
-# Test all OCR models with 10 samples each
+# Test all OCR models with 200 samples each
 # Usage: ./scripts/models/test_all.sh [DATASET] [SUBSET] [MAX_SAMPLES]
 #
 # Examples:
 #   ./scripts/models/test_all.sh
-#   ./scripts/models/test_all.sh junyeong-nero/synthetic-ocr-images-korean sentence 10
+#   ./scripts/models/test_all.sh junyeong-nero/synthetic-ocr-images-korean sentence 200
 #   ./scripts/models/test_all.sh my-dataset table 5
 
 set -e
@@ -15,7 +15,7 @@ CONFIG_DIR="$PROJECT_DIR/configs/models"
 
 # Default settings
 DEFAULT_DATASET="junyeong-nero/synthetic-ocr-images-korean"
-DEFAULT_MAX_SAMPLES=10
+DEFAULT_MAX_SAMPLES=200
 
 DATASET="${1:-$DEFAULT_DATASET}"
 SUBSET="${2:-}"

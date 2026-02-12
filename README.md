@@ -54,7 +54,7 @@ Use `test_all.sh` to run benchmarks across all configured models. This script au
 ```bash
 # Test all models on a specific dataset and subset
 # Usage: ./scripts/models/test_all.sh [DATASET] [SUBSET] [MAX_SAMPLES]
-./scripts/models/test_all.sh junyeong-nero/synthetic-ocr-images-korean sentence 10
+./scripts/models/test_all.sh junyeong-nero/synthetic-ocr-images-korean sentence 200
 ```
 
 #### Single Model Evaluation
