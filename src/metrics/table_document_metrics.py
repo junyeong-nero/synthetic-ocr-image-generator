@@ -27,18 +27,25 @@ def cell_level_text_accuracy(pred_json: Dict, true_json: Dict) -> Dict[str, Any]
     """
     from .edit_distance import cer
 
-    true_cells = {cell["row"]: cell for cell in true_json.get("cells", [])}
-    pred_cells = {cell["row"]: cell for cell in pred_json.get("cells", [])}
+    true_cells = {
+        (cell.get("row"), cell.get("col")): cell
+        for cell in true_json.get("cells", [])
+        if isinstance(cell, dict)
+    }
+    pred_cells = {
+        (cell.get("row"), cell.get("col")): cell
+        for cell in pred_json.get("cells", [])
+        if isinstance(cell, dict)
+    }
 
     all_cer_scores = []
     perfect_cells = 0
     total_chars = 0
     errors = 0
 
-    # Match cells by position
-    for row_idx in range(min(len(true_cells), len(pred_cells))):
-        true_cell = true_cells.get(row_idx)
-        pred_cell = pred_cells.get(row_idx)
+    for cell_key in sorted(set(true_cells.keys()) & set(pred_cells.keys())):
+        true_cell = true_cells.get(cell_key)
+        pred_cell = pred_cells.get(cell_key)
 
         if true_cell and pred_cell:
             true_text = true_cell.get("text", "")
@@ -181,6 +188,225 @@ def calculate_iou(box1: Tuple[int, int, int, int], box2: Tuple[int, int, int, in
     union_area = area1 + area2 - inter_area
 
     return inter_area / union_area if union_area > 0 else 0.0
+
+
+def _canonical_type(raw_type: Any) -> str:
+    text = str(raw_type or "text").strip().lower()
+    return text.replace("-", "_").replace(" ", "_")
+
+
+def _is_formula_type(raw_type: Any) -> bool:
+    elem_type = _canonical_type(raw_type)
+    return any(token in elem_type for token in ("formula", "equation", "latex", "math"))
+
+
+def _is_table_type(raw_type: Any) -> bool:
+    return "table" in _canonical_type(raw_type)
+
+
+def _is_text_type(raw_type: Any) -> bool:
+    return not _is_table_type(raw_type) and not _is_formula_type(raw_type)
+
+
+def _normalize_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    return str(value).strip()
+
+
+def _extract_table_html(element: Dict[str, Any]) -> str:
+    html = _normalize_text(element.get("html", element.get("table_html", "")))
+    if html:
+        return html
+
+    metadata = element.get("metadata", {})
+    if isinstance(metadata, dict):
+        html = _normalize_text(metadata.get("html", metadata.get("table_html", "")))
+        if html:
+            return html
+        table_payload = metadata.get("table")
+        if isinstance(table_payload, dict):
+            html = _normalize_text(table_payload.get("html", ""))
+            if html:
+                return html
+
+    table_payload = element.get("table")
+    if isinstance(table_payload, dict):
+        html = _normalize_text(table_payload.get("html", ""))
+        if html:
+            return html
+
+    raw_text = _normalize_text(element.get("text", ""))
+    return raw_text if "<table" in raw_text.lower() else ""
+
+
+def _split_document_elements(elements: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    text_elements: list[dict[str, Any]] = []
+    table_elements: list[dict[str, Any]] = []
+
+    for element in elements:
+        elem_type = element.get("type", "text")
+        if _is_formula_type(elem_type):
+            continue
+        if _is_table_type(elem_type):
+            table_elements.append(element)
+        elif _is_text_type(elem_type):
+            text_elements.append(element)
+
+    return text_elements, table_elements
+
+
+def _pair_elements_by_layout(
+    pred_elements: List[Dict[str, Any]],
+    true_elements: List[Dict[str, Any]],
+    iou_threshold: float,
+) -> Tuple[List[Tuple[Dict[str, Any], Dict[str, Any]]], int, int]:
+    if not pred_elements and not true_elements:
+        return [], 0, 0
+
+    matched_pairs: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    pred_used: set[int] = set()
+    true_used: set[int] = set()
+
+    for pred_idx, pred_elem in enumerate(pred_elements):
+        pred_box = pred_elem.get("bounding_box")
+        if pred_box is None:
+            continue
+
+        best_true_idx = -1
+        best_iou = 0.0
+        for true_idx, true_elem in enumerate(true_elements):
+            if true_idx in true_used:
+                continue
+            true_box = true_elem.get("bounding_box")
+            if true_box is None:
+                continue
+            iou = calculate_iou(pred_box, true_box)
+            if iou > best_iou:
+                best_iou = iou
+                best_true_idx = true_idx
+
+        if best_true_idx >= 0 and best_iou >= iou_threshold:
+            matched_pairs.append((pred_elem, true_elements[best_true_idx]))
+            pred_used.add(pred_idx)
+            true_used.add(best_true_idx)
+
+    remaining_pred_idx = [idx for idx in range(len(pred_elements)) if idx not in pred_used]
+    remaining_true_idx = [idx for idx in range(len(true_elements)) if idx not in true_used]
+
+    no_bbox_pred_idx = [idx for idx in remaining_pred_idx if pred_elements[idx].get("bounding_box") is None]
+    no_bbox_true_idx = [idx for idx in remaining_true_idx if true_elements[idx].get("bounding_box") is None]
+
+    fallback_count = min(len(no_bbox_pred_idx), len(no_bbox_true_idx))
+    for offset in range(fallback_count):
+        pred_idx = no_bbox_pred_idx[offset]
+        true_idx = no_bbox_true_idx[offset]
+        matched_pairs.append((pred_elements[pred_idx], true_elements[true_idx]))
+        pred_used.add(pred_idx)
+        true_used.add(true_idx)
+
+    unmatched_pred = len(pred_elements) - len(pred_used)
+    unmatched_true = len(true_elements) - len(true_used)
+    return matched_pairs, unmatched_pred, unmatched_true
+
+
+def _compute_text_score(
+    pred_text_elements: List[Dict[str, Any]],
+    true_text_elements: List[Dict[str, Any]],
+    iou_threshold: float,
+) -> Dict[str, Any]:
+    from .edit_distance import cer
+
+    pairs, unmatched_pred, unmatched_true = _pair_elements_by_layout(
+        pred_text_elements,
+        true_text_elements,
+        iou_threshold=iou_threshold,
+    )
+
+    if not pred_text_elements and not true_text_elements:
+        return {
+            "score": 1.0,
+            "matched_pairs": 0,
+            "unmatched_pred": 0,
+            "unmatched_true": 0,
+            "pair_scores": [],
+        }
+
+    pair_scores: list[float] = []
+    for pred_elem, true_elem in pairs:
+        pred_text = _normalize_text(pred_elem.get("text", ""))
+        true_text = _normalize_text(true_elem.get("text", ""))
+        if not pred_text and not true_text:
+            pair_scores.append(1.0)
+            continue
+        pair_scores.append(max(0.0, 1.0 - cer(true_text, pred_text)))
+
+    denominator = len(pairs) + unmatched_pred + unmatched_true
+    score = float(sum(pair_scores) / denominator) if denominator else 1.0
+    return {
+        "score": score,
+        "matched_pairs": len(pairs),
+        "unmatched_pred": unmatched_pred,
+        "unmatched_true": unmatched_true,
+        "pair_scores": pair_scores,
+    }
+
+
+def _compute_table_teds_score(
+    pred_table_elements: List[Dict[str, Any]],
+    true_table_elements: List[Dict[str, Any]],
+    iou_threshold: float,
+) -> Dict[str, Any]:
+    from .table_edit_distance import TEDS
+
+    pairs, unmatched_pred, unmatched_true = _pair_elements_by_layout(
+        pred_table_elements,
+        true_table_elements,
+        iou_threshold=iou_threshold,
+    )
+
+    if not pred_table_elements and not true_table_elements:
+        return {
+            "score": 1.0,
+            "matched_pairs": 0,
+            "unmatched_pred": 0,
+            "unmatched_true": 0,
+            "pair_scores": [],
+        }
+
+    teds = TEDS(structure_only=True)
+    pair_scores: list[float] = []
+    for pred_elem, true_elem in pairs:
+        pred_html = _extract_table_html(pred_elem)
+        true_html = _extract_table_html(true_elem)
+        if not pred_html and not true_html:
+            pair_scores.append(1.0)
+            continue
+        if not pred_html or not true_html:
+            pair_scores.append(0.0)
+            continue
+        teds_result = teds.evaluate(pred_html, true_html)
+        pair_scores.append(float(teds_result.get("teds", 0.0)))
+
+    denominator = len(pairs) + unmatched_pred + unmatched_true
+    score = float(sum(pair_scores) / denominator) if denominator else 1.0
+    return {
+        "score": score,
+        "matched_pairs": len(pairs),
+        "unmatched_pred": unmatched_pred,
+        "unmatched_true": unmatched_true,
+        "pair_scores": pair_scores,
+    }
+
+
+def _safe_float(value: Any) -> float:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return 0.0 if np.isnan(numeric) else numeric
 
 
 def layout_detection_map(
@@ -344,8 +570,8 @@ def reading_order_accuracy(pred_elements: List[Dict], true_elements: List[Dict])
     order_accuracy = correct_pairs / total_pairs if total_pairs > 0 else 1.0
 
     return {
-        "kendall_tau": kendall_tau if not np.isnan(kendall_tau) else 0.0,
-        "spearman_rho": spearman_rho if not np.isnan(spearman_rho) else 0.0,
+        "kendall_tau": _safe_float(kendall_tau),
+        "spearman_rho": _safe_float(spearman_rho),
         "order_accuracy": order_accuracy,
     }
 
@@ -457,31 +683,56 @@ def key_value_extraction_f1(pred_elements: List[Dict], true_elements: List[Dict]
 def evaluate_document(
     pred_elements: List[Dict],
     true_elements: List[Dict],
+    iou_threshold: float = 0.5,
 ) -> Dict[str, Any]:
-    """
-    Comprehensive document evaluation.
+    pred_text_elements, pred_table_elements = _split_document_elements(pred_elements)
+    true_text_elements, true_table_elements = _split_document_elements(true_elements)
 
-    Combines layout detection mAP, reading order accuracy, and key-value extraction F1.
-    """
+    text_metrics = _compute_text_score(
+        pred_text_elements,
+        true_text_elements,
+        iou_threshold=iou_threshold,
+    )
+    table_metrics = _compute_table_teds_score(
+        pred_table_elements,
+        true_table_elements,
+        iou_threshold=iou_threshold,
+    )
+
+    total_text = len(pred_text_elements) + len(true_text_elements)
+    total_table = len(pred_table_elements) + len(true_table_elements)
+    score_weight = total_text + total_table
+    if score_weight == 0:
+        overall_score = 1.0
+    else:
+        overall_score = (
+            text_metrics.get("score", 0.0) * total_text
+            + table_metrics.get("score", 0.0) * total_table
+        ) / score_weight
+
+    filtered_pred = pred_text_elements + pred_table_elements
+    filtered_true = true_text_elements + true_table_elements
+
     # Layout detection mAP
-    layout_metrics = layout_detection_map(pred_elements, true_elements)
+    layout_metrics = layout_detection_map(filtered_pred, filtered_true, iou_threshold=iou_threshold)
 
     # Reading order accuracy
-    reading_order_metrics = reading_order_accuracy(pred_elements, true_elements)
+    reading_order_metrics = reading_order_accuracy(filtered_pred, filtered_true)
 
     # Key-value extraction F1
-    kv_metrics = key_value_extraction_f1(pred_elements, true_elements)
+    kv_metrics = key_value_extraction_f1(filtered_pred, filtered_true)
 
     # Combined metrics
     return {
         "layout_detection": layout_metrics,
         "reading_order": reading_order_metrics,
         "key_value_extraction": kv_metrics,
-        "overall_f1": np.mean([
-            layout_metrics.get("overall_f1", 0.0),
-            reading_order_metrics.get("order_accuracy", 0.0),
-            kv_metrics.get("f1", 0.0),
-        ]),
+        "text": text_metrics,
+        "table": table_metrics,
+        "text_score": text_metrics.get("score", 0.0),
+        "table_teds": table_metrics.get("score", 0.0),
+        "overall_score": overall_score,
+        "overall_f1": overall_score,
     }
 
 

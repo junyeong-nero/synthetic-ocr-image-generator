@@ -43,13 +43,34 @@ Measures the model's ability to correctly extract key-value pairs (entities).
 
 Used for the `document` format.
 
-### Overall F1-Score
-Aggregated performance across all elements in a document layout.
+### Document Component Scores
+- `avg_layout_f1`: Layout detection quality.
+- `avg_reading_order`: Reading order correctness.
+- `avg_kv_f1`: Key-value extraction quality.
+- `avg_text_score`: Text element matching quality.
+- `avg_table_teds`: Table structure/content quality in document context.
+
+### Formula-Aware Composite Score
+- `avg_formula_edit_distance`: Formula text/LaTeX edit distance (lower is better).
+- `avg_text_table_formula_score`: Composite score `(text_score + table_teds + (1 - formula_edit_distance)) / 3`.
+
+This composite is the recommended representative metric for `document` because it balances text, table, and formula quality.
+
+### Legacy Aggregate
+- `avg_text_table_score` / `avg_overall_f1` are still emitted for backward compatibility.
 
 ## Normalization and Leaderboard
 
 To create a unified leaderboard across different formats and metrics, we use **Normalized Scores**:
-- For metrics where "lower is better" (e.g., CER, WER), the normalized score is `1.0 - value`.
+- For metrics where "lower is better" (e.g., CER, WER, formula edit distance), the normalized score is `1.0 - value`.
 - For metrics where "higher is better" (e.g., TEDS, F1), the normalized score is the raw value.
 
 The **Average Score** on the leaderboard is a weighted average of these normalized scores across all evaluated subsets, weighted by the number of samples in each subset.
+
+## Representative Metrics by Subset
+
+- `sentence`: `avg_cer`
+- `table`: `avg_teds`
+- `document`: `avg_text_table_formula_score`
+- `markdown`: `normalized_match_rate` (text-fidelity first), with `avg_cer` as supporting metric
+- `kie`: `avg_entity_f1` (or `avg_overall_f1` as fallback)

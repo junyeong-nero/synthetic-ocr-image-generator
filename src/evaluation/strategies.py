@@ -33,9 +33,35 @@ def _stringify_value(value: Any) -> str:
 
 
 def _canonical_key(key: str) -> str:
-    key = key.strip().lower()
-    key = re.sub(r"[^a-z0-9]+", "_", key)
-    return key.strip("_")
+    normalized = key.strip()
+    normalized = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", normalized)
+    normalized = normalized.lower()
+    normalized = re.sub(r"[^a-z0-9]+", "_", normalized)
+    normalized = normalized.strip("_")
+
+    aliases = {
+        "title": "form_title",
+        "document_title": "form_title",
+        "formtitle": "form_title",
+        "form_no": "form_number",
+        "formnumber": "form_number",
+        "receipt_no": "receipt_number",
+        "receiptno": "receipt_number",
+        "invoice_no": "invoice_number",
+        "invoiceno": "invoice_number",
+        "tel": "phone",
+        "telephone": "phone",
+        "phone_number": "phone",
+        "mobile_number": "mobile",
+        "signed_date": "signature_date",
+        "signature": "signature_date",
+        "birth_date": "signature_date",
+        "header_date": "date",
+        "qty": "quantity",
+        "unitprice": "unit_price",
+        "totalprice": "total_price",
+    }
+    return aliases.get(normalized, normalized)
 
 
 def _extract_line_items(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -254,6 +280,27 @@ def _normalize_document_elements(raw_elements: Any, normalize: bool) -> List[Dic
         elem_type = elem.get("type", elem.get("label", elem.get("category", "text")))
         bbox = _normalize_bbox(elem.get("bounding_box", elem.get("bbox")))
         metadata = elem.get("metadata")
+        table_html = _stringify_value(
+            elem.get(
+                "html",
+                elem.get(
+                    "table_html",
+                    elem.get("table", {}).get("html", "") if isinstance(elem.get("table"), dict) else "",
+                ),
+            )
+        )
+        if not table_html and isinstance(metadata, dict):
+            table_html = _stringify_value(
+                metadata.get(
+                    "html",
+                    metadata.get(
+                        "table_html",
+                        metadata.get("table", {}).get("html", "")
+                        if isinstance(metadata.get("table"), dict)
+                        else "",
+                    ),
+                )
+            )
         if metadata is None:
             key = elem.get("key")
             value = elem.get("value")
@@ -263,6 +310,8 @@ def _normalize_document_elements(raw_elements: Any, normalize: bool) -> List[Dic
             {
                 "type": _stringify_value(elem_type) or "text",
                 "text": _stringify_value(elem.get("text", elem.get("content", ""))),
+                "latex": _stringify_value(elem.get("latex", elem.get("formula", ""))),
+                "html": table_html,
                 "bounding_box": bbox,
                 "reading_order": elem.get("reading_order", elem.get("order", idx)),
                 "metadata": metadata if isinstance(metadata, (dict, str)) else {},
@@ -287,6 +336,78 @@ def _normalize_document_ground_truth(gt: Any, normalize: bool) -> List[Dict[str,
     true_gt = _as_dict(true_gt)
     elements = true_gt.get("elements", true_gt.get("layout", true_gt.get("blocks", [])))
     return _normalize_document_elements(elements, normalize=normalize)
+
+
+def _is_formula_type(value: str) -> bool:
+    lowered = value.strip().lower()
+    return any(token in lowered for token in ("formula", "equation", "math"))
+
+
+def _extract_formula_texts(elements: List[Dict[str, Any]]) -> List[str]:
+    formulas: list[tuple[float, str]] = []
+    for idx, elem in enumerate(elements):
+        if not isinstance(elem, dict):
+            continue
+        elem_type = _stringify_value(elem.get("type", elem.get("label", elem.get("category", ""))))
+        if not _is_formula_type(elem_type):
+            continue
+        candidate = _stringify_value(
+            elem.get(
+                "latex",
+                elem.get(
+                    "formula",
+                    elem.get("text", elem.get("content", "")),
+                ),
+            )
+        ).strip()
+        if not candidate:
+            metadata = elem.get("metadata")
+            if isinstance(metadata, dict):
+                candidate = _stringify_value(
+                    metadata.get(
+                        "latex",
+                        metadata.get("formula", metadata.get("text", "")),
+                    )
+                ).strip()
+        if not candidate:
+            continue
+        order = elem.get("reading_order", elem.get("order", idx))
+        try:
+            sort_order = float(order)
+        except (TypeError, ValueError):
+            sort_order = float(idx)
+        formulas.append((sort_order, candidate))
+    formulas.sort(key=lambda item: item[0])
+    return [formula for _, formula in formulas]
+
+
+def _formula_edit_distance(pred_elements: List[Dict[str, Any]], true_elements: List[Dict[str, Any]]) -> float:
+    from metrics.edit_distance import cer
+
+    pred_formulas = _extract_formula_texts(pred_elements)
+    true_formulas = _extract_formula_texts(true_elements)
+
+    if not pred_formulas and not true_formulas:
+        return 0.0
+
+    max_len = max(len(pred_formulas), len(true_formulas))
+    if max_len == 0:
+        return 0.0
+
+    distances = []
+    for idx in range(max_len):
+        pred_formula = pred_formulas[idx] if idx < len(pred_formulas) else ""
+        true_formula = true_formulas[idx] if idx < len(true_formulas) else ""
+        if not pred_formula and not true_formula:
+            continue
+        if not pred_formula or not true_formula:
+            distances.append(1.0)
+            continue
+        distances.append(cer(true_formula, pred_formula))
+
+    if not distances:
+        return 0.0
+    return float(np.mean(distances))
 
 class BaseEvaluator(ABC):
     """Abstract base class for format-specific evaluators."""
@@ -394,13 +515,18 @@ class DocumentEvaluator(BaseEvaluator):
         layout_f1_scores = []
         reading_order_scores = []
         kv_f1_scores = []
-        overall_f1_scores = []
+        text_scores = []
+        table_teds_scores = []
+        overall_scores = []
+        formula_edit_scores = []
+        text_table_formula_scores = []
 
         for pred, gt in zip(predictions, ground_truths):
             pred_elements = _normalize_document_prediction(pred, normalize=normalize)
             true_elements = _normalize_document_ground_truth(gt, normalize=normalize)
 
             metrics = evaluate_document(pred_elements, true_elements)
+            formula_edit_distance = _formula_edit_distance(pred_elements, true_elements)
 
             layout_metrics = metrics.get("layout_detection", {})
             reading_metrics = metrics.get("reading_order", {})
@@ -409,7 +535,18 @@ class DocumentEvaluator(BaseEvaluator):
             layout_f1_scores.append(layout_metrics.get("overall_f1", 0.0))
             reading_order_scores.append(reading_metrics.get("order_accuracy", 0.0))
             kv_f1_scores.append(kv_metrics.get("f1", 0.0))
-            overall_f1_scores.append(metrics.get("overall_f1", 0.0))
+            text_scores.append(metrics.get("text_score", 0.0))
+            table_teds_scores.append(metrics.get("table_teds", 0.0))
+            overall_scores.append(metrics.get("overall_score", metrics.get("overall_f1", 0.0)))
+            formula_edit_scores.append(formula_edit_distance)
+            text_table_formula_scores.append(
+                (
+                    metrics.get("text_score", 0.0)
+                    + metrics.get("table_teds", 0.0)
+                    + (1.0 - formula_edit_distance)
+                )
+                / 3.0
+            )
 
         return {
             "avg_layout_f1": float(np.mean(layout_f1_scores)),
@@ -418,8 +555,18 @@ class DocumentEvaluator(BaseEvaluator):
             "std_reading_order": float(np.std(reading_order_scores)),
             "avg_kv_f1": float(np.mean(kv_f1_scores)),
             "std_kv_f1": float(np.std(kv_f1_scores)),
-            "avg_overall_f1": float(np.mean(overall_f1_scores)),
-            "std_overall_f1": float(np.std(overall_f1_scores)),
+            "avg_text_score": float(np.mean(text_scores)),
+            "std_text_score": float(np.std(text_scores)),
+            "avg_table_teds": float(np.mean(table_teds_scores)),
+            "std_table_teds": float(np.std(table_teds_scores)),
+            "avg_text_table_score": float(np.mean(overall_scores)),
+            "std_text_table_score": float(np.std(overall_scores)),
+            "avg_formula_edit_distance": float(np.mean(formula_edit_scores)),
+            "std_formula_edit_distance": float(np.std(formula_edit_scores)),
+            "avg_text_table_formula_score": float(np.mean(text_table_formula_scores)),
+            "std_text_table_formula_score": float(np.std(text_table_formula_scores)),
+            "avg_overall_f1": float(np.mean(overall_scores)),
+            "std_overall_f1": float(np.std(overall_scores)),
         }
 
 
