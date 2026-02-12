@@ -73,6 +73,8 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
     for entry in summary_entries:
         subset_scores = []
         subset_weights = []
+        subset_empty_rates = []
+        subset_parse_fail_rates = []
         normalized_subsets = []
         for subset_entry in entry.get("subsets", []):
             metric_key = subset_entry.get("metric_key")
@@ -89,6 +91,15 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
                 weight = subset_entry.get("total_samples")
                 subset_weights.append(weight if isinstance(weight, (int, float)) else 1)
 
+            empty_rate = subset_entry.get("empty_rate")
+            parse_fail_rate = subset_entry.get("parse_fail_rate")
+            weight = subset_entry.get("total_samples")
+            weighted = weight if isinstance(weight, (int, float)) else 1
+            if isinstance(empty_rate, (int, float)):
+                subset_empty_rates.append((empty_rate, weighted))
+            if isinstance(parse_fail_rate, (int, float)):
+                subset_parse_fail_rates.append((parse_fail_rate, weighted))
+
         if subset_scores:
             weight_total = sum(subset_weights)
             normalized_average = (
@@ -100,6 +111,17 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
         else:
             normalized_average = None
 
+        def _weighted_average(pairs: list[tuple[float, float]]) -> Optional[float]:
+            if not pairs:
+                return None
+            total_weight = sum(weight for _, weight in pairs)
+            if total_weight <= 0:
+                return None
+            return sum(value * weight for value, weight in pairs) / total_weight
+
+        average_empty_rate = _weighted_average(subset_empty_rates)
+        average_parse_fail_rate = _weighted_average(subset_parse_fail_rates)
+
         leaderboard_entries.append(
             {
                 "timestamp": entry.get("timestamp"),
@@ -110,6 +132,8 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
                 "split": entry.get("split"),
                 "average_score": entry.get("average_score"),
                 "normalized_average_score": normalized_average,
+                "average_empty_rate": average_empty_rate,
+                "average_parse_fail_rate": average_parse_fail_rate,
                 "subsets": normalized_subsets,
             }
         )
@@ -126,12 +150,19 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
     with open(leaderboard_path, "w", encoding="utf-8") as f:
         json.dump(leaderboard_entries, f, ensure_ascii=False, indent=2)
 
-    lines = ["# OCR Benchmark Leaderboard", "", "| Rank | Model | Backend | Dataset | Split | Normalized | Raw |", "|---:|---|---|---|---|---:|---:|"]
+    lines = [
+        "# OCR Benchmark Leaderboard",
+        "",
+        "| Rank | Model | Backend | Dataset | Split | Normalized | Raw | Empty Rate | Parse Fail Rate |",
+        "|---:|---|---|---|---|---:|---:|---:|---:|",
+    ]
     for idx, entry in enumerate(leaderboard_entries, start=1):
         normalized_score = entry.get("normalized_average_score")
         raw_score = entry.get("average_score")
+        empty_rate = entry.get("average_empty_rate")
+        parse_fail_rate = entry.get("average_parse_fail_rate")
         lines.append(
-            "| {} | {} | {} | {} | {} | {} | {} |".format(
+            "| {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
                 idx,
                 entry.get("model_id") or "-",
                 entry.get("backend") or "-",
@@ -139,6 +170,8 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
                 entry.get("split") or "-",
                 f"{normalized_score:.4f}" if isinstance(normalized_score, (int, float)) else "-",
                 f"{raw_score:.4f}" if isinstance(raw_score, (int, float)) else "-",
+                f"{empty_rate:.4f}" if isinstance(empty_rate, (int, float)) else "-",
+                f"{parse_fail_rate:.4f}" if isinstance(parse_fail_rate, (int, float)) else "-",
             )
         )
 
@@ -209,7 +242,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     representative_metrics = {
         FormatType.SENTENCE.value: "avg_cer",
         FormatType.TABLE.value: "avg_teds",
-        FormatType.DOCUMENT.value: "avg_overall_f1",
+        FormatType.DOCUMENT.value: "avg_text_table_formula_score",
         FormatType.MARKDOWN.value: "avg_cer",
         FormatType.KIE.value: "avg_entity_f1",
     }
@@ -342,6 +375,8 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
             "backend": backend_str,
             "prompt_source": output.config.get("prompt_source"),
             "total_samples": output.summary.get("total_samples"),
+            "empty_rate": output.summary.get("empty_rate"),
+            "parse_fail_rate": output.summary.get("parse_fail_rate"),
         }
 
     def subset_output_dir(base_dir: Path, subset: str, use_subdir: bool) -> Path:
@@ -401,6 +436,29 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     ]
     average_score = sum(metric_values) / len(metric_values) if metric_values else None
 
+    subset_weights = [
+        entry.get("total_samples")
+        if isinstance(entry.get("total_samples"), (int, float))
+        else 1
+        for entry in summary_entries
+    ]
+
+    def _weighted_subset_rate(key: str) -> Optional[float]:
+        values: list[tuple[float, float]] = []
+        for entry, weight in zip(summary_entries, subset_weights):
+            value = entry.get(key)
+            if isinstance(value, (int, float)):
+                values.append((float(value), float(weight)))
+        if not values:
+            return None
+        total_weight = sum(weight for _, weight in values)
+        if total_weight <= 0:
+            return None
+        return sum(value * weight for value, weight in values) / total_weight
+
+    average_empty_rate = _weighted_subset_rate("empty_rate")
+    average_parse_fail_rate = _weighted_subset_rate("parse_fail_rate")
+
     summary_entry = {
         "timestamp": _iso_timestamp(),
         "protocol_version": PROTOCOL_VERSION,
@@ -411,6 +469,8 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         "seed": args.seed,
         "subsets": summary_entries,
         "average_score": average_score,
+        "average_empty_rate": average_empty_rate,
+        "average_parse_fail_rate": average_parse_fail_rate,
     }
 
     summary_path = summary_output_dir / "model_summary.json"
