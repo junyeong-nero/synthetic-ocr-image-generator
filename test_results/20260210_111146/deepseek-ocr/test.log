@@ -1,198 +1,0 @@
-A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR:
-- deepencoder.py
-. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
-A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR:
-- configuration_deepseek_v2.py
-. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
-A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR:
-- modeling_deepseekv2.py
-. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
-A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR:
-- conversation.py
-. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
-A new version of the following files was downloaded from https://huggingface.co/deepseek-ai/DeepSeek-OCR:
-- modeling_deepseekocr.py
-- deepencoder.py
-- configuration_deepseek_v2.py
-- modeling_deepseekv2.py
-- conversation.py
-. Make sure to double-check they do not contain any added malicious code. To avoid downloading new versions of the code file, you can pin a revision.
-You are using a model of type deepseek_vl_v2 to instantiate a model of type DeepseekOCR. This is not supported for all configurations of models and can yield errors.
-
-Configuration:
-  Model: deepseek-ai/DeepSeek-OCR
-  Backend: transformers
-  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
-  Format: sentence
-  Batch Size: 1
-  Temperature: 0.0
-  Max Tokens: 4096
-  Config File: /workspace/synthetic-ocr-image-generator/configs/models/deepseek-ocr.yaml
-
-Evaluating deepseek-ai/DeepSeek-OCR on junyeong-nero/synthetic-ocr-images-korean...
-Downloading shards:   0%|          | 0/1 [00:00<?, ?it/s]Downloading shards: 100%|██████████| 1/1 [00:08<00:00,  8.23s/it]Downloading shards: 100%|██████████| 1/1 [00:08<00:00,  8.23s/it]
-Some weights of DeepseekOCRForCausalLM were not initialized from the model checkpoint at deepseek-ai/DeepSeek-OCR and are newly initialized: ['model.vision_model.embeddings.position_ids']
-You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
-Loading dataset: junyeong-nero/synthetic-ocr-images-korean
-Loaded 10 samples
-Processing 10 remaining samples...
-Evaluating:   0%|          | 0/10 [00:00<?, ?batch/s]/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/transformers/generation/configuration_utils.py:590: UserWarning: `do_sample` is set to `False`. However, `temperature` is set to `0.0` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `temperature`.
-  warnings.warn(
-The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
-Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
-The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
-The `seen_tokens` attribute is deprecated and will be removed in v4.41. Use the `cache_position` model input instead.
-`get_max_cache()` is deprecated for all Cache classes. Use `get_max_cache_shape()` instead. Calling `get_max_cache()` will raise error from v4.48
-The attention layers in this model are transitioning from computing the RoPE embeddings internally through `position_ids` (2D tensor with the indexes of the tokens), to using externally computed `position_embeddings` (Tuple of tensors, containing cos and sin). In v4.46 `position_ids` will be removed and `position_embeddings` will be mandatory.
-=====================
-BASE:  torch.Size([1, 256, 1280])
-NO PATCHES
-=====================
-농협은 부진등의 비트기업의 사
-Evaluating:   0%|          | 0/10 [00:01<?, ?batch/s, latency=1589.6ms]Evaluating:  10%|█         | 1/10 [00:01<00:14,  1.61s/batch, latency=1589.6ms]The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
-Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
-==================================================
-image size:  (393, 180)
-valid image tokens:  117
-output texts tokens (valid):  15
-compression ratio:  0.13
-==================================================
-=====================
-BASE:  torch.Size([1, 256, 1280])
-NO PATCHES
-=====================
-조지피드의중요한대상으로보는
-Evaluating:  10%|█         | 1/10 [00:02<00:14,  1.61s/batch, latency=557.3ms] Evaluating:  20%|██        | 2/10 [00:02<00:07,  1.00batch/s, latency=557.3ms]The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
-Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
-==================================================
-image size:  (467, 279)
-valid image tokens:  152
-output texts tokens (valid):  14
-compression ratio:  0.09
-==================================================
-=====================
-BASE:  torch.Size([1, 256, 1280])
-NO PATCHES
-=====================
-피인 1초와 그의 부인 인고배르그
-Evaluating:  20%|██        | 2/10 [00:02<00:07,  1.00batch/s, latency=612.9ms]Evaluating:  30%|███       | 3/10 [00:02<00:05,  1.20batch/s, latency=612.9ms]The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
-Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
-==================================================
-image size:  (508, 217)
-valid image tokens:  109
-output texts tokens (valid):  15
-compression ratio:  0.14
-==================================================
-=====================
-BASE:  torch.Size([1, 256, 1280])
-NO PATCHES
-=====================
-가이드 2위의 사장과 연계방송의 길
-Evaluating:  30%|███       | 3/10 [00:03<00:05,  1.20batch/s, latency=640.6ms]Evaluating:  40%|████      | 4/10 [00:03<00:04,  1.31batch/s, latency=640.6ms]The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
-Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
-==================================================
-image size:  (503, 207)
-valid image tokens:  105
-output texts tokens (valid):  17
-compression ratio:  0.16
-==================================================
-=====================
-BASE:  torch.Size([1, 256, 1280])
-NO PATCHES
-=====================
-# 바르간파프리지로의 지리적 측정사적
-Evaluating:  40%|████      | 4/10 [00:04<00:04,  1.31batch/s, latency=728.9ms]Evaluating:  50%|█████     | 5/10 [00:04<00:03,  1.32batch/s, latency=728.9ms]The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
-Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
-==================================================
-image size:  (621, 396)
-valid image tokens:  163
-output texts tokens (valid):  18
-compression ratio:  0.11
-==================================================
-=====================
-BASE:  torch.Size([1, 256, 1280])
-NO PATCHES
-=====================
-**4.9**
-**민중보수** **등소** **민족의** **경제가치**
-Evaluating:  50%|█████     | 5/10 [00:05<00:03,  1.32batch/s, latency=947.8ms]Evaluating:  60%|██████    | 6/10 [00:05<00:03,  1.21batch/s, latency=947.8ms]The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
-Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
-==================================================
-image size:  (404, 87)
-valid image tokens:  55
-output texts tokens (valid):  27
-compression ratio:  0.49
-==================================================
-=====================
-BASE:  torch.Size([1, 256, 1280])
-NO PATCHES
-=====================
-\[\frac{\partial}{\partial t}\frac{\partial}{\partial x}\frac{\partial}{\partial y}\frac{\partial}{\partial z}\frac{\partial}{\partial t}\frac{\partial}{\partial x}\frac{\partial}{\partial t}\frac{\partial}{\partial y}\frac{\partial}{\partial z}\frac{\partial}{\frac{\partial}{\partial t}\frac{\partial}{\partial x}\frac{\partial}{\partial x}\frac{\partial}{\partial y}\frac{\partial}{\frac{\partial}{\partial t}\frac{\partial}{\partial x}\partial x}\frac{\partial}{\partial y}\frac{\partial}{\partial z}}\]
-Evaluating:  60%|██████    | 6/10 [00:08<00:03,  1.21batch/s, latency=3806.2ms]Evaluating:  70%|███████   | 7/10 [00:08<00:05,  1.80s/batch, latency=3806.2ms]The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
-Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
-==================================================
-image size:  (439, 159)
-valid image tokens:  92
-output texts tokens (valid):  132
-compression ratio:  1.43
-==================================================
-=====================
-BASE:  torch.Size([1, 256, 1280])
-NO PATCHES
-=====================
-2가 오스트리아 축등 신수
-Evaluating:  70%|███████   | 7/10 [00:09<00:05,  1.80s/batch, latency=461.8ms] Evaluating:  80%|████████  | 8/10 [00:09<00:02,  1.38s/batch, latency=461.8ms]The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
-Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
-==================================================
-image size:  (360, 61)
-valid image tokens:  43
-output texts tokens (valid):  10
-compression ratio:  0.23
-==================================================
-=====================
-BASE:  torch.Size([1, 256, 1280])
-NO PATCHES
-=====================
-상조대의복과13 국고량과
-Evaluating:  80%|████████  | 8/10 [00:09<00:02,  1.38s/batch, latency=494.3ms]Evaluating:  90%|█████████ | 9/10 [00:09<00:01,  1.11s/batch, latency=494.3ms]The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
-Setting `pad_token_id` to `eos_token_id`:None for open-end generation.
-==================================================
-image size:  (347, 228)
-valid image tokens:  168
-output texts tokens (valid):  12
-compression ratio:  0.07
-==================================================
-=====================
-BASE:  torch.Size([1, 256, 1280])
-PATCHES:  torch.Size([9, 100, 1280])
-=====================
-로틱츠 구의 표현론은 상등론적 양자장론에
-Evaluating:  90%|█████████ | 9/10 [00:11<00:01,  1.11s/batch, latency=1131.8ms]Evaluating: 100%|██████████| 10/10 [00:11<00:00,  1.12s/batch, latency=1131.8ms]Evaluating: 100%|██████████| 10/10 [00:11<00:00,  1.11s/batch, latency=1131.8ms]
-==================================================
-image size:  (937, 68)
-valid image tokens:  918
-output texts tokens (valid):  19
-compression ratio:  0.02
-==================================================
-
-Reports saved:
-  json: /workspace/synthetic-ocr-image-generator/test_results/20260210_111146/deepseek-ocr/report.json
-  markdown: /workspace/synthetic-ocr-image-generator/test_results/20260210_111146/deepseek-ocr/report.md
-  html: /workspace/synthetic-ocr-image-generator/test_results/20260210_111146/deepseek-ocr/report.html
-Protocol snapshot saved: /workspace/synthetic-ocr-image-generator/test_results/20260210_111146/deepseek-ocr/protocol.json
-
-============================================================
- SENTENCE EVALUATION RESULTS 
-============================================================
-  avg_cer: 1.0000
-  std_cer: 0.0000
-  min_cer: 1.0000
-  max_cer: 1.0000
-  avg_wer: 1.0000
-  std_wer: 0.0000
-============================================================
-
-Samples: 10/10
-Avg Latency: 1097.11ms
-
-Model summary saved: /workspace/synthetic-ocr-image-generator/test_results/20260210_111146/deepseek-ocr/model_summary.json

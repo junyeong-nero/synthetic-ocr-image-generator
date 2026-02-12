@@ -1,75 +1,0 @@
-   Updating https://github.com/huggingface/transformers (82a06db03535c49aa987719ed0746a76093b1ec4)
-    Updated https://github.com/huggingface/transformers (82a06db03535c49aa987719ed0746a76093b1ec4)
-   Building transformers @ git+https://github.com/huggingface/transformers@82a06db03535c49aa987719ed0746a76093b1ec4
-      Built transformers @ git+https://github.com/huggingface/transformers@82a06db03535c49aa987719ed0746a76093b1ec4
-Uninstalled 2 packages in 5.60s
-warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
-         If the cache and target directories are on different filesystems, hardlinking may not be supported.
-         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
-Installed 2 packages in 25.78s
-`torch_dtype` is deprecated! Use `dtype` instead!
-
-Configuration:
-  Model: tencent/HunyuanOCR
-  Backend: transformers
-  Dataset: junyeong-nero/synthetic-ocr-images-korean (sentence/train)
-  Format: sentence
-  Batch Size: 1
-  Temperature: 0.0
-  Max Tokens: 16384
-  Config File: /workspace/synthetic-ocr-image-generator/configs/models/hunyuan-ocr.yaml
-
-Evaluating tencent/HunyuanOCR on junyeong-nero/synthetic-ocr-images-korean...
-Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files:  25%|██▌       | 1/4 [00:02<00:08,  2.75s/it]Fetching 4 files: 100%|██████████| 4/4 [00:02<00:00,  1.45it/s]
-The following generation flags are not valid and may be ignored: ['pad_token_id']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
-Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  5.19it/s]Loading checkpoint shards:  50%|█████     | 2/4 [00:00<00:00,  6.38it/s]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:00<00:00,  6.81it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  6.40it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00,  6.35it/s]
-Loading dataset: junyeong-nero/synthetic-ocr-images-korean
-Loaded 10 samples
-Processing 10 remaining samples...
-Evaluating:   0%|          | 0/10 [00:00<?, ?batch/s]Evaluating:  10%|█         | 1/10 [00:00<00:02,  3.09batch/s]Evaluating:  40%|████      | 4/10 [00:00<00:00, 10.00batch/s]Evaluating:  70%|███████   | 7/10 [00:00<00:00, 12.79batch/s]Evaluating:  90%|█████████ | 9/10 [00:00<00:00, 14.31batch/s]Evaluating: 100%|██████████| 10/10 [00:00<00:00, 11.85batch/s]
-/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/numpy/_core/fromnumeric.py:3860: RuntimeWarning: Mean of empty slice.
-  return _methods._mean(a, axis=axis, dtype=dtype,
-/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/numpy/_core/_methods.py:145: RuntimeWarning: invalid value encountered in scalar divide
-  ret = ret.dtype.type(ret / rcount)
-/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/numpy/_core/_methods.py:223: RuntimeWarning: Degrees of freedom <= 0 for slice
-  ret = _var(a, axis=axis, dtype=dtype, out=out, ddof=ddof,
-/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/numpy/_core/_methods.py:181: RuntimeWarning: invalid value encountered in divide
-  arrmean = um.true_divide(arrmean, div, out=arrmean,
-/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/numpy/_core/_methods.py:215: RuntimeWarning: invalid value encountered in scalar divide
-  ret = ret.dtype.type(ret / rcount)
-Error processing batch: Input type (c10::BFloat16) and bias type (c10::Half) should be the same
-Error processing batch: Input type (c10::BFloat16) and bias type (c10::Half) should be the same
-Error processing batch: Input type (c10::BFloat16) and bias type (c10::Half) should be the same
-Error processing batch: Input type (c10::BFloat16) and bias type (c10::Half) should be the same
-Error processing batch: Input type (c10::BFloat16) and bias type (c10::Half) should be the same
-Error processing batch: Input type (c10::BFloat16) and bias type (c10::Half) should be the same
-Error processing batch: Input type (c10::BFloat16) and bias type (c10::Half) should be the same
-Error processing batch: Input type (c10::BFloat16) and bias type (c10::Half) should be the same
-Error processing batch: Input type (c10::BFloat16) and bias type (c10::Half) should be the same
-Error processing batch: Input type (c10::BFloat16) and bias type (c10::Half) should be the same
-Traceback (most recent call last):
-  File "/workspace/synthetic-ocr-image-generator/main.py", line 748, in <module>
-    main()
-  File "/workspace/synthetic-ocr-image-generator/main.py", line 734, in main
-    cmd_evaluate(args)
-  File "/workspace/synthetic-ocr-image-generator/main.py", line 376, in cmd_evaluate
-    run_for_subset(
-  File "/workspace/synthetic-ocr-image-generator/main.py", line 304, in run_for_subset
-    output = pipeline.run()
-             ^^^^^^^^^^^^^^
-  File "/workspace/synthetic-ocr-image-generator/src/evaluation/pipeline.py", line 176, in run
-    metrics = self._compute_metrics(results)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspace/synthetic-ocr-image-generator/src/evaluation/pipeline.py", line 109, in _compute_metrics
-    return evaluator.compute_metrics(predictions, ground_truths)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspace/synthetic-ocr-image-generator/src/evaluation/strategies.py", line 43, in compute_metrics
-    "min_cer": float(np.min(cer_list)),
-                     ^^^^^^^^^^^^^^^^
-  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/numpy/_core/fromnumeric.py", line 3302, in min
-    return _wrapreduction(a, np.minimum, 'min', axis, None, out,
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/workspace/synthetic-ocr-image-generator/.venv/lib/python3.11/site-packages/numpy/_core/fromnumeric.py", line 86, in _wrapreduction
-    return ufunc.reduce(obj, axis, dtype, out, **passkwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-ValueError: zero-size array to reduction operation minimum which has no identity

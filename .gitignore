@@ -9,3 +9,5 @@ data/
 
 __pycache__/
 evaluation_results/
+test_results/
+.env
