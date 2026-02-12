@@ -1,13 +1,10 @@
-# OpenAI GPT-5 Model Configuration
-model_id: gpt-5
+model_id: gpt-5-mini
 backend: openai
 dependency_group: api
 
-# Default generation parameters
 temperature: 0.0
 max_tokens: 1024
 
-# Default prompts for each format type
 prompts:
     sentence:
         prompt: |

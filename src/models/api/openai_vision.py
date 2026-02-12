@@ -5,7 +5,7 @@ import json
 import os
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Literal, cast
+from typing import Any, Dict, List, Optional, Literal, cast
 
 from PIL import Image
 
@@ -31,6 +31,9 @@ class OpenAIVision(APIModel):
     ]
 
     MAX_BATCH_MB = int(os.getenv("OPENAI_BATCH_MAX_MB", "100"))
+
+    def _is_gpt5_family(self) -> bool:
+        return (self.config.model_id or "").lower().startswith("gpt-5")
 
     def __init__(self, config: ModelConfig):
         super().__init__(config)
@@ -67,30 +70,38 @@ class OpenAIVision(APIModel):
             Model response as string.
         """
         base64_image = self._encode_image(image)
+        messages: Any = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{base64_image}",
+                        },
+                    },
+                    {
+                        "type": "text",
+                        "text": prompt,
+                    },
+                ],
+            }
+        ]
 
-        response = await self.client.chat.completions.create(
-            model=self.config.model_id,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{base64_image}",
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": prompt,
-                        },
-                    ],
-                }
-            ],
-            max_tokens=self.config.max_tokens,
-            temperature=self.config.temperature,
-            top_p=self.config.top_p,
-        )
+        if self._is_gpt5_family():
+            response = await self.client.chat.completions.create(
+                model=self.config.model_id,
+                messages=messages,
+                max_completion_tokens=self.config.max_tokens,
+            )
+        else:
+            response = await self.client.chat.completions.create(
+                model=self.config.model_id,
+                messages=messages,
+                max_tokens=self.config.max_tokens,
+                temperature=self.config.temperature,
+                top_p=self.config.top_p,
+            )
 
         return response.choices[0].message.content or ""
 
@@ -116,30 +127,35 @@ class OpenAIVision(APIModel):
         with open(request_path, "w", encoding="utf-8") as f:
             for prompt, image, custom_id in zip(prompts, images, custom_ids):
                 base64_image = self._encode_image(image)
+                body = {
+                    "model": self.config.model_id,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/png;base64,{base64_image}",
+                                    },
+                                },
+                                {"type": "text", "text": prompt},
+                            ],
+                        }
+                    ],
+                }
+                if self._is_gpt5_family():
+                    body["max_completion_tokens"] = self.config.max_tokens
+                else:
+                    body["max_tokens"] = self.config.max_tokens
+                    body["temperature"] = self.config.temperature
+                    body["top_p"] = self.config.top_p
+
                 payload = {
                     "custom_id": custom_id,
                     "method": "POST",
                     "url": "/v1/chat/completions",
-                    "body": {
-                        "model": self.config.model_id,
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": [
-                                    {
-                                        "type": "image_url",
-                                        "image_url": {
-                                            "url": f"data:image/png;base64,{base64_image}",
-                                        },
-                                    },
-                                    {"type": "text", "text": prompt},
-                                ],
-                            }
-                        ],
-                        "max_tokens": self.config.max_tokens,
-                        "temperature": self.config.temperature,
-                        "top_p": self.config.top_p,
-                    },
+                    "body": body,
                 }
                 f.write(json.dumps(payload, ensure_ascii=False) + "\n")
 

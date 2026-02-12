@@ -1,13 +1,10 @@
-# OpenAI GPT-5 Model Configuration
-model_id: gpt-5
+model_id: gpt-5-nano
 backend: openai
 dependency_group: api
 
-# Default generation parameters
 temperature: 0.0
 max_tokens: 1024
 
-# Default prompts for each format type
 prompts:
     sentence:
         prompt: |
@@ -59,9 +56,3 @@ prompts:
             - Extract common receipt/invoice fields when present (company, address, date, time, receipt_number, subtotal, tax, total, payment_method).
             - Preserve text verbatim, including currency symbols and separators.
             - Return JSON only (no markdown fences or commentary).
-
-subsets:
-    document:
-        max_tokens: 4096
-    markdown:
-        max_tokens: 4096
