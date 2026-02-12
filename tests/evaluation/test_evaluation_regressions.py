@@ -1,3 +1,4 @@
+import asyncio
 import json
 import sys
 from pathlib import Path
@@ -19,6 +20,26 @@ class FixedOutputModel:
 
     def run(self, prompts, images):
         return list(self.outputs)
+
+
+class FixedBatchModel:
+    def __init__(self, predictions: dict[str, str]):
+        self.predictions = predictions
+
+    async def run_batch_async(
+        self,
+        prompts,
+        images,
+        custom_ids,
+        output_dir,
+        completion_window,
+        poll_interval,
+        timeout,
+    ):
+        return {
+            custom_id: self.predictions.get(custom_id, "")
+            for custom_id in custom_ids
+        }
 
 
 def make_config(tmp_path: Path) -> EvaluationConfig:
@@ -90,6 +111,36 @@ def test_runner_marks_all_batch_items_failed_on_prediction_length_mismatch(
     assert runner.state.completed == []
     assert all(r.error is not None for r in results)
     assert all("mismatched batch size" in (r.error or "") for r in results)
+
+
+def test_runner_ignores_invalid_batch_error_file(tmp_path: Path) -> None:
+    runner = EvaluationRunner(make_config(tmp_path), FixedOutputModel(["ok"]))
+    batch_dir = tmp_path / "batch_sentence"
+    batch_dir.mkdir(parents=True, exist_ok=True)
+    (batch_dir / "batch_errors.json").write_text("{bad-json", encoding="utf-8")
+
+    assert runner._load_batch_errors(batch_dir) == {}
+
+
+def test_runner_batch_api_ignores_invalid_batch_metadata_and_submits_new_batch(
+    tmp_path: Path,
+) -> None:
+    config = make_config(tmp_path).model_copy(update={"batch_api": True, "batch_size": 1})
+    runner = EvaluationRunner(config, FixedBatchModel({"0": "predicted"}))
+
+    batch_dir = tmp_path / "batch_sentence"
+    batch_dir.mkdir(parents=True, exist_ok=True)
+    (batch_dir / "batch_info.json").write_text("{broken-json", encoding="utf-8")
+
+    images = [Image.new("RGB", (4, 4))]
+    ground_truths = ["gt"]
+    prompts = ["prompt"]
+
+    results = asyncio.run(runner.run_async(images, ground_truths, prompts))
+
+    assert len(results) == 1
+    assert results[0].prediction == "predicted"
+    assert results[0].error is None
 
 
 @pytest.fixture

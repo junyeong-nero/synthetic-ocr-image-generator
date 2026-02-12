@@ -437,10 +437,15 @@ class EvaluationRunner:
             return [InferenceResult(**r) for r in self.state.results]
 
         if batch_info_path.exists() and hasattr(self.model, "resume_batch_async"):
-            with open(batch_info_path, "r", encoding="utf-8") as f:
-                batch_info = json.load(f)
-            batch_id = batch_info.get("batch_id")
-            batch_status = batch_info.get("status")
+            try:
+                with open(batch_info_path, "r", encoding="utf-8") as f:
+                    batch_info = json.load(f)
+            except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+                print(f"Ignoring invalid batch metadata at {batch_info_path}: {exc}")
+                batch_info = {}
+
+            batch_id = batch_info.get("batch_id") if isinstance(batch_info, dict) else None
+            batch_status = batch_info.get("status") if isinstance(batch_info, dict) else None
             if batch_id and batch_status not in {"failed", "cancelled", "expired"}:
                 print(f"Resuming batch: {batch_id}")
                 try:
@@ -539,8 +544,16 @@ class EvaluationRunner:
         error_path = batch_dir / "batch_errors.json"
         if not error_path.exists():
             return {}
-        with open(error_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(error_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            print(f"Ignoring invalid batch error file at {error_path}: {exc}")
+            return {}
+
+        if not isinstance(data, dict):
+            print(f"Ignoring invalid batch error format at {error_path}: expected object")
+            return {}
         return {str(k): str(v) for k, v in data.items()}
 
     def clear_checkpoint(self) -> None:
