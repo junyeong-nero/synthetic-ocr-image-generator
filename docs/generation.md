@@ -1,84 +1,65 @@
-# Generation Pipeline
+# Data Generation Guide
 
-The generation pipeline creates synthetic OCR datasets with ground truth labels. It is capable of generating various document types to test different aspects of OCR and VLM performance.
+The generation pipeline allows you to create diverse synthetic OCR datasets tailored to specific tasks.
 
-## Usage
+## Basic Usage
 
-The primary command is `generate`:
+The primary command for generation is `python main.py generate`.
 
-```bash
-uv run main.py generate \
-    --repo-id <huggingface-repo-id> \
-    --font-path <path-to-font> \
-    --output-dir ./data \
-    --lang ko \
-    --format sentence
-```
+### Required Arguments
+- `--repo-id`: The Hugging Face repository where the dataset will be uploaded.
+- `--font-path`: Path to a font file used for generating the character similarity database.
+- `--lang`: Language code (e.g., `ko`, `en`).
 
-## Supported Formats
+## Generation Formats
 
-The `--format` argument controls the type of image generated:
+### 1. Sentence (`--format sentence`)
+Generates single lines of text.
+- **Corpus**: Extracts text from Wikipedia.
+- **Typos**: Introduces realistic typos based on character similarity.
+- **Parameters**:
+    - `--corpus-size`: Number of sentences to extract (default: 10,000).
+    - `--typo-ratio`: Probability of introducing a typo in a word (default: 0.15).
 
-| Format | Description | Target Use Case |
-| :--- | :--- | :--- |
-| `sentence` | Single lines or blocks of text. | Basic OCR text recognition. |
-| `table` | Structured tables with borders and headers. | Table structure recognition. |
-| `document` | Full-page layouts with mixed content. | Document understanding, layout analysis. |
-| `markdown` | Rendered Markdown content. | Structured text and formatting preservation. |
-| `kie` | Key Information Extraction forms (receipts, etc.). | Entity extraction and field recognition. |
+### 2. Table (`--format table`)
+Generates tabular images.
+- **Parameters**:
+    - `--table-size`: Range of rows and columns as `min-max` (default: `3-8`).
+    - `--template`: (Optional) Specific table style template.
 
-## Configuration Options
+### 3. Document (`--format document`)
+Generates full-page document layouts.
 
--   **`--lang`**: Language code (e.g., `ko`, `en`). Determines the corpus source (Wikipedia) and character sets.
--   **`--font-path`**: Path to a TTF/OTF font file. Required for rendering.
--   **`--size`**: Number of images to generate.
--   **`--typo-ratio`**: Probability of introducing typos into the text (0.0 to 1.0).
--   **`--corpus-size`**: Number of sentences to fetch from Wikipedia for the text corpus.
--   **`--template`**: Optional template file for structured generation.
--   **`--table-size`**: For tables, the range of rows/columns (e.g., "3-8").
--   **`--mixed`**: If set, generates a mix of all supported formats.
--   **`--seed`**: Random seed for reproducibility.
+### 4. Markdown (`--format markdown`)
+Renders images from Markdown content templates.
 
-## Data Variety and Realism
+### 5. KIE (`--format kie`)
+Generates Key Information Extraction data (e.g., forms, receipts).
+- **Parameters**:
+    - `--template`: Specific document type (e.g., `invoice`, `receipt`).
 
-To ensure high-quality synthetic data, the generator uses a centralized `DataProvider` (located in `src/generator/data_provider.py`) with a tiered data source strategy.
+## Mixed Format Generation
 
-### Tiered Data Sources:
-1.  **External Corpus (Priority 1)**: For large-scale generation (100k+ images), the provider loads data from pre-generated corpus files in `data/corpus/<lang>/`. This minimizes duplicates and ensures high variety.
-2.  **Faker Integration (Priority 2)**: If corpus data is unavailable, it leverages the `Faker` library to generate realistic names, addresses, emails, phone numbers, and dates.
-3.  **Curated Hardcoded Data (Fallback)**: Built-in datasets for domain-specific content like product names and technical terms.
-
-### External Corpus Generation
-
-You can generate a large-scale corpus using LLMs (OpenAI or Anthropic) to provide even more variety:
+To generate a balanced dataset containing all formats, use the `--mixed` flag:
 
 ```bash
-# Generate 1000 items for all categories in Korean using OpenAI
-uv run python scripts/corpus/generate.py --lang ko --count 1000
-
-# Generate using Anthropic
-uv run python scripts/corpus/generate.py --lang en --provider anthropic --count 1000
+python main.py generate 
+    --repo-id "username/mixed-ocr-dataset" 
+    --font-path "fonts/ko/my-font.ttf" 
+    --lang "ko" 
+    --size 1000 
+    --mixed
 ```
 
-Supported categories include `product_names`, `store_names`, `company_names`, `person_names`, `addresses`, `departments`, `positions`, `titles`, `paragraphs`, and `features`.
+This will automatically distribute the `--size` across all supported formats and upload them as separate subsets to the Hugging Face Hub.
 
-## Output Structure
+## Character Similarity Database
 
-Generated data is saved to the `output_dir`:
+For the `sentence` format, the pipeline first generates a similarity database (`char_similarity_db_<lang>.json`). This database maps characters to visually similar ones using SSIM (Structural Similarity Index).
+- `--similarity-threshold`: Minimum SSIM to consider characters "similar" (default: 0.6).
+- `--similarity-top-k`: Maximum number of similar characters to store per character (default: 8).
 
-```
-data/
-    └── <lang>/
-        └── <format>/
-            ├── images/
-            │   ├── image_001.png
-            │   └── ...
-            └── metadata.jsonl
-```
+## Advanced Configuration
 
-The `metadata.jsonl` file contains the ground truth for each image, compatible with Hugging Face Datasets.
-
-## Conventions
-
--   **Metadata**: The `file_name` in `metadata.jsonl` is the relative path to the image.
--   **Fonts**: Ensure the provided font supports the characters of the target language.
+- `--seed`: Set a random seed for reproducible generation.
+- `--output-dir`: Change the local storage path for generated images (default: `./data`).

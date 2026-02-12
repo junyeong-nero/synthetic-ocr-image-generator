@@ -1,92 +1,108 @@
 # Synthetic OCR Image Generator & Benchmark
 
-![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+A comprehensive pipeline for generating synthetic OCR datasets and evaluating Vision Language Models (VLMs) on OCR tasks.
 
-A comprehensive toolkit for generating synthetic OCR datasets and evaluating Vision-Language Models (VLMs) on OCR tasks.
+## 🚀 Overview
 
-## 📚 Documentation
+This project provides a robust toolkit for:
+1.  **Synthetic Data Generation**: Create high-quality, diverse OCR images for various tasks (Sentences, Tables, Documents, Markdown, KIE).
+2.  **Multilingual Support**: Generate data in multiple languages using a wide array of fonts.
+3.  **VLM Evaluation**: Benchmark state-of-the-art OCR models and VLMs using standardized metrics and automated pipelines.
+4.  **Hugging Face Integration**: Seamlessly upload generated datasets and evaluate models directly from the Hub.
 
--   [**Overview**](docs/overview.md): High-level introduction.
--   [**Generation Guide**](docs/generation.md): How to create datasets.
--   [**Evaluation Guide**](docs/evaluation.md): How to run benchmarks.
--   [**Model Configs**](docs/model-configs.md): Configuring models and dependencies.
--   [**Metrics**](docs/metrics.md): Understanding the scores (CER, TEDS, etc.).
--   [**CLI Reference**](docs/cli.md): Command usage.
+## ✨ Key Features
 
-## 🚀 Quick Start
+- **Multiple Formats**:
+    - `sentence`: Individual text lines with realistic typos and character similarity-based augmentations.
+    - `table`: Complex tabular structures with varying rows and columns.
+    - `document`: Full-page document layouts.
+    - `markdown`: Content rendered from Markdown templates.
+    - `kie`: Key Information Extraction (e.g., forms, receipts).
+- **Extensive Model Support**: Integrated backends for OpenAI, Anthropic, Google Gemini, Hugging Face Transformers, PaddleOCR, and more.
+- **Realistic Augmentation**: Character similarity database-driven typo generation for more robust model training and evaluation.
+- **Automated Benchmarking**: Leaderboard generation and model comparison tools.
 
-### 1. Installation
+## 🛠 Installation
 
-This project uses `uv` for dependency management.
+We recommend using `uv` for fast dependency management.
 
 ```bash
-# Install uv if you haven't already
-pip install uv
+# Clone the repository
+git clone https://github.com/your-repo/synthetic-ocr-image-generator.git
+cd synthetic-ocr-image-generator
 
-# Sync dependencies
+# Install dependencies (base)
 uv sync
 
-# Create environment file for API models
-cp .env.sample .env
+# Install specific model groups as needed
+uv sync --group qwen2-vl
+uv sync --group gpt-4o
 ```
 
-### 2. Generate Data
+## 📖 Usage
 
-Generate a small Korean sentence dataset:
+### 1. Generate Synthetic Data
+
+Generate a dataset of 100 Korean sentences and upload to Hugging Face:
 
 ```bash
-uv run main.py generate \
-    --repo-id my-ocr-dataset \
-    --font-path fonts/ko/NanumGothic.ttf \
-    --lang ko \
-    --format sentence \
-    --size 50
+python main.py generate 
+    --repo-id "your-username/my-ocr-dataset" 
+    --font-path "fonts/ko/your-font.ttf" 
+    --lang "ko" 
+    --size 100 
+    --format "sentence"
 ```
 
-### 3. Evaluate Models
+### 2. Evaluate a Model
 
-You can evaluate models individually or in batches. The evaluation scripts automatically manage environment dependencies using `uv` groups.
-
-#### Batch Evaluation
-Use `run-all.sh` to run benchmarks across all configured models in `configs/models/`.
+Evaluate a model using a configuration file:
 
 ```bash
-# Test all models on a specific dataset and subset
-# Usage: ./scripts/evaluate/run-all.sh [DATASET] [SUBSET] [MAX_SAMPLES]
-./scripts/evaluate/run-all.sh junyeong-nero/synthetic-ocr-images-korean sentence 200
+python main.py evaluate 
+    --model-config configs/models/gpt-4o.yaml 
+    --dataset "your-username/my-ocr-dataset" 
+    --subset "sentence" 
+    --split "train"
 ```
 
-#### Single Model Evaluation
-To evaluate a specific model like **GLM-OCR** with automatic dependency handling:
+### 3. Compare Models
+
+Compare results from multiple evaluation runs:
 
 ```bash
-# Using the helper script (automatically syncs 'glm-ocr' uv group)
-./scripts/evaluate/run.sh --model-id glm-ocr \
-    --subset sentence
-
-# Or run directly via uv
-uv run --group evaluate --group glm-ocr main.py evaluate \
-    --model-config configs/models/glm-ocr.yaml \
-    --dataset junyeong-nero/synthetic-ocr-images-ko \
-    --subset sentence
+python main.py compare 
+    evaluation_results/model_a/report.json 
+    evaluation_results/model_b/report.json 
+    -o comparison_results
 ```
 
-By default, `scripts/evaluate/run.sh` uses dataset `junyeong-nero/synthetic-ocr-images-ko` if `--dataset` is omitted, and writes results to `evaluation_result/{model_id}/{subset}/` with `checkpoints.json`.
+## 📂 Project Structure
 
-To build latest per-subset leaderboards from saved results:
+- `src/`: Core logic for generation and evaluation.
+    - `generator/`: OCR image generation engines.
+    - `evaluation/`: Inference and scoring pipelines.
+    - `metrics/`: OCR-specific metric implementations (CER, WER, TEDS, etc.).
+- `configs/`: Model and task configurations.
+- `fonts/`: Multilingual font collections.
+- `scripts/`: Helper scripts for automation.
+- `docs/`: Detailed documentation.
 
-```bash
-./scripts/evaluate/update-leaderboard.sh
-```
+## 📜 Documentation
 
-## 🏗️ Project Structure
+For more detailed information, please refer to the [documentation](docs/overview.md):
 
--   `configs/models/`: Model YAML configurations.
--   `src/generator/`: Synthetic data generation logic.
--   `src/evaluation/`: Evaluation pipeline.
--   `scripts/`: Helper scripts for batch processing.
+- [Overview](docs/overview.md)
+- [Data Generation](docs/generation.md)
+- [Model Evaluation](docs/evaluation.md)
+- [Model Configurations](docs/model-configs.md)
+- [Metrics](docs/metrics.md)
+- [CLI Reference](docs/cli.md)
 
 ## 🤝 Contributing
 
-See `AGENTS.md` files in source directories for development conventions.
+Contributions are welcome! Please check our [AGENTS.md](AGENTS.md) for architectural insights and contribution guidelines.
+
+## 📄 License
+
+[Insert License Information]

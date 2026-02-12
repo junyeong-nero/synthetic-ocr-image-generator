@@ -1,53 +1,47 @@
-# Project Overview
+# Overview
 
-The **Synthetic OCR Image Generator and VLM Evaluation Pipeline** is a comprehensive Python toolkit designed to generate synthetic OCR datasets and evaluate Vision-Language Models (VLMs) on OCR tasks.
+The **Synthetic OCR Image Generator & Benchmark** is an end-to-end framework designed to bridge the gap between synthetic data generation and large-scale evaluation of OCR-capable models.
 
-## Key Features
+## System Architecture
 
--   **Synthetic Data Generation**: Create realistic OCR images in various formats including sentences, tables, documents, markdown, and KIE (Key Information Extraction) forms. Integrated with **Faker** for realistic names, addresses, and multi-language entity variety.
--   **Model Evaluation**: A robust pipeline to evaluate VLMs using different backends (local Transformers, OpenAI, Anthropic, Google, PaddleOCR).
--   **Dependency Isolation**: Uses `uv` dependency groups to manage conflicting requirements for different model backends.
--   **Configurable Benchmarks**: flexible YAML configurations for defining model prompts, parameters, and subsets.
--   **Detailed Reporting**: Generates JSON and Markdown reports, including leaderboards and protocol snapshots.
+The project is divided into two main subsystems:
 
-## Project Structure
+### 1. Generation Pipeline (`src/generator`)
+This subsystem handles the creation of synthetic OCR images. It uses various specialized generators to produce different types of content:
+- **Sentence Generator**: Uses Wikipedia corpora to generate realistic text lines. It utilizes a **Character Similarity DB** to introduce realistic typos (e.g., replacing '0' with 'O').
+- **Table Generator**: Creates complex tables with varying styles and content.
+- **Document/Markdown/KIE Generators**: Produce structured documents, markdown-rendered pages, and key-value pair layouts.
 
-```
-./
-├── configs/models/        # Model YAML configs (prompts, backends, dependency_group)
-├── src/                   # Core pipeline and packages
-│   ├── generator/         # Synthetic data generation logic (DataProvider, etc.)
-│   ├── evaluation/        # Evaluation pipeline and reporting
-│   ├── models/            # Model backends and registry
-│   └── metrics/           # Evaluation metrics (CER, WER, TEDS, etc.)
-├── scripts/               # CLI helpers and batch scripts
-│   ├── corpus/            # LLM-based corpus generation
-│   ├── dataset/           # Multi-language dataset automation
-│   ├── evaluate/          # Evaluation orchestration scripts
-│   └── models/            # Compatibility wrappers to evaluate scripts
-├── fonts/                 # Local font assets
-├── data/                  # Generated datasets and corpus files
-└── evaluation_result/     # Model/subset evaluation outputs and leaderboards
-```
+### 2. Evaluation Pipeline (`src/evaluation`)
+This subsystem evaluates the performance of models (VLMs or traditional OCR engines) on the generated datasets:
+- **Inference Backends**: Supports multiple backends including proprietary APIs (OpenAI, Anthropic, Gemini) and local models (Transformers, PaddleOCR).
+- **Metric Computation**: Calculates industry-standard metrics like **CER** (Character Error Rate), **WER** (Word Error Rate), **TEDS** (Tree Edit Distance for Tables), and **F1-score** for KIE.
+- **Reporting**: Generates comprehensive reports in JSON, Markdown, and HTML formats, including leaderboards and error analysis.
 
-## Core Components
+## Workflow
 
-### Generator
-The generator module produces synthetic images with ground truth annotations. It supports:
--   **Formats**: Sentences, Tables, Documents, Markdown, KIE.
--   **Customization**: Configurable fonts, typo ratios, layout templates, and noise effects.
+1.  **Corpus Collection**: Download and process text data for the target language.
+2.  **Asset Preparation**: Gather fonts and templates.
+3.  **Synthetic Generation**: Run the `generate` command to create images and metadata.
+4.  **Dataset Hosting**: Upload to Hugging Face Hub for versioning and accessibility.
+5.  **Model Configuration**: Define model parameters in YAML files.
+6.  **Benchmarking**: Run the `evaluate` command against the hosted datasets.
+7.  **Analysis**: Use the `compare` command to visualize differences between model versions or architectures.
 
-### Evaluator
-The evaluation module runs models against datasets and computes metrics. It features:
--   **Backends**: Support for API-based models (GPT-4o, Claude 3.5, Gemini) and local models (Qwen2-VL, DeepSeek-VL, etc.).
--   **Metrics**: Character Error Rate (CER), Word Error Rate (WER), Tree Edit Distance (TEDS) for tables, and F1 scores for KIE.
+## Supported Languages
 
-### Configuration
-Model configurations are defined in YAML files within `configs/models/`. These files control:
--   Inference parameters (temperature, max tokens).
--   Prompts for different tasks (subsets).
--   Dependency groups for environment isolation.
+The system is designed to be language-agnostic, provided that appropriate fonts and corpora are available. The current directory structure in `fonts/` indicates support for a wide range of languages including:
+- English (`en`)
+- Korean (`ko`)
+- Japanese (`ja`)
+- Chinese (`zh`)
+- Hindi (`hi`)
+- And many others...
 
-## Getting Started
+## Key Technologies
 
-Refer to the [CLI Reference](cli.md) for command usage, or explore the [Generation](generation.md) and [Evaluation](evaluation.md) guides.
+- **Python 3.11+**
+- **Pillow & OpenCV**: Image processing and rendering.
+- **Transformers & Accelerate**: Local model inference.
+- **Hugging Face Hub**: Dataset management.
+- **PyYAML**: Configuration management.

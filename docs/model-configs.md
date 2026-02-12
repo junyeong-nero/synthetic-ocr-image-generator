@@ -1,60 +1,62 @@
 # Model Configurations
 
-Model behavior in the evaluation pipeline is defined by YAML configuration files located in `configs/models/`. These files serve as the source of truth for prompts, inference parameters, and backend selection.
+Model configurations are defined in YAML files located in `configs/models/`. These files control how the evaluation pipeline interacts with different models.
 
-## Structure
+## Config Structure
 
-A typical model configuration looks like this:
+A typical configuration file (e.g., `configs/models/qwen2-vl-7b.yaml`) looks like this:
 
 ```yaml
-model_id: "my-model-v1"
-backend: "transformers"  # or "openai", "anthropic", "google", etc.
-dependency_group: "my-model-group" # Optional: for uv dependency isolation
+# Model identification
+model_id: "Qwen/Qwen2-VL-7B-Instruct"
+backend: "transformers"
 
-# Default inference parameters
-temperature: 0.1
+# Dependency group for 'uv'
+dependency_group: "qwen2-vl"
+
+# Model parameters
+temperature: 0.0
 max_tokens: 1024
+tensor_parallel_size: 1
 
-# Prompts by format
-prompts:
-  sentence: "Transcribe the text in this image exactly."
-  table: "Convert the table in this image to HTML."
+# Resource limits
+rate_limit_rpm: 60
+timeout: 300
+max_retries: 3
 
-# Per-subset overrides
+# Execution environment
+device: "cuda"
+dtype: "bfloat16"
+
+# Subset-specific overrides (optional)
 subsets:
-  korean_handwriting:
+  table:
+    max_tokens: 2048
     temperature: 0.2
-    prompt: "Transcribe this Korean handwriting."
+  document:
+    batch_size: 2
 ```
 
 ## Key Fields
 
-| Field | Description |
-| :--- | :--- |
-| `model_id` | Unique identifier for the model (passed to the backend). |
-| `backend` | The inference backend to use. Must match a registered backend. |
-| `dependency_group` | The `uv` dependency group required to run this model (see `pyproject.toml`). |
-| `prompts` | A dictionary mapping format types (e.g., `sentence`, `table`) to system or user prompts. |
-| `subsets` | specific configurations for dataset subsets, overriding defaults. |
+- `model_id`: The identifier used by the backend (e.g., Hugging Face ID or API model name).
+- `backend`: The inference engine to use (`openai`, `anthropic`, `google`, `transformers`, `paddleocr`).
+- `dependency_group`: The `uv` dependency group required for this model (as defined in `pyproject.toml`).
+- `temperature`: Sampling temperature for the model.
+- `max_tokens`: Maximum number of tokens to generate.
+- `subsets`: (Optional) Allows overriding parameters for specific dataset formats (e.g., higher `max_tokens` for tables).
 
 ## Creating a New Config
 
-1.  **Copy the Template**: Start by copying `configs/models/_template.yaml`.
-2.  **Define Backend**: Set the `backend` and `model_id`.
-3.  **Set Dependencies**: If the model requires specific libraries (e.g., a specific `transformers` version), add a group to `pyproject.toml` and reference it in `dependency_group`.
-4.  **Tune Prompts**: Adjust prompts for each target format.
+1.  Copy the `configs/models/_template.yaml` (if available) or an existing config.
+2.  Update the `model_id` and `backend`.
+3.  Add any necessary dependency groups to `pyproject.toml` if they don't exist.
+4.  Test the configuration using `python main.py evaluate` with a small number of samples (`--max-samples 5`).
 
-## Dependency Groups
+## Listing Available Configs
 
-This project uses `uv` dependency groups to manage conflicts. For example, `deepseek-ocr` might need a different environment than `qwen2-vl`.
+You can list all registered configurations using:
 
--   **In `pyproject.toml`**: Define the group.
-    ```toml
-    [dependency-groups]
-    deepseek-ocr = ["transformers==4.38.0", ...]
-    ```
--   **In YAML**: Reference it.
-    ```yaml
-    dependency_group: "deepseek-ocr"
-    ```
--   **Execution**: Use `scripts/evaluate/run.sh`, which parses the YAML and runs `uv run --group evaluate --group <dependency_group> ...`.
+```bash
+python main.py list-configs
+```

@@ -1,84 +1,70 @@
 # CLI Reference
 
-The main entry point is `main.py`.
+The project provides a unified CLI via `main.py`.
 
-## Global Usage
+## Global Options
+- `-h, --help`: Show help message and exit.
 
-```bash
-uv run main.py <command> [arguments]
-```
+---
 
-## Commands
-
-### `generate`
-Generates synthetic OCR datasets.
-
-| Argument | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `--repo-id` | str | **Required** | Hugging Face Hub repository ID. |
-| `--font-path` | str | **Required** | Path to font file. |
-| `--output-dir` | str | `./data` | Output directory. |
-| `--lang` | str | `ko` | Language code. |
-| `--format` | str | `sentence` | `sentence`, `table`, `document`, `markdown`, `kie`. |
-| `--size` | int | `100` | Number of images to generate. |
-| `--typo-ratio` | float | `0.15` | Ratio of words with typos. |
-| `--seed` | int | `None` | Random seed for reproducibility. |
-| `--mixed` | flag | `False` | Generate mixed format dataset. |
-
-### `evaluate`
-Evaluates a model on a dataset.
-
-| Argument | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `--model-config` | str | **Required** | Path to model YAML config. |
-| `--dataset` | str | **Required** | Dataset ID or path. |
-| `--subset` | str | `None` | Format/subset to evaluate. |
-| `--batch-api` | flag | `False` | Use Batch API where available. |
-| `--output-dir` | str | `./evaluation_results` | Results directory. |
-
-Note: helper scripts under `scripts/evaluate/` default to `evaluation_result/{model_id}/{subset}/` and inject dataset defaults when omitted.
-
-### `compare`
-Compares multiple evaluation reports.
+## `generate`
+Generate synthetic OCR datasets.
 
 ```bash
-uv run main.py compare report1.json report2.json -o comparison
+python main.py generate [OPTIONS]
 ```
 
-### `list-configs`
-Lists available model configurations and their statuses.
+### Options
+- `--repo-id`: (Required) HF Hub repository ID.
+- `--font-path`: (Required) Path to a font file.
+- `--lang`: Language code (default: `ko`).
+- `--size`: Number of images to generate (default: `100`).
+- `--format`: Format type (`sentence`, `table`, `document`, `markdown`, `kie`) (default: `sentence`).
+- `--mixed`: Generate a mixed-format dataset.
+- `--typo-ratio`: Ratio of words with typos (default: `0.15`).
+- `--corpus-size`: Number of sentences for corpus (default: `10000`).
+- `--table-size`: Table dimensions `min-max` (default: `3-8`).
+- `--seed`: Random seed.
+- `--output-dir`: Base directory for data (default: `./data`).
+
+---
+
+## `evaluate`
+Run model evaluation.
 
 ```bash
-uv run main.py list-configs
+python main.py evaluate [OPTIONS]
 ```
 
-### `list-backends`
-Lists registered inference backends.
+### Options
+- `--model-config`: (Required) Path to model config YAML.
+- `-d, --dataset`: (Required) HF dataset ID or local path.
+- `-s, --subset`: Subsets to evaluate (comma-separated).
+- `-b, --backend`: Override inference backend.
+- `--split`: Dataset split (default: `train`).
+- `--max-samples`: Limit evaluation samples.
+- `--batch-api`: Use OpenAI Batch API.
+- `--output-dir`: Results directory (default: `./evaluation_results`).
+- `--report-format`: Output format (`json`, `markdown`, `html`, `all`) (default: `all`).
+
+---
+
+## `compare`
+Compare multiple evaluation reports.
 
 ```bash
-uv run main.py list-backends
+python main.py compare [REPORT_FILES...] [OPTIONS]
 ```
 
-## Helper Scripts
+### Options
+- `-o, --output`: Output file prefix (default: `comparison`).
 
-The `scripts/` directory contains several helper scripts for automation:
+---
 
-### Corpus Generation
-Generate large-scale text corpus using LLMs for highly varied synthetic data.
+## `list-backends`
+List all available inference backends.
 
-```bash
-uv run python scripts/corpus/generate.py --lang ko --count 1000
-```
+---
 
-### Dataset Management
-- `scripts/dataset/generate.sh`: Automated generation for specific languages.
-- `scripts/dataset/evaluate.sh`: Evaluate models on generated datasets.
-
-### Model Benchmarking
-- `scripts/evaluate/run.sh`: Run one model (accepts config name or `--model-id`).
-- `scripts/evaluate/run-all.sh`: Run all configs in `configs/models/` (excluding `_*.yaml`).
-- `scripts/evaluate/update-leaderboard.sh`: Build latest per-subset leaderboards from `evaluation_result/`.
-
-Compatibility wrappers remain available:
-- `scripts/models/run.sh` -> forwards to `scripts/evaluate/run.sh`
-- `scripts/models/test_all.sh` -> forwards to `scripts/evaluate/run-all.sh`
+## `list-configs`
+List all available model configurations in `configs/models/`.
