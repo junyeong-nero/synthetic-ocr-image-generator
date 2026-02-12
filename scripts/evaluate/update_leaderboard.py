@@ -77,7 +77,7 @@ def _pick_metric(subset: str, rows: list[dict[str, Any]]) -> str | None:
 def _collect_latest_rows(base_dir: Path) -> list[dict[str, Any]]:
     latest: dict[tuple[str, str], dict[str, Any]] = {}
 
-    for report_path in sorted(base_dir.glob("*/*/report.json")):
+    for report_path in sorted(base_dir.glob("*/**/report.json")):
         report = _load_json(report_path)
         config = report.get("config", {}) if isinstance(report.get("config"), dict) else {}
         summary = report.get("summary", {}) if isinstance(report.get("summary"), dict) else {}
