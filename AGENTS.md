@@ -54,7 +54,7 @@ uv sync
 uv sync --extra eval
 uv run main.py generate --help
 uv run main.py evaluate --help
-./scripts/models/run.sh <config_name> [args]
+./scripts/models/run.sh <config_name_or_model_id> [DATASET] [SUBSET] [MAX_SAMPLES] [args]
 ./scripts/models/test_all.sh [DATASET] [SUBSET] [MAX_SAMPLES]
 ```
 

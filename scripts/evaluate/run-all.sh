@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 CONFIG_DIR="$PROJECT_DIR/configs/models"
-RUN_SCRIPT="$SCRIPT_DIR/run.sh"
+RUN_SCRIPT="$PROJECT_DIR/scripts/models/run.sh"
 
 DEFAULT_DATASET="junyeong-nero/synthetic-ocr-images-ko"
 DEFAULT_MAX_SAMPLES=200
