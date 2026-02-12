@@ -26,6 +26,9 @@ pip install uv
 
 # Sync dependencies
 uv sync
+
+# Create environment file for API models
+cp .env.sample .env
 ```
 
 ### 2. Generate Data

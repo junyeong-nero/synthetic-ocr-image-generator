@@ -18,21 +18,29 @@ class HunYuanOCR(BaseTransformersOCR):
     def _load_model(self, model_id: str) -> None:
         if torch.cuda.is_available():
             self.device = "cuda"
-            torch_dtype = torch.float16
+            model_dtype = torch.bfloat16
         elif torch.backends.mps.is_available():
             self.device = "mps"
-            torch_dtype = torch.float16
+            model_dtype = torch.float16
         else:
             self.device = "cpu"
-            torch_dtype = torch.float32
+            model_dtype = torch.float32
 
         self.processor = AutoProcessor.from_pretrained(model_id, use_fast=False)
-        self.model = HunYuanVLForConditionalGeneration.from_pretrained(
-            model_id,
-            attn_implementation="eager",
-            torch_dtype=torch_dtype,
-            device_map={"": self.device},
-        ).eval()
+        try:
+            self.model = HunYuanVLForConditionalGeneration.from_pretrained(
+                model_id,
+                attn_implementation="eager",
+                dtype=model_dtype,
+                device_map="auto",
+            ).eval()
+        except TypeError:
+            self.model = HunYuanVLForConditionalGeneration.from_pretrained(
+                model_id,
+                attn_implementation="eager",
+                torch_dtype=model_dtype,
+                device_map="auto",
+            ).eval()
 
     @staticmethod
     def _clean_repeated_substrings(text: str) -> str:
@@ -72,6 +80,10 @@ class HunYuanOCR(BaseTransformersOCR):
         for prompt, image in zip(prompts, images):
             messages = [
                 {
+                    "role": "system",
+                    "content": "",
+                },
+                {
                     "role": "user",
                     "content": [
                         {"type": "image", "image": image},
@@ -87,12 +99,10 @@ class HunYuanOCR(BaseTransformersOCR):
             inputs = self.processor(
                 text=[text], images=[image], padding=True, return_tensors="pt"
             )
-            inputs = inputs.to(self.model.device)
-            model_dtype = next(self.model.parameters()).dtype
-            if "pixel_values" in inputs:
-                inputs["pixel_values"] = inputs["pixel_values"].to(model_dtype)
+            device = next(self.model.parameters()).device
+            inputs = inputs.to(device)
 
-            with torch.inference_mode():
+            with torch.no_grad():
                 generated_ids = self.model.generate(
                     **inputs, max_new_tokens=max_tokens, do_sample=False
                 )

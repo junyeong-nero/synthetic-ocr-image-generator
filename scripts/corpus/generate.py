@@ -32,6 +32,9 @@ from typing import Any, Dict, List, Optional
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+from env_utils import load_env_file
+
+load_env_file()
 
 logging.basicConfig(
     level=logging.INFO,

@@ -3,6 +3,7 @@ import platform
 import random
 import sys
 from importlib import metadata as importlib_metadata
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 
@@ -29,6 +30,38 @@ def set_global_seed(seed: Optional[int]) -> None:
     except Exception:
         pass
 
+
+def load_env_file(env_file: str = ".env", override: bool = False) -> None:
+    env_path = Path(env_file)
+    if not env_path.is_absolute():
+        env_path = Path(__file__).resolve().parent.parent / env_file
+
+    if not env_path.exists() or not env_path.is_file():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].strip()
+
+        if "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+
+        if not key:
+            continue
+        if key in os.environ and not override:
+            continue
+
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+
+        os.environ[key] = value
 
 def _get_package_version(name: str) -> Optional[str]:
     try:

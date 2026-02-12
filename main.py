@@ -11,7 +11,9 @@ from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
 sys.path.insert(0, "src")
-from env_utils import set_global_seed
+from env_utils import load_env_file, set_global_seed
+
+load_env_file()
 
 if TYPE_CHECKING:
     from evaluation.model_config import ModelSpecificConfig
