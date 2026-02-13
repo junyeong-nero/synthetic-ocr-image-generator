@@ -32,37 +32,15 @@ max_retries: 3
 # These will be used unless a subset-specific prompt is defined
 prompts:
     sentence:
-        prompt: |
-            Extract all text from the image verbatim.
-            Include any typos or errors exactly as they appear.
-            Do not translate or modify any characters.
-            Return only the extracted text.
-
+        prompt: "Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations."
     table:
-        prompt: |
-            Extract the table from this image as HTML format.
-            Use proper <table>, <thead>, <tbody>, <tr>, <th>, <td> tags.
-            Return only one HTML <table>...</table> block.
-            Do not include markdown fences, explanations, or extra text.
-
+        prompt: "Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations."
     document:
-        prompt: |
-            Extract all text elements from this document.
-            Return valid JSON only (no markdown fences).
-            JSON schema: {"elements": [{"type": "...", "text": "...", "bounding_box": [x1,y1,x2,y2], "reading_order": N, "metadata": {}}]}
-
+        prompt: "Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations."
     markdown:
-        prompt: |
-            Extract the markdown content from this image.
-            Return the raw markdown text exactly as shown.
-
+        prompt: "Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations."
     kie:
-        prompt: |
-            Extract key information from this document.
-            Return valid JSON only (no markdown fences).
-            Always include "entities" key even if empty.
-            JSON schema: {"entities": {"field": "value"}, "line_items": [{"name": "...", "quantity": "...", "unit_price": "...", "total_price": "..."}]}
-
+        prompt: "Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations."
 # Subset-specific overrides
 # Use this to customize behavior for specific dataset subsets
 subsets:
@@ -72,10 +50,7 @@ subsets:
         temperature: 0.1
         prompts:
             sentence:
-                prompt: |
-                    이 이미지에서 모든 텍스트를 추출하세요.
-                    오타나 오류를 포함하여 정확히 그대로 출력하세요.
-
+                prompt: "Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations."
     # Example: Another subset with different settings
     # chinese:
     #   batch_size: 2

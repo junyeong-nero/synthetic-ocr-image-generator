@@ -20,23 +20,12 @@ tensor_parallel_size: 1
 # GLM-OCR uses prompt prefixes such as "Text Recognition:" and "Table Recognition:"
 prompts:
     sentence:
-        prompt: |
-            Text Recognition:
-
+        prompt: "Text Recognition: Convert the document to markdown and preserve layout, tables, and formulas."
     table:
-        prompt: |
-            Table Recognition:
-
+        prompt: "Text Recognition: Convert the document to markdown and preserve layout, tables, and formulas."
     document:
-        prompt: |
-            Text Recognition:
-
+        prompt: "Text Recognition: Convert the document to markdown and preserve layout, tables, and formulas."
     markdown:
-        prompt: |
-            Text Recognition:
-
+        prompt: "Text Recognition: Convert the document to markdown and preserve layout, tables, and formulas."
     kie:
-        prompt: |
-            Information Extraction:
-            Please extract key information and return JSON:
-            {"entities": {"field": "value"}, "line_items": [...]}
+        prompt: "Text Recognition: Convert the document to markdown and preserve layout, tables, and formulas."

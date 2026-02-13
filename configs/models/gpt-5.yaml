@@ -10,56 +10,15 @@ max_tokens: 1024
 # Default prompts for each format type
 prompts:
     sentence:
-        prompt: |
-            OCR task.
-            Extract all visible text verbatim, preserving typos, spacing, punctuation, and Korean characters exactly.
-            Output plain text only.
-            Do not add explanations, quotes, markdown, labels, or prefixes.
-            Do not return empty output unless the image truly contains no readable text.
-
+        prompt: "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary."
     table:
-        prompt: |
-            OCR table extraction task.
-            Return exactly one HTML table using <table>, <tr>, <th>, <td>.
-            Preserve row/column structure, merged cells (rowspan/colspan), and cell text verbatim.
-            Do not include markdown fences, explanations, or any extra text.
-
+        prompt: "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary."
     document:
-        prompt: |
-            OCR document parsing task.
-            Return valid JSON only with this exact top-level schema:
-            {"elements": [{"type": "...", "text": "...", "bounding_box": [x1, y1, x2, y2], "reading_order": N, "metadata": {}}]}
-            Rules:
-            - Include all readable text blocks in reading order.
-            - Use integer pixel coordinates in original image space.
-            - bounding_box format must be [x1, y1, x2, y2] with x1 < x2 and y1 < y2.
-            - type should be one of: title, paragraph, table, header, footer, list, formula, caption, key_value.
-            - metadata must be an object (use {} if none).
-            - Return JSON only (no markdown fences, comments, or prose).
-
+        prompt: "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary."
     markdown:
-        prompt: |
-            OCR to Markdown task.
-            Convert the image content to clean markdown while preserving structure (headings, lists, tables, links, emphasis, code).
-            Keep original language and wording exactly.
-            Output markdown only, with no explanations.
-            Do not return empty output unless the image has no readable content.
-
+        prompt: "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary."
     kie:
-        prompt: |
-            Key information extraction task.
-            Return valid JSON only with this schema:
-            {
-              "entities": {"field": "value"},
-              "line_items": [{"name": "...", "quantity": "...", "unit_price": "...", "total_price": "..."}]
-            }
-            Rules:
-            - Always include both keys: entities and line_items.
-            - If line items are absent, return an empty array.
-            - Extract common receipt/invoice fields when present (company, address, date, time, receipt_number, subtotal, tax, total, payment_method).
-            - Preserve text verbatim, including currency symbols and separators.
-            - Return JSON only (no markdown fences or commentary).
-
+        prompt: "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary."
 subsets:
     document:
         max_tokens: 4096

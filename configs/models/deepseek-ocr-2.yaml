@@ -28,23 +28,23 @@ tensor_parallel_size: 1
 prompts:
     sentence:
         # Simple text extraction without layout information
-        prompt: "<image>\nFree OCR."
+        prompt: "Convert the document to markdown."
 
     table:
         # OCR with grounding for structured content
-        prompt: "<image>\n<|grounding|>OCR this image."
+        prompt: "Convert the document to markdown."
 
     document:
         # Document to markdown conversion with grounding
-        prompt: "<image>\n<|grounding|>Convert the document to markdown."
+        prompt: "Convert the document to markdown."
 
     markdown:
         # Document to markdown conversion with grounding
-        prompt: "<image>\n<|grounding|>Convert the document to markdown."
+        prompt: "Convert the document to markdown."
 
     kie:
         # OCR with grounding for key information extraction
-        prompt: "<image>\n<|grounding|>OCR this image."
+        prompt: "Convert the document to markdown."
 
 # Subset-specific overrides
 subsets:
@@ -52,24 +52,24 @@ subsets:
     figure:
         prompts:
             document:
-                prompt: "<image>\nParse the figure."
+                prompt: "Convert the document to markdown."
 
     # For image description tasks
     description:
         prompts:
             sentence:
-                prompt: "<image>\nDescribe this image in detail."
+                prompt: "Convert the document to markdown."
 
     # For simple OCR without layout
     simple:
         prompts:
             sentence:
-                prompt: "<image>\nFree OCR."
+                prompt: "Convert the document to markdown."
             table:
-                prompt: "<image>\nFree OCR."
+                prompt: "Convert the document to markdown."
             document:
-                prompt: "<image>\nFree OCR."
+                prompt: "Convert the document to markdown."
             markdown:
-                prompt: "<image>\nFree OCR."
+                prompt: "Convert the document to markdown."
             kie:
-                prompt: "<image>\nFree OCR."
+                prompt: "Convert the document to markdown."

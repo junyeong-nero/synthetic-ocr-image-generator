@@ -21,31 +21,12 @@ tensor_parallel_size: 1
 # LightOnOCR uses chat template format - prompts are minimal since model is OCR-specialized
 prompts:
     sentence:
-        prompt: |
-            Extract all text from this image exactly as shown.
-
+        prompt: "Extract all text from this page in natural reading order and output markdown only."
     table:
-        prompt: |
-            Extract the table from this image and format it as HTML.
-            Use <table>, <tr>, <th>, <td> tags.
-
+        prompt: "Extract all text from this page in natural reading order and output markdown only."
     document:
-        prompt: |
-            Extract all text elements from this document as a single JSON object.
-            Return valid JSON only. Do not use markdown fences, explanations, or extra wrapper keys.
-            Required schema:
-            {"elements": [{"type": "...", "text": "...", "bounding_box": [x1, y1, x2, y2], "reading_order": N, "metadata": {}}]}
-            Bounding box rules:
-            - Use absolute pixel coordinates in the original image coordinate space.
-            - Use [x1, y1, x2, y2] where x1 < x2 and y1 < y2.
-            - Each box should cover the full visual region of the element (line/block), not a narrow character strip.
-            - reading_order must be sequential integers starting at 0.
-
+        prompt: "Extract all text from this page in natural reading order and output markdown only."
     markdown:
-        prompt: |
-            Extract the content from this image as markdown format.
-
+        prompt: "Extract all text from this page in natural reading order and output markdown only."
     kie:
-        prompt: |
-            Extract key information from this document.
-            Return as JSON: {"entities": {"field": "value"}}
+        prompt: "Extract all text from this page in natural reading order and output markdown only."

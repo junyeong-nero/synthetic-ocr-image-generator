@@ -15,51 +15,12 @@ tensor_parallel_size: 1
 
 prompts:
     sentence:
-        prompt: |
-            Extract the text from the above document as if you were reading it naturally.
-            Return the tables in html format.
-            Return the equations in LaTeX representation.
-            If there is an image in the document and image caption is not present, add a small description of the image inside the <img></img> tag; otherwise, add the image caption inside <img></img>.
-            Watermarks should be wrapped in brackets. Ex: <watermark>OFFICIAL COPY</watermark>.
-            Page numbers should be wrapped in brackets. Ex: <page_number>14</page_number> or <page_number>9/22</page_number>.
-            Prefer using ☐ and ☑ for check boxes.
-
+        prompt: "Extract the text from the above document as if you were reading it naturally. Return tables in HTML and equations in LaTeX. Output markdown-oriented content only."
     table:
-        prompt: |
-            Extract the text from the above document as if you were reading it naturally.
-            Return the tables in html format.
-            Return the equations in LaTeX representation.
-            If there is an image in the document and image caption is not present, add a small description of the image inside the <img></img> tag; otherwise, add the image caption inside <img></img>.
-            Watermarks should be wrapped in brackets. Ex: <watermark>OFFICIAL COPY</watermark>.
-            Page numbers should be wrapped in brackets. Ex: <page_number>14</page_number> or <page_number>9/22</page_number>.
-            Prefer using ☐ and ☑ for check boxes.
-
+        prompt: "Extract the text from the above document as if you were reading it naturally. Return tables in HTML and equations in LaTeX. Output markdown-oriented content only."
     document:
-        prompt: |
-            Extract the text from the above document as if you were reading it naturally.
-            Return the tables in html format.
-            Return the equations in LaTeX representation.
-            If there is an image in the document and image caption is not present, add a small description of the image inside the <img></img> tag; otherwise, add the image caption inside <img></img>.
-            Watermarks should be wrapped in brackets. Ex: <watermark>OFFICIAL COPY</watermark>.
-            Page numbers should be wrapped in brackets. Ex: <page_number>14</page_number> or <page_number>9/22</page_number>.
-            Prefer using ☐ and ☑ for check boxes.
-
+        prompt: "Extract the text from the above document as if you were reading it naturally. Return tables in HTML and equations in LaTeX. Output markdown-oriented content only."
     markdown:
-        prompt: |
-            Extract the text from the above document as if you were reading it naturally.
-            Return the tables in html format.
-            Return the equations in LaTeX representation.
-            If there is an image in the document and image caption is not present, add a small description of the image inside the <img></img> tag; otherwise, add the image caption inside <img></img>.
-            Watermarks should be wrapped in brackets. Ex: <watermark>OFFICIAL COPY</watermark>.
-            Page numbers should be wrapped in brackets. Ex: <page_number>14</page_number> or <page_number>9/22</page_number>.
-            Prefer using ☐ and ☑ for check boxes.
-
+        prompt: "Extract the text from the above document as if you were reading it naturally. Return tables in HTML and equations in LaTeX. Output markdown-oriented content only."
     kie:
-        prompt: |
-            Extract the text from the above document as if you were reading it naturally.
-            Return the tables in html format.
-            Return the equations in LaTeX representation.
-            If there is an image in the document and image caption is not present, add a small description of the image inside the <img></img> tag; otherwise, add the image caption inside <img></img>.
-            Watermarks should be wrapped in brackets. Ex: <watermark>OFFICIAL COPY</watermark>.
-            Page numbers should be wrapped in brackets. Ex: <page_number>14</page_number> or <page_number>9/22</page_number>.
-            Prefer using ☐ and ☑ for check boxes.
+        prompt: "Extract the text from the above document as if you were reading it naturally. Return tables in HTML and equations in LaTeX. Output markdown-oriented content only."

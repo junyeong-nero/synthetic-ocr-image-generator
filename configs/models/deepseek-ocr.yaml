@@ -20,10 +20,10 @@ tensor_parallel_size: 1
 # DeepSeek-OCR uses <image>\n{prompt} format internally
 prompts:
     sentence:
-        prompt: "OCR this image."
+        prompt: "Convert the document to markdown."
 
     table:
-        prompt: "OCR this image."
+        prompt: "Convert the document to markdown."
 
     document:
         prompt: "Convert the document to markdown."
@@ -32,4 +32,4 @@ prompts:
         prompt: "Convert the document to markdown."
 
     kie:
-        prompt: "OCR this image."
+        prompt: "Convert the document to markdown."

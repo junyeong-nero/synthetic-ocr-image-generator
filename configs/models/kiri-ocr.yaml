@@ -15,32 +15,12 @@ tensor_parallel_size: 1
 
 prompts:
     sentence:
-        prompt: |
-            Extract all text from the image verbatim.
-            Include typos exactly as shown. Do not translate.
-
+        prompt: "ignored"
     table:
-        prompt: |
-            Extract the table from this image as HTML format.
-            Use <table>, <tr>, <th>, <td> tags properly.
-
+        prompt: "ignored"
     document:
-        prompt: |
-            Extract all text elements from this document as a single JSON object.
-            Return valid JSON only. Do not use markdown fences, explanations, or extra wrapper keys.
-            Required schema:
-            {"elements": [{"type": "...", "text": "...", "bounding_box": [x1, y1, x2, y2], "reading_order": N, "metadata": {}}]}
-            Bounding box rules:
-            - Use absolute pixel coordinates in the original image coordinate space.
-            - Use [x1, y1, x2, y2] where x1 < x2 and y1 < y2.
-            - Each box should cover the full visual region of the element (line/block), not a narrow character strip.
-            - reading_order must be sequential integers starting at 0.
-
+        prompt: "ignored"
     markdown:
-        prompt: |
-            Extract markdown content from this image exactly as shown.
-
+        prompt: "ignored"
     kie:
-        prompt: |
-            Extract key information as JSON.
-            Format: {"entities": {"field": "value"}, "line_items": [...]}
+        prompt: "ignored"

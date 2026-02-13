@@ -22,16 +22,16 @@ tensor_parallel_size: 1
 # These prompts are passed but may be ignored by the model
 prompts:
     sentence:
-        prompt: "OCR"
+        prompt: "OCR with format: "
 
     table:
-        prompt: "OCR"
+        prompt: "OCR with format: "
 
     document:
-        prompt: "OCR"
+        prompt: "OCR with format: "
 
     markdown:
-        prompt: "OCR"
+        prompt: "OCR with format: "
 
     kie:
-        prompt: "OCR"
+        prompt: "OCR with format: "

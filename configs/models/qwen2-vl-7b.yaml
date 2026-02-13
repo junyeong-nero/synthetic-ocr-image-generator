@@ -19,49 +19,18 @@ tensor_parallel_size: 1
 # Default prompts for each format type
 prompts:
     sentence:
-        prompt: |
-            <image>
-            Read and extract all the text visible in this image.
-            Output only the text, preserving any typos or errors exactly as shown.
-
+        prompt: "Convert the image content to markdown while preserving headings, lists, tables, and formulas. Output markdown only."
     table:
-        prompt: |
-            <image>
-            Extract the table from this image.
-            Format the output as an HTML table with proper tags.
-            Output only the HTML table.
-
+        prompt: "Convert the image content to markdown while preserving headings, lists, tables, and formulas. Output markdown only."
     document:
-        prompt: |
-            <image>
-            Extract all text elements from this document as a single JSON object.
-            Return valid JSON only. Do not use markdown fences, explanations, or extra wrapper keys.
-            Required schema:
-            {"elements": [{"type": "...", "text": "...", "bounding_box": [x1, y1, x2, y2], "reading_order": N, "metadata": {}}]}
-            Bounding box rules:
-            - Use absolute pixel coordinates in the original image coordinate space.
-            - Use [x1, y1, x2, y2] where x1 < x2 and y1 < y2.
-            - Each box should cover the full visual region of the element (line/block), not a narrow character strip.
-            - reading_order must be sequential integers starting at 0.
-
+        prompt: "Convert the image content to markdown while preserving headings, lists, tables, and formulas. Output markdown only."
     markdown:
-        prompt: |
-            <image>
-            Extract the markdown content from this image.
-            Output the raw markdown text exactly as shown.
-
+        prompt: "Convert the image content to markdown while preserving headings, lists, tables, and formulas. Output markdown only."
     kie:
-        prompt: |
-            <image>
-            Extract key-value information from this document.
-            Output as JSON: {"entities": {"field": "value"}, "line_items": [...]}
-
+        prompt: "Convert the image content to markdown while preserving headings, lists, tables, and formulas. Output markdown only."
 # Subset-specific overrides
 subsets:
     korean:
         prompts:
             sentence:
-                prompt: |
-                    <image>
-                    이 이미지에서 모든 한국어 텍스트를 추출하세요.
-                    오타나 오류를 포함하여 정확히 그대로 출력하세요.
+                prompt: "Convert the image content to markdown while preserving headings, lists, tables, and formulas. Output markdown only."
