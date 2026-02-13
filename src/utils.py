@@ -62,8 +62,15 @@ def save_txt(file_path, text):
         logger.error(f"An error occurred while saving the file: {e}")
 
 
-def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
-    logger.info(f"\n▶ Starting upload of subset '{config_name}' to '{repo_id}'...")
+def upload_subset_to_hub(
+    repo_id: str,
+    subset_dir: Path,
+    config_name: str,
+    split: str = "train",
+):
+    logger.info(
+        f"\n▶ Starting upload of subset '{config_name}' split '{split}' to '{repo_id}'..."
+    )
 
     try:
         try:
@@ -89,11 +96,13 @@ def upload_subset_to_hub(repo_id: str, subset_dir: Path, config_name: str):
             logger.warning("No valid data to process. Aborting upload.")
             return
 
-        logger.info(f"  '{config_name}' subset: Found {len(all_data):,} valid data entries.")
+        logger.info(
+            f"  '{config_name}' subset ({split}): Found {len(all_data):,} valid data entries."
+        )
 
         df = pd.DataFrame(all_data)
         dataset = Dataset.from_pandas(df, features=features)
-        dataset.push_to_hub(repo_id, config_name=config_name)
+        dataset.push_to_hub(repo_id, config_name=config_name, split=split)
 
         logger.info(f"✔ Subset '{config_name}' uploaded successfully!")
 

@@ -10,7 +10,8 @@ usage() {
     echo "  --typo-ratio <ratio>  Typo ratio for sentence format (default: 0.15)"
     echo "  --similarity-threshold <t>  SSIM threshold for similar chars (default: 0.6)"
     echo "  --similarity-top-k <k>      Max similar chars per char (default: 8)"
-    echo "  --formats <list>      Comma-separated formats (default: sentence,table,document,markdown,kie)"
+    echo "  --formats <list>      Comma-separated formats (default: table,document,markdown,kie)"
+    echo "  --mixed               Generate one mixed dataset upload (train/test splits)"
     echo "  --label <label>       Display label for logs (optional)"
     echo "  --repo-id <repo>      Hugging Face dataset repo id (required)"
     echo "  --font-path <path>    Font path (required)"
@@ -25,8 +26,9 @@ SIZE=1000
 TYPO_RATIO=0.15
 SIMILARITY_THRESHOLD=0.6
 SIMILARITY_TOP_K=8
-FORMATS="sentence,table,document,markdown,kie"
+FORMATS="table,document,markdown,kie"
 LABEL=""
+MIXED=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -66,6 +68,10 @@ while [[ $# -gt 0 ]]; do
             LABEL="$2"
             shift 2
             ;;
+        --mixed)
+            MIXED=true
+            shift
+            ;;
         -h|--help)
             usage
             ;;
@@ -91,28 +97,40 @@ echo "=========================================="
 echo "Generating OCR images: $LABEL"
 echo "=========================================="
 
+if [[ "$MIXED" == true ]]; then
+    echo ""
+    echo "[1/1] Generating mixed dataset (train/test splits)..."
+    uv run --group generate main.py generate \
+        --repo-id "$REPO_ID" \
+        --font-path "$FONT_PATH" \
+        --size "$SIZE" \
+        --lang "$LANG" \
+        --mixed
+
+    echo ""
+    echo "=========================================="
+    echo "Dataset generated!"
+    echo "Dataset: https://huggingface.co/datasets/$REPO_ID"
+    echo "=========================================="
+    exit 0
+fi
+
 INDEX=1
 for format in "${FORMATS_LIST[@]}"; do
     echo ""
     echo "[$INDEX/$TOTAL] Generating ${format} format..."
     if [[ "$format" == "sentence" ]]; then
-        uv run --group generate main.py generate \
-            --repo-id "$REPO_ID" \
-            --font-path "$FONT_PATH" \
-            --format "$format" \
-            --size "$SIZE" \
-            --lang "$LANG" \
-            --typo-ratio "$TYPO_RATIO" \
-            --similarity-threshold "$SIMILARITY_THRESHOLD" \
-            --similarity-top-k "$SIMILARITY_TOP_K"
-    else
-        uv run --group generate main.py generate \
-            --repo-id "$REPO_ID" \
-            --font-path "$FONT_PATH" \
-            --format "$format" \
-            --size "$SIZE" \
-            --lang "$LANG"
+        echo "sentence format is disabled. skipping."
+        INDEX=$((INDEX + 1))
+        continue
     fi
+
+    uv run --group generate main.py generate \
+        --repo-id "$REPO_ID" \
+        --font-path "$FONT_PATH" \
+        --format "$format" \
+        --size "$SIZE" \
+        --lang "$LANG"
     INDEX=$((INDEX + 1))
 done
 

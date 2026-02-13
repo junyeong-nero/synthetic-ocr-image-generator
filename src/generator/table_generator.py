@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 from tqdm import tqdm
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 from generator.base import BaseGenerator
 from generator.data_provider import DataProvider
@@ -44,6 +44,12 @@ class TableStyle:
     text_color: Tuple[int, int, int] = (0, 0, 0)
     header_text_color: Tuple[int, int, int] = (0, 0, 0)
     alignment: CellAlignment = CellAlignment.CENTER
+    page_color: Tuple[int, int, int] = (247, 244, 236)
+    page_margin: int = 40
+    title_font_scale: float = 1.15
+    add_page_noise: bool = True
+    add_scan_blur: bool = True
+    add_scan_lines: bool = True
 
 
 @dataclass
@@ -51,6 +57,7 @@ class Table:
     cells: List[List[TableCell]]
     style: TableStyle = field(default_factory=TableStyle)
     cell_bounding_boxes: List[List[Tuple[int, int, int, int]]] = field(default_factory=list)
+    title: str = ""
 
     @property
     def num_rows(self) -> int:
@@ -132,18 +139,90 @@ class TableRenderer:
     def render(self, table: Table) -> Image.Image:
         col_widths, row_heights = self._calculate_dimensions(table)
 
-        total_width = sum(col_widths) + table.style.border_width
-        total_height = sum(row_heights) + table.style.border_width
+        table_width = sum(col_widths) + table.style.border_width
+        table_height = sum(row_heights) + table.style.border_width
 
-        img = Image.new("RGB", (total_width, total_height), table.style.cell_bg_color)
-        draw = ImageDraw.Draw(img)
+        table_img = Image.new("RGB", (table_width, table_height), table.style.cell_bg_color)
+        table_draw = ImageDraw.Draw(table_img)
 
-        self._draw_cells(draw, table, col_widths, row_heights)
+        self._draw_cells(table_draw, table, col_widths, row_heights)
 
         if table.style.border_style == BorderStyle.SOLID:
-            self._draw_borders(draw, table, col_widths, row_heights)
+            self._draw_borders(table_draw, table, col_widths, row_heights)
+
+        title_height = 0
+        title_font = self.font
+        if table.title:
+            title_font_size = max(12, int(self.font_size * table.style.title_font_scale))
+            try:
+                title_font = ImageFont.truetype(self.font.path, title_font_size)
+            except (IOError, AttributeError):
+                title_font = self.font
+            title_height = title_font_size + 12
+
+        page_margin = table.style.page_margin
+        page_width = table_width + page_margin * 2
+        page_height = table_height + page_margin * 2 + title_height
+
+        img = Image.new("RGB", (page_width, page_height), table.style.page_color)
+        draw = ImageDraw.Draw(img)
+
+        if table.style.add_page_noise:
+            self._draw_page_noise(draw, page_width, page_height)
+
+        table_x = page_margin
+        table_y = page_margin + title_height
+
+        if table.title:
+            draw.text(
+                (page_margin, page_margin // 2),
+                table.title,
+                font=title_font,
+                fill=(55, 55, 55),
+            )
+
+        shadow = Image.new("RGBA", (table_width + 4, table_height + 4), (0, 0, 0, 0))
+        shadow_draw = ImageDraw.Draw(shadow)
+        shadow_draw.rectangle([2, 2, table_width + 1, table_height + 1], fill=(0, 0, 0, 30))
+        img.paste(shadow, (table_x, table_y), shadow)
+        img.paste(table_img, (table_x, table_y))
+
+        self._offset_bounding_boxes(table, table_x, table_y)
+
+        if table.style.add_scan_lines:
+            self._draw_scan_lines(draw, page_width, page_height)
+
+        if table.style.add_scan_blur:
+            blur_radius = random.uniform(0.15, 0.5)
+            img = img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+
+        contrast = ImageEnhance.Contrast(img)
+        img = contrast.enhance(random.uniform(0.95, 1.08))
 
         return img
+
+    def _draw_page_noise(self, draw: ImageDraw.ImageDraw, width: int, height: int) -> None:
+        num_points = int(width * height * 0.0015)
+        for _ in range(num_points):
+            x = random.randint(0, width - 1)
+            y = random.randint(0, height - 1)
+            gray = random.randint(180, 235)
+            draw.point((x, y), fill=(gray, gray, gray))
+
+    def _draw_scan_lines(self, draw: ImageDraw.ImageDraw, width: int, height: int) -> None:
+        spacing = random.randint(3, 6)
+        line_color = random.randint(215, 235)
+        for y in range(0, height, spacing):
+            draw.line([(0, y), (width, y)], fill=(line_color, line_color, line_color), width=1)
+
+    def _offset_bounding_boxes(self, table: Table, dx: int, dy: int) -> None:
+        shifted: List[List[Tuple[int, int, int, int]]] = []
+        for row in table.cell_bounding_boxes:
+            shifted_row = []
+            for x1, y1, x2, y2 in row:
+                shifted_row.append((x1 + dx, y1 + dy, x2 + dx, y2 + dy))
+            shifted.append(shifted_row)
+        table.cell_bounding_boxes = shifted
 
     def _calculate_dimensions(self, table: Table) -> Tuple[List[int], List[int]]:
         padding = table.style.cell_padding
@@ -161,11 +240,11 @@ class TableRenderer:
             for cell in row:
                 font = self.header_font if cell.is_header else self.font
                 bbox = dummy_draw.textbbox((0, 0), cell.text, font=font)
-                text_width = bbox[2] - bbox[0]
-                text_height = bbox[3] - bbox[1]
+                text_width = int(bbox[2] - bbox[0])
+                text_height = int(bbox[3] - bbox[1])
 
-                cell_width = text_width + padding * 2
-                cell_height = text_height + padding * 2
+                cell_width = int(text_width + padding * 2)
+                cell_height = int(text_height + padding * 2)
 
                 if cell.colspan == 1:
                     col_widths[col_idx] = max(col_widths[col_idx], cell_width)
@@ -304,7 +383,7 @@ class TableDataGenerator:
             row_data = row_gen()
             cells.append([TableCell(text=str(d)) for d in row_data])
 
-        return Table(cells=cells, style=self._random_style())
+        return Table(cells=cells, style=self._random_style(), title=self._title_for_template(template))
 
     def _generate_invoice_row(self) -> List[Any]:
         item = self.data.item()
@@ -353,26 +432,59 @@ class TableDataGenerator:
                 row.append(TableCell(text=text))
             cells.append(row)
 
-        return Table(cells=cells, style=self._random_style())
+        return Table(cells=cells, style=self._random_style(), title=self.data.title())
+
+    def _title_for_template(self, template: str) -> str:
+        if self.lang == "ko":
+            titles = {
+                "invoice": "거래 명세표",
+                "schedule": "일정표",
+                "product": "상품 목록",
+                "contact": "연락처 목록",
+            }
+        else:
+            titles = {
+                "invoice": "Invoice Table",
+                "schedule": "Schedule Table",
+                "product": "Product List",
+                "contact": "Contact List",
+            }
+        return titles.get(template, self.data.title())
 
     def _random_style(self) -> TableStyle:
         styles = [
-            TableStyle(),
             TableStyle(
-                header_bg_color=(70, 130, 180),
-                header_text_color=(255, 255, 255),
-                alt_row_color=(245, 245, 245),
+                border_color=(80, 80, 80),
+                header_bg_color=(226, 226, 219),
+                cell_bg_color=(249, 248, 243),
+                alt_row_color=(243, 242, 237),
+                text_color=(35, 35, 35),
+                header_text_color=(30, 30, 30),
+                alignment=CellAlignment.LEFT,
+                page_color=(247, 244, 236),
             ),
             TableStyle(
-                border_style=BorderStyle.SOLID,
-                header_bg_color=(34, 139, 34),
-                header_text_color=(255, 255, 255),
-                cell_bg_color=(255, 255, 255),
+                border_color=(70, 70, 70),
+                border_width=1,
+                header_bg_color=(214, 214, 209),
+                cell_bg_color=(247, 246, 241),
+                alt_row_color=(240, 239, 233),
+                text_color=(30, 30, 30),
+                header_text_color=(25, 25, 25),
+                alignment=CellAlignment.LEFT,
+                page_color=(245, 242, 234),
             ),
             TableStyle(
-                header_bg_color=(128, 0, 128),
-                header_text_color=(255, 255, 255),
-                alt_row_color=(250, 240, 255),
+                border_color=(90, 90, 90),
+                border_width=2,
+                header_bg_color=(220, 220, 214),
+                cell_bg_color=(251, 250, 246),
+                alt_row_color=(246, 245, 240),
+                text_color=(40, 40, 40),
+                header_text_color=(30, 30, 30),
+                alignment=CellAlignment.LEFT,
+                page_color=(248, 245, 238),
+                add_scan_blur=False,
             ),
         ]
         return random.choice(styles)

@@ -12,7 +12,5 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/ml/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "ml" \
     --size 1000 \
-    --typo-ratio 0.15 \
-    --similarity-threshold 0.6 \
-    --similarity-top-k 8 \
+    --mixed \
     --label "Malayalam"

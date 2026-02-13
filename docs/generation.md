@@ -51,7 +51,7 @@ python main.py generate
     --mixed
 ```
 
-This will automatically distribute the `--size` across all supported formats and upload them as separate subsets to the Hugging Face Hub.
+This will automatically distribute the `--size` across all supported formats, merge them into one dataset configuration, and upload only `train`/`test` splits to the Hugging Face Hub.
 
 ## Character Similarity Database
 

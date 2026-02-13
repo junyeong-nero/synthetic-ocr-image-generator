@@ -644,8 +644,8 @@ def main() -> None:
     gen_parser.add_argument(
         "--format",
         type=str,
-        default="sentence",
-        choices=["sentence", "table", "document", "markdown", "kie"],
+        default="table",
+        choices=["table", "document", "markdown", "kie"],
         help="Format of images to generate",
     )
     gen_parser.add_argument(
