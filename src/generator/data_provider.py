@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from faker import Faker
+from faker.config import AVAILABLE_LOCALES
 
 logger = logging.getLogger(__name__)
 
@@ -315,6 +316,85 @@ FAKER_LOCALES: Dict[str, str] = {
     "hi": "hi_IN",
 }
 
+DEFAULT_FAKER_LOCALE_BY_BASE: Dict[str, str] = {
+    "af": "en_ZA",
+    "ar": "ar_EG",
+    "bn": "en_IN",
+    "de": "de_DE",
+    "en": "en_US",
+    "es": "es_ES",
+    "fa": "en_US",
+    "fr": "fr_FR",
+    "gu": "en_IN",
+    "he": "he_IL",
+    "hi": "hi_IN",
+    "id": "id_ID",
+    "it": "it_IT",
+    "ja": "ja_JP",
+    "ko": "ko_KR",
+    "mr": "en_IN",
+    "nl": "nl_NL",
+    "pa": "en_IN",
+    "pl": "pl_PL",
+    "pt": "pt_BR",
+    "ru": "ru_RU",
+    "ta": "en_IN",
+    "te": "en_IN",
+    "th": "th_TH",
+    "tr": "tr_TR",
+    "uk": "uk_UA",
+    "ur": "en_PK",
+    "vi": "vi_VN",
+    "zh": "zh_CN",
+}
+
+AVAILABLE_LOCALE_LOOKUP: Dict[str, str] = {
+    locale.lower(): locale for locale in AVAILABLE_LOCALES
+}
+
+
+def _normalize_lang_code(lang: str) -> str:
+    return lang.strip().lower().replace("_", "-")
+
+
+def _base_lang_code(lang: str) -> str:
+    return _normalize_lang_code(lang).split("-", 1)[0]
+
+
+def _resolve_faker_locale(lang: str) -> str:
+    normalized = _normalize_lang_code(lang)
+    base = _base_lang_code(lang)
+
+    candidates: List[str] = []
+    if "-" in normalized:
+        base_code, region = normalized.split("-", 1)
+        candidates.append(f"{base_code}_{region.upper()}")
+    candidates.append(normalized.replace("-", "_"))
+
+    if normalized in FAKER_LOCALES:
+        candidates.append(FAKER_LOCALES[normalized])
+    if base in FAKER_LOCALES:
+        candidates.append(FAKER_LOCALES[base])
+    if base in DEFAULT_FAKER_LOCALE_BY_BASE:
+        candidates.append(DEFAULT_FAKER_LOCALE_BY_BASE[base])
+
+    prefix_matches = sorted(
+        locale for locale in AVAILABLE_LOCALES if locale.lower().startswith(f"{base}_")
+    )
+    candidates.extend(prefix_matches)
+    candidates.append("en_US")
+
+    seen = set()
+    for candidate in candidates:
+        key = candidate.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        if key in AVAILABLE_LOCALE_LOOKUP:
+            return AVAILABLE_LOCALE_LOOKUP[key]
+
+    return "en_US"
+
 
 class DataProvider:
     """
@@ -355,7 +435,7 @@ class DataProvider:
         Initialize the data provider.
 
         Args:
-            lang: Language code ('ko', 'en', 'ja', 'hi')
+            lang: Language code (e.g. ko, en, ja, hi, fr, de, es, zh-CN)
             mix_ratio: Probability of using Faker vs hardcoded (0.0 to 1.0)
                        Only used when corpus is not available
             seed: Random seed for reproducibility
@@ -363,23 +443,32 @@ class DataProvider:
             use_corpus: Whether to use external corpus files when available
         """
         self.lang = lang
+        self.normalized_lang = _normalize_lang_code(lang)
+        self.base_lang = _base_lang_code(lang)
         self.mix_ratio = mix_ratio
         self.use_corpus = use_corpus
 
-        # Set corpus directory
         self.corpus_dir = corpus_dir or DEFAULT_CORPUS_DIR
-        self.lang_corpus_dir = self.corpus_dir / lang
+        self._corpus_lang_candidates = []
+        for candidate in [lang, self.normalized_lang, self.base_lang]:
+            if candidate and candidate not in self._corpus_lang_candidates:
+                self._corpus_lang_candidates.append(candidate)
+        self._lang_corpus_dirs = [
+            self.corpus_dir / candidate for candidate in self._corpus_lang_candidates
+        ]
 
-        # Initialize Faker with appropriate locale
-        locale = FAKER_LOCALES.get(lang, "en_US")
+        locale = _resolve_faker_locale(lang)
         self.faker = Faker(locale)
 
         if seed is not None:
             Faker.seed(seed)
             random.seed(seed)
 
-        # Load hardcoded data for the language
-        self._data = LANGUAGE_DATA.get(lang, ENGLISH_DATA)
+        self._data = (
+            LANGUAGE_DATA.get(self.normalized_lang)
+            or LANGUAGE_DATA.get(self.base_lang)
+            or ENGLISH_DATA
+        )
 
         # Cache for loaded corpus data
         self._corpus_cache: Dict[str, List[str]] = {}
@@ -394,20 +483,29 @@ class DataProvider:
         if data_type not in self.CORPUS_FILES:
             return []
 
-        filepath = self.lang_corpus_dir / self.CORPUS_FILES[data_type]
-        if not filepath.exists():
-            return []
+        items: List[str] = []
+        seen = set()
 
-        try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                items = [line.strip() for line in f if line.strip()]
-            if items:
+        for lang_dir in self._lang_corpus_dirs:
+            filepath = lang_dir / self.CORPUS_FILES[data_type]
+            if not filepath.exists():
+                continue
+
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    for line in f:
+                        value = line.strip()
+                        if not value or value in seen:
+                            continue
+                        seen.add(value)
+                        items.append(value)
                 logger.debug(f"Loaded {len(items)} items from {filepath}")
-                random.shuffle(items)  # Shuffle for randomness
-            return items
-        except Exception as e:
-            logger.warning(f"Failed to load corpus {filepath}: {e}")
-            return []
+            except Exception as e:
+                logger.warning(f"Failed to load corpus {filepath}: {e}")
+
+        if items:
+            random.shuffle(items)
+        return items
 
     def _load_all_corpus(self):
         """Load all available corpus files."""

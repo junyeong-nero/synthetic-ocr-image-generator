@@ -27,7 +27,7 @@ import os
 import random
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -43,6 +43,38 @@ logger = logging.getLogger(__name__)
 
 # Default output directory
 CORPUS_DIR = Path(__file__).parent.parent.parent / "data" / "corpus"
+
+LANGUAGE_LABELS: Dict[str, str] = {
+    "af": "Afrikaans",
+    "ar": "Arabic",
+    "bn": "Bengali",
+    "de": "German",
+    "en": "English",
+    "es": "Spanish",
+    "fa": "Persian",
+    "fr": "French",
+    "gu": "Gujarati",
+    "he": "Hebrew",
+    "hi": "Hindi",
+    "id": "Indonesian",
+    "it": "Italian",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "mr": "Marathi",
+    "nl": "Dutch",
+    "pa": "Punjabi",
+    "pl": "Polish",
+    "pt": "Portuguese",
+    "ru": "Russian",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "th": "Thai",
+    "tr": "Turkish",
+    "uk": "Ukrainian",
+    "ur": "Urdu",
+    "vi": "Vietnamese",
+    "zh": "Chinese",
+}
 
 # Category definitions with prompts for each language
 CATEGORIES = {
@@ -330,7 +362,15 @@ class AnthropicProvider(LLMProvider):
             max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
-        return response.content[0].text if response.content else ""
+        if not response.content:
+            return ""
+
+        text_chunks: List[str] = []
+        for block in response.content:
+            block_text = getattr(block, "text", None)
+            if isinstance(block_text, str) and block_text:
+                text_chunks.append(block_text)
+        return "\n".join(text_chunks)
 
 
 def get_provider(provider_name: str, model: Optional[str] = None) -> LLMProvider:
@@ -382,27 +422,63 @@ def parse_response(response: str, category: str) -> List[str]:
     return items
 
 
+def resolve_language_label(lang: str, lang_name: Optional[str] = None) -> str:
+    if lang_name:
+        return lang_name
+
+    normalized = lang.lower().replace("_", "-")
+    base_code = normalized.split("-", 1)[0]
+    return LANGUAGE_LABELS.get(base_code, lang)
+
+
+def build_prompt(
+    category_info: Dict[str, Any],
+    category: str,
+    lang: str,
+    count: int,
+    lang_name: Optional[str] = None,
+) -> str:
+    prompts = category_info["prompts"]
+    typed_prompts = prompts if isinstance(prompts, dict) else {}
+
+    if lang in typed_prompts:
+        return str(typed_prompts[lang]).format(count=count)
+
+    fallback_prompt = typed_prompts.get("en") or next(iter(typed_prompts.values()), "")
+    language_label = resolve_language_label(lang, lang_name)
+
+    return (
+        "You are generating OCR corpus entries.\n"
+        f"Category: {category}\n"
+        f"Target language: {language_label} (code: {lang})\n"
+        f"Generate exactly {count} unique items.\n"
+        "Adapt names, addresses, and wording to the target language and locale naturally.\n"
+        "Return plain text only, one item per line, with no numbering or commentary.\n\n"
+        "Category guidance:\n"
+        f"{fallback_prompt.format(count=count)}"
+    )
+
+
 async def generate_category(
     provider: LLMProvider,
     category: str,
     lang: str,
     count: int,
     batch_size: int = 100,
+    lang_name: Optional[str] = None,
 ) -> List[str]:
     """Generate items for a category using LLM."""
     if category not in CATEGORIES:
         raise ValueError(f"Unknown category: {category}")
 
     category_info = CATEGORIES[category]
-    if lang not in category_info["prompts"]:
-        raise ValueError(f"Language {lang} not supported for category {category}")
 
     all_items = []
     remaining = count
 
     while remaining > 0:
         batch = min(batch_size, remaining)
-        prompt = category_info["prompts"][lang].format(count=batch)
+        prompt = build_prompt(category_info, category, lang, batch, lang_name)
 
         logger.info(f"Generating {batch} items for {category} ({lang})...")
 
@@ -457,8 +533,13 @@ async def main():
         "--lang",
         type=str,
         default="ko",
-        choices=["ko", "en", "ja", "hi"],
-        help="Language to generate data for",
+        help="Language code to generate data for (for example: ko, en, ja, hi, fr, de, es)",
+    )
+    parser.add_argument(
+        "--lang-name",
+        type=str,
+        default=None,
+        help="Optional language name hint used for unsupported or custom language codes",
     )
     parser.add_argument(
         "--category",
@@ -519,6 +600,7 @@ async def main():
             args.lang,
             args.count,
             args.batch_size,
+            args.lang_name,
         )
 
         if items:
