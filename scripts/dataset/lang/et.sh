@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/et/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "et" \
     --size 1000 \
-    --mixed \
     --label "Estonian"

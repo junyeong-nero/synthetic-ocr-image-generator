@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/lo/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "lo" \
     --size 1000 \
-    --mixed \
     --label "Lao"

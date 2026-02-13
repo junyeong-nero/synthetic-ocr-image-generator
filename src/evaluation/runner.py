@@ -152,9 +152,7 @@ class EvaluationRunner:
     def _checkpoint_context(self) -> dict[str, Any]:
         return {
             "dataset_id": self.config.dataset_id,
-            "subset": self.config.subset,
             "split": self.config.split,
-            "format_type": self.config.format_type.value,
             "model_id": self.config.model.model_id,
             "backend": self.config.model.backend.value,
         }
@@ -425,7 +423,7 @@ class EvaluationRunner:
         ground_truths: Sequence[Any],
         prompts: Sequence[str],
     ) -> list[InferenceResult]:
-        batch_dir = self.output_dir / f"batch_{self.config.subset}"
+        batch_dir = self.output_dir / "batch"
         batch_info_path = batch_dir / "batch_info.json"
 
         remaining = [

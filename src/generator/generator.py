@@ -9,6 +9,8 @@ This module provides comprehensive markdown document generation capabilities inc
 
 import random
 import logging
+import numpy as np
+from pathlib import Path
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
@@ -16,8 +18,10 @@ from typing import Any, Dict, List, Optional, Tuple
 from tqdm import tqdm
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
+from character_similarity import find_similar_chars
 from generator.base import BaseGenerator
 from generator.data_provider import DataProvider
+from utils import markdown_to_json_ast, read_json
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +33,11 @@ class MarkdownTemplate(Enum):
     BLOG_POST = "blog_post"
     API_DOC = "api_doc"
     TUTORIAL = "tutorial"
+    CHANGELOG = "changelog"
+    MEETING_NOTES = "meeting_notes"
+    INCIDENT_REPORT = "incident_report"
+    RELEASE_NOTE = "release_note"
+    COMPLIANCE_CHECKLIST = "compliance_checklist"
 
 
 @dataclass
@@ -71,130 +80,6 @@ class MarkdownStyle:
 
 class MarkdownDataGenerator:
     """Generates markdown content for various template types."""
-
-    # Korean data
-    KOREAN_TITLES = [
-        "프로젝트 시작하기",
-        "설치 가이드",
-        "API 레퍼런스",
-        "사용자 매뉴얼",
-        "개발 환경 설정",
-        "배포 가이드",
-        "테스트 작성법",
-        "성능 최적화",
-    ]
-    KOREAN_PARAGRAPHS = [
-        "이 프로젝트는 사용자의 생산성을 높이기 위해 설계되었습니다.",
-        "다양한 기능을 제공하며 확장 가능한 아키텍처를 가지고 있습니다.",
-        "설치가 간단하고 문서화가 잘 되어 있어 빠르게 시작할 수 있습니다.",
-        "커뮤니티의 지원을 받아 지속적으로 개선되고 있습니다.",
-        "오픈소스로 제공되어 누구나 기여할 수 있습니다.",
-    ]
-    KOREAN_FEATURES = [
-        "빠른 성능",
-        "간편한 설치",
-        "다양한 플러그인",
-        "상세한 문서",
-        "활발한 커뮤니티",
-    ]
-    KOREAN_CODE_COMMENTS = [
-        "# 설정 파일을 로드합니다",
-        "# 데이터베이스 연결을 설정합니다",
-        "# 사용자 인증을 처리합니다",
-    ]
-
-    # English data
-    ENGLISH_TITLES = [
-        "Getting Started",
-        "Installation Guide",
-        "API Reference",
-        "User Manual",
-        "Development Setup",
-        "Deployment Guide",
-        "Writing Tests",
-        "Performance Optimization",
-    ]
-    ENGLISH_PARAGRAPHS = [
-        "This project is designed to enhance user productivity.",
-        "It provides various features with an extensible architecture.",
-        "Easy to install and well-documented for quick onboarding.",
-        "Continuously improved with community support.",
-        "Open source and open for contributions from anyone.",
-    ]
-    ENGLISH_FEATURES = [
-        "Fast performance",
-        "Easy installation",
-        "Various plugins",
-        "Detailed documentation",
-        "Active community",
-    ]
-    ENGLISH_CODE_COMMENTS = [
-        "# Load configuration file",
-        "# Setup database connection",
-        "# Handle user authentication",
-    ]
-
-    # Japanese data
-    JAPANESE_TITLES = [
-        "プロジェクトを始める",
-        "インストールガイド",
-        "APIリファレンス",
-        "ユーザーマニュアル",
-        "開発環境の設定",
-        "デプロイガイド",
-        "テストの書き方",
-        "パフォーマンス最適化",
-    ]
-    JAPANESE_PARAGRAPHS = [
-        "このプロジェクトは、ユーザーの生産性を向上させるために設計されています。",
-        "拡張可能なアーキテクチャで様々な機能を提供しています。",
-        "インストールが簡単で、ドキュメントが充実しているため、すぐに始められます。",
-        "コミュニティのサポートにより継続的に改善されています。",
-        "オープンソースで提供され、誰でも貢献できます。",
-    ]
-    JAPANESE_FEATURES = [
-        "高速なパフォーマンス",
-        "簡単なインストール",
-        "豊富なプラグイン",
-        "詳細なドキュメント",
-        "活発なコミュニティ",
-    ]
-    JAPANESE_CODE_COMMENTS = [
-        "# 設定ファイルを読み込みます",
-        "# データベース接続を設定します",
-        "# ユーザー認証を処理します",
-    ]
-
-    # Hindi data
-    HINDI_TITLES = [
-        "प्रोजेक्ट शुरू करना",
-        "इंस्टॉलेशन गाइड",
-        "एपीआई संदर्भ",
-        "उपयोगकर्ता मैनुअल",
-        "विकास वातावरण सेटअप",
-        "डिप्लॉयमेंट गाइड",
-        "टेस्ट लिखना",
-        "प्रदर्शन अनुकूलन",
-    ]
-    HINDI_PARAGRAPHS = [
-        "यह प्रोजेक्ट उपयोगकर्ता की उत्पादकता बढ़ाने के लिए डिज़ाइन किया गया है।",
-        "यह विस्तार योग्य आर्किटेक्चर के साथ विभिन्न सुविधाएं प्रदान करता है।",
-        "इंस्टॉल करना आसान है और अच्छी तरह से प्रलेखित है।",
-        "समुदाय के समर्थन से लगातार सुधार किया जा रहा है।",
-        "ओपन सोर्स और किसी के भी योगदान के लिए खुला है।",
-    ]
-    HINDI_FEATURES = [
-        "तेज़ प्रदर्शन",
-        "आसान इंस्टॉलेशन",
-        "विभिन्न प्लगइन्स",
-        "विस्तृत दस्तावेज़",
-        "सक्रिय समुदाय",
-    ]
-    HINDI_CODE_COMMENTS = [
-        "# कॉन्फ़िगरेशन फ़ाइल लोड करें",
-        "# डेटाबेस कनेक्शन सेटअप करें",
-        "# उपयोगकर्ता प्रमाणीकरण संभालें",
-    ]
 
     def __init__(self, lang: str = "ko", data_provider: Optional[DataProvider] = None):
         self.lang = lang
@@ -453,27 +338,195 @@ class MarkdownDataGenerator:
 
         return "\n".join(lines)
 
+    def _generate_changelog(self) -> str:
+        version = f"v{random.randint(1, 4)}.{random.randint(0, 9)}.{random.randint(0, 12)}"
+        lines = [
+            "# " + ("변경 이력" if self.lang == "ko" else "Changelog"),
+            "",
+            f"## {version} - {self.data.date()}",
+            "",
+            "### " + ("추가" if self.lang == "ko" else "Added"),
+            "",
+        ]
+        for feature in self.data.features(3):
+            lines.append(f"- {feature}")
+        lines.extend([
+            "",
+            "### " + ("수정" if self.lang == "ko" else "Fixed"),
+            "",
+            f"- {self.data.paragraph()[:70]}",
+            f"- {self.data.paragraph()[:70]}",
+            "",
+            "### " + ("변경" if self.lang == "ko" else "Changed"),
+            "",
+            "| " + ("항목" if self.lang == "ko" else "Item") + " | " + ("영향도" if self.lang == "ko" else "Impact") + " |",
+            "|---|---|",
+            "| API | High |",
+            "| UI | Medium |",
+            "| Docs | Low |",
+            "",
+        ])
+        return "\n".join(lines)
+
+    def _generate_meeting_notes(self) -> str:
+        lines = [
+            "# " + ("회의록" if self.lang == "ko" else "Meeting Notes"),
+            "",
+            "- " + ("일시" if self.lang == "ko" else "Date") + f": {self.data.date()}",
+            "- " + ("참석자" if self.lang == "ko" else "Attendees") + f": {self.data.name()}, {self.data.name()}, {self.data.name()}",
+            "",
+            "## " + ("안건" if self.lang == "ko" else "Agenda"),
+            "",
+            "1. " + self.data.title(),
+            "2. " + self.data.title(),
+            "3. " + self.data.title(),
+            "",
+            "## " + ("결정사항" if self.lang == "ko" else "Decisions"),
+            "",
+            "- [x] " + self.data.features(1)[0],
+            "- [x] " + self.data.features(1)[0],
+            "- [ ] " + self.data.features(1)[0],
+            "",
+            "## " + ("액션 아이템" if self.lang == "ko" else "Action Items"),
+            "",
+            "| " + ("담당" if self.lang == "ko" else "Owner") + " | " + ("작업" if self.lang == "ko" else "Task") + " | " + ("기한" if self.lang == "ko" else "Due") + " |",
+            "|---|---|---|",
+            f"| {self.data.name()} | {self.data.paragraph()[:24]} | {self.data.date()} |",
+            f"| {self.data.name()} | {self.data.paragraph()[:24]} | {self.data.date()} |",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _generate_incident_report(self) -> str:
+        severity = random.choice(["SEV-1", "SEV-2", "SEV-3"])
+        lines = [
+            "# " + ("장애 보고서" if self.lang == "ko" else "Incident Report"),
+            "",
+            f"- Incident ID: INC-{random.randint(1000, 9999)}",
+            f"- Severity: {severity}",
+            "- " + ("발생 시각" if self.lang == "ko" else "Start Time") + f": {self.data.date()}",
+            "",
+            "## " + ("요약" if self.lang == "ko" else "Summary"),
+            "",
+            self.data.paragraph(),
+            "",
+            "## " + ("타임라인" if self.lang == "ko" else "Timeline"),
+            "",
+            f"- 09:10 - {self.data.paragraph()[:48]}",
+            f"- 09:25 - {self.data.paragraph()[:48]}",
+            f"- 09:41 - {self.data.paragraph()[:48]}",
+            "",
+            "## " + ("영향 범위" if self.lang == "ko" else "Impact"),
+            "",
+            "```json",
+            "{",
+            f"  \"affected_users\": {random.randint(100, 5000)},",
+            f"  \"region\": \"{random.choice(['ap-northeast-2', 'us-east-1', 'eu-west-1'])}\",",
+            f"  \"duration_min\": {random.randint(10, 180)}",
+            "}",
+            "```",
+            "",
+            "## " + ("재발 방지" if self.lang == "ko" else "Preventive Actions"),
+            "",
+            "- [ ] " + self.data.features(1)[0],
+            "- [ ] " + self.data.features(1)[0],
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _generate_release_note(self) -> str:
+        release = f"{random.randint(2024, 2027)}.{random.randint(1, 12)}.{random.randint(1, 28)}"
+        lines = [
+            "# " + ("릴리즈 노트" if self.lang == "ko" else "Release Notes") + f" {release}",
+            "",
+            "## " + ("하이라이트" if self.lang == "ko" else "Highlights"),
+            "",
+            f"- **{self.data.features(1)[0]}**",
+            f"- **{self.data.features(1)[0]}**",
+            f"- **{self.data.features(1)[0]}**",
+            "",
+            "## " + ("호환성" if self.lang == "ko" else "Compatibility"),
+            "",
+            "| Runtime | Minimum | Recommended |",
+            "|---|---|---|",
+            "| Python | 3.9 | 3.11 |",
+            "| Node.js | 18 | 20 |",
+            "| CUDA | 11.8 | 12.2 |",
+            "",
+            "## " + ("업그레이드 가이드" if self.lang == "ko" else "Upgrade Guide"),
+            "",
+            "```bash",
+            "pip install -U synthetic-ocr",
+            "python main.py generate --lang en --size 10",
+            "```",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _generate_compliance_checklist(self) -> str:
+        lines = [
+            "# " + ("컴플라이언스 체크리스트" if self.lang == "ko" else "Compliance Checklist"),
+            "",
+            "## " + ("데이터 보안" if self.lang == "ko" else "Data Security"),
+            "",
+            "- [x] Encryption at rest",
+            "- [x] Encryption in transit",
+            "- [ ] Data retention policy review",
+            "",
+            "## " + ("접근 통제" if self.lang == "ko" else "Access Control"),
+            "",
+            "1. MFA enabled for admins",
+            "2. Role-based access matrix updated",
+            "3. Quarterly permission audit completed",
+            "",
+            "## " + ("감사 로그" if self.lang == "ko" else "Audit Logs"),
+            "",
+            "```yaml",
+            "audit:",
+            "  enabled: true",
+            "  retention_days: 365",
+            "  export: s3://compliance-logs",
+            "```",
+            "",
+            "> " + ("주의" if self.lang == "ko" else "Note") + ": " + self.data.paragraph(),
+            "",
+        ]
+        return "\n".join(lines)
+
 
 class MarkdownRenderer:
     """Renders markdown content to images."""
 
-    def __init__(self, font_path: str, style: MarkdownStyle = None):
+    _FONT_CACHE: Dict[Tuple[str, int], Any] = {}
+
+    def __init__(self, font_path: str, style: Optional[MarkdownStyle] = None):
         self.style = style or MarkdownStyle()
         self.font_path = font_path
 
         try:
-            self.body_font = ImageFont.truetype(font_path, self.style.body_font_size)
-            self.h1_font = ImageFont.truetype(font_path, self.style.h1_font_size)
-            self.h2_font = ImageFont.truetype(font_path, self.style.h2_font_size)
-            self.h3_font = ImageFont.truetype(font_path, self.style.h3_font_size)
-            self.code_font = ImageFont.truetype(font_path, self.style.code_font_size)
+            self.body_font = self._get_font(font_path, self.style.body_font_size)
+            self.h1_font = self._get_font(font_path, self.style.h1_font_size)
+            self.h2_font = self._get_font(font_path, self.style.h2_font_size)
+            self.h3_font = self._get_font(font_path, self.style.h3_font_size)
+            self.code_font = self._get_font(font_path, self.style.code_font_size)
         except IOError:
-            logger.warning(f"Font '{font_path}' not found. Using default.")
+            logger.warning("Font '%s' not found. Using default.", font_path)
             self.body_font = ImageFont.load_default()
             self.h1_font = self.body_font
             self.h2_font = self.body_font
             self.h3_font = self.body_font
             self.code_font = self.body_font
+
+    @classmethod
+    def _get_font(cls, font_path: str, size: int) -> ImageFont.ImageFont:
+        key = (font_path, size)
+        if key not in cls._FONT_CACHE:
+            cls._FONT_CACHE[key] = ImageFont.truetype(font_path, size)
+        return cls._FONT_CACHE[key]
+
+    @staticmethod
+    def _is_ordered_list_item(stripped: str) -> bool:
+        return bool(stripped) and stripped[0].isdigit() and ". " in stripped
 
     def render(self, markdown_text: str) -> Image.Image:
         """Render markdown text to image."""
@@ -536,14 +589,21 @@ class MarkdownRenderer:
                 current_y = self._draw_h3(draw, stripped[4:], current_y, style)
             elif stripped.startswith("> "):
                 current_y = self._draw_blockquote(draw, stripped[2:], current_y, style)
-            elif stripped.startswith("- ") or stripped.startswith("* "):
-                current_y = self._draw_list_item(draw, stripped[2:], current_y, style, ordered=False)
             elif stripped.startswith("- [ ]") or stripped.startswith("- [x]"):
                 checked = stripped.startswith("- [x]")
                 current_y = self._draw_checkbox_item(draw, stripped[6:], current_y, style, checked)
-            elif len(stripped) > 0 and stripped[0].isdigit() and ". " in stripped:
+            elif stripped.startswith("- ") or stripped.startswith("* "):
+                current_y = self._draw_list_item(draw, stripped[2:], current_y, style, ordered=False)
+            elif self._is_ordered_list_item(stripped):
                 idx = stripped.index(". ")
-                current_y = self._draw_list_item(draw, stripped[idx+2:], current_y, style, ordered=True, number=stripped[:idx])
+                current_y = self._draw_list_item(
+                    draw,
+                    stripped[idx + 2 :],
+                    current_y,
+                    style,
+                    ordered=True,
+                    number=stripped[:idx],
+                )
             elif stripped.startswith("|"):
                 current_y = self._draw_table_row(draw, stripped, current_y, style)
             elif stripped == "---" or stripped == "***":
@@ -567,42 +627,41 @@ class MarkdownRenderer:
 
         if stripped.startswith("# "):
             return int(self.style.h1_font_size * self.style.line_spacing) + 10
-        elif stripped.startswith("## "):
+        if stripped.startswith("## "):
             return int(self.style.h2_font_size * self.style.line_spacing) + 8
-        elif stripped.startswith("### "):
+        if stripped.startswith("### "):
             return int(self.style.h3_font_size * self.style.line_spacing) + 6
-        elif stripped.startswith("```"):
+        if stripped.startswith("```"):
             return 5
-        elif stripped.startswith("> "):
+        if stripped.startswith("> "):
             return base_spacing + 10
-        elif stripped == "---" or stripped == "***":
+        if stripped == "---" or stripped == "***":
             return 20
-        elif stripped:
+        if stripped:
             return base_spacing
-        else:
-            return int(self.style.body_font_size * 0.5)
+        return int(self.style.body_font_size * 0.5)
 
     def _draw_h1(self, draw: ImageDraw.ImageDraw, text: str, y: int, style: MarkdownStyle) -> int:
         """Draw H1 header."""
         draw.text((style.margin_left, y), text, font=self.h1_font, fill=style.h1_color)
         # Draw underline
         bbox = draw.textbbox((style.margin_left, y), text, font=self.h1_font)
-        line_y = bbox[3] + 5
+        line_y = int(bbox[3]) + 5
         draw.line([(style.margin_left, line_y), (style.margin_left + style.content_width, line_y)],
                   fill=style.h2_color, width=2)
-        return line_y + 15
+        return int(line_y + 15)
 
     def _draw_h2(self, draw: ImageDraw.ImageDraw, text: str, y: int, style: MarkdownStyle) -> int:
         """Draw H2 header."""
         draw.text((style.margin_left, y), text, font=self.h2_font, fill=style.h2_color)
         bbox = draw.textbbox((style.margin_left, y), text, font=self.h2_font)
-        return bbox[3] + 12
+        return int(bbox[3] + 12)
 
     def _draw_h3(self, draw: ImageDraw.ImageDraw, text: str, y: int, style: MarkdownStyle) -> int:
         """Draw H3 header."""
         draw.text((style.margin_left, y), text, font=self.h3_font, fill=style.h3_color)
         bbox = draw.textbbox((style.margin_left, y), text, font=self.h3_font)
-        return bbox[3] + 10
+        return int(bbox[3] + 10)
 
     def _draw_paragraph(self, draw: ImageDraw.ImageDraw, text: str, y: int, style: MarkdownStyle) -> int:
         """Draw paragraph text with word wrapping."""
@@ -680,7 +739,7 @@ class MarkdownRenderer:
         y: int,
         style: MarkdownStyle,
         ordered: bool = False,
-        number: str = None,
+        number: Optional[str] = None,
     ) -> int:
         """Draw list item."""
         marker = f"{number}." if ordered and number else "•"
@@ -768,19 +827,18 @@ class MarkdownRenderer:
     def _add_noise(self, img: Image.Image) -> Image.Image:
         """Add subtle noise to image."""
         width, height = img.size
-        noise = Image.new("RGB", (width, height))
-        noise_draw = ImageDraw.Draw(noise)
+        noise = np.zeros((height, width, 3), dtype=np.uint8)
+        sample_count = 300
+        xs = np.random.randint(0, width, size=sample_count)
+        ys = np.random.randint(0, height, size=sample_count)
+        grays = np.random.randint(0, 256, size=sample_count, dtype=np.uint8)
+        noise[ys, xs] = np.stack([grays, grays, grays], axis=1)
+        noise_img = Image.fromarray(noise, mode="RGB")
 
-        for _ in range(300):
-            x = random.randint(0, width - 1)
-            y = random.randint(0, height - 1)
-            gray = random.randint(0, 255)
-            noise_draw.point((x, y), fill=(gray, gray, gray))
-
-        return Image.blend(img, noise, 0.03)
+        return Image.blend(img, noise_img, 0.03)
 
 
-class MarkdownGenerator(BaseGenerator):
+class Generator(BaseGenerator):
     """Main generator class for markdown image generation."""
 
     def __init__(
@@ -791,6 +849,139 @@ class MarkdownGenerator(BaseGenerator):
     ):
         super().__init__(output_dir, font_dir, lang)
         self.data_generator = MarkdownDataGenerator(lang)
+        self.similarity_db: Dict[str, Any] = {}
+        self.similarity_db_path = ""
+        self._similarity_db_source: Optional[str] = None
+        self._protected_chars = set("#`|[](){}<>!+-=_~*/\\")
+        self.templates: List[MarkdownTemplate] = list(MarkdownTemplate)
+        self.add_noise = True
+        self.add_blur = False
+        self.noise_ratio = 0.1
+        self.blur_ratio = 0.1
+        self.similar_char_ratio = 0.08
+
+    def _load_similarity_db(self, db_path: Optional[str]) -> None:
+        source_key = db_path or "__auto__"
+        if self._similarity_db_source == source_key:
+            return
+
+        if db_path:
+            candidates = [Path(db_path)]
+        else:
+            candidates = [
+                Path("data") / self.lang / f"char_similarity_db_{self.lang}.json",
+                Path("data") / f"char_similarity_db_{self.lang}.json",
+                Path("data") / self.lang / "char_similarity_db.json",
+                Path("data") / "char_similarity_db.json",
+            ]
+
+        self._similarity_db_source = source_key
+        resolved = next((p for p in candidates if p.exists()), None)
+        if resolved is None:
+            self.similarity_db = {}
+            self.similarity_db_path = ""
+            return
+
+        loaded = read_json(str(resolved))
+        if isinstance(loaded, dict):
+            self.similarity_db = loaded
+            self.similarity_db_path = str(resolved)
+            return
+
+        self.similarity_db = {}
+        self.similarity_db_path = ""
+
+    def _resolve_templates(self, template: Optional[str]) -> List[MarkdownTemplate]:
+        if not template:
+            return list(MarkdownTemplate)
+
+        try:
+            return [MarkdownTemplate(template)]
+        except ValueError:
+            logger.warning("Unknown template '%s', using random templates", template)
+            return list(MarkdownTemplate)
+
+    def _configure_generation(self, **kwargs) -> None:
+        def _coerce_ratio(value: Any, default: float) -> float:
+            if value is None:
+                return default
+            try:
+                ratio = float(value)
+            except (TypeError, ValueError):
+                return default
+            return max(0.0, min(1.0, ratio))
+
+        def _coerce_bool(value: Any, default: bool) -> bool:
+            if value is None:
+                return default
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                lowered = value.strip().lower()
+                if lowered in {"1", "true", "yes", "y", "on"}:
+                    return True
+                if lowered in {"0", "false", "no", "n", "off"}:
+                    return False
+            return bool(value)
+
+        template = kwargs.get("template")
+        self.templates = self._resolve_templates(template)
+        self.add_noise = _coerce_bool(kwargs.get("add_noise"), True)
+        self.add_blur = _coerce_bool(kwargs.get("add_blur"), False)
+        self.noise_ratio = _coerce_ratio(kwargs.get("noise_ratio"), 0.1)
+        self.blur_ratio = _coerce_ratio(kwargs.get("blur_ratio"), 0.1)
+        if "add_noise" in kwargs and kwargs.get("add_noise") is not None:
+            self.noise_ratio = 1.0 if self.add_noise else 0.0
+        if "add_blur" in kwargs and kwargs.get("add_blur") is not None:
+            self.blur_ratio = 1.0 if self.add_blur else 0.0
+        self.similar_char_ratio = float(kwargs.get("similar_char_ratio", 0.08))
+        self._load_similarity_db(kwargs.get("similarity_db_path"))
+
+    def _mutate_similar_text(self, text: str, ratio: float) -> Tuple[str, int]:
+        if ratio <= 0 or not self.similarity_db:
+            return text, 0
+
+        chars = list(text)
+        candidate_indices: List[int] = []
+        cached_candidates: Dict[str, List[Tuple[str, float]]] = {}
+
+        def get_candidates(ch: str) -> List[Tuple[str, float]]:
+            if ch not in cached_candidates:
+                cached_candidates[ch] = find_similar_chars(ch, self.similarity_db, top_n=5)
+            return cached_candidates[ch]
+
+        for idx, ch in enumerate(chars):
+            if ch in self._protected_chars or ch.isspace():
+                continue
+            if get_candidates(ch):
+                candidate_indices.append(idx)
+
+        if not candidate_indices:
+            return text, 0
+
+        target = int(len(candidate_indices) * ratio)
+        if target == 0:
+            target = 1
+        target = min(target, len(candidate_indices))
+
+        mutated_count = 0
+        for idx in random.sample(candidate_indices, target):
+            source = chars[idx]
+            candidates = get_candidates(source)
+            if not candidates:
+                continue
+            replacement, _ = random.choice(candidates)
+            if (
+                not replacement
+                or any(c in self._protected_chars or c.isspace() for c in replacement)
+            ):
+                continue
+            if replacement == source:
+                continue
+            chars[idx] = replacement
+            mutated_count += 1
+
+        return "".join(chars), mutated_count
 
     def generate(
         self,
@@ -798,23 +989,7 @@ class MarkdownGenerator(BaseGenerator):
         **kwargs
     ) -> List[Dict[str, Any]]:
         """Generate markdown images."""
-        self.template = kwargs.get("template")
-        self.add_noise = kwargs.get("add_noise", True)
-        self.add_blur = kwargs.get("add_blur", False)
-
-        if self.template:
-            try:
-                md_template = MarkdownTemplate(self.template)
-            except ValueError:
-                logger.warning(f"Unknown template '{self.template}', using random templates")
-                md_template = None
-        else:
-            md_template = None
-
-        self.templates = (
-            [MarkdownTemplate(self.template)] if md_template
-            else list(MarkdownTemplate)
-        )
+        self._configure_generation(**kwargs)
 
         metadata = []
         for idx in tqdm(range(num_images), desc="Generating markdown images"):
@@ -830,29 +1005,22 @@ class MarkdownGenerator(BaseGenerator):
         return metadata
 
     def generate_single(self, **kwargs) -> Tuple[Image.Image, Dict[str, Any]]:
-        if not hasattr(self, "templates"):
-             template = kwargs.get("template")
-             if template:
-                try:
-                    md_template = MarkdownTemplate(template)
-                except ValueError:
-                    md_template = None
-             else:
-                md_template = None
-             
-             self.templates = ([MarkdownTemplate(template)] if md_template else list(MarkdownTemplate))
-             self.add_noise = kwargs.get("add_noise", True)
-             self.add_blur = kwargs.get("add_blur", False)
+        if kwargs:
+            self._configure_generation(**kwargs)
 
         selected_template = random.choice(self.templates)
 
         # Generate markdown content
-        markdown_text = self.data_generator.generate_markdown(template=selected_template)
+        original_markdown = self.data_generator.generate_markdown(template=selected_template)
+        markdown_text, mutation_count = self._mutate_similar_text(
+            original_markdown,
+            self.similar_char_ratio,
+        )
 
         # Create style with random variations
         style = self._random_style()
-        style.add_noise = self.add_noise
-        style.add_blur = self.add_blur
+        style.add_noise = random.random() < self.noise_ratio
+        style.add_blur = random.random() < self.blur_ratio
 
         # Render markdown
         font_path = random.choice(self.font_paths)
@@ -861,9 +1029,9 @@ class MarkdownGenerator(BaseGenerator):
 
         metadata = {
             "template": selected_template.value,
-            "markdown": markdown_text,
-            "add_noise": self.add_noise,
-            "add_blur": self.add_blur,
+            "GT_markdown": markdown_text,
+            "GT_json": markdown_to_json_ast(markdown_text),
+            "similar_char_mutations": mutation_count,
         }
         return image, metadata
 
@@ -874,24 +1042,72 @@ class MarkdownGenerator(BaseGenerator):
                 background_color=(255, 255, 255),
                 h1_color=(0, 0, 0),
                 add_noise=True,
+                margin_left=34,
+                margin_right=34,
+                content_width=620,
             ),
             MarkdownStyle(
                 background_color=(250, 250, 245),
                 h1_color=(51, 51, 51),
                 add_noise=True,
                 add_blur=True,
+                margin_left=48,
+                margin_right=48,
+                content_width=560,
+                line_spacing=1.45,
             ),
             MarkdownStyle(
                 background_color=(255, 253, 250),
                 h1_color=(30, 30, 30),
                 add_noise=True,
                 add_contrast=True,
+                margin_left=56,
+                margin_right=56,
+                content_width=540,
+                h1_font_size=30,
             ),
             MarkdownStyle(
                 background_color=(248, 249, 250),
                 h1_color=(36, 41, 46),
                 link_color=(3, 102, 214),
                 add_noise=False,
+                margin_left=40,
+                margin_right=40,
+                content_width=640,
+                body_font_size=13,
+                code_font_size=11,
+            ),
+            MarkdownStyle(
+                background_color=(244, 240, 232),
+                h1_color=(44, 38, 31),
+                h2_color=(70, 64, 58),
+                text_color=(42, 42, 42),
+                add_noise=True,
+                add_blur=False,
+                add_contrast=True,
+                margin_left=60,
+                margin_right=52,
+                content_width=520,
+                line_spacing=1.58,
+            ),
+            MarkdownStyle(
+                background_color=(236, 242, 246),
+                h1_color=(12, 42, 68),
+                h2_color=(29, 72, 102),
+                link_color=(12, 96, 158),
+                text_color=(25, 36, 46),
+                code_bg_color=(222, 232, 240),
+                add_noise=False,
+                add_blur=True,
+                margin_left=44,
+                margin_right=44,
+                content_width=600,
+                line_spacing=1.4,
             ),
         ]
-        return random.choice(styles)
+        selected = random.choice(styles)
+        selected.margin_top += random.randint(-8, 14)
+        selected.margin_bottom += random.randint(-8, 14)
+        selected.content_width += random.randint(-24, 24)
+        selected.line_spacing = max(1.3, min(1.7, selected.line_spacing + random.uniform(-0.08, 0.1)))
+        return selected

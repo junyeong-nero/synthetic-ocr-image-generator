@@ -7,7 +7,7 @@ from types import ModuleType
 import pytest
 from PIL import Image
 
-from evaluation.config import EvaluationConfig, FormatType, InferenceBackend, ModelConfig
+from evaluation.config import EvaluationConfig, InferenceBackend, ModelConfig
 from evaluation.pipeline import EvaluationPipeline
 from evaluation.runner import EvaluationRunner
 from evaluation.strategies import DocumentEvaluator, MarkdownEvaluator, TableEvaluator
@@ -45,9 +45,7 @@ class FixedBatchModel:
 def make_config(tmp_path: Path) -> EvaluationConfig:
     return EvaluationConfig(
         dataset_id="dummy-dataset",
-        subset="sentence",
         split="train",
-        format_type=FormatType.SENTENCE,
         model=ModelConfig(model_id="dummy-model", backend=InferenceBackend.OPENAI),
         batch_size=2,
         output_dir=str(tmp_path),
@@ -70,9 +68,7 @@ def test_runner_ignores_checkpoint_from_different_context(tmp_path: Path) -> Non
         ],
         "context": {
             "dataset_id": "other-dataset",
-            "subset": "sentence",
             "split": "train",
-            "format_type": "sentence",
             "model_id": "dummy-model",
             "backend": "openai",
         },
@@ -115,7 +111,7 @@ def test_runner_marks_all_batch_items_failed_on_prediction_length_mismatch(
 
 def test_runner_ignores_invalid_batch_error_file(tmp_path: Path) -> None:
     runner = EvaluationRunner(make_config(tmp_path), FixedOutputModel(["ok"]))
-    batch_dir = tmp_path / "batch_sentence"
+    batch_dir = tmp_path / "batch"
     batch_dir.mkdir(parents=True, exist_ok=True)
     (batch_dir / "batch_errors.json").write_text("{bad-json", encoding="utf-8")
 
@@ -128,7 +124,7 @@ def test_runner_batch_api_ignores_invalid_batch_metadata_and_submits_new_batch(
     config = make_config(tmp_path).model_copy(update={"batch_api": True, "batch_size": 1})
     runner = EvaluationRunner(config, FixedBatchModel({"0": "predicted"}))
 
-    batch_dir = tmp_path / "batch_sentence"
+    batch_dir = tmp_path / "batch"
     batch_dir.mkdir(parents=True, exist_ok=True)
     (batch_dir / "batch_info.json").write_text("{broken-json", encoding="utf-8")
 
@@ -213,12 +209,15 @@ def test_pipeline_compute_metrics_skips_none_predictions(
     assert metrics["avg_wer"] == 0.0
 
 
-def test_markdown_evaluator_normalized_match_rate_strips_markdown_syntax() -> None:
+def test_markdown_evaluator_returns_block_scores() -> None:
     evaluator = MarkdownEvaluator()
     metrics = evaluator.compute_metrics(
-        predictions=["# Title\n- total +$100"],
-        ground_truths=["Title\ntotal 100"],
+        predictions=["Text before\n\n|A|B|\n|---|---|\n|1|2|\n\n$x+y$"],
+        ground_truths=["Text before\n\n|A|B|\n|---|---|\n|1|2|\n\n$x+y$"],
     )
 
-    assert metrics["exact_match_rate"] == 0.0
-    assert metrics["normalized_match_rate"] == 1.0
+    assert metrics["avg_markdown_text_score"] == 1.0
+    assert metrics["avg_markdown_table_teds"] == 1.0
+    assert metrics["avg_markdown_formula_score"] == 1.0
+    assert metrics["avg_markdown_order_score"] == 1.0
+    assert metrics["avg_markdown_overall_score"] == 1.0

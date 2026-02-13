@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/no/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "no" \
     --size 1000 \
-    --mixed \
     --label "Norwegian"

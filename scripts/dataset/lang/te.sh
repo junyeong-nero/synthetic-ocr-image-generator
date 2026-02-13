@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/te/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "te" \
     --size 1000 \
-    --mixed \
     --label "Telugu"

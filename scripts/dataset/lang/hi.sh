@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/hi/TiroDevanagariHindi-Regular.ttf" \
     --lang "hi" \
     --size 1000 \
-    --mixed \
     --label "Hindi"

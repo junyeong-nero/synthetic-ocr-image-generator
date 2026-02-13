@@ -56,7 +56,7 @@ class BaseGenerator(ABC):
         Returns:
             List of metadata dictionaries for each generated image.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def generate_single(self, **kwargs) -> Tuple[Image.Image, Dict[str, Any]]:
@@ -69,7 +69,7 @@ class BaseGenerator(ABC):
         Returns:
             Tuple of (generated image, metadata dictionary).
         """
-        pass
+        raise NotImplementedError
 
     def save_metadata(self, metadata: List[Dict[str, Any]]) -> Path:
         """
@@ -86,7 +86,7 @@ class BaseGenerator(ABC):
             for item in metadata:
                 f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-        logger.info(f"Saved metadata to '{metadata_path}'")
+        logger.info("Saved metadata to '%s'", metadata_path)
         write_realism_stats(self.output_dir, metadata)
         return metadata_path
 
@@ -118,12 +118,14 @@ class BaseGenerator(ABC):
         """
         try:
             logger.info(
-                f"Starting {self.__class__.__name__}: generating {num_images:,} images"
+                "Starting %s: generating %s images",
+                self.__class__.__name__,
+                f"{num_images:,}",
             )
             metadata = self.generate(num_images, **kwargs)
             self.save_metadata(metadata)
-            logger.info(f"Successfully generated {len(metadata):,} images")
+            logger.info("Successfully generated %s images", f"{len(metadata):,}")
             return str(self.output_dir)
         except Exception as e:
-            logger.error(f"Generation failed: {e}", exc_info=True)
+            logger.error("Generation failed: %s", e, exc_info=True)
             return None

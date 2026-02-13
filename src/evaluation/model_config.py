@@ -18,21 +18,6 @@ class PromptConfig(BaseModel):
     )
 
 
-class SubsetConfig(BaseModel):
-    """Configuration for a specific subset (format type)."""
-
-    model_id: Optional[str] = Field(
-        default=None, description="Override model ID for this subset"
-    )
-    prompts: dict[str, PromptConfig] = Field(
-        default_factory=dict,
-        description="Prompts keyed by format type (sentence, table, etc.)",
-    )
-    batch_size: Optional[int] = Field(default=None, ge=1)
-    temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0)
-    max_tokens: Optional[int] = Field(default=None, ge=1)
-
-
 class ModelSpecificConfig(BaseModel):
     """Model-specific configuration loaded from YAML."""
 
@@ -69,25 +54,11 @@ class ModelSpecificConfig(BaseModel):
         description="Default prompts keyed by format type",
     )
 
-    # Subset-specific overrides
-    subsets: dict[str, SubsetConfig] = Field(
-        default_factory=dict,
-        description="Subset-specific configuration overrides",
-    )
-
     model_config = {"protected_namespaces": ()}
 
-    def get_prompt(
-        self, format_type: FormatType, subset: Optional[str] = None
-    ) -> Optional[PromptConfig]:
-        """Get the prompt config for a format type, with optional subset override."""
+    def get_prompt(self, format_type: FormatType) -> Optional[PromptConfig]:
+        """Get the prompt config for a format type."""
         format_key = format_type.value
-
-        # Check subset-specific prompt first
-        if subset and subset in self.subsets:
-            subset_config = self.subsets[subset]
-            if format_key in subset_config.prompts:
-                return subset_config.prompts[format_key]
 
         # Fall back to default prompts
         if format_key in self.prompts:
@@ -95,36 +66,20 @@ class ModelSpecificConfig(BaseModel):
 
         return None
 
-    def get_batch_size(self, subset: Optional[str] = None) -> int:
-        """Get batch size, with optional subset override."""
-        if subset and subset in self.subsets:
-            subset_batch = self.subsets[subset].batch_size
-            if subset_batch is not None:
-                return subset_batch
+    def get_batch_size(self) -> int:
+        """Get batch size."""
         return self.batch_size
 
-    def get_temperature(self, subset: Optional[str] = None) -> float:
-        """Get temperature, with optional subset override."""
-        if subset and subset in self.subsets:
-            subset_temp = self.subsets[subset].temperature
-            if subset_temp is not None:
-                return subset_temp
+    def get_temperature(self) -> float:
+        """Get temperature."""
         return self.temperature
 
-    def get_max_tokens(self, subset: Optional[str] = None) -> int:
-        """Get max tokens, with optional subset override."""
-        if subset and subset in self.subsets:
-            subset_max = self.subsets[subset].max_tokens
-            if subset_max is not None:
-                return subset_max
+    def get_max_tokens(self) -> int:
+        """Get max tokens."""
         return self.max_tokens
 
-    def get_model_id(self, subset: Optional[str] = None) -> str:
-        """Get model ID, with optional subset override."""
-        if subset and subset in self.subsets:
-            subset_model_id = self.subsets[subset].model_id
-            if subset_model_id is not None:
-                return subset_model_id
+    def get_model_id(self) -> str:
+        """Get model ID."""
         return self.model_id
 
 
@@ -184,12 +139,6 @@ class ModelConfigLoader:
         # Parse prompts
         if "prompts" in data:
             data["prompts"] = self._parse_prompts(data["prompts"])
-
-        # Parse subsets
-        if "subsets" in data:
-            for subset_name, subset_data in data["subsets"].items():
-                if "prompts" in subset_data:
-                    subset_data["prompts"] = self._parse_prompts(subset_data["prompts"])
 
         return ModelSpecificConfig(**data)
 

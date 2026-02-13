@@ -71,7 +71,6 @@ class ReportGenerator:
             f"| Model | {config.get('model', {}).get('model_id', 'N/A')} |",
             f"| Backend | {config.get('model', {}).get('backend', 'N/A')} |",
             f"| Dataset | {config.get('dataset_id', 'N/A')} |",
-            f"| Subset | {config.get('subset', 'N/A')} |",
             f"| Format | {config.get('format_type', 'N/A')} |",
             "",
             "## Metrics",
@@ -259,7 +258,6 @@ class ReportGenerator:
             <tr><td>Model</td><td>{config.get('model', {}).get('model_id', 'N/A')}</td></tr>
             <tr><td>Backend</td><td>{config.get('model', {}).get('backend', 'N/A')}</td></tr>
             <tr><td>Dataset</td><td>{config.get('dataset_id', 'N/A')}</td></tr>
-            <tr><td>Subset</td><td>{config.get('subset', 'N/A')}</td></tr>
             <tr><td>Format</td><td>{config.get('format_type', 'N/A')}</td></tr>
         </table>
     </div>

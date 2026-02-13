@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/mk/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "mk" \
     --size 1000 \
-    --mixed \
     --label "Macedonian"

@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/fr/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "fr" \
     --size 1000 \
-    --mixed \
     --label "French"

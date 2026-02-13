@@ -11,7 +11,6 @@ from evaluation.model_config import (
     ModelConfigLoader,
     ModelSpecificConfig,
     PromptConfig,
-    SubsetConfig,
 )
 from evaluation.comparator import ModelComparator, compare_models
 from evaluation.pipeline import EvaluationPipeline, evaluate_pipeline
@@ -30,7 +29,6 @@ __all__ = [
     "ModelConfigLoader",
     "ModelSpecificConfig",
     "PromptConfig",
-    "SubsetConfig",
     # Pipeline
     "EvaluationPipeline",
     "evaluate_pipeline",

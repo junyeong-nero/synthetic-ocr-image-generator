@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/es/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "es" \
     --size 1000 \
-    --mixed \
     --label "Spanish"

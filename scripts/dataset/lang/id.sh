@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/id/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "id" \
     --size 1000 \
-    --mixed \
     --label "Indonesian"

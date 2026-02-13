@@ -1,18 +1,10 @@
 from typing import Dict, Type
 from generator.base import BaseGenerator
-from generator.sentence_generator import SentenceGenerator
-from generator.table_generator import TableGenerator
-from generator.document_generator import DocumentGenerator
-from generator.markdown_generator import MarkdownGenerator
-from generator.kie_generator import KIEGenerator
+from generator.generator import Generator
 
 class GeneratorRegistry:
     _generators: Dict[str, Type[BaseGenerator]] = {
-        "sentence": SentenceGenerator,
-        "table": TableGenerator,
-        "document": DocumentGenerator,
-        "markdown": MarkdownGenerator,
-        "kie": KIEGenerator,
+        "markdown": Generator,
     }
 
     @classmethod

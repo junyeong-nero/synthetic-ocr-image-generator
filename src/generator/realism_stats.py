@@ -30,7 +30,15 @@ def compute_realism_stats(
         stats["format"] = format_name
 
     field_presence: Dict[str, int] = {}
-    text_fields = ["typo_text", "original_text", "text", "markdown", "html", "ground_truth"]
+    text_fields = [
+        "typo_text",
+        "original_text",
+        "text",
+        "GT_markdown",
+        "markdown",
+        "html",
+        "ground_truth",
+    ]
     list_fields = ["line_items", "elements"]
     dict_fields = ["entities"]
 

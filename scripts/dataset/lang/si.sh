@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/si/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "si" \
     --size 1000 \
-    --mixed \
     --label "Sinhala"

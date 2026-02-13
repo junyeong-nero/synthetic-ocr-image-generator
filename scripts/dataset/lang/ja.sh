@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/ja/NotoSansJP-VariableFont_wght.ttf" \
     --lang "ja" \
     --size 1000 \
-    --mixed \
     --label "Japanese"

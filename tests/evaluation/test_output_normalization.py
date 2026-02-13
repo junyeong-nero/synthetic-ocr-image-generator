@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-from evaluation.config import EvaluationConfig, FormatType, InferenceBackend, ModelConfig
+from evaluation.config import EvaluationConfig, InferenceBackend, ModelConfig
 from evaluation.pipeline import EvaluationPipeline
 from evaluation.strategies import TableEvaluator
 from evaluation.utils import extract_html_table, parse_model_output_as_json
@@ -62,9 +62,7 @@ def test_pipeline_exposes_metric_views(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr("evaluation.pipeline.create_model", lambda _config: DummyModel())
     config = EvaluationConfig(
         dataset_id="dummy",
-        subset="sentence",
         split="train",
-        format_type=FormatType.SENTENCE,
         model=ModelConfig(model_id="dummy-model", backend=InferenceBackend.OPENAI),
         output_dir=str(tmp_path),
     )

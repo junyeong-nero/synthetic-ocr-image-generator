@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/zh/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "zh" \
     --size 1000 \
-    --mixed \
     --label "Chinese"

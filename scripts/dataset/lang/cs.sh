@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/cs/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "cs" \
     --size 1000 \
-    --mixed \
     --label "Czech"

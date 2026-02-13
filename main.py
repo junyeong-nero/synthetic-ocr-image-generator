@@ -3,8 +3,6 @@
 import sys
 import argparse
 import os
-import re
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -71,56 +69,9 @@ def _write_protocol_snapshot(
 def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
     leaderboard_entries = []
     for entry in summary_entries:
-        subset_scores = []
-        subset_weights = []
-        subset_empty_rates = []
-        subset_parse_fail_rates = []
-        normalized_subsets = []
-        for subset_entry in entry.get("subsets", []):
-            metric_key = subset_entry.get("metric_key")
-            metric_value = subset_entry.get("metric_value")
-            normalized = _normalize_metric(metric_key, metric_value)
-            normalized_subsets.append(
-                {
-                    **subset_entry,
-                    "normalized_value": normalized,
-                }
-            )
-            if isinstance(normalized, (int, float)):
-                subset_scores.append(normalized)
-                weight = subset_entry.get("total_samples")
-                subset_weights.append(weight if isinstance(weight, (int, float)) else 1)
-
-            empty_rate = subset_entry.get("empty_rate")
-            parse_fail_rate = subset_entry.get("parse_fail_rate")
-            weight = subset_entry.get("total_samples")
-            weighted = weight if isinstance(weight, (int, float)) else 1
-            if isinstance(empty_rate, (int, float)):
-                subset_empty_rates.append((empty_rate, weighted))
-            if isinstance(parse_fail_rate, (int, float)):
-                subset_parse_fail_rates.append((parse_fail_rate, weighted))
-
-        if subset_scores:
-            weight_total = sum(subset_weights)
-            normalized_average = (
-                sum(score * weight for score, weight in zip(subset_scores, subset_weights))
-                / weight_total
-                if weight_total
-                else None
-            )
-        else:
-            normalized_average = None
-
-        def _weighted_average(pairs: list[tuple[float, float]]) -> Optional[float]:
-            if not pairs:
-                return None
-            total_weight = sum(weight for _, weight in pairs)
-            if total_weight <= 0:
-                return None
-            return sum(value * weight for value, weight in pairs) / total_weight
-
-        average_empty_rate = _weighted_average(subset_empty_rates)
-        average_parse_fail_rate = _weighted_average(subset_parse_fail_rates)
+        metric_key = entry.get("metric_key")
+        metric_value = entry.get("metric_value")
+        normalized_average = _normalize_metric(metric_key, metric_value)
 
         leaderboard_entries.append(
             {
@@ -130,11 +81,13 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
                 "backend": entry.get("backend"),
                 "dataset": entry.get("dataset"),
                 "split": entry.get("split"),
-                "average_score": entry.get("average_score"),
+                "format_type": entry.get("format_type"),
+                "average_score": entry.get("average_score", metric_value),
                 "normalized_average_score": normalized_average,
-                "average_empty_rate": average_empty_rate,
-                "average_parse_fail_rate": average_parse_fail_rate,
-                "subsets": normalized_subsets,
+                "average_empty_rate": entry.get("average_empty_rate", entry.get("empty_rate")),
+                "average_parse_fail_rate": entry.get(
+                    "average_parse_fail_rate", entry.get("parse_fail_rate")
+                ),
             }
         )
 
@@ -153,8 +106,8 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
     lines = [
         "# OCR Benchmark Leaderboard",
         "",
-        "| Rank | Model | Backend | Dataset | Split | Normalized | Raw | Empty Rate | Parse Fail Rate |",
-        "|---:|---|---|---|---|---:|---:|---:|---:|",
+        "| Rank | Model | Backend | Dataset | Split | Format | Normalized | Raw | Empty Rate | Parse Fail Rate |",
+        "|---:|---|---|---|---|---|---:|---:|---:|---:|",
     ]
     for idx, entry in enumerate(leaderboard_entries, start=1):
         normalized_score = entry.get("normalized_average_score")
@@ -162,12 +115,13 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
         empty_rate = entry.get("average_empty_rate")
         parse_fail_rate = entry.get("average_parse_fail_rate")
         lines.append(
-            "| {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
+            "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
                 idx,
                 entry.get("model_id") or "-",
                 entry.get("backend") or "-",
                 entry.get("dataset") or "-",
                 entry.get("split") or "-",
+                entry.get("format_type") or "-",
                 f"{normalized_score:.4f}" if isinstance(normalized_score, (int, float)) else "-",
                 f"{raw_score:.4f}" if isinstance(raw_score, (int, float)) else "-",
                 f"{empty_rate:.4f}" if isinstance(empty_rate, (int, float)) else "-",
@@ -215,15 +169,15 @@ def cmd_generate(args: argparse.Namespace) -> None:
         "font_path": args.font_path,
         "output_dir": args.output_dir,
         "lang": args.lang,
-        "corpus_size": args.corpus_size,
         "size": args.size,
-        "typo_ratio": args.typo_ratio,
-        "similarity_threshold": args.similarity_threshold,
-        "similarity_top_k": args.similarity_top_k,
-        "format": args.format,
         "template": args.template,
-        "table_size": args.table_size,
+        "similar_char_ratio": args.similar_char_ratio,
+        "similarity_db_path": args.similarity_db_path,
+        "add_noise": args.add_noise,
+        "add_blur": args.add_blur,
         "mixed": args.mixed,
+        "train_ratio": args.train_ratio,
+        "test_ratio": args.test_ratio,
         "seed": args.seed,
     }
     pipeline(**pipeline_args)
@@ -231,7 +185,7 @@ def cmd_generate(args: argparse.Namespace) -> None:
 
 def cmd_evaluate(args: argparse.Namespace) -> None:
     """Run evaluation command."""
-    from evaluation.config import FormatType, InferenceBackend, ModelConfig, EvaluationConfig
+    from evaluation.config import InferenceBackend, ModelConfig, EvaluationConfig
     from evaluation.pipeline import EvaluationPipeline
     from evaluation.report import ReportGenerator
 
@@ -240,238 +194,127 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     set_global_seed(args.seed)
 
     representative_metrics = {
-        FormatType.SENTENCE.value: "avg_cer",
-        FormatType.TABLE.value: "avg_teds",
-        FormatType.DOCUMENT.value: "avg_text_table_formula_score",
-        FormatType.MARKDOWN.value: "avg_cer",
-        FormatType.KIE.value: "avg_entity_f1",
+        "sentence": "avg_cer",
+        "table": "avg_teds",
+        "document": "avg_text_table_formula_score",
+        "markdown": "avg_markdown_overall_score",
+        "kie": "avg_entity_f1",
     }
 
     backend_str = args.backend
     if not backend_str:
         backend_str = model_specific_config.backend
 
-    def run_for_subset(subset: str, output_dir: Path) -> dict:
-        # Try to map subset to FormatType, defaulting to SENTENCE if not found
-        try:
-            format_type = FormatType(subset)
-        except ValueError:
-            # If subset name doesn't match a format type (e.g. "korean_sentence"),
-            # we might need a heuristic or just default to sentence.
-            # For now, let's assume subset name IS the format type or contains it.
-            if "table" in subset:
-                format_type = FormatType.TABLE
-            elif "document" in subset:
-                format_type = FormatType.DOCUMENT
-            elif "markdown" in subset:
-                format_type = FormatType.MARKDOWN
-            elif "kie" in subset:
-                format_type = FormatType.KIE
-            else:
-                format_type = FormatType.SENTENCE
+    temperature = model_specific_config.get_temperature()
+    max_tokens = model_specific_config.get_max_tokens()
+    batch_size = model_specific_config.get_batch_size()
+    tensor_parallel = model_specific_config.tensor_parallel_size
+    api_base = model_specific_config.api_base
+    timeout = model_specific_config.timeout
+    max_retries = model_specific_config.max_retries
+    device = model_specific_config.device
+    dtype = model_specific_config.dtype
+    rate_limit_rpm = model_specific_config.rate_limit_rpm
 
-        temperature = model_specific_config.get_temperature(subset)
-        max_tokens = model_specific_config.get_max_tokens(subset)
-        batch_size = model_specific_config.get_batch_size(subset)
-        tensor_parallel = model_specific_config.tensor_parallel_size
-        api_base = model_specific_config.api_base
-        timeout = model_specific_config.timeout
-        max_retries = model_specific_config.max_retries
-        device = model_specific_config.device
-        dtype = model_specific_config.dtype
-        rate_limit_rpm = model_specific_config.rate_limit_rpm
+    if hasattr(args, "temperature") and args.temperature is not None:
+        temperature = args.temperature
+    if hasattr(args, "max_tokens") and args.max_tokens is not None:
+        max_tokens = args.max_tokens
+    if hasattr(args, "batch_size") and args.batch_size is not None:
+        batch_size = args.batch_size
+    if hasattr(args, "tensor_parallel") and args.tensor_parallel is not None:
+        tensor_parallel = args.tensor_parallel
+    if hasattr(args, "api_base") and args.api_base is not None:
+        api_base = args.api_base
 
-        if hasattr(args, "temperature") and args.temperature is not None:
-            temperature = args.temperature
-        if hasattr(args, "max_tokens") and args.max_tokens is not None:
-            max_tokens = args.max_tokens
-        if hasattr(args, "batch_size") and args.batch_size is not None:
-            batch_size = args.batch_size
-        if hasattr(args, "tensor_parallel") and args.tensor_parallel is not None:
-            tensor_parallel = args.tensor_parallel
-        if hasattr(args, "api_base") and args.api_base is not None:
-            api_base = args.api_base
+    model_config = ModelConfig(
+        model_id=model_specific_config.get_model_id(),
+        backend=InferenceBackend(backend_str),
+        api_key=get_api_key(backend_str),
+        api_base=api_base,
+        tensor_parallel_size=tensor_parallel,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        timeout=timeout,
+        max_retries=max_retries,
+        device=device,
+        dtype=dtype,
+        rate_limit_rpm=rate_limit_rpm,
+    )
 
-        model_config = ModelConfig(
-            model_id=model_specific_config.get_model_id(subset),
-            backend=InferenceBackend(backend_str),
-            api_key=get_api_key(backend_str),
-            api_base=api_base,
-            tensor_parallel_size=tensor_parallel,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            timeout=timeout,
-            max_retries=max_retries,
-            device=device,
-            dtype=dtype,
-            rate_limit_rpm=rate_limit_rpm,
-        )
+    config = EvaluationConfig(
+        dataset_id=args.dataset,
+        split=args.split,
+        model=model_config,
+        batch_size=batch_size,
+        max_samples=args.max_samples,
+        output_dir=str(args.output_dir),
+        seed=args.seed,
+        batch_api=args.batch_api,
+        batch_poll_seconds=args.batch_poll_seconds,
+        batch_timeout_seconds=args.batch_timeout_seconds,
+        batch_completion_window=args.batch_completion_window,
+        model_config_path=args.model_config,
+    )
 
-        config = EvaluationConfig(
-            dataset_id=args.dataset,
-            subset=subset,
-            split=args.split,
-            format_type=format_type,
-            model=model_config,
-            batch_size=batch_size,
-            max_samples=args.max_samples,
-            output_dir=str(output_dir),
-            seed=args.seed,
-            batch_api=args.batch_api,
-            batch_poll_seconds=args.batch_poll_seconds,
-            batch_timeout_seconds=args.batch_timeout_seconds,
-            batch_completion_window=args.batch_completion_window,
-            model_config_path=args.model_config,
-        )
+    print("\nConfiguration:")
+    print(f"  Model: {model_config.model_id}")
+    print(f"  Backend: {backend_str}")
+    print(f"  Dataset: {args.dataset} ({args.split})")
+    print("  Format: auto-detect")
+    print(f"  Batch Size: {batch_size}")
+    print(f"  Temperature: {temperature}")
+    print(f"  Max Tokens: {max_tokens}")
+    print(f"  Config File: {args.model_config}")
 
-        print("\nConfiguration:")
-        print(f"  Model: {model_config.model_id}")
-        print(f"  Backend: {backend_str}")
-        print(f"  Dataset: {args.dataset} ({subset}/{args.split})")
-        print(f"  Format: {format_type.value}")
-        print(f"  Batch Size: {batch_size}")
-        print(f"  Temperature: {temperature}")
-        print(f"  Max Tokens: {max_tokens}")
-        print(f"  Config File: {args.model_config}")
+    print(f"\nEvaluating {model_config.model_id} on {args.dataset}...")
+    pipeline = EvaluationPipeline(config)
+    output = pipeline.run()
 
-        print(f"\nEvaluating {model_config.model_id} on {args.dataset}...")
-        pipeline = EvaluationPipeline(config)
-        output = pipeline.run()
-
-        generator = ReportGenerator(output)
-        output_path = output_dir
-
-        if args.report_format == "all":
-            paths = generator.save_all(output_path)
-            print("\nReports saved:")
-            for fmt, path in paths.items():
-                print(f"  {fmt}: {path}")
-        else:
-            method = getattr(generator, f"to_{args.report_format}")
-            path = method(output_path / f"report.{args.report_format}")
-            print(f"\nReport saved: {path}")
-
-        protocol_path = _write_protocol_snapshot(output_path, output, args.report_format)
-        print(f"Protocol snapshot saved: {protocol_path}")
-
-        print_results(output.metrics, format_type.value)
-
-        print(
-            f"\nSamples: {output.summary['successful']}/{output.summary['total_samples']}"
-        )
-        print(f"Avg Latency: {output.summary['avg_latency_ms']:.2f}ms")
-
-        metric_key = representative_metrics.get(format_type.value)
-        metric_value = output.metrics.get(metric_key) if metric_key else None
-        if metric_key and metric_value is None:
-            print(f"Warning: Missing representative metric '{metric_key}' for {subset}")
-
-        return {
-            "subset": subset,
-            "format": format_type.value,
-            "metric_key": metric_key,
-            "metric_value": metric_value,
-            "model_id": model_config.model_id,
-            "backend": backend_str,
-            "prompt_source": output.config.get("prompt_source"),
-            "total_samples": output.summary.get("total_samples"),
-            "empty_rate": output.summary.get("empty_rate"),
-            "parse_fail_rate": output.summary.get("parse_fail_rate"),
-        }
-
-    def subset_output_dir(base_dir: Path, subset: str, use_subdir: bool) -> Path:
-        if not use_subdir:
-            return base_dir
-        safe_subset = re.sub(r"[^A-Za-z0-9_-]", "_", subset)
-        subset_hash = hashlib.sha256(subset.encode("utf-8")).hexdigest()[:8]
-        return base_dir / f"{safe_subset}-{subset_hash}"
-
-    default_subsets = [
-        FormatType.SENTENCE.value,
-        FormatType.TABLE.value,
-        FormatType.DOCUMENT.value,
-        FormatType.MARKDOWN.value,
-        FormatType.KIE.value,
-    ]
-
-    if args.subset is None:
-        subsets = default_subsets
-        print("No --subset specified. Running for all default subsets.")
+    output_path = Path(args.output_dir)
+    generator = ReportGenerator(output)
+    if args.report_format == "all":
+        paths = generator.save_all(output_path)
+        print("\nReports saved:")
+        for fmt, path in paths.items():
+            print(f"  {fmt}: {path}")
     else:
-        subsets = [value.strip() for value in args.subset.split(",") if value.strip()]
-        if not subsets:
-            print("Error: --subset cannot be empty.", file=sys.stderr)
-            sys.exit(1)
+        method = getattr(generator, f"to_{args.report_format}")
+        path = method(output_path / f"report.{args.report_format}")
+        print(f"\nReport saved: {path}")
 
-    summary_entries = []
-    summary_output_dir = Path(args.output_dir)
+    protocol_path = _write_protocol_snapshot(output_path, output, args.report_format)
+    print(f"Protocol snapshot saved: {protocol_path}")
 
-    if len(subsets) == 1:
-        subset = subsets[0]
-        has_invalid_chars = bool(re.search(r"[^A-Za-z0-9_-]", subset))
-        summary_entries.append(
-            run_for_subset(
-                subset,
-                subset_output_dir(Path(args.output_dir), subset, has_invalid_chars),
-            )
-        )
-    else:
-        print("\n" + "=" * 60)
-        print("Running subsets:", ", ".join(subsets))
-        print("=" * 60)
-        for subset in subsets:
-            print("\n" + "=" * 60)
-            print(f"Running subset: {subset}")
-            print("=" * 60)
-            summary_entries.append(
-                run_for_subset(
-                    subset, subset_output_dir(Path(args.output_dir), subset, True)
-                )
-            )
+    resolved_format = str(output.config.get("format_type") or "sentence")
+    print_results(output.metrics, resolved_format)
+    print(f"\nSamples: {output.summary['successful']}/{output.summary['total_samples']}")
+    print(f"Avg Latency: {output.summary['avg_latency_ms']:.2f}ms")
 
-    metric_values = [
-        entry["metric_value"]
-        for entry in summary_entries
-        if isinstance(entry["metric_value"], (int, float))
-    ]
-    average_score = sum(metric_values) / len(metric_values) if metric_values else None
-
-    subset_weights = [
-        entry.get("total_samples")
-        if isinstance(entry.get("total_samples"), (int, float))
-        else 1
-        for entry in summary_entries
-    ]
-
-    def _weighted_subset_rate(key: str) -> Optional[float]:
-        values: list[tuple[float, float]] = []
-        for entry, weight in zip(summary_entries, subset_weights):
-            value = entry.get(key)
-            if isinstance(value, (int, float)):
-                values.append((float(value), float(weight)))
-        if not values:
-            return None
-        total_weight = sum(weight for _, weight in values)
-        if total_weight <= 0:
-            return None
-        return sum(value * weight for value, weight in values) / total_weight
-
-    average_empty_rate = _weighted_subset_rate("empty_rate")
-    average_parse_fail_rate = _weighted_subset_rate("parse_fail_rate")
+    metric_key = representative_metrics.get(resolved_format)
+    metric_value = output.metrics.get(metric_key) if metric_key else None
+    if metric_key and metric_value is None:
+        print(f"Warning: Missing representative metric '{metric_key}' for {resolved_format}")
 
     summary_entry = {
         "timestamp": _iso_timestamp(),
         "protocol_version": PROTOCOL_VERSION,
-        "model_id": summary_entries[0]["model_id"] if summary_entries else None,
-        "backend": summary_entries[0]["backend"] if summary_entries else None,
+        "model_id": model_config.model_id,
+        "backend": backend_str,
         "dataset": args.dataset,
         "split": args.split,
         "seed": args.seed,
-        "subsets": summary_entries,
-        "average_score": average_score,
-        "average_empty_rate": average_empty_rate,
-        "average_parse_fail_rate": average_parse_fail_rate,
+        "format_type": resolved_format,
+        "metric_key": metric_key,
+        "metric_value": metric_value,
+        "average_score": metric_value,
+        "empty_rate": output.summary.get("empty_rate"),
+        "parse_fail_rate": output.summary.get("parse_fail_rate"),
+        "total_samples": output.summary.get("total_samples"),
+        "prompt_source": output.config.get("prompt_source"),
     }
+
+    summary_output_dir = Path(args.output_dir)
 
     summary_path = summary_output_dir / "model_summary.json"
     summary_path.parent.mkdir(parents=True, exist_ok=True)
@@ -612,41 +455,10 @@ def main() -> None:
         help="Random seed for reproducible generation",
     )
     gen_parser.add_argument(
-        "--corpus-size",
-        type=int,
-        default=10000,
-        help="Number of sentences to extract from Wikipedia",
-    )
-    gen_parser.add_argument(
         "--size",
         type=int,
         default=100,
         help="Number of images to generate",
-    )
-    gen_parser.add_argument(
-        "--typo-ratio",
-        type=float,
-        default=0.15,
-        help="Ratio of words to introduce typos",
-    )
-    gen_parser.add_argument(
-        "--similarity-threshold",
-        type=float,
-        default=0.6,
-        help="SSIM threshold for storing similar characters",
-    )
-    gen_parser.add_argument(
-        "--similarity-top-k",
-        type=int,
-        default=8,
-        help="Max similar characters to store per character",
-    )
-    gen_parser.add_argument(
-        "--format",
-        type=str,
-        default="table",
-        choices=["table", "document", "markdown", "kie"],
-        help="Format of images to generate",
     )
     gen_parser.add_argument(
         "--template",
@@ -655,16 +467,46 @@ def main() -> None:
         help="Template for generation",
     )
     gen_parser.add_argument(
-        "--table-size",
+        "--similar-char-ratio",
+        type=float,
+        default=0.08,
+        help="Ratio of characters to replace with similar-looking characters",
+    )
+    gen_parser.add_argument(
+        "--similarity-db-path",
         type=str,
-        default="3-8",
-        help="Table size range as 'min-max' applied to rows and cols",
+        default=None,
+        help="Path to character similarity DB JSON from src/character_similarity.py",
+    )
+    gen_parser.add_argument(
+        "--add-noise",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable or disable noise effect (default: generator setting)",
+    )
+    gen_parser.add_argument(
+        "--add-blur",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable or disable blur effect (default: generator setting)",
     )
     gen_parser.add_argument(
         "--mixed",
         action="store_true",
         default=False,
         help="Generate mixed format dataset",
+    )
+    gen_parser.add_argument(
+        "--train-ratio",
+        type=float,
+        default=0.9,
+        help="Train split ratio in mixed mode (default: 0.9)",
+    )
+    gen_parser.add_argument(
+        "--test-ratio",
+        type=float,
+        default=0.1,
+        help="Test split ratio in mixed mode (default: 0.1)",
     )
 
     # Evaluate command
@@ -688,15 +530,6 @@ def main() -> None:
             "paddleocr",
         ],
         help="Inference backend (optional if model config exists)",
-    )
-    eval_parser.add_argument(
-        "-s",
-        "--subset",
-        default=None,
-        help=(
-            "Dataset subset(s) and format type. Use comma-separated values to run multiple. "
-            "If omitted, runs all default subsets"
-        ),
     )
     eval_parser.add_argument("--split", default="train", help="Dataset split")
     eval_parser.add_argument(

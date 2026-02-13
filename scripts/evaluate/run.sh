@@ -53,7 +53,6 @@ if [[ "${1:-}" != -* ]]; then
     shift
 fi
 
-SUBSETS=()
 PASSTHROUGH_ARGS=()
 HAS_DATASET=false
 
@@ -66,30 +65,6 @@ while [[ $# -gt 0 ]]; do
             fi
             MODEL_REF="$2"
             shift 2
-            ;;
-        --subset|-s)
-            if [[ $# -lt 2 ]]; then
-                echo "Error: $1 requires a value"
-                exit 1
-            fi
-            IFS=',' read -r -a parsed_subsets <<< "$2"
-            for subset in "${parsed_subsets[@]}"; do
-                trimmed="$(echo "$subset" | xargs)"
-                if [[ -n "$trimmed" ]]; then
-                    SUBSETS+=("$trimmed")
-                fi
-            done
-            shift 2
-            ;;
-        --subset=*)
-            IFS=',' read -r -a parsed_subsets <<< "${1#*=}"
-            for subset in "${parsed_subsets[@]}"; do
-                trimmed="$(echo "$subset" | xargs)"
-                if [[ -n "$trimmed" ]]; then
-                    SUBSETS+=("$trimmed")
-                fi
-            done
-            shift
             ;;
         -d|--dataset)
             if [[ $# -lt 2 ]]; then
@@ -130,42 +105,27 @@ CONFIG_NAME="$(basename "$CONFIG_FILE" .yaml)"
 MODEL_ID="$(extract_yaml_key "$CONFIG_FILE" "model_id")"
 DEPENDENCY_GROUP="$(extract_yaml_key "$CONFIG_FILE" "dependency_group")"
 
-if [[ ${#SUBSETS[@]} -eq 0 ]]; then
-    SUBSETS=("sentence" "table" "document" "markdown" "kie")
-    echo "No --subset specified. Running all default subsets."
-fi
-
-for arg in "${PASSTHROUGH_ARGS[@]}"; do
-    if [[ "$arg" == "--help" ]] || [[ "$arg" == "-h" ]]; then
-        SUBSETS=("sentence")
-        break
-    fi
-done
-
 echo "Config: $CONFIG_NAME"
 echo "Model: $MODEL_ID"
 echo "Dependency Group: ${DEPENDENCY_GROUP:-none}"
 echo ""
 
-run_subset() {
-    local subset="$1"
-    local subset_dir="$PROJECT_DIR/evaluation_result/$MODEL_ID/$subset"
-    mkdir -p "$subset_dir"
+run_eval() {
+    local output_dir="$PROJECT_DIR/evaluation_result/$MODEL_ID"
+    mkdir -p "$output_dir"
 
     local cmd=(uv run --group evaluate)
     if [[ -n "$DEPENDENCY_GROUP" ]]; then
         cmd+=(--group "$DEPENDENCY_GROUP")
     fi
-    cmd+=(main.py evaluate --model-config "$CONFIG_FILE" --subset "$subset" --output-dir "$subset_dir")
+    cmd+=(main.py evaluate --model-config "$CONFIG_FILE" --output-dir "$output_dir")
     if [[ "$HAS_DATASET" == "false" ]]; then
         cmd+=(-d "$DEFAULT_DATASET")
     fi
 
-    echo "Running subset: $subset"
-    echo "Output: $subset_dir"
+    echo "Running evaluation"
+    echo "Output: $output_dir"
     "${cmd[@]}" "${PASSTHROUGH_ARGS[@]}"
 }
 
-for subset in "${SUBSETS[@]}"; do
-    run_subset "$subset"
-done
+run_eval

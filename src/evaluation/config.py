@@ -60,9 +60,7 @@ class EvaluationConfig(BaseModel):
 
     # Dataset configuration
     dataset_id: str = Field(description="HuggingFace dataset ID")
-    subset: str = Field(default="default", description="Dataset subset name")
     split: str = Field(default="train", description="Dataset split")
-    format_type: FormatType = Field(description="Evaluation format type")
 
     # Model configuration
     model: ModelConfig = Field(description="Model configuration")

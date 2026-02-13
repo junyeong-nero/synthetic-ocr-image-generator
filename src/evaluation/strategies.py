@@ -572,44 +572,44 @@ class DocumentEvaluator(BaseEvaluator):
 
 class MarkdownEvaluator(BaseEvaluator):
     def extract_ground_truths(self, dataset: Dataset, target_column: str) -> List[Any]:
-        return [dataset[i].get("markdown", "") for i in range(len(dataset))]
+        return [
+            dataset[i].get("GT_markdown", dataset[i].get("markdown", ""))
+            for i in range(len(dataset))
+        ]
 
     def compute_metrics(
         self, predictions: List[str], ground_truths: List[str], normalize: bool = True
     ) -> Dict[str, float]:
-        from metrics.edit_distance import cer
+        from metrics.markdown_block_metrics import evaluate_markdown_blocks
 
-        cer_list = [cer(gt, pred) for gt, pred in zip(ground_truths, predictions)]
-
-        exact_match_list = [
-            1.0 if pred.strip() == gt.strip() else 0.0
+        per_sample = [
+            evaluate_markdown_blocks(pred, gt)
             for pred, gt in zip(predictions, ground_truths)
         ]
 
-        def normalize_markdown(text: str) -> str:
-            lines: list[str] = []
-            for line in text.strip().split("\n"):
-                stripped = line.strip()
-                if not stripped:
-                    continue
-                plain_text = re.sub(r"[#$`*_>\-+|\[\]()!~]", "", stripped)
-                plain_text = re.sub(r"\s+", " ", plain_text).strip()
-                if plain_text:
-                    lines.append(plain_text)
-            return "\n".join(lines)
+        def aggregate(key: str) -> tuple[float, float]:
+            values = [float(item.get(key, 0.0)) for item in per_sample]
+            if not values:
+                return 0.0, 0.0
+            return float(np.mean(values)), float(np.std(values))
 
-        normalized_match_list = [
-            1.0 if normalize_markdown(pred) == normalize_markdown(gt) else 0.0
-            for pred, gt in zip(predictions, ground_truths)
-        ]
+        avg_text, std_text = aggregate("markdown_text_score")
+        avg_table, std_table = aggregate("markdown_table_teds")
+        avg_formula, std_formula = aggregate("markdown_formula_score")
+        avg_order, std_order = aggregate("markdown_order_score")
+        avg_overall, std_overall = aggregate("markdown_overall_score")
 
         return {
-            "avg_cer": float(np.mean(cer_list)),
-            "std_cer": float(np.std(cer_list)),
-            "min_cer": float(np.min(cer_list)),
-            "max_cer": float(np.max(cer_list)),
-            "exact_match_rate": float(np.mean(exact_match_list)),
-            "normalized_match_rate": float(np.mean(normalized_match_list)),
+            "avg_markdown_text_score": avg_text,
+            "std_markdown_text_score": std_text,
+            "avg_markdown_table_teds": avg_table,
+            "std_markdown_table_teds": std_table,
+            "avg_markdown_formula_score": avg_formula,
+            "std_markdown_formula_score": std_formula,
+            "avg_markdown_order_score": avg_order,
+            "std_markdown_order_score": std_order,
+            "avg_markdown_overall_score": avg_overall,
+            "std_markdown_overall_score": std_overall,
         }
 
 
@@ -651,6 +651,25 @@ class KIEEvaluator(BaseEvaluator):
         aggregated = aggregate_kie_metrics(all_results)
 
         return aggregated
+
+
+def infer_format_type(dataset: Dataset, target_column: str) -> FormatType:
+    columns = set(dataset.column_names)
+
+    if "entities" in columns:
+        return FormatType.KIE
+    if "GT_markdown" in columns or "markdown" in columns:
+        return FormatType.MARKDOWN
+    if "html" in columns and "json" in columns:
+        return FormatType.TABLE
+    if "ground_truth" in columns:
+        sample = dataset[0] if len(dataset) else {}
+        if isinstance(sample, dict) and isinstance(sample.get("entities"), dict):
+            return FormatType.KIE
+        return FormatType.DOCUMENT
+    if target_column in columns:
+        return FormatType.SENTENCE
+    return FormatType.SENTENCE
 
 
 class EvaluatorRegistry:

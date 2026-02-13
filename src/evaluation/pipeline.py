@@ -16,7 +16,7 @@ from evaluation.config import (
 from evaluation.model_config import ModelConfigLoader, ModelSpecificConfig
 from evaluation.runner import EvaluationRunner
 from evaluation.types import EvaluationOutput, InferenceResult
-from evaluation.strategies import EvaluatorRegistry
+from evaluation.strategies import EvaluatorRegistry, infer_format_type
 from evaluation.utils import extract_html_table, parse_model_output_as_json
 from models.registry import create_model
 from env_utils import get_environment_metadata
@@ -39,6 +39,7 @@ class EvaluationPipeline:
         self.metric_views: Dict[str, Dict[str, float]] = {}
         self.dataset_fingerprint: Optional[str] = None
         self.dataset_info: Optional[Any] = None
+        self.format_type: Optional[FormatType] = None
 
         # Load model-specific config if available
         self.model_specific_config: Optional[ModelSpecificConfig] = None
@@ -54,17 +55,10 @@ class EvaluationPipeline:
 
     def _load_dataset(self) -> Dataset:
         """Load dataset from HuggingFace."""
-        if self.config.subset == "default":
-            dataset = load_dataset(
-                self.config.dataset_id,
-                split=self.config.split,
-            )
-        else:
-            dataset = load_dataset(
-                self.config.dataset_id,
-                name=self.config.subset,
-                split=self.config.split,
-            )
+        dataset = load_dataset(
+            self.config.dataset_id,
+            split=self.config.split,
+        )
 
         self.dataset_fingerprint = getattr(dataset, "_fingerprint", None)
         self.dataset_info = getattr(dataset, "info", None)
@@ -79,6 +73,7 @@ class EvaluationPipeline:
 
     def _resolve_prompt(self) -> tuple[str, Optional[str], str]:
         """Resolve prompt and system prompt with source labeling."""
+        format_type = self.format_type or FormatType.SENTENCE
         base_prompt: Optional[str] = None
         base_system_prompt: Optional[str] = None
         source: Optional[str] = None
@@ -89,14 +84,8 @@ class EvaluationPipeline:
             source = "cli"
 
         if base_prompt is None and self.model_specific_config:
-            format_key = self.config.format_type.value
-            subset_config = self.model_specific_config.subsets.get(self.config.subset)
-            if subset_config and format_key in subset_config.prompts:
-                prompt_config = subset_config.prompts[format_key]
-                base_prompt = prompt_config.prompt
-                base_system_prompt = prompt_config.system_prompt
-                source = "model_config_subset"
-            elif format_key in self.model_specific_config.prompts:
+            format_key = format_type.value
+            if format_key in self.model_specific_config.prompts:
                 prompt_config = self.model_specific_config.prompts[format_key]
                 base_prompt = prompt_config.prompt
                 base_system_prompt = prompt_config.system_prompt
@@ -104,13 +93,13 @@ class EvaluationPipeline:
 
         if base_prompt is None:
             base_prompt = DEFAULT_PROMPTS.get(
-                self.config.format_type,
+                format_type,
                 DEFAULT_PROMPTS[FormatType.SENTENCE],
             )
             base_system_prompt = None
             source = "default"
 
-        contract = FORMAT_OUTPUT_CONTRACTS.get(self.config.format_type)
+        contract = FORMAT_OUTPUT_CONTRACTS.get(format_type)
         if contract and contract.strip() not in base_prompt:
             base_prompt = f"{base_prompt.rstrip()}\n\n{contract}"
             source = f"{source}_with_contract"
@@ -119,7 +108,7 @@ class EvaluationPipeline:
 
     def _extract_ground_truths(self, dataset: Dataset) -> List[Any]:
         """Extract ground truths based on format type."""
-        evaluator = EvaluatorRegistry.get_evaluator(self.config.format_type)
+        evaluator = EvaluatorRegistry.get_evaluator(self.format_type or FormatType.SENTENCE)
         return evaluator.extract_ground_truths(dataset, self.config.target_column)
 
     def _compute_metrics(
@@ -142,7 +131,7 @@ class EvaluationPipeline:
         predictions = [str(r.prediction) for r in valid_results]
         ground_truths = [r.ground_truth for r in valid_results]
 
-        evaluator = EvaluatorRegistry.get_evaluator(self.config.format_type)
+        evaluator = EvaluatorRegistry.get_evaluator(self.format_type or FormatType.SENTENCE)
         metric_views = evaluator.compute_metric_views(predictions, ground_truths)
         self.metric_views = metric_views
         return metric_views.get("normalized", {})
@@ -169,10 +158,11 @@ class EvaluationPipeline:
             if prediction.strip() == "":
                 continue
 
-            if self.config.format_type in {FormatType.DOCUMENT, FormatType.KIE}:
+            format_type = self.format_type or FormatType.SENTENCE
+            if format_type in {FormatType.DOCUMENT, FormatType.KIE}:
                 if parse_model_output_as_json(prediction) is None:
                     parse_fail_count += 1.0
-            elif self.config.format_type == FormatType.TABLE:
+            elif format_type == FormatType.TABLE:
                 parsed_json = parse_model_output_as_json(prediction) or {}
                 has_html = "<table" in extract_html_table(prediction).lower()
                 has_table_json = isinstance(parsed_json, dict) and (
@@ -194,7 +184,9 @@ class EvaluationPipeline:
         # Load dataset
         print(f"Loading dataset: {self.config.dataset_id}")
         dataset = self._load_dataset()
+        self.format_type = infer_format_type(dataset, self.config.target_column)
         print(f"Loaded {len(dataset)} samples")
+        print(f"Detected format type: {self.format_type.value}")
 
         # Extract data
         images = dataset[self.config.image_column]
@@ -245,7 +237,9 @@ class EvaluationPipeline:
         # Load dataset
         print(f"Loading dataset: {self.config.dataset_id}")
         dataset = self._load_dataset()
+        self.format_type = infer_format_type(dataset, self.config.target_column)
         print(f"Loaded {len(dataset)} samples")
+        print(f"Detected format type: {self.format_type.value}")
 
         # Extract data
         images = dataset[self.config.image_column]
@@ -304,9 +298,8 @@ class EvaluationPipeline:
             }
         return {
             "dataset_id": self.config.dataset_id,
-            "subset": self.config.subset,
             "split": self.config.split,
-            "format_type": self.config.format_type.value,
+            "format_type": (self.format_type or FormatType.SENTENCE).value,
             "batch_size": self.config.batch_size,
             "max_samples": self.config.max_samples,
             "prompt": self.prompt,
@@ -334,8 +327,6 @@ def evaluate_pipeline(
     dataset_id: str,
     model_id: str,
     backend: str,
-    format_type: str = "sentence",
-    subset: str = "default",
     split: str = "test",
     batch_size: int = 1,
     max_samples: Optional[int] = None,
@@ -349,8 +340,6 @@ def evaluate_pipeline(
         dataset_id: HuggingFace dataset ID.
         model_id: Model identifier.
         backend: Inference backend name.
-        format_type: Evaluation format type.
-        subset: Dataset subset.
         split: Dataset split.
         batch_size: Batch size.
         max_samples: Maximum samples to evaluate.
@@ -376,9 +365,7 @@ def evaluate_pipeline(
     # Build evaluation config
     config = EvaluationConfig(
         dataset_id=dataset_id,
-        subset=subset,
         split=split,
-        format_type=FormatType(format_type),
         model=model_config,
         batch_size=batch_size,
         max_samples=max_samples,

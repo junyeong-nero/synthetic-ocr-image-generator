@@ -12,5 +12,4 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --font-path "$PROJECT_DIR/fonts/is/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "is" \
     --size 1000 \
-    --mixed \
     --label "Icelandic"

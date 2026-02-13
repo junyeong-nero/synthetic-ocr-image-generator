@@ -11,12 +11,11 @@ DEFAULT_DATASET="junyeong-nero/synthetic-ocr-images-ko"
 DEFAULT_MAX_SAMPLES=200
 
 usage() {
-    echo "Usage: $0 [--dataset <repo>] [--subset <name>] [--max-samples <n>]"
-    echo "       $0 [DATASET] [SUBSET] [MAX_SAMPLES]"
+    echo "Usage: $0 [--dataset <repo>] [--max-samples <n>]"
+    echo "       $0 [DATASET] [MAX_SAMPLES]"
 }
 
 DATASET="$DEFAULT_DATASET"
-SUBSET=""
 MAX_SAMPLES="$DEFAULT_MAX_SAMPLES"
 POSITIONAL_ARGS=()
 
@@ -33,19 +32,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dataset=*)
             DATASET="${1#*=}"
-            shift
-            ;;
-        -s|--subset)
-            if [[ $# -lt 2 ]]; then
-                echo "Error: $1 requires a value"
-                usage
-                exit 1
-            fi
-            SUBSET="$2"
-            shift 2
-            ;;
-        --subset=*)
-            SUBSET="${1#*=}"
             shift
             ;;
         --max-samples|-m)
@@ -82,7 +68,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ ${#POSITIONAL_ARGS[@]} -gt 3 ]]; then
+if [[ ${#POSITIONAL_ARGS[@]} -gt 2 ]]; then
     echo "Error: too many positional arguments"
     usage
     exit 1
@@ -92,10 +78,7 @@ if [[ ${#POSITIONAL_ARGS[@]} -ge 1 ]]; then
     DATASET="${POSITIONAL_ARGS[0]}"
 fi
 if [[ ${#POSITIONAL_ARGS[@]} -ge 2 ]]; then
-    SUBSET="${POSITIONAL_ARGS[1]}"
-fi
-if [[ ${#POSITIONAL_ARGS[@]} -ge 3 ]]; then
-    MAX_SAMPLES="${POSITIONAL_ARGS[2]}"
+    MAX_SAMPLES="${POSITIONAL_ARGS[1]}"
 fi
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
@@ -110,11 +93,6 @@ echo "==========================================" | tee "$SUMMARY_FILE"
 echo "Running evaluations for all model configs" | tee -a "$SUMMARY_FILE"
 echo "==========================================" | tee -a "$SUMMARY_FILE"
 echo "Dataset: $DATASET" | tee -a "$SUMMARY_FILE"
-if [[ -n "$SUBSET" ]]; then
-    echo "Subset: $SUBSET" | tee -a "$SUMMARY_FILE"
-else
-    echo "Subset: default(all)" | tee -a "$SUMMARY_FILE"
-fi
 echo "Max Samples: $MAX_SAMPLES" | tee -a "$SUMMARY_FILE"
 echo "Log: $SUMMARY_FILE" | tee -a "$SUMMARY_FILE"
 echo "" | tee -a "$SUMMARY_FILE"
@@ -130,9 +108,6 @@ for config_file in "$CONFIG_DIR"/*.yaml; do
     echo "------------------------------------------" | tee -a "$SUMMARY_FILE"
 
     run_args=("$config_name" -d "$DATASET" --max-samples "$MAX_SAMPLES")
-    if [[ -n "$SUBSET" ]]; then
-        run_args+=(--subset "$SUBSET")
-    fi
 
     if "$RUN_SCRIPT" "${run_args[@]}" 2>&1 | tee -a "$SUMMARY_FILE"; then
         PASSED=$((PASSED + 1))

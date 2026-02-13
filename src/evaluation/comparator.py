@@ -75,7 +75,6 @@ class ModelComparator:
                 "backend": model_config.get("backend", "unknown"),
                 "format": config.get("format_type", "unknown"),
                 "dataset": config.get("dataset_id", "unknown"),
-                "subset": config.get("subset", "default"),
                 **metrics,
                 "samples": summary.get("total_samples", 0),
                 "success_rate": (
@@ -118,7 +117,6 @@ class ModelComparator:
                 "backend": model_config.get("backend", "unknown"),
                 "format": config.get("format_type", "unknown"),
                 "dataset": config.get("dataset_id", "unknown"),
-                "subset": config.get("subset", "default"),
                 "metrics": metrics,
                 "samples": summary.get("total_samples", 0),
                 "success_rate": (
@@ -223,7 +221,7 @@ class ModelComparator:
 
         for row in self.to_dict():
             print(f"\n{row['model']} ({row['backend']})")
-            print(f"  Dataset: {row['dataset']} / {row['subset']}")
+            print(f"  Dataset: {row['dataset']}")
             print(f"  Samples: {row['samples']} (success rate: {row['success_rate']:.1%})")
             print(f"  Latency: {row['avg_latency_ms']:.1f}ms")
             print("  Metrics:")
