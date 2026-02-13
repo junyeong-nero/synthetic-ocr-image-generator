@@ -12,7 +12,13 @@ from typing import Any
 
 MAIN_METRIC_PREFERENCES: dict[str, list[str]] = {
     "sentence": ["avg_cer", "avg_wer"],
-    "markdown": ["normalized_match_rate", "exact_match_rate", "avg_cer"],
+    "markdown": [
+        "avg_markdown_overall_score",
+        "avg_markdown_text_score",
+        "avg_markdown_table_teds",
+        "avg_markdown_formula_score",
+        "avg_markdown_order_score",
+    ],
     "table": ["avg_teds", "avg_cell_accuracy", "avg_structure_f1"],
     "document": ["avg_text_table_formula_score", "avg_text_table_score", "avg_text_score", "avg_table_teds", "avg_overall_f1", "avg_layout_f1", "avg_reading_order", "avg_kv_f1"],
     "kie": ["avg_entity_f1", "avg_overall_f1", "entity_f1", "overall_f1", "line_item_f1"],
@@ -53,7 +59,7 @@ def _load_json(path: Path) -> dict[str, Any]:
     return {}
 
 
-def _pick_metric(subset: str, rows: list[dict[str, Any]]) -> str | None:
+def _pick_metric(format_name: str, rows: list[dict[str, Any]]) -> str | None:
     available = {
         metric_key
         for row in rows
@@ -61,7 +67,7 @@ def _pick_metric(subset: str, rows: list[dict[str, Any]]) -> str | None:
         if _to_float(metric_value) is not None
     }
 
-    for preferred in MAIN_METRIC_PREFERENCES.get(subset, []):
+    for preferred in MAIN_METRIC_PREFERENCES.get(format_name, []):
         if preferred in available:
             return preferred
 
@@ -84,7 +90,7 @@ def _collect_latest_rows(base_dir: Path) -> list[dict[str, Any]]:
         model_cfg = config.get("model", {}) if isinstance(config.get("model"), dict) else {}
         metrics = report.get("metrics", {}) if isinstance(report.get("metrics"), dict) else {}
 
-        subset = str(config.get("subset") or report_path.parent.name)
+        format_name = str(config.get("format") or "unknown")
         model_id = str(model_cfg.get("model_id") or report_path.parent.parent.name)
 
         protocol_path = report_path.parent / "protocol.json"
@@ -96,7 +102,7 @@ def _collect_latest_rows(base_dir: Path) -> list[dict[str, Any]]:
         row = {
             "model_id": model_id,
             "backend": model_cfg.get("backend"),
-            "subset": subset,
+            "format": format_name,
             "dataset": config.get("dataset_id"),
             "split": config.get("split"),
             "total_samples": summary.get("total_samples"),
@@ -108,7 +114,7 @@ def _collect_latest_rows(base_dir: Path) -> list[dict[str, Any]]:
             "report_path": str(report_path),
         }
 
-        key = (model_id, subset)
+        key = (model_id, format_name)
         previous = latest.get(key)
         if previous is None or row["timestamp"] >= previous["timestamp"]:
             latest[key] = row
@@ -132,12 +138,12 @@ def _sort_rows(rows: list[dict[str, Any]], metric_key: str | None) -> list[dict[
     return sorted(rows, key=key_fn)
 
 
-def _build_subset_payload(subset: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
-    metric_key = _pick_metric(subset, rows)
+def _build_format_payload(format_name: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
+    metric_key = _pick_metric(format_name, rows)
     sorted_rows = _sort_rows(rows, metric_key)
 
     return {
-        "subset": subset,
+        "format": format_name,
         "metric_key": metric_key,
         "metric_direction": "ascending" if metric_key in LOWER_BETTER_METRICS else "descending",
         "count": len(sorted_rows),
@@ -151,34 +157,43 @@ def _build_subset_payload(subset: str, rows: list[dict[str, Any]]) -> dict[str, 
     }
 
 
-def _write_leaderboard_outputs(output_dir: Path, subsets: list[dict[str, Any]]) -> None:
+def _write_leaderboard_outputs(output_dir: Path, formats: list[dict[str, Any]]) -> None:
     payload = {
         "generated_at_utc": datetime.utcnow().isoformat() + "Z",
-        "count": len(subsets),
-        "subsets": subsets,
+        "count": len(formats),
+        "formats": formats,
     }
 
     json_path = output_dir / "leaderboard.json"
     md_path = output_dir / "leaderboard.md"
     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    lines = ["# Leaderboard", "", f"- Subsets: {len(subsets)}", ""]
+    lines = ["# Leaderboard", "", f"- Formats: {len(formats)}", ""]
 
-    for subset_payload in subsets:
-        subset = str(subset_payload.get("subset") or "unknown")
-        metric_key = str(subset_payload.get("metric_key") or "") or None
+    for format_payload in formats:
+        format_name = str(format_payload.get("format") or "unknown")
+        metric_key = str(format_payload.get("metric_key") or "") or None
         metric_note = "lower is better" if metric_key in LOWER_BETTER_METRICS else "higher is better"
-        rows = subset_payload.get("rows", [])
+        rows = format_payload.get("rows", [])
+        include_markdown_columns = format_name == "markdown"
 
         lines.extend(
             [
-                f"## {subset}",
+                f"## {format_name}",
                 "",
                 f"- Sorted by: `{metric_key or 'N/A'}` ({metric_note})",
                 f"- Entries: {len(rows)}",
                 "",
-                "| Rank | Model | Backend | Metric | Dataset | Split | Success/Total | Updated (UTC) |",
-                "|---:|---|---|---:|---|---|---|---|",
+                (
+                    "| Rank | Model | Backend | Metric | Dataset | Split | Text | Table | Formula | Order | Success/Total | Updated (UTC) |"
+                    if include_markdown_columns
+                    else "| Rank | Model | Backend | Metric | Dataset | Split | Success/Total | Updated (UTC) |"
+                ),
+                (
+                    "|---:|---|---|---:|---|---|---:|---:|---:|---:|---|---|"
+                    if include_markdown_columns
+                    else "|---:|---|---|---:|---|---|---|---|"
+                ),
             ]
         )
 
@@ -188,19 +203,38 @@ def _write_leaderboard_outputs(output_dir: Path, subsets: list[dict[str, Any]]) 
                 metric_value = row.get("metrics", {}).get(metric_key)
             success = row.get("successful")
             total = row.get("total_samples")
-            lines.append(
-                "| {} | {} | {} | {} | {} | {} | {}/{} | {} |".format(
-                    rank,
-                    row.get("model_id") or "-",
-                    row.get("backend") or "-",
-                    _format_metric_value(metric_value),
-                    row.get("dataset") or "-",
-                    row.get("split") or "-",
-                    success if isinstance(success, int) else "-",
-                    total if isinstance(total, int) else "-",
-                    row.get("timestamp") or "-",
+            if include_markdown_columns:
+                lines.append(
+                    "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {}/{} | {} |".format(
+                        rank,
+                        row.get("model_id") or "-",
+                        row.get("backend") or "-",
+                        _format_metric_value(metric_value),
+                        row.get("dataset") or "-",
+                        row.get("split") or "-",
+                        _format_metric_value(row.get("metrics", {}).get("avg_markdown_text_score")),
+                        _format_metric_value(row.get("metrics", {}).get("avg_markdown_table_teds")),
+                        _format_metric_value(row.get("metrics", {}).get("avg_markdown_formula_score")),
+                        _format_metric_value(row.get("metrics", {}).get("avg_markdown_order_score")),
+                        success if isinstance(success, int) else "-",
+                        total if isinstance(total, int) else "-",
+                        row.get("timestamp") or "-",
+                    )
                 )
-            )
+            else:
+                lines.append(
+                    "| {} | {} | {} | {} | {} | {} | {}/{} | {} |".format(
+                        rank,
+                        row.get("model_id") or "-",
+                        row.get("backend") or "-",
+                        _format_metric_value(metric_value),
+                        row.get("dataset") or "-",
+                        row.get("split") or "-",
+                        success if isinstance(success, int) else "-",
+                        total if isinstance(total, int) else "-",
+                        row.get("timestamp") or "-",
+                    )
+                )
 
         lines.append("")
 
@@ -217,13 +251,13 @@ def update_leaderboards(base_dir: Path) -> None:
 
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
-        grouped[str(row.get("subset") or "unknown")].append(row)
+        grouped[str(row.get("format") or "unknown")].append(row)
 
-    subset_payloads = [
-        _build_subset_payload(subset, subset_rows)
-        for subset, subset_rows in sorted(grouped.items(), key=lambda item: item[0])
+    format_payloads = [
+        _build_format_payload(format_name, format_rows)
+        for format_name, format_rows in sorted(grouped.items(), key=lambda item: item[0])
     ]
-    _write_leaderboard_outputs(base_dir, subset_payloads)
+    _write_leaderboard_outputs(base_dir, format_payloads)
 
 
 def main() -> None:
@@ -231,7 +265,7 @@ def main() -> None:
     parser.add_argument(
         "--base-dir",
         default="evaluation_result",
-        help="Base directory containing model/subset evaluation outputs",
+        help="Base directory containing model evaluation outputs",
     )
     args = parser.parse_args()
     update_leaderboards(Path(args.base_dir))

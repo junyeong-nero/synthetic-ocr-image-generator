@@ -11,5 +11,5 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --repo-id "junyeong-nero/synthetic-ocr-images-ko" \
     --font-path "$PROJECT_DIR/fonts/ko/NotoSansKR-VariableFont_wght.ttf" \
     --lang "ko" \
-    --size 1000 \
+    --size 10000 \
     --label "Korean"

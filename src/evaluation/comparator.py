@@ -15,6 +15,31 @@ class ModelComparator:
     def __init__(self, results: List[Dict[str, Any]]):
         self.results = results
 
+    @staticmethod
+    def _build_row(result: Dict[str, Any]) -> Dict[str, Any]:
+        config = result.get("config", {})
+        model_config = config.get("model", {})
+        summary = result.get("summary", {})
+        metrics = result.get("metrics", {})
+        total_samples = summary.get("total_samples", 0)
+        successful = summary.get("successful", 0)
+
+        success_rate = successful / total_samples if total_samples > 0 else 0
+        format_name = config.get("format", "unknown")
+        return {
+            "model": model_config.get("model_id", "unknown"),
+            "backend": model_config.get("backend", "unknown"),
+            "format": format_name,
+            "dataset": config.get("dataset_id", "unknown"),
+            "metrics": metrics,
+            "samples": total_samples,
+            "success_rate": success_rate,
+            "avg_latency_ms": summary.get("avg_latency_ms", 0),
+        }
+
+    def _iter_rows(self) -> List[Dict[str, Any]]:
+        return [self._build_row(result) for result in self.results]
+
     @classmethod
     def from_json_files(cls, paths: List[Path]) -> "ModelComparator":
         """
@@ -64,27 +89,17 @@ class ModelComparator:
             )
 
         rows = []
-        for result in self.results:
-            config = result.get("config", {})
-            model_config = config.get("model", {})
-            summary = result.get("summary", {})
-            metrics = result.get("metrics", {})
-
-            row = {
-                "model": model_config.get("model_id", "unknown"),
-                "backend": model_config.get("backend", "unknown"),
-                "format": config.get("format_type", "unknown"),
-                "dataset": config.get("dataset_id", "unknown"),
-                **metrics,
-                "samples": summary.get("total_samples", 0),
-                "success_rate": (
-                    summary.get("successful", 0) / summary.get("total_samples", 1)
-                    if summary.get("total_samples", 0) > 0
-                    else 0
-                ),
-                "avg_latency_ms": summary.get("avg_latency_ms", 0),
-            }
-            rows.append(row)
+        for row in self._iter_rows():
+            rows.append({
+                "model": row["model"],
+                "backend": row["backend"],
+                "format": row["format"],
+                "dataset": row["dataset"],
+                **row["metrics"],
+                "samples": row["samples"],
+                "success_rate": row["success_rate"],
+                "avg_latency_ms": row["avg_latency_ms"],
+            })
 
         return pd.DataFrame(rows)
 
@@ -96,7 +111,7 @@ class ModelComparator:
             Markdown table string.
         """
         df = self.to_dataframe()
-        return df.to_markdown(index=False)
+        return str(df.to_markdown(index=False))
 
     def to_dict(self) -> List[Dict[str, Any]]:
         """
@@ -105,30 +120,7 @@ class ModelComparator:
         Returns:
             List of comparison dictionaries.
         """
-        rows = []
-        for result in self.results:
-            config = result.get("config", {})
-            model_config = config.get("model", {})
-            summary = result.get("summary", {})
-            metrics = result.get("metrics", {})
-
-            row = {
-                "model": model_config.get("model_id", "unknown"),
-                "backend": model_config.get("backend", "unknown"),
-                "format": config.get("format_type", "unknown"),
-                "dataset": config.get("dataset_id", "unknown"),
-                "metrics": metrics,
-                "samples": summary.get("total_samples", 0),
-                "success_rate": (
-                    summary.get("successful", 0) / summary.get("total_samples", 1)
-                    if summary.get("total_samples", 0) > 0
-                    else 0
-                ),
-                "avg_latency_ms": summary.get("avg_latency_ms", 0),
-            }
-            rows.append(row)
-
-        return rows
+        return self._iter_rows()
 
     def rank_by_metric(
         self,
@@ -150,7 +142,7 @@ class ModelComparator:
             raise ValueError(f"Metric '{metric}' not found in results")
 
         sorted_df = df.sort_values(metric, ascending=ascending)
-        return sorted_df["model"].tolist()
+        return [str(model) for model in sorted_df["model"].tolist()]
 
     def get_best_model(
         self,

@@ -24,7 +24,7 @@ src/evaluation/
 
 ## CONVENTIONS
 - `--model-config` YAML is the source of truth for prompts and overrides.
-- `FormatType` must stay aligned with generator format names.
+- Evaluation is markdown-only; keep `format` value fixed to `markdown`.
 - Batch size and inference params come from config, overridden by CLI args when present.
 
 ## ANTI-PATTERNS (THIS PROJECT)

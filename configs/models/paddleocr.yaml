@@ -3,7 +3,7 @@
 # Supports 'en' (default), 'korean', 'chinese', 'japan', etc. via model_id suffix
 # Example: "paddleocr/korean" or just "paddleocr" (defaults to en)
 
-model_id: paddleocr
+model_id: paddleocr/paddle-ocr
 backend: paddleocr
 dependency_group: paddle-ocr
 

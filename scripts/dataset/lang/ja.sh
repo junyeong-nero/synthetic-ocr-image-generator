@@ -11,5 +11,5 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --repo-id "junyeong-nero/synthetic-ocr-images-ja" \
     --font-path "$PROJECT_DIR/fonts/ja/NotoSansJP-VariableFont_wght.ttf" \
     --lang "ja" \
-    --size 1000 \
+    --size 10000 \
     --label "Japanese"

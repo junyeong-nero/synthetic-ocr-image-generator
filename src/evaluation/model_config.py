@@ -6,9 +6,6 @@ from typing import Any, Optional
 import yaml
 from pydantic import BaseModel, Field
 
-from evaluation.config import FormatType
-
-
 class PromptConfig(BaseModel):
     """Prompt configuration for a specific format type."""
 
@@ -48,17 +45,15 @@ class ModelSpecificConfig(BaseModel):
     tensor_parallel_size: int = Field(default=1, ge=1)
     max_model_len: Optional[int] = Field(default=None)
 
-    # Default prompts for each format type
     prompts: dict[str, PromptConfig] = Field(
         default_factory=dict,
-        description="Default prompts keyed by format type",
+        description="Default prompts keyed by format name",
     )
 
     model_config = {"protected_namespaces": ()}
 
-    def get_prompt(self, format_type: FormatType) -> Optional[PromptConfig]:
-        """Get the prompt config for a format type."""
-        format_key = format_type.value
+    def get_prompt(self, format_name: str = "markdown") -> Optional[PromptConfig]:
+        format_key = format_name
 
         # Fall back to default prompts
         if format_key in self.prompts:
@@ -147,11 +142,11 @@ class ModelConfigLoader:
     ) -> dict[str, PromptConfig]:
         """Parse prompts section into PromptConfig objects."""
         result = {}
-        for format_type, prompt_data in prompts_data.items():
+        for format_name, prompt_data in prompts_data.items():
             if isinstance(prompt_data, str):
-                result[format_type] = PromptConfig(prompt=prompt_data)
+                result[format_name] = PromptConfig(prompt=prompt_data)
             else:
-                result[format_type] = PromptConfig(**prompt_data)
+                result[format_name] = PromptConfig(**prompt_data)
         return result
 
     def list_available_configs(self) -> list[str]:

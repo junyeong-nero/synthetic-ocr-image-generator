@@ -73,9 +73,9 @@ def test_pipeline_exposes_metric_views(tmp_path: Path, monkeypatch) -> None:
     ]
     metrics = pipeline._compute_metrics(results)
 
-    assert metrics["avg_cer"] == 0.0
-    assert pipeline.metric_views["raw"]["avg_cer"] == 0.0
-    assert pipeline.metric_views["normalized"]["avg_cer"] == 0.0
+    assert metrics["avg_markdown_text_score"] == 1.0
+    assert pipeline.metric_views["raw"]["avg_markdown_text_score"] == 1.0
+    assert pipeline.metric_views["normalized"]["avg_markdown_text_score"] == 1.0
 
 
 def test_evaluate_document_uses_text_table_scores_and_ignores_formula_elements(monkeypatch) -> None:

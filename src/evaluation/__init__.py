@@ -1,9 +1,8 @@
 """Evaluation pipeline for VLM/OCR models."""
 
 from evaluation.config import (
-    DEFAULT_PROMPTS,
+    DEFAULT_PROMPT,
     EvaluationConfig,
-    FormatType,
     InferenceBackend,
     ModelConfig,
 )
@@ -22,9 +21,8 @@ __all__ = [
     # Config
     "EvaluationConfig",
     "ModelConfig",
-    "FormatType",
     "InferenceBackend",
-    "DEFAULT_PROMPTS",
+    "DEFAULT_PROMPT",
     # Model Config
     "ModelConfigLoader",
     "ModelSpecificConfig",

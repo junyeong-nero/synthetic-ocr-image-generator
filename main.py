@@ -43,6 +43,12 @@ def _normalize_metric(metric_key: Optional[str], metric_value: Optional[float]) 
     return max(0.0, min(1.0, normalized))
 
 
+def _safe_numeric(value: object) -> Optional[float]:
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
 def _write_protocol_snapshot(
     output_dir: Path,
     output,
@@ -73,6 +79,7 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
         metric_value = entry.get("metric_value")
         normalized_average = _normalize_metric(metric_key, metric_value)
 
+        entry_metrics = entry.get("metrics", {}) if isinstance(entry.get("metrics"), dict) else {}
         leaderboard_entries.append(
             {
                 "timestamp": entry.get("timestamp"),
@@ -81,13 +88,17 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
                 "backend": entry.get("backend"),
                 "dataset": entry.get("dataset"),
                 "split": entry.get("split"),
-                "format_type": entry.get("format_type"),
+                "format": entry.get("format"),
                 "average_score": entry.get("average_score", metric_value),
                 "normalized_average_score": normalized_average,
                 "average_empty_rate": entry.get("average_empty_rate", entry.get("empty_rate")),
                 "average_parse_fail_rate": entry.get(
                     "average_parse_fail_rate", entry.get("parse_fail_rate")
                 ),
+                "markdown_text_score": _safe_numeric(entry_metrics.get("avg_markdown_text_score")),
+                "markdown_table_teds": _safe_numeric(entry_metrics.get("avg_markdown_table_teds")),
+                "markdown_formula_score": _safe_numeric(entry_metrics.get("avg_markdown_formula_score")),
+                "markdown_order_score": _safe_numeric(entry_metrics.get("avg_markdown_order_score")),
             }
         )
 
@@ -106,24 +117,32 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
     lines = [
         "# OCR Benchmark Leaderboard",
         "",
-        "| Rank | Model | Backend | Dataset | Split | Format | Normalized | Raw | Empty Rate | Parse Fail Rate |",
-        "|---:|---|---|---|---|---|---:|---:|---:|---:|",
+        "| Rank | Model | Backend | Dataset | Split | Format | Normalized | Raw | Text | Table | Formula | Order | Empty Rate | Parse Fail Rate |",
+        "|---:|---|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for idx, entry in enumerate(leaderboard_entries, start=1):
         normalized_score = entry.get("normalized_average_score")
         raw_score = entry.get("average_score")
         empty_rate = entry.get("average_empty_rate")
         parse_fail_rate = entry.get("average_parse_fail_rate")
+        text_score = entry.get("markdown_text_score")
+        table_score = entry.get("markdown_table_teds")
+        formula_score = entry.get("markdown_formula_score")
+        order_score = entry.get("markdown_order_score")
         lines.append(
-            "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
+            "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
                 idx,
                 entry.get("model_id") or "-",
                 entry.get("backend") or "-",
                 entry.get("dataset") or "-",
                 entry.get("split") or "-",
-                entry.get("format_type") or "-",
+                entry.get("format") or "-",
                 f"{normalized_score:.4f}" if isinstance(normalized_score, (int, float)) else "-",
                 f"{raw_score:.4f}" if isinstance(raw_score, (int, float)) else "-",
+                f"{text_score:.4f}" if isinstance(text_score, (int, float)) else "-",
+                f"{table_score:.4f}" if isinstance(table_score, (int, float)) else "-",
+                f"{formula_score:.4f}" if isinstance(formula_score, (int, float)) else "-",
+                f"{order_score:.4f}" if isinstance(order_score, (int, float)) else "-",
                 f"{empty_rate:.4f}" if isinstance(empty_rate, (int, float)) else "-",
                 f"{parse_fail_rate:.4f}" if isinstance(parse_fail_rate, (int, float)) else "-",
             )
@@ -134,10 +153,10 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
         f.write("\n".join(lines))
 
 
-def print_results(metrics: dict, format_type: str) -> None:
+def print_results(metrics: dict, format_name: str) -> None:
     """Print evaluation results to console."""
     print("\n" + "=" * 60)
-    print(f" {format_type.upper()} EVALUATION RESULTS ")
+    print(f" {format_name.upper()} EVALUATION RESULTS ")
     print("=" * 60)
 
     for key, value in metrics.items():
@@ -185,7 +204,12 @@ def cmd_generate(args: argparse.Namespace) -> None:
 
 def cmd_evaluate(args: argparse.Namespace) -> None:
     """Run evaluation command."""
-    from evaluation.config import InferenceBackend, ModelConfig, EvaluationConfig
+    from evaluation.config import (
+        InferenceBackend,
+        ModelConfig,
+        EvaluationConfig,
+        EvaluationMode,
+    )
     from evaluation.pipeline import EvaluationPipeline
     from evaluation.report import ReportGenerator
 
@@ -194,11 +218,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     set_global_seed(args.seed)
 
     representative_metrics = {
-        "sentence": "avg_cer",
-        "table": "avg_teds",
-        "document": "avg_text_table_formula_score",
         "markdown": "avg_markdown_overall_score",
-        "kie": "avg_entity_f1",
     }
 
     backend_str = args.backend
@@ -242,6 +262,12 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         rate_limit_rpm=rate_limit_rpm,
     )
 
+    execution_mode = EvaluationMode.ALL
+    if args.inference_only:
+        execution_mode = EvaluationMode.INFERENCE_ONLY
+    elif args.evaluate_only:
+        execution_mode = EvaluationMode.EVALUATE_ONLY
+
     config = EvaluationConfig(
         dataset_id=args.dataset,
         split=args.split,
@@ -254,6 +280,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         batch_poll_seconds=args.batch_poll_seconds,
         batch_timeout_seconds=args.batch_timeout_seconds,
         batch_completion_window=args.batch_completion_window,
+        execution_mode=execution_mode,
         model_config_path=args.model_config,
     )
 
@@ -266,10 +293,23 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     print(f"  Temperature: {temperature}")
     print(f"  Max Tokens: {max_tokens}")
     print(f"  Config File: {args.model_config}")
+    print(f"  Mode: {execution_mode.value}")
 
-    print(f"\nEvaluating {model_config.model_id} on {args.dataset}...")
     pipeline = EvaluationPipeline(config)
-    output = pipeline.run()
+    if execution_mode == EvaluationMode.INFERENCE_ONLY:
+        print(f"\nRunning inference only for {model_config.model_id} on {args.dataset}...")
+        results = pipeline.run_inference_only()
+        checkpoint_path = Path(args.output_dir) / "checkpoints.json"
+        print(f"Inference complete: {len(results)} samples processed")
+        print(f"Checkpoint saved: {checkpoint_path}")
+        return
+
+    if execution_mode == EvaluationMode.EVALUATE_ONLY:
+        print(f"\nEvaluating from checkpoint for {model_config.model_id} on {args.dataset}...")
+        output = pipeline.run_evaluate_only()
+    else:
+        print(f"\nEvaluating {model_config.model_id} on {args.dataset}...")
+        output = pipeline.run()
 
     output_path = Path(args.output_dir)
     generator = ReportGenerator(output)
@@ -286,7 +326,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     protocol_path = _write_protocol_snapshot(output_path, output, args.report_format)
     print(f"Protocol snapshot saved: {protocol_path}")
 
-    resolved_format = str(output.config.get("format_type") or "sentence")
+    resolved_format = str(output.config.get("format") or "markdown")
     print_results(output.metrics, resolved_format)
     print(f"\nSamples: {output.summary['successful']}/{output.summary['total_samples']}")
     print(f"Avg Latency: {output.summary['avg_latency_ms']:.2f}ms")
@@ -304,7 +344,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         "dataset": args.dataset,
         "split": args.split,
         "seed": args.seed,
-        "format_type": resolved_format,
+        "format": resolved_format,
         "metric_key": metric_key,
         "metric_value": metric_value,
         "average_score": metric_value,
@@ -312,6 +352,11 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         "parse_fail_rate": output.summary.get("parse_fail_rate"),
         "total_samples": output.summary.get("total_samples"),
         "prompt_source": output.config.get("prompt_source"),
+        "metrics": {
+            key: float(value)
+            for key, value in output.metrics.items()
+            if isinstance(value, (int, float))
+        },
     }
 
     summary_output_dir = Path(args.output_dir)
@@ -572,6 +617,19 @@ def main() -> None:
         default="all",
         choices=["json", "markdown", "html", "all"],
         help="Report output format",
+    )
+    mode_group = eval_parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
+        "--inference-only",
+        action="store_true",
+        default=False,
+        help="Run model inference only and save checkpoints.json without report generation",
+    )
+    mode_group.add_argument(
+        "--evaluate-only",
+        action="store_true",
+        default=False,
+        help="Skip model inference and compute reports from checkpoints.json",
     )
 
     # Evaluation CLI overrides

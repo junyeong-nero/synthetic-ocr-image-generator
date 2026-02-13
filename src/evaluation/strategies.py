@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from datasets import Dataset
 
-from evaluation.config import FormatType
 from evaluation.utils import extract_html_table, parse_model_output_as_json, table_html_to_json
 
 
@@ -653,41 +652,22 @@ class KIEEvaluator(BaseEvaluator):
         return aggregated
 
 
-def infer_format_type(dataset: Dataset, target_column: str) -> FormatType:
-    columns = set(dataset.column_names)
-
-    if "entities" in columns:
-        return FormatType.KIE
-    if "GT_markdown" in columns or "markdown" in columns:
-        return FormatType.MARKDOWN
-    if "html" in columns and "json" in columns:
-        return FormatType.TABLE
-    if "ground_truth" in columns:
-        sample = dataset[0] if len(dataset) else {}
-        if isinstance(sample, dict) and isinstance(sample.get("entities"), dict):
-            return FormatType.KIE
-        return FormatType.DOCUMENT
-    if target_column in columns:
-        return FormatType.SENTENCE
-    return FormatType.SENTENCE
-
-
 class EvaluatorRegistry:
-    _evaluators: Dict[FormatType, BaseEvaluator] = {}
+    _evaluators: Dict[str, BaseEvaluator] = {}
 
     @classmethod
-    def register(cls, format_type: FormatType, evaluator: BaseEvaluator):
-        cls._evaluators[format_type] = evaluator
+    def register(cls, format_name: str, evaluator: BaseEvaluator):
+        cls._evaluators[format_name] = evaluator
 
     @classmethod
-    def get_evaluator(cls, format_type: FormatType) -> BaseEvaluator:
-        if format_type not in cls._evaluators:
-            raise ValueError(f"No evaluator registered for format: {format_type}")
-        return cls._evaluators[format_type]
+    def get_evaluator(cls, format_name: str) -> BaseEvaluator:
+        if format_name not in cls._evaluators:
+            raise ValueError(f"No evaluator registered for format: {format_name}")
+        return cls._evaluators[format_name]
 
 # Register default evaluators
-EvaluatorRegistry.register(FormatType.SENTENCE, SentenceEvaluator())
-EvaluatorRegistry.register(FormatType.TABLE, TableEvaluator())
-EvaluatorRegistry.register(FormatType.DOCUMENT, DocumentEvaluator())
-EvaluatorRegistry.register(FormatType.MARKDOWN, MarkdownEvaluator())
-EvaluatorRegistry.register(FormatType.KIE, KIEEvaluator())
+EvaluatorRegistry.register("sentence", SentenceEvaluator())
+EvaluatorRegistry.register("table", TableEvaluator())
+EvaluatorRegistry.register("document", DocumentEvaluator())
+EvaluatorRegistry.register("markdown", MarkdownEvaluator())
+EvaluatorRegistry.register("kie", KIEEvaluator())

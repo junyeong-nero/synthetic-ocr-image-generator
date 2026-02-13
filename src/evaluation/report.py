@@ -60,6 +60,7 @@ class ReportGenerator:
         metrics = self.output.metrics
         summary = self.output.summary
         metric_views = self.output.metric_views
+        format_name = config.get("format", "markdown")
 
         lines = [
             "# OCR Evaluation Report",
@@ -71,7 +72,7 @@ class ReportGenerator:
             f"| Model | {config.get('model', {}).get('model_id', 'N/A')} |",
             f"| Backend | {config.get('model', {}).get('backend', 'N/A')} |",
             f"| Dataset | {config.get('dataset_id', 'N/A')} |",
-            f"| Format | {config.get('format_type', 'N/A')} |",
+            f"| Format | {format_name} |",
             "",
             "## Metrics",
             "",
@@ -128,6 +129,32 @@ class ReportGenerator:
             ]
         )
 
+        if format_name == "markdown":
+            lines.extend(
+                [
+                    "## Markdown Block Scores",
+                    "",
+                    "| Component | Value |",
+                    "|-----------|-------|",
+                ]
+            )
+            component_keys = [
+                ("Text", "avg_markdown_text_score"),
+                ("Table", "avg_markdown_table_teds"),
+                ("Formula", "avg_markdown_formula_score"),
+                ("Order", "avg_markdown_order_score"),
+                ("Overall", "avg_markdown_overall_score"),
+            ]
+            for label, key in component_keys:
+                value = metrics.get(key)
+                if isinstance(value, float):
+                    lines.append(f"| {label} | {value:.4f} |")
+                elif isinstance(value, int):
+                    lines.append(f"| {label} | {float(value):.4f} |")
+                else:
+                    lines.append(f"| {label} | N/A |")
+            lines.append("")
+
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
 
@@ -150,6 +177,7 @@ class ReportGenerator:
         metrics = self.output.metrics
         summary = self.output.summary
         metric_views = self.output.metric_views
+        format_name = config.get("format", "markdown")
 
         # Build metrics table rows
         metrics_rows = ""
@@ -258,7 +286,7 @@ class ReportGenerator:
             <tr><td>Model</td><td>{config.get('model', {}).get('model_id', 'N/A')}</td></tr>
             <tr><td>Backend</td><td>{config.get('model', {}).get('backend', 'N/A')}</td></tr>
             <tr><td>Dataset</td><td>{config.get('dataset_id', 'N/A')}</td></tr>
-            <tr><td>Format</td><td>{config.get('format_type', 'N/A')}</td></tr>
+            <tr><td>Format</td><td>{format_name}</td></tr>
         </table>
     </div>
 
@@ -300,6 +328,8 @@ class ReportGenerator:
         </table>
     </div>
 
+    {self._markdown_component_section(format_name, metrics)}
+
     {metric_view_sections}
 
     {"<div class='card'><h2>Errors (first 10)</h2><table><tr><th>Index</th><th>Error</th></tr>" + error_rows + "</table></div>" if error_samples else ""}
@@ -312,6 +342,36 @@ class ReportGenerator:
             f.write(html)
 
         return path
+
+    def _markdown_component_section(self, format_name: str, metrics: dict) -> str:
+        if format_name != "markdown":
+            return ""
+
+        component_keys = [
+            ("Text", "avg_markdown_text_score"),
+            ("Table", "avg_markdown_table_teds"),
+            ("Formula", "avg_markdown_formula_score"),
+            ("Order", "avg_markdown_order_score"),
+            ("Overall", "avg_markdown_overall_score"),
+        ]
+        rows = ""
+        for label, key in component_keys:
+            value = metrics.get(key)
+            if isinstance(value, (int, float)):
+                rendered = f"{float(value):.4f}"
+            else:
+                rendered = "N/A"
+            rows += f"<tr><td>{label}</td><td>{rendered}</td></tr>\n"
+
+        return f"""
+    <div class="card">
+        <h2>Markdown Block Scores</h2>
+        <table>
+            <tr><th>Component</th><th>Value</th></tr>
+            {rows}
+        </table>
+    </div>
+"""
 
     def save_all(self, output_dir: Path, prefix: str = "report") -> Dict[str, Path]:
         """

@@ -7,7 +7,7 @@ from types import ModuleType
 import pytest
 from PIL import Image
 
-from evaluation.config import EvaluationConfig, InferenceBackend, ModelConfig
+from evaluation.config import EvaluationConfig, EvaluationMode, InferenceBackend, ModelConfig
 from evaluation.pipeline import EvaluationPipeline
 from evaluation.runner import EvaluationRunner
 from evaluation.strategies import DocumentEvaluator, MarkdownEvaluator, TableEvaluator
@@ -205,8 +205,8 @@ def test_pipeline_compute_metrics_skips_none_predictions(
 
     metrics = pipeline._compute_metrics(results)
 
-    assert metrics["avg_cer"] == 0.0
-    assert metrics["avg_wer"] == 0.0
+    assert metrics["avg_markdown_text_score"] == 1.0
+    assert metrics["avg_markdown_overall_score"] == 1.0
 
 
 def test_markdown_evaluator_returns_block_scores() -> None:
@@ -221,3 +221,83 @@ def test_markdown_evaluator_returns_block_scores() -> None:
     assert metrics["avg_markdown_formula_score"] == 1.0
     assert metrics["avg_markdown_order_score"] == 1.0
     assert metrics["avg_markdown_overall_score"] == 1.0
+
+
+def test_pipeline_evaluate_only_uses_checkpoint_without_model_init(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    checkpoint_path = tmp_path / "checkpoints.json"
+    checkpoint_payload = {
+        "completed": [0],
+        "results": [
+            {
+                "index": 0,
+                "prediction": "abc",
+                "ground_truth": "abc",
+                "latency_ms": 3.0,
+                "error": None,
+            }
+        ],
+        "context": {
+            "dataset_id": "dummy-dataset",
+            "split": "train",
+            "model_id": "dummy-model",
+            "backend": "openai",
+        },
+    }
+    checkpoint_path.write_text(json.dumps(checkpoint_payload), encoding="utf-8")
+
+    monkeypatch.setattr(
+        "evaluation.pipeline.create_model",
+        lambda _config: (_ for _ in ()).throw(RuntimeError("should not initialize model")),
+    )
+
+    config = EvaluationConfig(
+        dataset_id="dummy-dataset",
+        split="train",
+        model=ModelConfig(model_id="dummy-model", backend=InferenceBackend.OPENAI),
+        output_dir=str(tmp_path),
+        execution_mode=EvaluationMode.EVALUATE_ONLY,
+    )
+
+    pipeline = EvaluationPipeline(config)
+    output = pipeline.run_evaluate_only()
+
+    assert output.summary["total_samples"] == 1
+    assert output.summary["successful"] == 1
+    assert output.metrics["avg_markdown_overall_score"] == 1.0
+
+
+def test_pipeline_evaluate_only_fails_on_context_mismatch(tmp_path: Path) -> None:
+    checkpoint_path = tmp_path / "checkpoints.json"
+    checkpoint_payload = {
+        "completed": [0],
+        "results": [
+            {
+                "index": 0,
+                "prediction": "abc",
+                "ground_truth": "abc",
+                "latency_ms": 3.0,
+                "error": None,
+            }
+        ],
+        "context": {
+            "dataset_id": "other-dataset",
+            "split": "train",
+            "model_id": "dummy-model",
+            "backend": "openai",
+        },
+    }
+    checkpoint_path.write_text(json.dumps(checkpoint_payload), encoding="utf-8")
+
+    config = EvaluationConfig(
+        dataset_id="dummy-dataset",
+        split="train",
+        model=ModelConfig(model_id="dummy-model", backend=InferenceBackend.OPENAI),
+        output_dir=str(tmp_path),
+        execution_mode=EvaluationMode.EVALUATE_ONLY,
+    )
+    pipeline = EvaluationPipeline(config)
+
+    with pytest.raises(RuntimeError, match="Checkpoint context mismatch"):
+        pipeline.run_evaluate_only()

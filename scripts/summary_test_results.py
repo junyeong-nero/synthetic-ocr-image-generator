@@ -118,7 +118,7 @@ def _load_row(report_path: Path) -> dict[str, Any]:
         "model_id": model_cfg.get("model_id", "N/A"),
         "backend": model_cfg.get("backend", "N/A"),
         "subset": config.get("subset", "N/A"),
-        "format": config.get("format_type", "N/A"),
+        "format": config.get("format", "N/A"),
         "dataset": config.get("dataset_id", "N/A"),
         "split": config.get("split", "N/A"),
         "total_samples": summary.get("total_samples", 0),

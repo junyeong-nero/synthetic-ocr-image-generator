@@ -11,5 +11,5 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --repo-id "junyeong-nero/synthetic-ocr-images-zh" \
     --font-path "$PROJECT_DIR/fonts/zh/NotoSans-VariableFont_wdth,wght.ttf" \
     --lang "zh" \
-    --size 1000 \
+    --size 10000 \
     --label "Chinese"

@@ -37,8 +37,31 @@ class EvaluationRunner:
 
         # Load or create state
         self.state = self._load_or_create_state()
+        self._completed_indices = set(self.state.completed)
         self._empty_prediction_max_retries = 1
         self._empty_prediction_retry_backoff_seconds = 0.5
+
+    @staticmethod
+    def _normalize_predictions(predictions: Any) -> list[str]:
+        return [pred if isinstance(pred, str) else str(pred) for pred in list(predictions)]
+
+    @staticmethod
+    def _ensure_batch_size(predictions: list[str], expected_size: int) -> None:
+        if len(predictions) != expected_size:
+            raise RuntimeError(
+                "Model returned mismatched batch size: "
+                f"expected {expected_size}, got {len(predictions)}"
+            )
+
+    def _remaining_indices(self, total_samples: int) -> list[int]:
+        return [i for i in range(total_samples) if i not in self._completed_indices]
+
+    def _append_checkpoint_result(self, result: InferenceResult) -> None:
+        if result.index in self._completed_indices:
+            return
+        self._completed_indices.add(result.index)
+        self.state.completed.append(result.index)
+        self.state.results.append(result.to_dict())
 
     @staticmethod
     def _is_empty_prediction(prediction: Any) -> bool:
@@ -70,10 +93,7 @@ class EvaluationRunner:
                     retried = await self.model.run_async(retry_prompts, retry_images)
                 else:
                     retried = self.model.run(retry_prompts, retry_images)
-                retried_list = [
-                    pred if isinstance(pred, str) else str(pred)
-                    for pred in list(retried)
-                ]
+                retried_list = self._normalize_predictions(retried)
             except Exception as exc:
                 for pos in empty_positions:
                     errors[pos] = f"Empty prediction retry failed: {exc}"
@@ -121,10 +141,7 @@ class EvaluationRunner:
 
             try:
                 retried = self.model.run(retry_prompts, retry_images)
-                retried_list = [
-                    pred if isinstance(pred, str) else str(pred)
-                    for pred in list(retried)
-                ]
+                retried_list = self._normalize_predictions(retried)
             except Exception as exc:
                 for pos in empty_positions:
                     errors[pos] = f"Empty prediction retry failed: {exc}"
@@ -226,9 +243,7 @@ class EvaluationRunner:
         results: list[InferenceResult] = []
 
         # Get remaining indices (not yet completed)
-        remaining = [
-            i for i in range(len(images)) if i not in self.state.completed
-        ]
+        remaining = self._remaining_indices(len(images))
 
         if not remaining:
             print("All samples already processed. Loading from checkpoint.")
@@ -260,15 +275,8 @@ class EvaluationRunner:
                 else:
                     predictions = self.model.run(batch_prompts, batch_images)
 
-                predictions_list = [
-                    pred if isinstance(pred, str) else str(pred)
-                    for pred in list(predictions)
-                ]
-                if len(predictions_list) != len(batch_indices):
-                    raise RuntimeError(
-                        "Model returned mismatched batch size: "
-                        f"expected {len(batch_indices)}, got {len(predictions_list)}"
-                    )
+                predictions_list = self._normalize_predictions(predictions)
+                self._ensure_batch_size(predictions_list, len(batch_indices))
 
                 predictions_list, retry_errors = await self._retry_empty_predictions_async(
                     predictions_list,
@@ -302,9 +310,7 @@ class EvaluationRunner:
                     error=retry_errors.get(pos),
                 )
                 results.append(result)
-                if idx not in self.state.completed:
-                    self.state.completed.append(idx)
-                    self.state.results.append(result.to_dict())
+                self._append_checkpoint_result(result)
 
             self._save_checkpoint()
             progress.set_postfix({"latency": f"{latency:.1f}ms"})
@@ -338,9 +344,7 @@ class EvaluationRunner:
         results: list[InferenceResult] = []
 
         # Get remaining indices
-        remaining = [
-            i for i in range(len(images)) if i not in self.state.completed
-        ]
+        remaining = self._remaining_indices(len(images))
 
         if not remaining:
             print("All samples already processed. Loading from checkpoint.")
@@ -366,15 +370,8 @@ class EvaluationRunner:
                 start_time = time.time()
 
                 predictions = self.model.run(batch_prompts, batch_images)
-                predictions_list = [
-                    pred if isinstance(pred, str) else str(pred)
-                    for pred in list(predictions)
-                ]
-                if len(predictions_list) != len(batch_indices):
-                    raise RuntimeError(
-                        "Model returned mismatched batch size: "
-                        f"expected {len(batch_indices)}, got {len(predictions_list)}"
-                    )
+                predictions_list = self._normalize_predictions(predictions)
+                self._ensure_batch_size(predictions_list, len(batch_indices))
 
                 predictions_list, retry_errors = self._retry_empty_predictions_sync(
                     predictions_list,
@@ -408,9 +405,7 @@ class EvaluationRunner:
                     error=retry_errors.get(pos),
                 )
                 results.append(result)
-                if idx not in self.state.completed:
-                    self.state.completed.append(idx)
-                    self.state.results.append(result.to_dict())
+                self._append_checkpoint_result(result)
 
             self._save_checkpoint()
             progress.set_postfix({"latency": f"{latency:.1f}ms"})
@@ -426,9 +421,7 @@ class EvaluationRunner:
         batch_dir = self.output_dir / "batch"
         batch_info_path = batch_dir / "batch_info.json"
 
-        remaining = [
-            i for i in range(len(images)) if i not in self.state.completed
-        ]
+        remaining = self._remaining_indices(len(images))
 
         if not remaining:
             print("All samples already processed. Loading from checkpoint.")
@@ -528,10 +521,9 @@ class EvaluationRunner:
                 latency_ms=latency_ms,
                 error=error,
             )
-            if idx not in self.state.completed:
+            if idx not in self._completed_indices:
                 results.append(result)
-                self.state.completed.append(idx)
-                self.state.results.append(result.to_dict())
+            self._append_checkpoint_result(result)
 
         self._save_checkpoint()
         all_results = [InferenceResult(**r) for r in self.state.results]
@@ -558,5 +550,6 @@ class EvaluationRunner:
         """Clear the checkpoint file."""
         if self.checkpoint_path.exists():
             self.checkpoint_path.unlink()
-        self.state = RunnerState()
+        self.state = RunnerState(context=self._checkpoint_context())
+        self._completed_indices = set()
         print("Checkpoint cleared.")

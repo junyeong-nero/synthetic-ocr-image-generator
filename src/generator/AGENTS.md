@@ -26,7 +26,7 @@ src/generator/
 ## CONVENTIONS
 - Generators write images under `output_dir/<format>/` and emit `metadata.jsonl`.
 - `file_name` in metadata should be a full path to the saved image file.
-- Use language code from CLI (`--lang`) and keep format names consistent with `FormatType`.
+- Use language code from CLI (`--lang`) and keep metadata `format` fixed to `markdown`.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 - Do not add a new format without updating `registry.py` and `src/pipeline.py`.

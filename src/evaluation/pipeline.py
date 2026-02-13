@@ -1,23 +1,22 @@
 """Main evaluation pipeline orchestrator."""
 
 import os
+import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from datasets import Dataset, load_dataset
 
 from evaluation.config import (
-    DEFAULT_PROMPTS,
-    FORMAT_OUTPUT_CONTRACTS,
+    DEFAULT_PROMPT,
     EvaluationConfig,
-    FormatType,
+    EvaluationMode,
     ModelConfig,
 )
 from evaluation.model_config import ModelConfigLoader, ModelSpecificConfig
 from evaluation.runner import EvaluationRunner
-from evaluation.types import EvaluationOutput, InferenceResult
-from evaluation.strategies import EvaluatorRegistry, infer_format_type
-from evaluation.utils import extract_html_table, parse_model_output_as_json
+from evaluation.types import EvaluationOutput, InferenceResult, RunnerState
+from evaluation.strategies import MarkdownEvaluator
 from models.registry import create_model
 from env_utils import get_environment_metadata
 
@@ -31,27 +30,64 @@ class EvaluationPipeline:
 
     def __init__(self, config: EvaluationConfig):
         self.config = config
-        self.model = create_model(config.model)
-        self.runner = EvaluationRunner(config, self.model)
+        self.model = None
+        self.runner: Optional[EvaluationRunner] = None
         self.prompt: Optional[str] = None
         self.system_prompt: Optional[str] = None
         self.prompt_source: Optional[str] = None
         self.metric_views: Dict[str, Dict[str, float]] = {}
         self.dataset_fingerprint: Optional[str] = None
         self.dataset_info: Optional[Any] = None
-        self.format_type: Optional[FormatType] = None
+        self.format = "markdown"
+        self.model_specific_config = self._load_model_specific_config()
 
-        # Load model-specific config if available
-        self.model_specific_config: Optional[ModelSpecificConfig] = None
-        if config.model_config_path:
-            loader = ModelConfigLoader()
-            self.model_specific_config = loader.load_from_path(
-                Path(config.model_config_path)
+        if self.config.execution_mode != EvaluationMode.EVALUATE_ONLY:
+            self._ensure_runner()
+
+    def _ensure_runner(self) -> EvaluationRunner:
+        if self.runner is None:
+            self.model = create_model(self.config.model)
+            self.runner = EvaluationRunner(self.config, self.model)
+        return self.runner
+
+    def _load_checkpoint_results(self) -> List[InferenceResult]:
+        output_dir = Path(self.config.output_dir)
+        checkpoint_path = output_dir / "checkpoints.json"
+        legacy_path = output_dir / "checkpoint.json"
+        checkpoint_to_load = checkpoint_path if checkpoint_path.exists() else legacy_path
+        if not checkpoint_to_load.exists():
+            raise FileNotFoundError(
+                f"Checkpoint file not found in {output_dir}. "
+                "Run with --inference-only first or use full evaluation mode."
             )
-        else:
-            # Try to auto-load based on model_id
-            loader = ModelConfigLoader()
-            self.model_specific_config = loader.load(config.model.model_id)
+
+        try:
+            state = RunnerState.load(checkpoint_to_load)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise RuntimeError(f"Failed to load checkpoint {checkpoint_to_load}: {exc}") from exc
+
+        expected_context = {
+            "dataset_id": self.config.dataset_id,
+            "split": self.config.split,
+            "model_id": self.config.model.model_id,
+            "backend": self.config.model.backend.value,
+        }
+        if state.context and state.context != expected_context:
+            raise RuntimeError(
+                "Checkpoint context mismatch. "
+                f"Expected {expected_context}, got {state.context}."
+            )
+
+        return sorted(
+            [InferenceResult(**row) for row in state.results],
+            key=lambda result: result.index,
+        )
+
+    def _load_model_specific_config(self) -> Optional[ModelSpecificConfig]:
+        loader = ModelConfigLoader()
+        if self.config.model_config_path:
+            return loader.load_from_path(Path(self.config.model_config_path))
+        return loader.load(self.config.model.model_id)
 
     def _load_dataset(self) -> Dataset:
         """Load dataset from HuggingFace."""
@@ -73,7 +109,6 @@ class EvaluationPipeline:
 
     def _resolve_prompt(self) -> tuple[str, Optional[str], str]:
         """Resolve prompt and system prompt with source labeling."""
-        format_type = self.format_type or FormatType.SENTENCE
         base_prompt: Optional[str] = None
         base_system_prompt: Optional[str] = None
         source: Optional[str] = None
@@ -84,7 +119,7 @@ class EvaluationPipeline:
             source = "cli"
 
         if base_prompt is None and self.model_specific_config:
-            format_key = format_type.value
+            format_key = self.format
             if format_key in self.model_specific_config.prompts:
                 prompt_config = self.model_specific_config.prompts[format_key]
                 base_prompt = prompt_config.prompt
@@ -92,30 +127,22 @@ class EvaluationPipeline:
                 source = "model_config_format"
 
         if base_prompt is None:
-            base_prompt = DEFAULT_PROMPTS.get(
-                format_type,
-                DEFAULT_PROMPTS[FormatType.SENTENCE],
-            )
+            base_prompt = DEFAULT_PROMPT
             base_system_prompt = None
             source = "default"
 
-        contract = FORMAT_OUTPUT_CONTRACTS.get(format_type)
-        if contract and contract.strip() not in base_prompt:
-            base_prompt = f"{base_prompt.rstrip()}\n\n{contract}"
-            source = f"{source}_with_contract"
+        if base_prompt is None:
+            raise RuntimeError("Prompt resolution failed")
 
         return base_prompt, base_system_prompt, source or "default"
 
     def _extract_ground_truths(self, dataset: Dataset) -> List[Any]:
-        """Extract ground truths based on format type."""
-        evaluator = EvaluatorRegistry.get_evaluator(self.format_type or FormatType.SENTENCE)
+        evaluator = MarkdownEvaluator()
         return evaluator.extract_ground_truths(dataset, self.config.target_column)
 
     def _compute_metrics(
         self, results: List[InferenceResult]
     ) -> Dict[str, float]:
-        """Compute metrics based on format type."""
-
         # Filter valid results
         valid_results = [
             r
@@ -131,7 +158,7 @@ class EvaluationPipeline:
         predictions = [str(r.prediction) for r in valid_results]
         ground_truths = [r.ground_truth for r in valid_results]
 
-        evaluator = EvaluatorRegistry.get_evaluator(self.format_type or FormatType.SENTENCE)
+        evaluator = MarkdownEvaluator()
         metric_views = evaluator.compute_metric_views(predictions, ground_truths)
         self.metric_views = metric_views
         return metric_views.get("normalized", {})
@@ -151,25 +178,6 @@ class EvaluationPipeline:
         )
 
         parse_fail_count = 0.0
-        for r in results:
-            if r.error is not None:
-                continue
-            prediction = str(r.prediction)
-            if prediction.strip() == "":
-                continue
-
-            format_type = self.format_type or FormatType.SENTENCE
-            if format_type in {FormatType.DOCUMENT, FormatType.KIE}:
-                if parse_model_output_as_json(prediction) is None:
-                    parse_fail_count += 1.0
-            elif format_type == FormatType.TABLE:
-                parsed_json = parse_model_output_as_json(prediction) or {}
-                has_html = "<table" in extract_html_table(prediction).lower()
-                has_table_json = isinstance(parsed_json, dict) and (
-                    "table" in parsed_json or "cells" in parsed_json or "html" in parsed_json
-                )
-                if not has_html and not has_table_json:
-                    parse_fail_count += 1.0
 
         return {
             "empty_count": empty_count,
@@ -178,112 +186,97 @@ class EvaluationPipeline:
             "parse_fail_rate": parse_fail_count / float(total),
         }
 
+    def _prepare_run_inputs(self) -> tuple[List[Any], List[Any], List[str]]:
+        print(f"Loading dataset: {self.config.dataset_id}")
+        dataset = self._load_dataset()
+        print(f"Loaded {len(dataset)} samples")
+        print("Format: markdown")
+
+        images = dataset[self.config.image_column]
+        ground_truths = self._extract_ground_truths(dataset)
+        prompt, system_prompt, prompt_source = self._resolve_prompt()
+        self.prompt = prompt
+        self.system_prompt = system_prompt
+        self.prompt_source = prompt_source
+        prompts = [prompt] * len(images)
+        return images, ground_truths, prompts
+
+    @staticmethod
+    def _build_summary(results: List[InferenceResult]) -> Dict[str, Any]:
+        total = len(results)
+        if total == 0:
+            return {
+                "total_samples": 0,
+                "successful": 0,
+                "failed": 0,
+                "avg_latency_ms": 0.0,
+            }
+
+        successful = 0
+        failed = 0
+        total_latency = 0.0
+        for result in results:
+            total_latency += float(result.latency_ms)
+            if result.error is None:
+                successful += 1
+            else:
+                failed += 1
+
+        return {
+            "total_samples": total,
+            "successful": successful,
+            "failed": failed,
+            "avg_latency_ms": total_latency / float(total),
+        }
+
+    def _build_output(self, results: List[InferenceResult]) -> EvaluationOutput:
+        metrics = self._compute_metrics(results)
+        quality_metrics = self._compute_quality_metrics(results)
+        merged_metrics = {**metrics, **quality_metrics}
+        summary = self._build_summary(results)
+
+        summary.update(
+            {
+                "model_id": self.config.model.model_id,
+                "backend": self.config.model.backend.value,
+                "empty_count": int(quality_metrics["empty_count"]),
+                "empty_rate": quality_metrics["empty_rate"],
+                "parse_fail_count": int(quality_metrics["parse_fail_count"]),
+                "parse_fail_rate": quality_metrics["parse_fail_rate"],
+            }
+        )
+
+        return EvaluationOutput(
+            config=self._config_to_dict(),
+            metrics=merged_metrics,
+            metric_views=self.metric_views,
+            per_sample_results=[r.to_dict() for r in results],
+            summary=summary,
+        )
+
 
     async def run_async(self) -> EvaluationOutput:
         """Run the evaluation pipeline asynchronously."""
-        # Load dataset
-        print(f"Loading dataset: {self.config.dataset_id}")
-        dataset = self._load_dataset()
-        self.format_type = infer_format_type(dataset, self.config.target_column)
-        print(f"Loaded {len(dataset)} samples")
-        print(f"Detected format type: {self.format_type.value}")
-
-        # Extract data
-        images = dataset[self.config.image_column]
-        ground_truths = self._extract_ground_truths(dataset)
-        prompt, system_prompt, prompt_source = self._resolve_prompt()
-        self.prompt = prompt
-        self.system_prompt = system_prompt
-        self.prompt_source = prompt_source
-        prompts = [prompt] * len(images)
-
-        # Run inference
-        results = await self.runner.run_async(images, ground_truths, prompts)
-
-        # Compute metrics
-        metrics = self._compute_metrics(results)
-        quality_metrics = self._compute_quality_metrics(results)
-        merged_metrics = {**metrics, **quality_metrics}
-
-        # Build summary
-        successful = len([r for r in results if r.error is None])
-        failed = len([r for r in results if r.error is not None])
-        avg_latency = (
-            sum(r.latency_ms for r in results) / len(results) if results else 0
-        )
-
-        # Build output
-        return EvaluationOutput(
-            config=self._config_to_dict(),
-            metrics=merged_metrics,
-            metric_views=getattr(self, "metric_views", {}),
-            per_sample_results=[r.to_dict() for r in results],
-            summary={
-                "total_samples": len(results),
-                "successful": successful,
-                "failed": failed,
-                "avg_latency_ms": avg_latency,
-                "model_id": self.config.model.model_id,
-                "backend": self.config.model.backend.value,
-                "empty_count": int(quality_metrics["empty_count"]),
-                "empty_rate": quality_metrics["empty_rate"],
-                "parse_fail_count": int(quality_metrics["parse_fail_count"]),
-                "parse_fail_rate": quality_metrics["parse_fail_rate"],
-            },
-        )
+        images, ground_truths, prompts = self._prepare_run_inputs()
+        runner = self._ensure_runner()
+        results = await runner.run_async(images, ground_truths, prompts)
+        return self._build_output(results)
 
     def run(self) -> EvaluationOutput:
         """Run the evaluation pipeline synchronously."""
-        # Load dataset
-        print(f"Loading dataset: {self.config.dataset_id}")
-        dataset = self._load_dataset()
-        self.format_type = infer_format_type(dataset, self.config.target_column)
-        print(f"Loaded {len(dataset)} samples")
-        print(f"Detected format type: {self.format_type.value}")
+        images, ground_truths, prompts = self._prepare_run_inputs()
+        runner = self._ensure_runner()
+        results = runner.run(images, ground_truths, prompts)
+        return self._build_output(results)
 
-        # Extract data
-        images = dataset[self.config.image_column]
-        ground_truths = self._extract_ground_truths(dataset)
-        prompt, system_prompt, prompt_source = self._resolve_prompt()
-        self.prompt = prompt
-        self.system_prompt = system_prompt
-        self.prompt_source = prompt_source
-        prompts = [prompt] * len(images)
+    def run_inference_only(self) -> List[InferenceResult]:
+        images, ground_truths, prompts = self._prepare_run_inputs()
+        runner = self._ensure_runner()
+        return runner.run(images, ground_truths, prompts)
 
-        # Run inference
-        results = self.runner.run(images, ground_truths, prompts)
-
-        # Compute metrics
-        metrics = self._compute_metrics(results)
-        quality_metrics = self._compute_quality_metrics(results)
-        merged_metrics = {**metrics, **quality_metrics}
-
-        # Build summary
-        successful = len([r for r in results if r.error is None])
-        failed = len([r for r in results if r.error is not None])
-        avg_latency = (
-            sum(r.latency_ms for r in results) / len(results) if results else 0
-        )
-
-        # Build output
-        return EvaluationOutput(
-            config=self._config_to_dict(),
-            metrics=merged_metrics,
-            metric_views=getattr(self, "metric_views", {}),
-            per_sample_results=[r.to_dict() for r in results],
-            summary={
-                "total_samples": len(results),
-                "successful": successful,
-                "failed": failed,
-                "avg_latency_ms": avg_latency,
-                "model_id": self.config.model.model_id,
-                "backend": self.config.model.backend.value,
-                "empty_count": int(quality_metrics["empty_count"]),
-                "empty_rate": quality_metrics["empty_rate"],
-                "parse_fail_count": int(quality_metrics["parse_fail_count"]),
-                "parse_fail_rate": quality_metrics["parse_fail_rate"],
-            },
-        )
+    def run_evaluate_only(self) -> EvaluationOutput:
+        results = self._load_checkpoint_results()
+        return self._build_output(results)
 
     def _config_to_dict(self) -> Dict[str, Any]:
         """Convert config to dictionary for serialization."""
@@ -299,7 +292,7 @@ class EvaluationPipeline:
         return {
             "dataset_id": self.config.dataset_id,
             "split": self.config.split,
-            "format_type": (self.format_type or FormatType.SENTENCE).value,
+            "format": self.format,
             "batch_size": self.config.batch_size,
             "max_samples": self.config.max_samples,
             "prompt": self.prompt,
@@ -310,6 +303,7 @@ class EvaluationPipeline:
             "batch_poll_seconds": self.config.batch_poll_seconds,
             "batch_timeout_seconds": self.config.batch_timeout_seconds,
             "batch_completion_window": self.config.batch_completion_window,
+            "execution_mode": self.config.execution_mode.value,
             "dataset_fingerprint": self.dataset_fingerprint,
             "dataset_info": dataset_info,
             "environment": get_environment_metadata(),

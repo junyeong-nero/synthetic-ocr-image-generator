@@ -6,16 +6,6 @@ from typing import Optional
 from pydantic import BaseModel, Field, model_validator
 
 
-class FormatType(str, Enum):
-    """Supported evaluation format types."""
-
-    SENTENCE = "sentence"
-    TABLE = "table"
-    DOCUMENT = "document"
-    MARKDOWN = "markdown"
-    KIE = "kie"
-
-
 class InferenceBackend(str, Enum):
     """Supported inference backends."""
 
@@ -26,6 +16,12 @@ class InferenceBackend(str, Enum):
     # Local backends
     TRANSFORMERS = "transformers"
     PADDLEOCR = "paddleocr"
+
+
+class EvaluationMode(str, Enum):
+    ALL = "all"
+    INFERENCE_ONLY = "inference_only"
+    EVALUATE_ONLY = "evaluate_only"
 
 
 class ModelConfig(BaseModel):
@@ -86,6 +82,10 @@ class EvaluationConfig(BaseModel):
         default="24h",
         description="Batch completion window",
     )
+    execution_mode: EvaluationMode = Field(
+        default=EvaluationMode.ALL,
+        description="Evaluation execution mode",
+    )
 
     @model_validator(mode="after")
     def validate_batch_api(self) -> "EvaluationConfig":
@@ -111,51 +111,7 @@ class EvaluationConfig(BaseModel):
     model_config = {"protected_namespaces": ()}
 
 
-# Default prompts for each format type
-DEFAULT_PROMPTS: dict[FormatType, str] = {
-    FormatType.SENTENCE: (
-        "Extract all text from the image verbatim, including typos, "
-        "without translation or character modification."
-    ),
-    FormatType.TABLE: (
-        "Extract the table from this image. Return the result as HTML table format."
-    ),
-    FormatType.DOCUMENT: (
-        "Extract all text elements from this document image. "
-        "Return as JSON with 'elements' array containing objects with "
-        "'type', 'text', 'bounding_box', and 'reading_order' fields."
-    ),
-    FormatType.MARKDOWN: (
-        "Extract the markdown content from this image. "
-        "Return the raw markdown text exactly as shown."
-    ),
-    FormatType.KIE: (
-        "Extract key information from this document image. "
-        "Return as JSON with 'entities' object containing field names as keys "
-        "and extracted values as values. For receipts/invoices, also include "
-        "'line_items' array with objects containing 'name', 'quantity', "
-        "'unit_price', and 'total_price' fields."
-    ),
-}
-
-
-FORMAT_OUTPUT_CONTRACTS: dict[FormatType, str] = {
-    FormatType.TABLE: (
-        "Output contract:\n"
-        "1) Return only a single HTML <table>...</table>.\n"
-        "2) Do not include prose, markdown fences, or explanations.\n"
-        "3) Preserve merged cells using colspan/rowspan when present."
-    ),
-    FormatType.DOCUMENT: (
-        "Output contract:\n"
-        "1) Return valid JSON object only.\n"
-        "2) JSON schema: {\"elements\": [{\"type\": str, \"text\": str, \"bounding_box\": [x1,y1,x2,y2], \"reading_order\": int, \"metadata\": object|string}]}.\n"
-        "3) No markdown fences, no additional wrapper keys, no extra commentary."
-    ),
-    FormatType.KIE: (
-        "Output contract:\n"
-        "1) Return valid JSON object only.\n"
-        "2) JSON schema: {\"entities\": {\"field_name\": \"value\"}, \"line_items\": [{\"name\": str, \"quantity\": str|number, \"unit_price\": str|number, \"total_price\": str|number}]}.\n"
-        "3) Always include \"entities\" key even if empty. No markdown fences or commentary."
-    ),
-}
+DEFAULT_PROMPT = (
+    "Extract the markdown content from this image. "
+    "Return the raw markdown text exactly as shown."
+)
