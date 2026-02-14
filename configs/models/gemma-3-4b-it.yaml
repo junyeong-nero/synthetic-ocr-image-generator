@@ -1,31 +1,15 @@
-# Gemma-3-4B-IT Model Configuration
-# https://huggingface.co/google/gemma-3-4b-it
 model_id: google/gemma-3-4b-it
 backend: transformers
 dependency_group: gemma3
-
-# Default generation parameters
 temperature: 0.0
 max_tokens: 4096
 top_p: 1.0
 batch_size: 1
 timeout: 180
 max_retries: 3
-
-# Local model specific
 device: cuda
 dtype: bfloat16
 tensor_parallel_size: 1
-
-# Default prompts for each format type
-prompts:
-    sentence:
-        prompt: "Transcribe the image to markdown with faithful structure and wording. Output markdown only with no explanations."
-    table:
-        prompt: "Transcribe the image to markdown with faithful structure and wording. Output markdown only with no explanations."
-    document:
-        prompt: "Transcribe the image to markdown with faithful structure and wording. Output markdown only with no explanations."
-    markdown:
-        prompt: "Transcribe the image to markdown with faithful structure and wording. Output markdown only with no explanations."
-    kie:
-        prompt: "Transcribe the image to markdown with faithful structure and wording. Output markdown only with no explanations."
+prompt:
+  prompt: Transcribe the image to markdown with faithful structure and wording. Output
+    markdown only with no explanations.

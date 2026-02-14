@@ -16,11 +16,13 @@ from typing import Any
 
 
 MAIN_METRIC_PREFERENCES: dict[str, list[str]] = {
-    "sentence": ["avg_cer", "avg_wer"],
-    "markdown": ["normalized_match_rate", "exact_match_rate", "avg_cer"],
-    "table": ["avg_teds", "avg_cell_accuracy", "avg_structure_f1"],
-    "document": ["avg_text_table_formula_score", "avg_text_table_score", "avg_text_score", "avg_table_teds", "avg_overall_f1", "avg_layout_f1", "avg_reading_order", "avg_kv_f1"],
-    "kie": ["avg_entity_f1", "avg_overall_f1", "overall_f1", "entity_f1", "line_item_f1"],
+    "markdown": [
+        "avg_markdown_overall_score",
+        "avg_markdown_text_score",
+        "avg_markdown_table_teds",
+        "avg_markdown_formula_score",
+        "avg_markdown_order_score",
+    ],
 }
 
 

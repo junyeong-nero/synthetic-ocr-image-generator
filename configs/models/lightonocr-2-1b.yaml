@@ -1,32 +1,15 @@
-# LightOnOCR-2-1B Model Configuration
-# https://huggingface.co/lightonai/LightOnOCR-2-1B
 model_id: lightonai/LightOnOCR-2-1B
 backend: transformers
 dependency_group: lighton-ocr2
-
-# Default generation parameters
 temperature: 0.0
 max_tokens: 1024
 top_p: 1.0
 batch_size: 1
 timeout: 180
 max_retries: 3
-
-# Local model specific
-device: cuda # Will auto-detect: mps for Apple Silicon, cuda for NVIDIA
-dtype: bfloat16 # Use float32 for MPS devices
+device: cuda
+dtype: bfloat16
 tensor_parallel_size: 1
-
-# Default prompts for each format type
-# LightOnOCR uses chat template format - prompts are minimal since model is OCR-specialized
-prompts:
-    sentence:
-        prompt: "Extract all text from this page in natural reading order and output markdown only."
-    table:
-        prompt: "Extract all text from this page in natural reading order and output markdown only."
-    document:
-        prompt: "Extract all text from this page in natural reading order and output markdown only."
-    markdown:
-        prompt: "Extract all text from this page in natural reading order and output markdown only."
-    kie:
-        prompt: "Extract all text from this page in natural reading order and output markdown only."
+prompt:
+  prompt: Extract all text from this page in natural reading order and output markdown
+    only.

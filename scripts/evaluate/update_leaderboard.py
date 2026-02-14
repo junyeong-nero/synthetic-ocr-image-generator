@@ -11,7 +11,6 @@ from typing import Any
 
 
 MAIN_METRIC_PREFERENCES: dict[str, list[str]] = {
-    "sentence": ["avg_cer", "avg_wer"],
     "markdown": [
         "avg_markdown_overall_score",
         "avg_markdown_text_score",
@@ -19,9 +18,6 @@ MAIN_METRIC_PREFERENCES: dict[str, list[str]] = {
         "avg_markdown_formula_score",
         "avg_markdown_order_score",
     ],
-    "table": ["avg_teds", "avg_cell_accuracy", "avg_structure_f1"],
-    "document": ["avg_text_table_formula_score", "avg_text_table_score", "avg_text_score", "avg_table_teds", "avg_overall_f1", "avg_layout_f1", "avg_reading_order", "avg_kv_f1"],
-    "kie": ["avg_entity_f1", "avg_overall_f1", "entity_f1", "overall_f1", "line_item_f1"],
 }
 
 LOWER_BETTER_METRICS = {"avg_cer", "avg_wer", "avg_formula_edit_distance"}
@@ -59,6 +55,17 @@ def _load_json(path: Path) -> dict[str, Any]:
     return {}
 
 
+def _fallback_model_id_from_path(base_dir: Path, report_path: Path) -> str:
+    try:
+        relative = report_path.relative_to(base_dir)
+        parts = list(relative.parts[:-1])
+        if parts:
+            return "/".join(parts)
+    except ValueError:
+        pass
+    return report_path.parent.name
+
+
 def _pick_metric(format_name: str, rows: list[dict[str, Any]]) -> str | None:
     available = {
         metric_key
@@ -83,7 +90,7 @@ def _pick_metric(format_name: str, rows: list[dict[str, Any]]) -> str | None:
 def _collect_latest_rows(base_dir: Path) -> list[dict[str, Any]]:
     latest: dict[tuple[str, str], dict[str, Any]] = {}
 
-    for report_path in sorted(base_dir.glob("*/**/report.json")):
+    for report_path in sorted(base_dir.rglob("report.json")):
         report = _load_json(report_path)
         config = report.get("config", {}) if isinstance(report.get("config"), dict) else {}
         summary = report.get("summary", {}) if isinstance(report.get("summary"), dict) else {}
@@ -91,7 +98,9 @@ def _collect_latest_rows(base_dir: Path) -> list[dict[str, Any]]:
         metrics = report.get("metrics", {}) if isinstance(report.get("metrics"), dict) else {}
 
         format_name = str(config.get("format") or "unknown")
-        model_id = str(model_cfg.get("model_id") or report_path.parent.parent.name)
+        model_id = str(model_cfg.get("model_id") or "").strip()
+        if not model_id:
+            model_id = _fallback_model_id_from_path(base_dir, report_path)
 
         protocol_path = report_path.parent / "protocol.json"
         protocol = _load_json(protocol_path) if protocol_path.exists() else {}

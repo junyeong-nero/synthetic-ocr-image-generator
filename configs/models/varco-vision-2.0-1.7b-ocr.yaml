@@ -1,32 +1,14 @@
-# VARCO-VISION-2.0-1.7B-OCR Model Configuration
-# https://huggingface.co/NCSOFT/VARCO-VISION-2.0-1.7B-OCR
 model_id: NCSOFT/VARCO-VISION-2.0-1.7B-OCR
 backend: transformers
 dependency_group: varco-ocr
-
-# Default generation parameters
 temperature: 0.0
 max_tokens: 4096
 top_p: 1.0
 batch_size: 1
 timeout: 180
 max_retries: 3
-
-# Local model specific
 device: cuda
 dtype: float16
 tensor_parallel_size: 1
-
-# VARCO-VISION uses <char> tags for output and auto-upscales small images
-# The model extracts text wrapped in <char> tags internally
-prompts:
-    sentence:
-        prompt: "<ocr>"
-    table:
-        prompt: "<ocr>"
-    document:
-        prompt: "<ocr>"
-    markdown:
-        prompt: "<ocr>"
-    kie:
-        prompt: "<ocr>"
+prompt:
+  prompt: <ocr>

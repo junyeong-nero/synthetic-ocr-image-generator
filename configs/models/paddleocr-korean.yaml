@@ -1,21 +1,8 @@
-# PaddleOCR Engine Configuration (Korean)
 model_id: paddleocr/paddle-ocr-korean
 backend: paddleocr
 dependency_group: paddle-ocr
-
-# Default generation parameters
 batch_size: 1
 timeout: 60
 max_retries: 3
-
-prompts:
-    sentence:
-        prompt: "ignored"
-    table:
-        prompt: "ignored"
-    document:
-        prompt: "ignored"
-    markdown:
-        prompt: "ignored"
-    kie:
-        prompt: "ignored"
+prompt:
+  prompt: ignored

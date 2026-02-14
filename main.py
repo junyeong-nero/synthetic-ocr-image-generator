@@ -288,7 +288,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     print(f"  Model: {model_config.model_id}")
     print(f"  Backend: {backend_str}")
     print(f"  Dataset: {args.dataset} ({args.split})")
-    print("  Format: auto-detect")
+    print("  Format: markdown (fixed)")
     print(f"  Batch Size: {batch_size}")
     print(f"  Temperature: {temperature}")
     print(f"  Max Tokens: {max_tokens}")

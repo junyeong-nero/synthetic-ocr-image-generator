@@ -1,31 +1,15 @@
-# GLM-OCR Model Configuration
-# https://huggingface.co/zai-org/GLM-OCR
 model_id: zai-org/GLM-OCR
 backend: transformers
 dependency_group: glm-ocr
-
-# Default generation parameters
 temperature: 0.0
 max_tokens: 8192
 top_p: 1.0
 batch_size: 1
 timeout: 180
 max_retries: 3
-
-# Local model specific
 device: cuda
 dtype: float16
 tensor_parallel_size: 1
-
-# GLM-OCR uses prompt prefixes such as "Text Recognition:" and "Table Recognition:"
-prompts:
-    sentence:
-        prompt: "Text Recognition: Convert the document to markdown and preserve layout, tables, and formulas."
-    table:
-        prompt: "Text Recognition: Convert the document to markdown and preserve layout, tables, and formulas."
-    document:
-        prompt: "Text Recognition: Convert the document to markdown and preserve layout, tables, and formulas."
-    markdown:
-        prompt: "Text Recognition: Convert the document to markdown and preserve layout, tables, and formulas."
-    kie:
-        prompt: "Text Recognition: Convert the document to markdown and preserve layout, tables, and formulas."
+prompt:
+  prompt: 'Text Recognition: Convert the document to markdown and preserve layout,
+    tables, and formulas.'

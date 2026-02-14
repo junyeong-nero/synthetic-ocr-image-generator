@@ -1,75 +1,24 @@
-# DeepSeek-OCR-2 Model Configuration
-# https://huggingface.co/deepseek-ai/DeepSeek-OCR-2
 model_id: deepseek-ai/DeepSeek-OCR-2
 backend: transformers
 dependency_group: deepseek-ocr2
-
-# Default generation parameters
 temperature: 0.0
 max_tokens: 512
 top_p: 1.0
 batch_size: 32
 timeout: 300
 max_retries: 3
-
-# Local model specific
 device: cuda
 dtype: bfloat16
 tensor_parallel_size: 1
-
-# Official DeepSeek-OCR-2 Prompts:
-# - document:        <image>\n<|grounding|>Convert the document to markdown.
-# - other image:     <image>\n<|grounding|>OCR this image.
-# - without layouts: <image>\nFree OCR.
-# - figures:         <image>\nParse the figure.
-# - general:         <image>\nDescribe this image in detail.
-# - recognition:     <image>\nLocate <|ref|>xxxx<|/ref|> in the image.
-
-prompts:
-    sentence:
-        # Simple text extraction without layout information
-        prompt: "Convert the document to markdown."
-
-    table:
-        # OCR with grounding for structured content
-        prompt: "Convert the document to markdown."
-
-    document:
-        # Document to markdown conversion with grounding
-        prompt: "Convert the document to markdown."
-
-    markdown:
-        # Document to markdown conversion with grounding
-        prompt: "Convert the document to markdown."
-
-    kie:
-        # OCR with grounding for key information extraction
-        prompt: "Convert the document to markdown."
-
-# Subset-specific overrides
 subsets:
-    # For figure/chart extraction
-    figure:
-        prompts:
-            document:
-                prompt: "Convert the document to markdown."
-
-    # For image description tasks
-    description:
-        prompts:
-            sentence:
-                prompt: "Convert the document to markdown."
-
-    # For simple OCR without layout
-    simple:
-        prompts:
-            sentence:
-                prompt: "Convert the document to markdown."
-            table:
-                prompt: "Convert the document to markdown."
-            document:
-                prompt: "Convert the document to markdown."
-            markdown:
-                prompt: "Convert the document to markdown."
-            kie:
-                prompt: "Convert the document to markdown."
+  figure:
+    prompt:
+      prompt: Convert the document to markdown.
+  description:
+    prompt:
+      prompt: Convert the document to markdown.
+  simple:
+    prompt:
+      prompt: Convert the document to markdown.
+prompt:
+  prompt: Convert the document to markdown.

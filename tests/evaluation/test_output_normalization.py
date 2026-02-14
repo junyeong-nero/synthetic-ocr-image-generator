@@ -4,7 +4,6 @@ from types import ModuleType
 
 from evaluation.config import EvaluationConfig, InferenceBackend, ModelConfig
 from evaluation.pipeline import EvaluationPipeline
-from evaluation.strategies import TableEvaluator
 from evaluation.utils import extract_html_table, parse_model_output_as_json
 from evaluation.types import InferenceResult
 from metrics.table_document_metrics import evaluate_document
@@ -29,29 +28,6 @@ def test_extract_html_table_converts_markdown_table() -> None:
     assert "<table>" in extracted
     assert "<th>Item</th>" in extracted
     assert "<td>Pen</td>" in extracted
-
-
-def test_table_evaluator_normalizes_nested_table_payload(monkeypatch) -> None:
-    module = ModuleType("metrics.table_document_metrics")
-    captured = {}
-
-    def evaluate_table(pred_html, pred_json, true_html, true_json):
-        captured["pred_html"] = pred_html
-        captured["pred_json"] = pred_json
-        captured["true_html"] = true_html
-        captured["true_json"] = true_json
-        return {"teds": 1.0, "cell_accuracy": 1.0, "overall_structure_f1": 1.0}
-
-    module.evaluate_table = evaluate_table
-    monkeypatch.setitem(sys.modules, "metrics.table_document_metrics", module)
-
-    pred = '{"table": {"html": "<table><tr><th>A</th></tr><tr><td>1</td></tr></table>"}}'
-    gt = {"html": "<table><tr><th>A</th></tr><tr><td>1</td></tr></table>", "json": {}}
-    metrics = TableEvaluator().compute_metrics([pred], [gt], normalize=True)
-
-    assert metrics["avg_teds"] == 1.0
-    assert captured["pred_json"]["num_rows"] == 2
-    assert captured["pred_json"]["num_cols"] == 1
 
 
 def test_pipeline_exposes_metric_views(tmp_path: Path, monkeypatch) -> None:

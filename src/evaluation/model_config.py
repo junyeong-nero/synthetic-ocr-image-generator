@@ -7,8 +7,6 @@ import yaml
 from pydantic import BaseModel, Field
 
 class PromptConfig(BaseModel):
-    """Prompt configuration for a specific format type."""
-
     prompt: str = Field(description="The prompt template to use")
     system_prompt: Optional[str] = Field(
         default=None, description="Optional system prompt"
@@ -45,21 +43,12 @@ class ModelSpecificConfig(BaseModel):
     tensor_parallel_size: int = Field(default=1, ge=1)
     max_model_len: Optional[int] = Field(default=None)
 
-    prompts: dict[str, PromptConfig] = Field(
-        default_factory=dict,
-        description="Default prompts keyed by format name",
-    )
+    prompt: PromptConfig = Field(description="Default markdown prompt configuration")
 
     model_config = {"protected_namespaces": ()}
 
-    def get_prompt(self, format_name: str = "markdown") -> Optional[PromptConfig]:
-        format_key = format_name
-
-        # Fall back to default prompts
-        if format_key in self.prompts:
-            return self.prompts[format_key]
-
-        return None
+    def get_prompt(self) -> PromptConfig:
+        return self.prompt
 
     def get_batch_size(self) -> int:
         """Get batch size."""
@@ -131,23 +120,15 @@ class ModelConfigLoader:
 
     def _parse_config(self, data: dict[str, Any]) -> ModelSpecificConfig:
         """Parse raw YAML data into ModelSpecificConfig."""
-        # Parse prompts
-        if "prompts" in data:
-            data["prompts"] = self._parse_prompts(data["prompts"])
+        if "prompt" in data:
+            data["prompt"] = self._parse_prompt(data["prompt"])
 
         return ModelSpecificConfig(**data)
 
-    def _parse_prompts(
-        self, prompts_data: dict[str, Any]
-    ) -> dict[str, PromptConfig]:
-        """Parse prompts section into PromptConfig objects."""
-        result = {}
-        for format_name, prompt_data in prompts_data.items():
-            if isinstance(prompt_data, str):
-                result[format_name] = PromptConfig(prompt=prompt_data)
-            else:
-                result[format_name] = PromptConfig(**prompt_data)
-        return result
+    def _parse_prompt(self, prompt_data: Any) -> PromptConfig:
+        if isinstance(prompt_data, str):
+            return PromptConfig(prompt=prompt_data)
+        return PromptConfig(**prompt_data)
 
     def list_available_configs(self) -> list[str]:
         """List all available model configs."""

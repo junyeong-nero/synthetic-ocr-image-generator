@@ -1,57 +1,25 @@
-# PaddleOCR Engine Configuration
-# Uses the 'paddleocr' Python package (Standard OCR, not VLM)
-# Supports 'en' (default), 'korean', 'chinese', 'japan', etc. via model_id suffix
-# Example: "paddleocr/korean" or just "paddleocr" (defaults to en)
-
 model_id: paddleocr/paddle-ocr
 backend: paddleocr
 dependency_group: paddle-ocr
-
-# Default generation parameters
 batch_size: 1
 timeout: 60
 max_retries: 3
-
-# Engine specific settings (optional)
-# use_angle_cls: true  # Hardcoded in engine wrapper for now
-# show_log: false      # Hardcoded in engine wrapper for now
-
-# Prompts are ignored by the standard OCR engine as it just extracts text,
-# but we define them for compatibility with the pipeline interface.
-prompts:
-    sentence:
-        prompt: "ignored"
-    table:
-        prompt: "ignored"
-    document:
-        prompt: "ignored"
-    markdown:
-        prompt: "ignored"
-    kie:
-        prompt: "ignored"
-
-# Subset specific configurations to switch languages
 subsets:
-    korean:
-        model_id: paddleocr/korean
-        prompts:
-            sentence:
-                prompt: "ignored"
-    
-    english:
-        model_id: paddleocr/en
-        prompts:
-            sentence:
-                prompt: "ignored"
-
-    chinese:
-        model_id: paddleocr/ch
-        prompts:
-            sentence:
-                prompt: "ignored"
-
-    japanese:
-        model_id: paddleocr/japan
-        prompts:
-            sentence:
-                prompt: "ignored"
+  korean:
+    model_id: paddleocr/korean
+    prompt:
+      prompt: ignored
+  english:
+    model_id: paddleocr/en
+    prompt:
+      prompt: ignored
+  chinese:
+    model_id: paddleocr/ch
+    prompt:
+      prompt: ignored
+  japanese:
+    model_id: paddleocr/japan
+    prompt:
+      prompt: ignored
+prompt:
+  prompt: ignored

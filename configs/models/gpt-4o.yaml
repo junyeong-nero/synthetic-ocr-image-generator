@@ -1,21 +1,8 @@
-# OpenAI GPT-4o Model Configuration
 model_id: gpt-4o
 backend: openai
 dependency_group: api
-
-# Default generation parameters
 temperature: 0.0
 max_tokens: 1024
-
-# Default prompts for each format type
-prompts:
-    sentence:
-        prompt: "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary."
-    table:
-        prompt: "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary."
-    document:
-        prompt: "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary."
-    markdown:
-        prompt: "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary."
-    kie:
-        prompt: "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary."
+prompt:
+  prompt: You are an OCR-like extraction tool. Extract all visible text and structure
+    into markdown. Output markdown only with no extra commentary.

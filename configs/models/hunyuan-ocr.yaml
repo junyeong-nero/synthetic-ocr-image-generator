@@ -1,31 +1,15 @@
-# HunyuanOCR Model Configuration
-# https://huggingface.co/tencent/HunyuanOCR
 model_id: tencent/HunyuanOCR
 backend: transformers
 dependency_group: hunyuan-ocr
-
-# Default generation parameters
 temperature: 0.0
-max_tokens: 16384  # HunyuanOCR supports longer outputs
+max_tokens: 16384
 top_p: 1.0
 batch_size: 1
 timeout: 300
 max_retries: 3
-
-# Local model specific
 device: cuda
 dtype: float16
 tensor_parallel_size: 1
-
-# Default prompts for each format type
-prompts:
-    sentence:
-        prompt: "Extract all information from the document image and represent it in markdown. Preserve reading order and original wording."
-    table:
-        prompt: "Extract all information from the document image and represent it in markdown. Preserve reading order and original wording."
-    document:
-        prompt: "Extract all information from the document image and represent it in markdown. Preserve reading order and original wording."
-    markdown:
-        prompt: "Extract all information from the document image and represent it in markdown. Preserve reading order and original wording."
-    kie:
-        prompt: "Extract all information from the document image and represent it in markdown. Preserve reading order and original wording."
+prompt:
+  prompt: Extract all information from the document image and represent it in markdown.
+    Preserve reading order and original wording.

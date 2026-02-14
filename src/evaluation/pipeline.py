@@ -38,7 +38,6 @@ class EvaluationPipeline:
         self.metric_views: Dict[str, Dict[str, float]] = {}
         self.dataset_fingerprint: Optional[str] = None
         self.dataset_info: Optional[Any] = None
-        self.format = "markdown"
         self.model_specific_config = self._load_model_specific_config()
 
         if self.config.execution_mode != EvaluationMode.EVALUATE_ONLY:
@@ -119,12 +118,10 @@ class EvaluationPipeline:
             source = "cli"
 
         if base_prompt is None and self.model_specific_config:
-            format_key = self.format
-            if format_key in self.model_specific_config.prompts:
-                prompt_config = self.model_specific_config.prompts[format_key]
-                base_prompt = prompt_config.prompt
-                base_system_prompt = prompt_config.system_prompt
-                source = "model_config_format"
+            prompt_config = self.model_specific_config.get_prompt()
+            base_prompt = prompt_config.prompt
+            base_system_prompt = prompt_config.system_prompt
+            source = "model_config"
 
         if base_prompt is None:
             base_prompt = DEFAULT_PROMPT
@@ -292,7 +289,7 @@ class EvaluationPipeline:
         return {
             "dataset_id": self.config.dataset_id,
             "split": self.config.split,
-            "format": self.format,
+            "format": "markdown",
             "batch_size": self.config.batch_size,
             "max_samples": self.config.max_samples,
             "prompt": self.prompt,

@@ -1,8 +1,6 @@
 import asyncio
 import json
-import sys
 from pathlib import Path
-from types import ModuleType
 
 import pytest
 from PIL import Image
@@ -10,7 +8,7 @@ from PIL import Image
 from evaluation.config import EvaluationConfig, EvaluationMode, InferenceBackend, ModelConfig
 from evaluation.pipeline import EvaluationPipeline
 from evaluation.runner import EvaluationRunner
-from evaluation.strategies import DocumentEvaluator, MarkdownEvaluator, TableEvaluator
+from evaluation.strategies import MarkdownEvaluator
 from evaluation.types import InferenceResult
 
 
@@ -137,58 +135,6 @@ def test_runner_batch_api_ignores_invalid_batch_metadata_and_submits_new_batch(
     assert len(results) == 1
     assert results[0].prediction == "predicted"
     assert results[0].error is None
-
-
-@pytest.fixture
-def stub_table_document_metrics(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = ModuleType("metrics.table_document_metrics")
-
-    def evaluate_table(pred_html, pred_json, true_html, true_json):
-        return {"teds": 1.0, "cell_accuracy": 1.0, "overall_structure_f1": 1.0}
-
-    def evaluate_document(pred_elements, true_elements):
-        return {
-            "layout_detection": {"overall_f1": 1.0},
-            "reading_order": {"order_accuracy": 1.0},
-            "key_value_extraction": {"f1": 1.0},
-            "text_score": 1.0,
-            "table_teds": 1.0,
-            "overall_score": 1.0,
-            "overall_f1": 1.0,
-        }
-
-    module.evaluate_table = evaluate_table
-    module.evaluate_document = evaluate_document
-    monkeypatch.setitem(sys.modules, "metrics.table_document_metrics", module)
-
-
-def test_table_evaluator_handles_malformed_ground_truth_json(
-    stub_table_document_metrics: None,
-) -> None:
-    evaluator = TableEvaluator()
-    metrics = evaluator.compute_metrics(
-        predictions=["<table><tr><td>a</td></tr></table>"],
-        ground_truths=[{"html": "<table><tr><td>a</td></tr></table>", "json": "{bad json"}],
-    )
-
-    assert metrics["avg_teds"] == 1.0
-    assert metrics["avg_cell_accuracy"] == 1.0
-
-
-def test_document_evaluator_handles_malformed_nested_ground_truth_json(
-    stub_table_document_metrics: None,
-) -> None:
-    evaluator = DocumentEvaluator()
-    metrics = evaluator.compute_metrics(
-        predictions=['{"elements": []}'],
-        ground_truths=[{"ground_truth": "{broken json"}],
-    )
-
-    assert metrics["avg_overall_f1"] == 1.0
-    assert metrics["avg_layout_f1"] == 1.0
-    assert metrics["avg_text_table_score"] == 1.0
-    assert metrics["avg_formula_edit_distance"] == 0.0
-    assert metrics["avg_text_table_formula_score"] == 1.0
 
 
 def test_pipeline_compute_metrics_skips_none_predictions(

@@ -60,7 +60,7 @@ class ReportGenerator:
         metrics = self.output.metrics
         summary = self.output.summary
         metric_views = self.output.metric_views
-        format_name = config.get("format", "markdown")
+        format_name = "markdown"
 
         lines = [
             "# OCR Evaluation Report",
@@ -129,31 +129,30 @@ class ReportGenerator:
             ]
         )
 
-        if format_name == "markdown":
-            lines.extend(
-                [
-                    "## Markdown Block Scores",
-                    "",
-                    "| Component | Value |",
-                    "|-----------|-------|",
-                ]
-            )
-            component_keys = [
-                ("Text", "avg_markdown_text_score"),
-                ("Table", "avg_markdown_table_teds"),
-                ("Formula", "avg_markdown_formula_score"),
-                ("Order", "avg_markdown_order_score"),
-                ("Overall", "avg_markdown_overall_score"),
+        lines.extend(
+            [
+                "## Markdown Block Scores",
+                "",
+                "| Component | Value |",
+                "|-----------|-------|",
             ]
-            for label, key in component_keys:
-                value = metrics.get(key)
-                if isinstance(value, float):
-                    lines.append(f"| {label} | {value:.4f} |")
-                elif isinstance(value, int):
-                    lines.append(f"| {label} | {float(value):.4f} |")
-                else:
-                    lines.append(f"| {label} | N/A |")
-            lines.append("")
+        )
+        component_keys = [
+            ("Text", "avg_markdown_text_score"),
+            ("Table", "avg_markdown_table_teds"),
+            ("Formula", "avg_markdown_formula_score"),
+            ("Order", "avg_markdown_order_score"),
+            ("Overall", "avg_markdown_overall_score"),
+        ]
+        for label, key in component_keys:
+            value = metrics.get(key)
+            if isinstance(value, float):
+                lines.append(f"| {label} | {value:.4f} |")
+            elif isinstance(value, int):
+                lines.append(f"| {label} | {float(value):.4f} |")
+            else:
+                lines.append(f"| {label} | N/A |")
+        lines.append("")
 
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
@@ -177,7 +176,7 @@ class ReportGenerator:
         metrics = self.output.metrics
         summary = self.output.summary
         metric_views = self.output.metric_views
-        format_name = config.get("format", "markdown")
+        format_name = "markdown"
 
         # Build metrics table rows
         metrics_rows = ""
@@ -328,7 +327,7 @@ class ReportGenerator:
         </table>
     </div>
 
-    {self._markdown_component_section(format_name, metrics)}
+{self._markdown_component_section(metrics)}
 
     {metric_view_sections}
 
@@ -343,9 +342,7 @@ class ReportGenerator:
 
         return path
 
-    def _markdown_component_section(self, format_name: str, metrics: dict) -> str:
-        if format_name != "markdown":
-            return ""
+    def _markdown_component_section(self, metrics: dict) -> str:
 
         component_keys = [
             ("Text", "avg_markdown_text_score"),

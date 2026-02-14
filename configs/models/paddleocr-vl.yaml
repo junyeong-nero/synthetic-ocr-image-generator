@@ -1,31 +1,15 @@
-# PaddleOCR-VL Model Configuration
-# https://huggingface.co/PaddlePaddle/PaddleOCR-VL
 model_id: PaddlePaddle/PaddleOCR-VL
 backend: transformers
 dependency_group: paddle-ocr
-
-# Default generation parameters
 temperature: 0.0
 max_tokens: 4096
 top_p: 1.0
 batch_size: 1
 timeout: 180
 max_retries: 3
-
-# Local model specific
 device: cuda
 dtype: bfloat16
 tensor_parallel_size: 1
-
-# Default prompts for each format type
-prompts:
-    sentence:
-        prompt: "Recognize all document elements and output a single markdown transcription that preserves structure and reading order."
-    table:
-        prompt: "Recognize all document elements and output a single markdown transcription that preserves structure and reading order."
-    document:
-        prompt: "Recognize all document elements and output a single markdown transcription that preserves structure and reading order."
-    markdown:
-        prompt: "Recognize all document elements and output a single markdown transcription that preserves structure and reading order."
-    kie:
-        prompt: "Recognize all document elements and output a single markdown transcription that preserves structure and reading order."
+prompt:
+  prompt: Recognize all document elements and output a single markdown transcription
+    that preserves structure and reading order.

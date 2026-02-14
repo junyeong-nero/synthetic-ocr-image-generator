@@ -1,60 +1,18 @@
-# Model Configuration Template
-# Copy this file and customize for your model
-#
-# File naming convention:
-#   - Use lowercase model name: gpt-4o.yaml, claude-3-5-sonnet.yaml
-#   - For HuggingFace models, use the last part: qwen2-vl-7b.yaml
-#   - Or full path with underscore: qwen_qwen2-vl-7b-instruct.yaml
-
-# Required fields
-model_id: your-model-id # e.g., "gpt-4o", "Qwen/Qwen2-VL-7B-Instruct"
-backend: openai # openai, anthropic, google, transformers, vllm, sglang, ollama
-
-# Generation parameters (optional, these are defaults)
+model_id: your-model-id
+backend: openai
 temperature: 0.0
 max_tokens: 4096
 top_p: 1.0
 batch_size: 1
 timeout: 120
 max_retries: 3
-
-# API-specific (for openai, anthropic, google backends)
-# api_base: https://custom-api.example.com/v1  # Optional custom endpoint
-# rate_limit_rpm: 500  # Optional rate limit
-
-# Local model specific (for transformers, vllm backends)
-# device: cuda
-# dtype: bfloat16
-# tensor_parallel_size: 1
-# max_model_len: 32768
-
-# Default prompts for each format type
-# These will be used unless a subset-specific prompt is defined
-prompts:
-    sentence:
-        prompt: "Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations."
-    table:
-        prompt: "Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations."
-    document:
-        prompt: "Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations."
-    markdown:
-        prompt: "Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations."
-    kie:
-        prompt: "Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations."
-# Subset-specific overrides
-# Use this to customize behavior for specific dataset subsets
 subsets:
-    # Example: Korean text subset with different prompt and batch size
-    korean:
-        batch_size: 4
-        temperature: 0.1
-        prompts:
-            sentence:
-                prompt: "Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations."
-    # Example: Another subset with different settings
-    # chinese:
-    #   batch_size: 2
-    #   prompts:
-    #     sentence:
-    #       prompt: |
-    #         Extract Chinese text from the image exactly as shown.
+  korean:
+    batch_size: 4
+    temperature: 0.1
+    prompt:
+      prompt: Convert the image content to clean markdown. Preserve reading order,
+        tables, and formulas. Output markdown only with no code fences or explanations.
+prompt:
+  prompt: Convert the image content to clean markdown. Preserve reading order, tables,
+    and formulas. Output markdown only with no code fences or explanations.
