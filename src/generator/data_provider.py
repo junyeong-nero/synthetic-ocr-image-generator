@@ -421,6 +421,11 @@ class DataProvider:
         "titles": "titles.txt",
         "paragraphs": "paragraphs.txt",
         "features": "features.txt",
+        "requirements": "requirements.txt",
+        "install_commands": "install_commands.txt",
+        "usage_commands": "usage_commands.txt",
+        "config_lines": "config_lines.txt",
+        "api_endpoints": "api_endpoints.txt",
     }
 
     def __init__(
@@ -750,6 +755,104 @@ class DataProvider:
         if count <= len(self._data.features):
             return random.sample(self._data.features, count)
         return random.choices(self._data.features, k=count)
+
+    def requirement_line(self) -> str:
+        if corpus_item := self._get_from_corpus("requirements"):
+            return corpus_item
+
+        runtime = random.choice([
+            "Python",
+            "Node.js",
+            "PostgreSQL",
+            "Redis",
+            "Docker",
+            "Kubernetes",
+            "Terraform",
+            "OpenSSL",
+        ])
+        version_major = random.randint(1, 3) if runtime in {"Terraform", "OpenSSL"} else random.randint(3, 20)
+        version_minor = random.randint(0, 12)
+        return f"{runtime} >= {version_major}.{version_minor}"
+
+    def install_command(self, package_name: Optional[str] = None) -> str:
+        if corpus_item := self._get_from_corpus("install_commands"):
+            return corpus_item
+
+        if package_name is None:
+            words = [w for w in self.title().lower().replace("_", "-").split() if w]
+            package_name = "-".join(words[:2]) if words else "sample-app"
+
+        tool = random.choice(["pip", "uv", "npm", "pnpm"])
+        if tool == "pip":
+            return f"pip install {package_name}"
+        if tool == "uv":
+            return f"uv add {package_name}"
+        if tool == "pnpm":
+            return f"pnpm add {package_name}"
+        return f"npm install {package_name}"
+
+    def usage_command(self, entrypoint: Optional[str] = None) -> str:
+        if corpus_item := self._get_from_corpus("usage_commands"):
+            return corpus_item
+
+        command_target = entrypoint or random.choice([
+            "main.py",
+            "server.py",
+            "app.py",
+            "src/main.py",
+            "index.js",
+            "scripts/run.py",
+        ])
+        if command_target.endswith(".py"):
+            return f"python {command_target}"
+        if command_target.endswith(".js"):
+            return f"node {command_target}"
+        return command_target
+
+    def config_line(self) -> str:
+        if corpus_item := self._get_from_corpus("config_lines"):
+            return corpus_item
+
+        key = random.choice([
+            "log_level",
+            "timeout_ms",
+            "max_workers",
+            "retry_count",
+            "api_base_url",
+            "enable_metrics",
+            "cache_ttl_sec",
+            "batch_size",
+        ])
+        value_map = {
+            "log_level": random.choice(["DEBUG", "INFO", "WARN", "ERROR"]),
+            "timeout_ms": str(random.choice([1000, 3000, 5000, 10000, 30000])),
+            "max_workers": str(random.randint(2, 32)),
+            "retry_count": str(random.randint(1, 5)),
+            "api_base_url": f"https://api.{self.faker.domain_name()}",
+            "enable_metrics": random.choice(["true", "false"]),
+            "cache_ttl_sec": str(random.choice([60, 300, 900, 3600])),
+            "batch_size": str(random.choice([8, 16, 32, 64, 128])),
+        }
+        value = value_map.get(key, "true")
+        return f"{key}: {value}"
+
+    def api_endpoint(self) -> str:
+        if corpus_item := self._get_from_corpus("api_endpoints"):
+            return corpus_item
+
+        resource = random.choice([
+            "users",
+            "projects",
+            "documents",
+            "invoices",
+            "workspaces",
+            "notifications",
+            "metrics",
+            "sessions",
+            "tasks",
+            "exports",
+        ])
+        return f"/api/v1/{resource}"
 
     def code_comment(self) -> str:
         """Get a random code comment."""
