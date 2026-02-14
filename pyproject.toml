@@ -134,14 +134,18 @@ varco-ocr = [
 ]
 
 paddle-ocr = [
-    # PaddleOCR-VL requires specific transformers version
     # Note: paddlepaddle-gpu requires separate installation from PaddlePaddle index
     # See: https://www.paddlepaddle.org.cn/install/quick
-    "apted>=1.0.0",
-    "transformers>=4.45.0,<4.50.0",
-    "huggingface-hub>=0.23.2,<1.0",
     "paddleocr>=2.0.0",
     "paddlepaddle>=2.6.0",
+]
+
+paddle-ocr-vl = [
+    "transformers>=4.53.3,<5.0.0",
+    "tokenizers>=0.21.0",
+    "huggingface-hub>=0.23.2,<1.0",
+    "sentencepiece>=0.2.0",
+    "protobuf>=4.25.0",
 ]
 
 qwen2-vl = [
@@ -187,8 +191,8 @@ kiri-ocr = [
 ]
 
 dots-ocr = [
-    "transformers==4.46.3",
-    "tokenizers==0.20.3",
+    "transformers==4.51.3",
+    "tokenizers>=0.21.0",
     "qwen-vl-utils>=0.0.10",
 ]
 
@@ -210,6 +214,7 @@ conflicts = [
         { group = "hunyuan-ocr" },
         { group = "varco-ocr" },
         { group = "paddle-ocr" },
+        { group = "paddle-ocr-vl" },
         { group = "qwen2-vl" },
         { group = "qwen2.5-vl" },
         { group = "qwen3-vl" },

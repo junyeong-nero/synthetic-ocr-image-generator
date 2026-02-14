@@ -1,6 +1,6 @@
-model_id: PaddlePaddle/PaddleOCR-VL
+model_id: PaddlePaddle/PaddleOCR-VL-1.5
 backend: transformers
-dependency_group: paddle-ocr
+dependency_group: paddle-ocr-vl
 temperature: 0.0
 max_tokens: 4096
 top_p: 1.0

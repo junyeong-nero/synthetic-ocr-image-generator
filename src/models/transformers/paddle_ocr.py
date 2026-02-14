@@ -23,7 +23,9 @@ class PaddleOCR(BaseTransformersOCR):
             .to(self.device)
             .eval()
         )
-        self.processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+        self.processor = AutoProcessor.from_pretrained(
+            model_id, trust_remote_code=True, use_fast=False
+        )
 
     def run(self, prompts: List[str], images: List[Image.Image]) -> List[str]:
         """
