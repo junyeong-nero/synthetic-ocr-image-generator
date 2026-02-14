@@ -9,14 +9,17 @@ This module provides comprehensive markdown document generation capabilities inc
 
 import random
 import logging
+import tempfile
+import importlib
 import numpy as np
 from pathlib import Path
 from dataclasses import dataclass
 from enum import Enum
+from html import escape
 from typing import Any, Dict, List, Optional, Tuple
 
 from tqdm import tqdm
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
+from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
 from character_similarity import find_similar_chars
 from generator.base import BaseGenerator
@@ -89,13 +92,64 @@ class MarkdownDataGenerator:
         self,
         template: MarkdownTemplate = MarkdownTemplate.README,
     ) -> str:
-        """Generate markdown content based on template type."""
         gen_func = getattr(self, f"_generate_{template.value}")
         return gen_func()
 
-    def _generate_readme(self) -> str:
-        """Generate README-style markdown."""
+    @staticmethod
+    def _slugify(text: str, max_parts: int = 3) -> str:
+        chunks: List[str] = []
+        for token in text.lower().replace("_", "-").split():
+            cleaned = "".join(ch for ch in token if ch.isalnum() or ch == "-").strip("-")
+            if cleaned:
+                chunks.append(cleaned)
+            if len(chunks) >= max_parts:
+                break
+        return "-".join(chunks) if chunks else "sample-app"
+
+    def _project_slug(self) -> str:
         title = self.data.title()
+        return self._slugify(title)
+
+    def _sample_requirements(self, count: int = 3) -> List[str]:
+        items = set()
+        while len(items) < count:
+            items.add(self.data.requirement_line())
+        return list(items)
+
+    def _sample_config_lines(self, count: int = 3) -> List[str]:
+        items = set()
+        while len(items) < count:
+            items.add(self.data.config_line())
+        return list(items)
+
+    @staticmethod
+    def _to_config_entry(line: str) -> Tuple[str, str]:
+        if ":" in line:
+            key, value = line.split(":", 1)
+            return key.strip(), value.strip()
+        token = "".join(ch for ch in line.lower().replace(" ", "_") if ch.isalnum() or ch == "_")
+        return token or "option", "true"
+
+    @staticmethod
+    def _to_runtime_version(requirement: str) -> Tuple[str, str]:
+        if ">=" in requirement:
+            name, version = requirement.split(">=", 1)
+            return name.strip(), version.strip()
+        if "==" in requirement:
+            name, version = requirement.split("==", 1)
+            return name.strip(), version.strip()
+        words = requirement.split()
+        if not words:
+            return "Runtime", "1.0"
+        if len(words) == 1:
+            return words[0], "1.0"
+        return words[0], words[-1]
+
+    def _generate_readme(self) -> str:
+        title = self.data.title()
+        project_slug = self._slugify(title)
+        install_command = self.data.install_command(package_name=project_slug)
+        usage_command = self.data.usage_command(entrypoint="main.py")
         lines = [
             f"# {title}",
             "",
@@ -116,7 +170,7 @@ class MarkdownDataGenerator:
             "## " + ("설치" if self.lang == "ko" else "Installation"),
             "",
             "```bash",
-            "pip install my-package",
+            install_command,
             "```",
             "",
         ])
@@ -127,10 +181,14 @@ class MarkdownDataGenerator:
             "",
             "```python",
             self.data.code_comment(),
-            "import my_package",
+            f"from {project_slug.replace('-', '_')} import Client",
             "",
-            "client = my_package.Client()",
+            "client = Client()",
             "result = client.run()",
+            "```",
+            "",
+            "```bash",
+            usage_command,
             "```",
             "",
         ])
@@ -144,8 +202,9 @@ class MarkdownDataGenerator:
         return "\n".join(lines)
 
     def _generate_technical_doc(self) -> str:
-        """Generate technical documentation style markdown."""
         title = self.data.title()
+        requirements = self._sample_requirements(random.randint(3, 5))
+        cfg_lines = self._sample_config_lines(3)
         lines = [
             f"# {title}",
             "",
@@ -158,11 +217,6 @@ class MarkdownDataGenerator:
         ]
 
         # Add requirements list
-        requirements = [
-            "Python >= 3.8",
-            "pip >= 21.0",
-            "Git >= 2.0",
-        ]
         for i, req in enumerate(requirements, 1):
             lines.append(f"{i}. {req}")
         lines.append("")
@@ -185,9 +239,9 @@ class MarkdownDataGenerator:
             "",
             "```yaml",
             "config:",
-            "  debug: false",
-            "  log_level: INFO",
-            "  max_connections: 100",
+            f"  {cfg_lines[0]}",
+            f"  {cfg_lines[1]}",
+            f"  {cfg_lines[2]}",
             "```",
             "",
         ])
@@ -195,7 +249,6 @@ class MarkdownDataGenerator:
         return "\n".join(lines)
 
     def _generate_blog_post(self) -> str:
-        """Generate blog post style markdown."""
         title = self.data.title()
         date = self.data.date()
 
@@ -238,13 +291,22 @@ class MarkdownDataGenerator:
         return "\n".join(lines)
 
     def _generate_api_doc(self) -> str:
-        """Generate API documentation style markdown."""
+        endpoint_get = self.data.api_endpoint()
+        endpoint_post = self.data.api_endpoint()
+        if endpoint_post == endpoint_get:
+            endpoint_post = endpoint_get.rstrip("s") + "s"
+
+        user_one = self.data.name()
+        user_two = self.data.name()
+        user_email = self.data.email()
+        page_name = "페이지 번호" if self.lang == "ko" else "Page number"
+        limit_name = "페이지당 항목 수" if self.lang == "ko" else "Items per page"
         lines = [
             "# API " + ("레퍼런스" if self.lang == "ko" else "Reference"),
             "",
             "## " + ("엔드포인트" if self.lang == "ko" else "Endpoints"),
             "",
-            "### GET /api/users",
+            f"### GET {endpoint_get}",
             "",
             ("사용자 목록을 조회합니다." if self.lang == "ko" else "Retrieve a list of users."),
             "",
@@ -252,22 +314,22 @@ class MarkdownDataGenerator:
             "",
             "| " + ("이름" if self.lang == "ko" else "Name") + " | " + ("타입" if self.lang == "ko" else "Type") + " | " + ("설명" if self.lang == "ko" else "Description") + " |",
             "|------|------|-------------|",
-            "| page | int | " + ("페이지 번호" if self.lang == "ko" else "Page number") + " |",
-            "| limit | int | " + ("페이지당 항목 수" if self.lang == "ko" else "Items per page") + " |",
+            f"| page | int | {page_name} |",
+            f"| limit | int | {limit_name} |",
             "",
             "**" + ("응답 예시" if self.lang == "ko" else "Example Response") + ":**",
             "",
             "```json",
             "{",
             '  "users": [',
-            '    {"id": 1, "name": "John"},',
-            '    {"id": 2, "name": "Jane"}',
+            f'    {{"id": 1, "name": "{user_one}"}},',
+            f'    {{"id": 2, "name": "{user_two}"}}',
             "  ],",
-            '  "total": 100',
+            f'  "total": {random.randint(20, 500)}',
             "}",
             "```",
             "",
-            "### POST /api/users",
+            f"### POST {endpoint_post}",
             "",
             ("새 사용자를 생성합니다." if self.lang == "ko" else "Create a new user."),
             "",
@@ -275,8 +337,8 @@ class MarkdownDataGenerator:
             "",
             "```json",
             "{",
-            '  "name": "New User",',
-            '  "email": "user@example.com"',
+            f'  "name": "{self.data.name()}",',
+            f'  "email": "{user_email}"',
             "}",
             "```",
             "",
@@ -285,8 +347,14 @@ class MarkdownDataGenerator:
         return "\n".join(lines)
 
     def _generate_tutorial(self) -> str:
-        """Generate tutorial style markdown."""
         title = self.data.title()
+        project_slug = self._slugify(title)
+        install_command = self.data.install_command(package_name=project_slug)
+        run_command = self.data.usage_command(entrypoint="main.py")
+        requirements = self._sample_requirements(3)
+        cfg_lines = self._sample_config_lines(2)
+        cfg_1_key, cfg_1_value = self._to_config_entry(cfg_lines[0])
+        cfg_2_key, cfg_2_value = self._to_config_entry(cfg_lines[1])
         lines = [
             "# " + ("튜토리얼" if self.lang == "ko" else "Tutorial") + f": {title}",
             "",
@@ -296,16 +364,16 @@ class MarkdownDataGenerator:
             "",
             ("다음 항목이 필요합니다:" if self.lang == "ko" else "You will need:"),
             "",
-            "- [ ] Python 3.8+",
-            "- [ ] pip",
-            "- [ ] " + ("텍스트 에디터" if self.lang == "ko" else "Text editor"),
+            f"- [ ] {requirements[0]}",
+            f"- [ ] {requirements[1]}",
+            f"- [ ] {requirements[2]}",
             "",
             "## " + ("1단계" if self.lang == "ko" else "Step 1") + ": " + ("설치" if self.lang == "ko" else "Installation"),
             "",
             ("먼저 패키지를 설치합니다:" if self.lang == "ko" else "First, install the package:"),
             "",
             "```bash",
-            "pip install example-package",
+            install_command,
             "```",
             "",
             "## " + ("2단계" if self.lang == "ko" else "Step 2") + ": " + ("설정" if self.lang == "ko" else "Configuration"),
@@ -315,8 +383,8 @@ class MarkdownDataGenerator:
             "```python",
             self.data.code_comment(),
             "config = {",
-            '    "api_key": "your-api-key",',
-            '    "debug": True',
+            f'    "{cfg_1_key}": "{cfg_1_value}",',
+            f'    "{cfg_2_key}": "{cfg_2_value}"',
             "}",
             "```",
             "",
@@ -325,13 +393,13 @@ class MarkdownDataGenerator:
             "## " + ("3단계" if self.lang == "ko" else "Step 3") + ": " + ("실행" if self.lang == "ko" else "Run"),
             "",
             "```bash",
-            "python main.py",
+            run_command,
             "```",
             "",
             ("예상 출력:" if self.lang == "ko" else "Expected output:"),
             "",
             "```",
-            "Success! Server running on http://localhost:8000",
+            f"Success! Service started for {project_slug}",
             "```",
             "",
         ]
@@ -436,6 +504,12 @@ class MarkdownDataGenerator:
 
     def _generate_release_note(self) -> str:
         release = f"{random.randint(2024, 2027)}.{random.randint(1, 12)}.{random.randint(1, 28)}"
+        requirements = self._sample_requirements(3)
+        runtime_1, min_1 = self._to_runtime_version(requirements[0])
+        runtime_2, min_2 = self._to_runtime_version(requirements[1])
+        runtime_3, min_3 = self._to_runtime_version(requirements[2])
+        install_cmd = self.data.install_command(package_name="synthetic-ocr")
+        run_cmd = self.data.usage_command(entrypoint="main.py")
         lines = [
             "# " + ("릴리즈 노트" if self.lang == "ko" else "Release Notes") + f" {release}",
             "",
@@ -449,15 +523,15 @@ class MarkdownDataGenerator:
             "",
             "| Runtime | Minimum | Recommended |",
             "|---|---|---|",
-            "| Python | 3.9 | 3.11 |",
-            "| Node.js | 18 | 20 |",
-            "| CUDA | 11.8 | 12.2 |",
+            f"| {runtime_1} | {min_1} | {min_1}+ |",
+            f"| {runtime_2} | {min_2} | {min_2}+ |",
+            f"| {runtime_3} | {min_3} | {min_3}+ |",
             "",
             "## " + ("업그레이드 가이드" if self.lang == "ko" else "Upgrade Guide"),
             "",
             "```bash",
-            "pip install -U synthetic-ocr",
-            "python main.py generate --lang en --size 10",
+            install_cmd.replace(" install ", " install -U "),
+            f"{run_cmd} generate --lang en --size 10" if run_cmd.startswith("python") else run_cmd,
             "```",
             "",
         ]
@@ -838,6 +912,211 @@ class MarkdownRenderer:
         return Image.blend(img, noise_img, 0.03)
 
 
+class HtmlMarkdownRenderer:
+    """Renders markdown through HTML and captures it as an image."""
+
+    def __init__(self, font_path: str, style: Optional[MarkdownStyle] = None):
+        self.style = style or MarkdownStyle()
+        self.font_path = str(Path(font_path).resolve())
+
+    @staticmethod
+    def _coerce_markdown_html(markdown_text: str) -> str:
+        try:
+            markdown_pkg = importlib.import_module("markdown")
+        except ImportError as exc:
+            raise RuntimeError(
+                "markdown package is required for markdown->html rendering. "
+                "Install with: uv sync --group generate"
+            ) from exc
+
+        return markdown_pkg.markdown(
+            markdown_text,
+            extensions=["extra", "tables", "fenced_code", "sane_lists"],
+        )
+
+    def _estimate_viewport_height(self, markdown_text: str) -> int:
+        lines = markdown_text.splitlines() or [""]
+        body_line_px = int(self.style.body_font_size * self.style.line_spacing)
+        chars_per_line = max(18, self.style.content_width // max(self.style.body_font_size - 1, 8))
+
+        wrapped_line_count = 0
+        header_bonus = 0
+        code_bonus = 0
+        table_bonus = 0
+        for raw in lines:
+            line = raw.strip()
+            wrapped_line_count += max(1, (len(raw) // chars_per_line) + 1)
+            if line.startswith("# "):
+                header_bonus += self.style.h1_font_size
+            elif line.startswith("## "):
+                header_bonus += self.style.h2_font_size
+            elif line.startswith("### "):
+                header_bonus += self.style.h3_font_size
+            if line.startswith("```"):
+                code_bonus += int(self.style.code_font_size * self.style.line_spacing * 2)
+            if line.startswith("|"):
+                table_bonus += int(body_line_px * 0.6)
+
+        estimated = (
+            self.style.margin_top
+            + self.style.margin_bottom
+            + wrapped_line_count * body_line_px
+            + header_bonus
+            + code_bonus
+            + table_bonus
+            + 120
+        )
+        return max(300, min(9000, int(estimated)))
+
+    def _build_html_document(self, markdown_text: str) -> str:
+        rendered_html = self._coerce_markdown_html(markdown_text)
+        css = f"""
+@font-face {{
+  font-family: 'RenderFont';
+  src: url('file://{escape(self.font_path)}') format('truetype');
+}}
+html, body {{
+  margin: 0;
+  padding: 0;
+  background: rgb{self.style.background_color};
+}}
+body {{
+  width: {self.style.margin_left + self.style.content_width + self.style.margin_right}px;
+}}
+.markdown-body {{
+  width: {self.style.content_width}px;
+  padding: {self.style.margin_top}px {self.style.margin_right}px {self.style.margin_bottom}px {self.style.margin_left}px;
+  color: rgb{self.style.text_color};
+  font-family: 'RenderFont', sans-serif;
+  font-size: {self.style.body_font_size}px;
+  line-height: {self.style.line_spacing};
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}}
+.markdown-body h1 {{ font-size: {self.style.h1_font_size}px; color: rgb{self.style.h1_color}; margin: 0 0 16px 0; }}
+.markdown-body h2 {{ font-size: {self.style.h2_font_size}px; color: rgb{self.style.h2_color}; margin: 18px 0 12px 0; }}
+.markdown-body h3 {{ font-size: {self.style.h3_font_size}px; color: rgb{self.style.h3_color}; margin: 16px 0 8px 0; }}
+.markdown-body a {{ color: rgb{self.style.link_color}; text-decoration: none; }}
+.markdown-body p {{ margin: 0 0 10px 0; }}
+.markdown-body ul, .markdown-body ol {{ margin: 0 0 12px 18px; padding: 0; }}
+.markdown-body blockquote {{
+  margin: 0 0 12px 0;
+  padding: 0 0 0 12px;
+  border-left: 3px solid rgb{self.style.blockquote_border_color};
+  color: rgb{self.style.blockquote_color};
+}}
+.markdown-body pre, .markdown-body code {{
+  font-family: 'RenderFont', monospace;
+  font-size: {self.style.code_font_size}px;
+}}
+.markdown-body pre {{
+  margin: 0 0 12px 0;
+  padding: 8px 10px;
+  background: rgb{self.style.code_bg_color};
+  color: rgb{self.style.code_text_color};
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}}
+.markdown-body code {{
+  background: rgb{self.style.code_bg_color};
+  color: rgb{self.style.code_text_color};
+  padding: 1px 3px;
+}}
+.markdown-body table {{
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 12px 0;
+  table-layout: fixed;
+}}
+.markdown-body th, .markdown-body td {{
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  text-align: left;
+  padding: 6px;
+  overflow-wrap: anywhere;
+}}
+"""
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <style>{css}</style>
+</head>
+<body>
+  <div class="markdown-body">{rendered_html}</div>
+</body>
+</html>"""
+
+    def _trim_bottom_whitespace(self, image: Image.Image) -> Image.Image:
+        background = Image.new("RGB", image.size, self.style.background_color)
+        diff = ImageChops.difference(image, background)
+        bbox = diff.getbbox()
+        if not bbox:
+            return image
+        cropped_bottom = min(image.height, int(bbox[3] + self.style.margin_bottom))
+        return image.crop((0, 0, image.width, max(cropped_bottom, 200)))
+
+    def _apply_effects(self, img: Image.Image) -> Image.Image:
+        if self.style.add_noise:
+            img = self._add_noise(img)
+
+        if self.style.add_blur:
+            blur_radius = random.uniform(0.3, 0.8)
+            img = img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+
+        if self.style.add_contrast:
+            enhancer = ImageEnhance.Contrast(img)
+            factor = random.uniform(0.9, 1.1)
+            img = enhancer.enhance(factor)
+
+        return img
+
+    @staticmethod
+    def _add_noise(img: Image.Image) -> Image.Image:
+        width, height = img.size
+        noise = np.zeros((height, width, 3), dtype=np.uint8)
+        sample_count = 300
+        xs = np.random.randint(0, width, size=sample_count)
+        ys = np.random.randint(0, height, size=sample_count)
+        grays = np.random.randint(0, 256, size=sample_count, dtype=np.uint8)
+        noise[ys, xs] = np.stack([grays, grays, grays], axis=1)
+        noise_img = Image.fromarray(noise, mode="RGB")
+        return Image.blend(img, noise_img, 0.03)
+
+    def render(self, markdown_text: str) -> Image.Image:
+        try:
+            Html2Image = importlib.import_module("html2image").Html2Image
+        except ImportError as exc:
+            raise RuntimeError(
+                "html2image package is required for html->image rendering. "
+                "Install with: uv sync --group generate"
+            ) from exc
+
+        width = self.style.margin_left + self.style.content_width + self.style.margin_right
+        height = self._estimate_viewport_height(markdown_text)
+        html_doc = self._build_html_document(markdown_text)
+
+        with tempfile.TemporaryDirectory(prefix="markdown-html2image-") as temp_dir:
+            hti = Html2Image(
+                output_path=temp_dir,
+                size=(width, height),
+                custom_flags=[
+                    "--headless=new",
+                    "--hide-scrollbars",
+                    "--disable-gpu",
+                    "--force-device-scale-factor=1",
+                ],
+            )
+            out_name = "rendered.png"
+            hti.screenshot(html_str=html_doc, save_as=out_name)
+            rendered_path = Path(temp_dir) / out_name
+            image = Image.open(rendered_path).convert("RGB")
+            image.load()
+
+        image = self._trim_bottom_whitespace(image)
+        return self._apply_effects(image)
+
+
 class Generator(BaseGenerator):
     """Main generator class for markdown image generation."""
 
@@ -859,6 +1138,7 @@ class Generator(BaseGenerator):
         self.noise_ratio = 0.1
         self.blur_ratio = 0.1
         self.similar_char_ratio = 0.08
+        self.markdown_renderer = "pil"
 
     def _load_similarity_db(self, db_path: Optional[str]) -> None:
         source_key = db_path or "__auto__"
@@ -935,6 +1215,14 @@ class Generator(BaseGenerator):
         if "add_blur" in kwargs and kwargs.get("add_blur") is not None:
             self.blur_ratio = 1.0 if self.add_blur else 0.0
         self.similar_char_ratio = float(kwargs.get("similar_char_ratio", 0.08))
+        requested_renderer = str(kwargs.get("markdown_renderer", self.markdown_renderer)).strip().lower()
+        if requested_renderer not in {"pil", "html2image"}:
+            logger.warning(
+                "Unknown markdown renderer '%s'. Falling back to 'pil'.",
+                requested_renderer,
+            )
+            requested_renderer = "pil"
+        self.markdown_renderer = requested_renderer
         self._load_similarity_db(kwargs.get("similarity_db_path"))
 
     def _mutate_similar_text(self, text: str, ratio: float) -> Tuple[str, int]:
@@ -1024,7 +1312,10 @@ class Generator(BaseGenerator):
 
         # Render markdown
         font_path = random.choice(self.font_paths)
-        renderer = MarkdownRenderer(font_path, style)
+        if self.markdown_renderer == "html2image":
+            renderer = HtmlMarkdownRenderer(font_path, style)
+        else:
+            renderer = MarkdownRenderer(font_path, style)
         image = renderer.render(markdown_text)
 
         metadata = {
@@ -1032,6 +1323,7 @@ class Generator(BaseGenerator):
             "GT_markdown": markdown_text,
             "GT_json": markdown_to_json_ast(markdown_text),
             "similar_char_mutations": mutation_count,
+            "renderer": self.markdown_renderer,
         }
         return image, metadata
 
