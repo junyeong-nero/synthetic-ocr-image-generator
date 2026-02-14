@@ -3,7 +3,7 @@
 set -e
 
 usage() {
-    echo "Usage: $0 --repo-id <repo> --font-path <path> --lang <code> [options]"
+    echo "Usage: $0 --repo-id <repo> --lang <code> [options]"
     echo ""
     echo "Options:"
     echo "  --size <n>            Number of markdown samples (default: 1000)"
@@ -12,17 +12,15 @@ usage() {
     echo "  --test-ratio <r>      Test split ratio for mixed mode (default: 0.1)"
     echo "  --label <label>       Display label for logs (optional)"
     echo "  --repo-id <repo>      Hugging Face dataset repo id (required)"
-    echo "  --font-path <path>    Font path (required)"
     echo "  --lang <code>         Language code (required)"
     exit 1
 }
 
 REPO_ID=""
-FONT_PATH=""
 LANG=""
 SIZE=1000
 LABEL=""
-SIMILAR_CHAR_RATIO=0.2
+SIMILAR_CHAR_RATIO=0.08
 TRAIN_RATIO=0.9
 TEST_RATIO=0.1
 
@@ -30,10 +28,6 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --repo-id)
             REPO_ID="$2"
-            shift 2
-            ;;
-        --font-path)
-            FONT_PATH="$2"
             shift 2
             ;;
         --lang)
@@ -70,7 +64,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$REPO_ID" || -z "$FONT_PATH" || -z "$LANG" ]]; then
+if [[ -z "$REPO_ID" || -z "$LANG" ]]; then
     usage
 fi
 
@@ -86,13 +80,13 @@ echo ""
 echo "[1/1] Generating mixed dataset (train/test splits)..."
 uv run --group generate main.py generate \
     --repo-id "$REPO_ID" \
-    --font-path "$FONT_PATH" \
     --size "$SIZE" \
     --lang "$LANG" \
     --similar-char-ratio "$SIMILAR_CHAR_RATIO" \
     --mixed \
     --train-ratio "$TRAIN_RATIO" \
-    --test-ratio "$TEST_RATIO"
+    --test-ratio "$TEST_RATIO" \
+    --markdown-renderer html2image
 
 echo ""
 echo "=========================================="
