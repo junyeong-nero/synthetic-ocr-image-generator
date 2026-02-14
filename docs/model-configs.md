@@ -31,17 +31,16 @@ Common fields loaded by `src/evaluation/model_config.py`:
 - `timeout`, `max_retries`
 - `api_base`, `rate_limit_rpm`
 - `device`, `dtype`, `tensor_parallel_size`, `max_model_len`
-- `prompts` (keyed by format name; current pipeline uses `markdown`)
+- `prompt` (single markdown prompt config)
 
 ## Prompt Configuration
 
-Current evaluation pipeline resolves prompts for markdown format. Recommended structure:
+Current evaluation pipeline uses a single markdown prompt. Recommended structure:
 
 ```yaml
-prompts:
-  markdown:
-    prompt: "..."
-    system_prompt: "..."  # optional
+prompt:
+  prompt: "..."
+  system_prompt: "..."  # optional
 ```
 
 ## Creating a New Config
@@ -49,7 +48,7 @@ prompts:
 1. Copy `configs/models/_template.yaml` or an existing config.
 2. Set `model_id`, `backend`, and optional `dependency_group`.
 3. Add/adjust generation parameters.
-4. Set at least `prompts.markdown.prompt`.
+4. Set at least `prompt.prompt`.
 5. Run a small validation:
 
 ```bash

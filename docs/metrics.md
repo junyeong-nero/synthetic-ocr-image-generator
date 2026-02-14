@@ -33,6 +33,6 @@ Normalization in `main.py` converts lower-is-better metrics (`avg_cer`, `avg_wer
 
 For the current markdown-focused flow, representative score tracking is based on `avg_markdown_overall_score`.
 
-## Notes on Additional Evaluators
+## Evaluator Scope
 
-The repository includes evaluator implementations for sentence/table/document/kie under `src/evaluation/strategies.py`, but the unified evaluation pipeline currently runs in markdown mode.
+The evaluation pipeline uses a single markdown evaluator implementation in `src/evaluation/strategies.py`.

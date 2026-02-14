@@ -37,7 +37,7 @@ Python toolkit for synthetic OCR dataset generation and model evaluation, using 
 
 ## CONVENTIONS
 - Use `uv` dependency groups for model-specific installs; prefer `scripts/models/run.sh` to resolve `dependency_group`. Core groups: `generate`, `evaluate`, `api`.
-- `configs/models/*.yaml` are source of truth for prompts and per-subset overrides.
+- `configs/models/*.yaml` are source of truth for prompts and model params.
 - `main.py` injects `src` into `sys.path`; no console script entrypoint.
 
 ## ANTI-PATTERNS (THIS PROJECT)
@@ -45,7 +45,7 @@ Python toolkit for synthetic OCR dataset generation and model evaluation, using 
 - Do not add a new `dependency_group` without updating `[dependency-groups]` and `[tool.uv.conflicts]` in `pyproject.toml`.
 
 ## UNIQUE STYLES
-- Prompt selection is tiered: CLI override > subset prompt > format prompt > defaults.
+- Prompt selection is tiered: CLI override > model config prompt > defaults.
 - Scripts parse YAML keys with `grep "^model_id:"` and `grep "^dependency_group:"`.
 
 ## COMMANDS
