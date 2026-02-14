@@ -98,3 +98,19 @@ For common workflows, these scripts are recommended:
 - `scripts/evaluate/run.sh`
 - `scripts/evaluate/run-all.sh`
 - `scripts/evaluate/update-leaderboard.sh`
+
+### `scripts/dataset/generate_similarity_db.sh`
+
+Builds language-specific character similarity DB files used by `generate`.
+
+Key options:
+
+- `--lang <code>`: Target language (repeatable).
+- `--all`: Build for all language scripts in `scripts/dataset/lang/`.
+- `--font-path <path>`: Override font file.
+- `--corpus-path <path>`: Override source corpus file.
+- `--auto-generate-corpus`: Auto-generate `corpus_<lang>.txt` from Wikimedia when missing.
+- `--corpus-sentences <n>`: Sentence count for auto-generated corpus (default: `100000`).
+- `--db-path <path>`: Override output DB path (single language only).
+- `--threshold <float>`: Similarity threshold (default: `0.6`).
+- `--top-k <int>`: Max similar chars per character (default: `8`).

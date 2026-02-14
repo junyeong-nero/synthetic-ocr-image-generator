@@ -75,6 +75,8 @@ Useful options:
 
 - `--font-path`: Override font used while building the DB.
 - `--corpus-path`: Override source corpus.
+- `--auto-generate-corpus`: Auto-generate `corpus_<lang>.txt` from Wikimedia when missing.
+- `--corpus-sentences`: Sentence count for auto-generated corpus (default: `100000`).
 - `--db-path`: Override output JSON path (single language).
 - `--threshold`: Similarity threshold (default: `0.6`).
 - `--top-k`: Max similar characters per character (default: `8`).
