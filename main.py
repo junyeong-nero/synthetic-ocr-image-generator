@@ -185,11 +185,11 @@ def cmd_generate(args: argparse.Namespace) -> None:
     set_global_seed(args.seed)
     pipeline_args = {
         "repo_id": args.repo_id,
-        "font_path": args.font_path,
         "output_dir": args.output_dir,
         "lang": args.lang,
         "size": args.size,
         "template": args.template,
+        "markdown_renderer": args.markdown_renderer,
         "similar_char_ratio": args.similar_char_ratio,
         "similarity_db_path": args.similarity_db_path,
         "add_noise": args.add_noise,
@@ -476,12 +476,6 @@ def main() -> None:
         help="Hugging Face Hub repository ID for dataset upload",
     )
     gen_parser.add_argument(
-        "--font-path",
-        type=str,
-        required=True,
-        help="Font file path for character similarity DB generation",
-    )
-    gen_parser.add_argument(
         "--output-dir",
         type=str,
         default="./data",
@@ -510,6 +504,13 @@ def main() -> None:
         type=str,
         default=None,
         help="Template for generation",
+    )
+    gen_parser.add_argument(
+        "--markdown-renderer",
+        type=str,
+        default="pil",
+        choices=["pil", "html2image"],
+        help="Markdown rendering pipeline (pil or markdown->html->image via html2image)",
     )
     gen_parser.add_argument(
         "--similar-char-ratio",

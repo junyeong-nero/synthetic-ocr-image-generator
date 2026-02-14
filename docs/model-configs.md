@@ -1,62 +1,66 @@
 # Model Configurations
 
-Model configurations are defined in YAML files located in `configs/models/`. These files control how the evaluation pipeline interacts with different models.
+Model YAML files in `configs/models/` define backend selection, inference parameters, and prompts.
 
-## Config Structure
-
-A typical configuration file (e.g., `configs/models/qwen2-vl-7b.yaml`) looks like this:
+## Minimal Example
 
 ```yaml
-# Model identification
-model_id: "Qwen/Qwen2-VL-7B-Instruct"
-backend: "transformers"
+model_id: "gpt-4o"
+backend: "openai"
+dependency_group: "api"
 
-# Dependency group for 'uv'
-dependency_group: "qwen2-vl"
-
-# Model parameters
 temperature: 0.0
-max_tokens: 1024
-tensor_parallel_size: 1
-
-# Resource limits
-rate_limit_rpm: 60
-timeout: 300
+max_tokens: 4096
+batch_size: 1
+timeout: 120
 max_retries: 3
 
-# Execution environment
-device: "cuda"
-dtype: "bfloat16"
-
-# Subset-specific overrides (optional)
-subsets:
-  table:
-    max_tokens: 2048
-    temperature: 0.2
-  document:
-    batch_size: 2
+prompts:
+  markdown:
+    prompt: "Convert the image content to clean markdown. Output markdown only."
 ```
 
-## Key Fields
+## Supported Fields
 
-- `model_id`: The identifier used by the backend (e.g., Hugging Face ID or API model name).
-- `backend`: The inference engine to use (`openai`, `anthropic`, `google`, `transformers`, `paddleocr`).
-- `dependency_group`: The `uv` dependency group required for this model (as defined in `pyproject.toml`).
-- `temperature`: Sampling temperature for the model.
-- `max_tokens`: Maximum number of tokens to generate.
-- `subsets`: (Optional) Allows overriding parameters for specific dataset formats (e.g., higher `max_tokens` for tables).
+Common fields loaded by `src/evaluation/model_config.py`:
+
+- `model_id`
+- `backend` (`openai`, `anthropic`, `google`, `transformers`, `paddleocr`)
+- `dependency_group`
+- `temperature`, `max_tokens`, `top_p`, `batch_size`
+- `timeout`, `max_retries`
+- `api_base`, `rate_limit_rpm`
+- `device`, `dtype`, `tensor_parallel_size`, `max_model_len`
+- `prompts` (keyed by format name; current pipeline uses `markdown`)
+
+## Prompt Configuration
+
+Current evaluation pipeline resolves prompts for markdown format. Recommended structure:
+
+```yaml
+prompts:
+  markdown:
+    prompt: "..."
+    system_prompt: "..."  # optional
+```
 
 ## Creating a New Config
 
-1.  Copy the `configs/models/_template.yaml` (if available) or an existing config.
-2.  Update the `model_id` and `backend`.
-3.  Add any necessary dependency groups to `pyproject.toml` if they don't exist.
-4.  Test the configuration using `python main.py evaluate` with a small number of samples (`--max-samples 5`).
-
-## Listing Available Configs
-
-You can list all registered configurations using:
+1. Copy `configs/models/_template.yaml` or an existing config.
+2. Set `model_id`, `backend`, and optional `dependency_group`.
+3. Add/adjust generation parameters.
+4. Set at least `prompts.markdown.prompt`.
+5. Run a small validation:
 
 ```bash
-python main.py list-configs
+uv run main.py evaluate \
+  --model-config configs/models/<your-config>.yaml \
+  --dataset <dataset-id> \
+  --max-samples 5
+```
+
+## List Available Configs
+
+```bash
+uv run main.py list-configs
 ```

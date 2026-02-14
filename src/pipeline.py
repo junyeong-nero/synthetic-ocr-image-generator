@@ -68,6 +68,7 @@ class MixedGenerator:
         self,
         num_images: int,
         template: Optional[str] = None,
+        markdown_renderer: str = "pil",
         similar_char_ratio: float = 0.08,
         similarity_db_path: Optional[str] = None,
         add_noise: Optional[bool] = None,
@@ -81,6 +82,7 @@ class MixedGenerator:
             for idx in tqdm(range(num_images), desc="Generating markdown images"):
                 generation_kwargs: Dict[str, Any] = {
                     "template": template,
+                    "markdown_renderer": markdown_renderer,
                     "similar_char_ratio": similar_char_ratio,
                     "similarity_db_path": similarity_db_path,
                 }
@@ -185,11 +187,11 @@ def _upload_mixed_format_to_hub(
 
 def pipeline(
     repo_id: str,
-    font_path: str,
     size: int,
     output_dir: str,
     lang: str,
     template: Optional[str] = None,
+    markdown_renderer: str = "pil",
     similar_char_ratio: float = 0.08,
     similarity_db_path: Optional[str] = None,
     add_noise: Optional[bool] = None,
@@ -233,6 +235,7 @@ def pipeline(
         generated_dir = mixed_gen.run(
             num_images=size,
             template=template,
+            markdown_renderer=markdown_renderer,
             similar_char_ratio=similar_char_ratio,
             similarity_db_path=similarity_db_path,
             add_noise=add_noise,
@@ -251,6 +254,7 @@ def pipeline(
         generation_kwargs: Dict[str, Any] = {
             "num_images": size,
             "template": template,
+            "markdown_renderer": markdown_renderer,
             "similar_char_ratio": similar_char_ratio,
             "similarity_db_path": similarity_db_path,
         }

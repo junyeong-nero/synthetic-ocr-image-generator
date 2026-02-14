@@ -1,47 +1,44 @@
 # Overview
 
-The **Synthetic OCR Image Generator & Benchmark** is an end-to-end framework designed to bridge the gap between synthetic data generation and large-scale evaluation of OCR-capable models.
+Synthetic OCR Image Generator and Benchmark is an end-to-end toolkit for dataset generation and model evaluation.
 
-## System Architecture
+## Current Scope
 
-The project is divided into two main subsystems:
+The main CLI flow is currently markdown-focused:
 
-### 1. Generation Pipeline (`src/generator`)
-This subsystem handles the creation of synthetic OCR images. It uses various specialized generators to produce different types of content:
-- **Sentence Generator**: Uses Wikipedia corpora to generate realistic text lines. It utilizes a **Character Similarity DB** to introduce realistic typos (e.g., replacing '0' with 'O').
-- **Table Generator**: Creates complex tables with varying styles and content.
-- **Document/Markdown/KIE Generators**: Produce structured documents, markdown-rendered pages, and key-value pair layouts.
+- `generate` creates markdown-rendered OCR images and metadata.
+- `evaluate` computes markdown-oriented metrics and reports.
 
-### 2. Evaluation Pipeline (`src/evaluation`)
-This subsystem evaluates the performance of models (VLMs or traditional OCR engines) on the generated datasets:
-- **Inference Backends**: Supports multiple backends including proprietary APIs (OpenAI, Anthropic, Gemini) and local models (Transformers, PaddleOCR).
-- **Metric Computation**: Calculates industry-standard metrics like **CER** (Character Error Rate), **WER** (Word Error Rate), **TEDS** (Tree Edit Distance for Tables), and **F1-score** for KIE.
-- **Reporting**: Generates comprehensive reports in JSON, Markdown, and HTML formats, including leaderboards and error analysis.
+Some additional evaluator/generator modules exist in the codebase, but the unified CLI pipeline is centered on markdown.
 
-## Workflow
+## Architecture
 
-1.  **Corpus Collection**: Download and process text data for the target language.
-2.  **Asset Preparation**: Gather fonts and templates.
-3.  **Synthetic Generation**: Run the `generate` command to create images and metadata.
-4.  **Dataset Hosting**: Upload to Hugging Face Hub for versioning and accessibility.
-5.  **Model Configuration**: Define model parameters in YAML files.
-6.  **Benchmarking**: Run the `evaluate` command against the hosted datasets.
-7.  **Analysis**: Use the `compare` command to visualize differences between model versions or architectures.
+### Generation (`src/pipeline.py`, `src/generator/`)
 
-## Supported Languages
+- Orchestrates markdown image creation.
+- Loads fonts from `fonts/<lang>/`.
+- Supports renderer selection (`pil` or `html2image`).
+- Applies optional noise/blur and similarity-based substitutions.
+- Uploads generated outputs to Hugging Face Hub.
 
-The system is designed to be language-agnostic, provided that appropriate fonts and corpora are available. The current directory structure in `fonts/` indicates support for a wide range of languages including:
-- English (`en`)
-- Korean (`ko`)
-- Japanese (`ja`)
-- Chinese (`zh`)
-- Hindi (`hi`)
-- And many others...
+### Evaluation (`src/evaluation/`)
 
-## Key Technologies
+- Loads dataset and model configuration.
+- Runs inference through selected backend.
+- Supports normal mode, inference-only mode, and evaluate-only-from-checkpoint mode.
+- Produces JSON/Markdown/HTML reports and leaderboard artifacts.
 
-- **Python 3.11+**
-- **Pillow & OpenCV**: Image processing and rendering.
-- **Transformers & Accelerate**: Local model inference.
-- **Hugging Face Hub**: Dataset management.
-- **PyYAML**: Configuration management.
+## Typical Workflow
+
+1. Prepare fonts and optional corpus/similarity DB assets.
+2. Run `uv run main.py generate ...` (or `scripts/dataset/generate.sh`).
+3. Run `uv run main.py evaluate ...` (or `scripts/evaluate/run.sh`).
+4. Compare reports with `uv run main.py compare ...`.
+
+## Key Paths
+
+- `main.py`: CLI commands
+- `configs/models/`: model YAML configs
+- `scripts/dataset/`: generation helpers
+- `scripts/evaluate/`: evaluation helpers
+- `docs/`: user-facing documentation
