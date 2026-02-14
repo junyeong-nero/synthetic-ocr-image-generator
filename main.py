@@ -574,6 +574,7 @@ def main() -> None:
             "google",
             "transformers",
             "paddleocr",
+            "surya",
         ],
         help="Inference backend (optional if model config exists)",
     )

@@ -27,6 +27,7 @@ SPECIALIZED_MODEL_REGISTRY: list[tuple[str, InferenceBackend, str, str]] = [
     ("LightOnOCR-2", InferenceBackend.TRANSFORMERS, "models.transformers.light_on_ocr2", "LightOnOCR2"),
     ("PaddlePaddle/PaddleOCR", InferenceBackend.TRANSFORMERS, "models.transformers.paddle_ocr", "PaddleOCR"),
     ("paddleocr", InferenceBackend.PADDLEOCR, "models.local.paddle_ocr_engine", "PaddleOCREngine"),
+    ("surya", InferenceBackend.SURYA, "models.local.surya_ocr_engine", "SuryaOCREngine"),
     ("opendatalab/PDF-Extract-Kit-1.0", InferenceBackend.TRANSFORMERS, "models.transformers.paddle_ocr", "PaddleOCR"),
     ("google/gemma-3", InferenceBackend.TRANSFORMERS, "models.transformers.gemma3_4b_it", "Gemma3_4B_IT"),
 ]
@@ -37,6 +38,7 @@ BACKEND_DISPLAY_NAMES: Dict[InferenceBackend, str] = {
     InferenceBackend.GOOGLE: "Google API (Gemini 1.5/2.0)",
     InferenceBackend.TRANSFORMERS: "HuggingFace Transformers",
     InferenceBackend.PADDLEOCR: "PaddleOCR",
+    InferenceBackend.SURYA: "Surya OCR",
 }
 
 
@@ -100,6 +102,10 @@ def get_model_class(backend: InferenceBackend, model_id: str = "") -> Type[VLMMo
     if backend == InferenceBackend.PADDLEOCR:
         from models.local.paddle_ocr_engine import PaddleOCREngine
         return PaddleOCREngine
+
+    if backend == InferenceBackend.SURYA:
+        from models.local.surya_ocr_engine import SuryaOCREngine
+        return SuryaOCREngine
 
     raise ValueError(f"Unknown backend: {backend}")
 

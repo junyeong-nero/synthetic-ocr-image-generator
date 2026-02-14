@@ -25,7 +25,7 @@ prompts:
 Common fields loaded by `src/evaluation/model_config.py`:
 
 - `model_id`
-- `backend` (`openai`, `anthropic`, `google`, `transformers`, `paddleocr`)
+- `backend` (`openai`, `anthropic`, `google`, `transformers`, `paddleocr`, `surya`)
 - `dependency_group`
 - `temperature`, `max_tokens`, `top_p`, `batch_size`
 - `timeout`, `max_retries`

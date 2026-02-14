@@ -16,6 +16,7 @@ class InferenceBackend(str, Enum):
     # Local backends
     TRANSFORMERS = "transformers"
     PADDLEOCR = "paddleocr"
+    SURYA = "surya"
 
 
 class EvaluationMode(str, Enum):
