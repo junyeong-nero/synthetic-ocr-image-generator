@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 CONFIG_DIR="$PROJECT_DIR/configs/models"
 DEFAULT_DATASET="junyeong-nero/synthetic-ocr-images-ko"
+DEFAULT_SPLIT="test"
 
 if [[ $# -lt 1 ]]; then
     echo "Usage: $0 <config_name>|--model-id <config_name_or_model_id> [evaluation options...]"
@@ -55,6 +56,7 @@ fi
 
 PASSTHROUGH_ARGS=()
 HAS_DATASET=false
+HAS_SPLIT=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -77,6 +79,29 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dataset=*)
             HAS_DATASET=true
+            PASSTHROUGH_ARGS+=("$1")
+            shift
+            ;;
+        --split)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: $1 requires a value"
+                exit 1
+            fi
+            if [[ "$2" != "train" && "$2" != "test" ]]; then
+                echo "Error: --split must be one of: train, test"
+                exit 1
+            fi
+            HAS_SPLIT=true
+            PASSTHROUGH_ARGS+=("$1" "$2")
+            shift 2
+            ;;
+        --split=*)
+            split_value="${1#*=}"
+            if [[ "$split_value" != "train" && "$split_value" != "test" ]]; then
+                echo "Error: --split must be one of: train, test"
+                exit 1
+            fi
+            HAS_SPLIT=true
             PASSTHROUGH_ARGS+=("$1")
             shift
             ;;
@@ -103,6 +128,7 @@ fi
 
 CONFIG_NAME="$(basename "$CONFIG_FILE" .yaml)"
 MODEL_ID="$(extract_yaml_key "$CONFIG_FILE" "model_id")"
+MODEL_DIR_NAME="${MODEL_ID##*/}"
 DEPENDENCY_GROUP="$(extract_yaml_key "$CONFIG_FILE" "dependency_group")"
 
 echo "Config: $CONFIG_NAME"
@@ -111,7 +137,7 @@ echo "Dependency Group: ${DEPENDENCY_GROUP:-none}"
 echo ""
 
 run_eval() {
-    local output_dir="$PROJECT_DIR/evaluation_result/$MODEL_ID"
+    local output_dir="$PROJECT_DIR/evaluation_result/$MODEL_DIR_NAME"
     mkdir -p "$output_dir"
 
     local cmd=(uv run --group evaluate)
@@ -121,6 +147,9 @@ run_eval() {
     cmd+=(main.py evaluate --model-config "$CONFIG_FILE" --output-dir "$output_dir")
     if [[ "$HAS_DATASET" == "false" ]]; then
         cmd+=(-d "$DEFAULT_DATASET")
+    fi
+    if [[ "$HAS_SPLIT" == "false" ]]; then
+        cmd+=(--split "$DEFAULT_SPLIT")
     fi
 
     echo "Running evaluation"

@@ -9,14 +9,16 @@ RUN_SCRIPT="$PROJECT_DIR/scripts/evaluate/run.sh"
 
 DEFAULT_DATASET="junyeong-nero/synthetic-ocr-images-ko"
 DEFAULT_MAX_SAMPLES=200
+DEFAULT_SPLIT="test"
 
 usage() {
-    echo "Usage: $0 [--dataset <repo>] [--max-samples <n>]"
-    echo "       $0 [DATASET] [MAX_SAMPLES]"
+    echo "Usage: $0 [--dataset <repo>] [--max-samples <n>] [--split <train|test>]"
+    echo "       $0 [DATASET] [MAX_SAMPLES] [SPLIT]"
 }
 
 DATASET="$DEFAULT_DATASET"
 MAX_SAMPLES="$DEFAULT_MAX_SAMPLES"
+SPLIT="$DEFAULT_SPLIT"
 POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -47,6 +49,29 @@ while [[ $# -gt 0 ]]; do
             MAX_SAMPLES="${1#*=}"
             shift
             ;;
+        --split)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: $1 requires a value"
+                usage
+                exit 1
+            fi
+            if [[ "$2" != "train" && "$2" != "test" ]]; then
+                echo "Error: --split must be one of: train, test"
+                usage
+                exit 1
+            fi
+            SPLIT="$2"
+            shift 2
+            ;;
+        --split=*)
+            SPLIT="${1#*=}"
+            if [[ "$SPLIT" != "train" && "$SPLIT" != "test" ]]; then
+                echo "Error: --split must be one of: train, test"
+                usage
+                exit 1
+            fi
+            shift
+            ;;
         -h|--help)
             usage
             exit 0
@@ -68,7 +93,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ ${#POSITIONAL_ARGS[@]} -gt 2 ]]; then
+if [[ ${#POSITIONAL_ARGS[@]} -gt 3 ]]; then
     echo "Error: too many positional arguments"
     usage
     exit 1
@@ -79,6 +104,15 @@ if [[ ${#POSITIONAL_ARGS[@]} -ge 1 ]]; then
 fi
 if [[ ${#POSITIONAL_ARGS[@]} -ge 2 ]]; then
     MAX_SAMPLES="${POSITIONAL_ARGS[1]}"
+fi
+if [[ ${#POSITIONAL_ARGS[@]} -ge 3 ]]; then
+    SPLIT="${POSITIONAL_ARGS[2]}"
+fi
+
+if [[ "$SPLIT" != "train" && "$SPLIT" != "test" ]]; then
+    echo "Error: split must be one of: train, test"
+    usage
+    exit 1
 fi
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
@@ -94,6 +128,7 @@ echo "Running evaluations for all model configs" | tee -a "$SUMMARY_FILE"
 echo "==========================================" | tee -a "$SUMMARY_FILE"
 echo "Dataset: $DATASET" | tee -a "$SUMMARY_FILE"
 echo "Max Samples: $MAX_SAMPLES" | tee -a "$SUMMARY_FILE"
+echo "Split: $SPLIT" | tee -a "$SUMMARY_FILE"
 echo "Log: $SUMMARY_FILE" | tee -a "$SUMMARY_FILE"
 echo "" | tee -a "$SUMMARY_FILE"
 
@@ -107,7 +142,7 @@ for config_file in "$CONFIG_DIR"/*.yaml; do
     echo "Config: $config_name" | tee -a "$SUMMARY_FILE"
     echo "------------------------------------------" | tee -a "$SUMMARY_FILE"
 
-    run_args=("$config_name" -d "$DATASET" --max-samples "$MAX_SAMPLES")
+    run_args=("$config_name" -d "$DATASET" --max-samples "$MAX_SAMPLES" --split "$SPLIT")
 
     if "$RUN_SCRIPT" "${run_args[@]}" 2>&1 | tee -a "$SUMMARY_FILE"; then
         PASSED=$((PASSED + 1))

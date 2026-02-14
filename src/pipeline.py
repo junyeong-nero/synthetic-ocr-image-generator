@@ -180,6 +180,7 @@ def _upload_mixed_format_to_hub(
                     subset_dir=temp_path,
                     config_name="default",
                     split=split_name,
+                    reuse_existing_schema=True,
                 )
             except Exception as e:
                 logger.error(f"  Failed to upload '{split_name}' split: {e}")
@@ -280,6 +281,7 @@ def pipeline(
                     repo_id=repo_id,
                     subset_dir=Path(generated_dir),
                     config_name="markdown",
+                    reuse_existing_schema=True,
                 )
             except Exception as e:
                 logger.error(f"Upload failed: {e}", exc_info=True)
