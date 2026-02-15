@@ -53,6 +53,9 @@ class DeepSeekOCR2(BaseTransformersOCR):
         "NO PATCHES",
     )
 
+    _REF_TAG_PATTERN = re.compile(r"<\|ref\|>.*?<\|/ref\|>", flags=re.DOTALL)
+    _DET_TAG_PATTERN = re.compile(r"<\|det\|>.*?<\|/det\|>", flags=re.DOTALL)
+
     @classmethod
     def _extract_text_from_infer_stdout(cls, stdout_text: str) -> str:
         lines = [line.strip() for line in stdout_text.replace("\r\n", "\n").split("\n")]
@@ -86,21 +89,44 @@ class DeepSeekOCR2(BaseTransformersOCR):
 
     @classmethod
     def _normalize_infer_result(cls, result: object, stdout_text: str) -> str:
+        normalized = ""
+
         if isinstance(result, str):
             normalized = result.strip()
             if normalized:
-                return normalized
+                return cls._postprocess_markdown_output(normalized)
         elif isinstance(result, (list, tuple)):
             parts = [str(item).strip() for item in result if str(item).strip()]
             if parts:
-                return "\n".join(parts)
+                normalized = "\n".join(parts)
+                return cls._postprocess_markdown_output(normalized)
         elif isinstance(result, dict):
             for key in ("text", "output", "response", "prediction", "result"):
                 value = result.get(key)
                 if isinstance(value, str) and value.strip():
-                    return value.strip()
+                    normalized = value.strip()
+                    return cls._postprocess_markdown_output(normalized)
 
-        return cls._extract_text_from_infer_stdout(stdout_text)
+        normalized = cls._extract_text_from_infer_stdout(stdout_text)
+        return cls._postprocess_markdown_output(normalized)
+
+    @classmethod
+    def _postprocess_markdown_output(cls, text: str) -> str:
+        cleaned = text.replace("\r\n", "\n").replace("\r", "\n").strip()
+        if not cleaned:
+            return ""
+
+        if "\\n" in cleaned and "\n" not in cleaned:
+            cleaned = cleaned.replace("\\n", "\n")
+
+        cleaned = cleaned.replace("<|grounding|>", "")
+        cleaned = cls._REF_TAG_PATTERN.sub("", cleaned)
+        cleaned = cls._DET_TAG_PATTERN.sub("", cleaned)
+        cleaned = re.sub(r"<\|/?(?:ref|det)\|>", "", cleaned)
+
+        cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        return cleaned.strip()
 
     def _load_model(self, model_id: str) -> None:
         self.base_size = 1024
