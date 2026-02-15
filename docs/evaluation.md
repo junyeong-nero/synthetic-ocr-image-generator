@@ -107,17 +107,19 @@ Recommended wrappers:
 Single model wrapper example:
 
 ```bash
-scripts/evaluate/run.sh gpt-4o -d "username/my-dataset" -n 200 --split test
+scripts/evaluate/run.sh gpt-4o -d "username/my-dataset" --language ko -n 200 --split test
 ```
 
 Batch wrapper example:
 
 ```bash
-scripts/evaluate/run-all.sh -d "username/my-dataset" -n 200 --split test
+scripts/evaluate/run-all.sh -d "username/my-dataset" --language ko -n 200 --split test
 ```
 
 Wrapper option notes:
 
 - `run.sh` uses `-m, --model-id` for model reference and `-n, --max-samples` for sample limit.
+- `run.sh` supports `-l, --language` (default: `ko`) and forwards it to `main.py evaluate`.
 - `run-all.sh` uses `-n, --max-samples` for sample limit.
+- `run-all.sh` supports `-l, --language` (default: `ko`) and forwards it to each config run.
 - `run-all.sh` still accepts `-m` for max samples as a deprecated alias.

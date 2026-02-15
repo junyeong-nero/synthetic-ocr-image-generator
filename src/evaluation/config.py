@@ -58,6 +58,7 @@ class EvaluationConfig(BaseModel):
     # Dataset configuration
     dataset_id: str = Field(description="HuggingFace dataset ID")
     split: str = Field(default="train", description="Dataset split")
+    language: str = Field(default="ko", description="Dataset language code")
 
     # Model configuration
     model: ModelConfig = Field(description="Model configuration")

@@ -87,6 +87,24 @@ def _pick_metric(format_name: str, rows: list[dict[str, Any]]) -> str | None:
     return sorted(available)[0]
 
 
+def _infer_language(config: dict[str, Any], dataset_id: Any) -> str:
+    language = str(config.get("language") or "").strip()
+    if language:
+        return language
+
+    dataset_text = str(dataset_id or "").strip()
+    if not dataset_text:
+        return "unknown"
+
+    repo_name = dataset_text.split("/")[-1]
+    if "-" in repo_name:
+        suffix = repo_name.rsplit("-", 1)[-1].strip()
+        if suffix:
+            return suffix
+
+    return "unknown"
+
+
 def _collect_latest_rows(base_dir: Path) -> list[dict[str, Any]]:
     latest: dict[tuple[str, str], dict[str, Any]] = {}
 
@@ -97,7 +115,9 @@ def _collect_latest_rows(base_dir: Path) -> list[dict[str, Any]]:
         model_cfg = config.get("model", {}) if isinstance(config.get("model"), dict) else {}
         metrics = report.get("metrics", {}) if isinstance(report.get("metrics"), dict) else {}
 
-        format_name = str(config.get("format") or "unknown")
+        format_name = str(config.get("format") or "markdown")
+        dataset_id = config.get("dataset_id")
+        language = _infer_language(config, dataset_id)
         model_id = str(model_cfg.get("model_id") or "").strip()
         if not model_id:
             model_id = _fallback_model_id_from_path(base_dir, report_path)
@@ -111,8 +131,9 @@ def _collect_latest_rows(base_dir: Path) -> list[dict[str, Any]]:
         row = {
             "model_id": model_id,
             "backend": model_cfg.get("backend"),
+            "language": language,
             "format": format_name,
-            "dataset": config.get("dataset_id"),
+            "dataset": dataset_id,
             "split": config.get("split"),
             "total_samples": summary.get("total_samples"),
             "successful": summary.get("successful"),
@@ -123,7 +144,7 @@ def _collect_latest_rows(base_dir: Path) -> list[dict[str, Any]]:
             "report_path": str(report_path),
         }
 
-        key = (model_id, format_name)
+        key = (model_id, language)
         previous = latest.get(key)
         if previous is None or row["timestamp"] >= previous["timestamp"]:
             latest[key] = row
@@ -147,12 +168,12 @@ def _sort_rows(rows: list[dict[str, Any]], metric_key: str | None) -> list[dict[
     return sorted(rows, key=key_fn)
 
 
-def _build_format_payload(format_name: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
-    metric_key = _pick_metric(format_name, rows)
+def _build_language_payload(language: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
+    metric_key = _pick_metric("markdown", rows)
     sorted_rows = _sort_rows(rows, metric_key)
 
     return {
-        "format": format_name,
+        "language": language,
         "metric_key": metric_key,
         "metric_direction": "ascending" if metric_key in LOWER_BETTER_METRICS else "descending",
         "count": len(sorted_rows),
@@ -166,43 +187,34 @@ def _build_format_payload(format_name: str, rows: list[dict[str, Any]]) -> dict[
     }
 
 
-def _write_leaderboard_outputs(output_dir: Path, formats: list[dict[str, Any]]) -> None:
+def _write_leaderboard_outputs(output_dir: Path, languages: list[dict[str, Any]]) -> None:
     payload = {
         "generated_at_utc": datetime.utcnow().isoformat() + "Z",
-        "count": len(formats),
-        "formats": formats,
+        "count": len(languages),
+        "languages": languages,
     }
 
     json_path = output_dir / "leaderboard.json"
     md_path = output_dir / "leaderboard.md"
     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    lines = ["# Leaderboard", "", f"- Formats: {len(formats)}", ""]
+    lines = ["# Leaderboard", "", f"- Languages: {len(languages)}", ""]
 
-    for format_payload in formats:
-        format_name = str(format_payload.get("format") or "unknown")
-        metric_key = str(format_payload.get("metric_key") or "") or None
+    for language_payload in languages:
+        language_name = str(language_payload.get("language") or "unknown")
+        metric_key = str(language_payload.get("metric_key") or "") or None
         metric_note = "lower is better" if metric_key in LOWER_BETTER_METRICS else "higher is better"
-        rows = format_payload.get("rows", [])
-        include_markdown_columns = format_name == "markdown"
+        rows = language_payload.get("rows", [])
 
         lines.extend(
             [
-                f"## {format_name}",
+                f"## {language_name}",
                 "",
                 f"- Sorted by: `{metric_key or 'N/A'}` ({metric_note})",
                 f"- Entries: {len(rows)}",
                 "",
-                (
-                    "| Rank | Model | Backend | Metric | Dataset | Split | Text | Table | Formula | Order | Success/Total | Updated (UTC) |"
-                    if include_markdown_columns
-                    else "| Rank | Model | Backend | Metric | Dataset | Split | Success/Total | Updated (UTC) |"
-                ),
-                (
-                    "|---:|---|---|---:|---|---|---:|---:|---:|---:|---|---|"
-                    if include_markdown_columns
-                    else "|---:|---|---|---:|---|---|---|---|"
-                ),
+                "| Rank | Model | Backend | Metric | Dataset | Split | Text | Table | Formula | Order | Success/Total | Updated (UTC) |",
+                "|---:|---|---|---:|---|---|---:|---:|---:|---:|---|---|",
             ]
         )
 
@@ -212,38 +224,23 @@ def _write_leaderboard_outputs(output_dir: Path, formats: list[dict[str, Any]]) 
                 metric_value = row.get("metrics", {}).get(metric_key)
             success = row.get("successful")
             total = row.get("total_samples")
-            if include_markdown_columns:
-                lines.append(
-                    "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {}/{} | {} |".format(
-                        rank,
-                        row.get("model_id") or "-",
-                        row.get("backend") or "-",
-                        _format_metric_value(metric_value),
-                        row.get("dataset") or "-",
-                        row.get("split") or "-",
-                        _format_metric_value(row.get("metrics", {}).get("avg_markdown_text_score")),
-                        _format_metric_value(row.get("metrics", {}).get("avg_markdown_table_teds")),
-                        _format_metric_value(row.get("metrics", {}).get("avg_markdown_formula_score")),
-                        _format_metric_value(row.get("metrics", {}).get("avg_markdown_order_score")),
-                        success if isinstance(success, int) else "-",
-                        total if isinstance(total, int) else "-",
-                        row.get("timestamp") or "-",
-                    )
+            lines.append(
+                "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {}/{} | {} |".format(
+                    rank,
+                    row.get("model_id") or "-",
+                    row.get("backend") or "-",
+                    _format_metric_value(metric_value),
+                    row.get("dataset") or "-",
+                    row.get("split") or "-",
+                    _format_metric_value(row.get("metrics", {}).get("avg_markdown_text_score")),
+                    _format_metric_value(row.get("metrics", {}).get("avg_markdown_table_teds")),
+                    _format_metric_value(row.get("metrics", {}).get("avg_markdown_formula_score")),
+                    _format_metric_value(row.get("metrics", {}).get("avg_markdown_order_score")),
+                    success if isinstance(success, int) else "-",
+                    total if isinstance(total, int) else "-",
+                    row.get("timestamp") or "-",
                 )
-            else:
-                lines.append(
-                    "| {} | {} | {} | {} | {} | {} | {}/{} | {} |".format(
-                        rank,
-                        row.get("model_id") or "-",
-                        row.get("backend") or "-",
-                        _format_metric_value(metric_value),
-                        row.get("dataset") or "-",
-                        row.get("split") or "-",
-                        success if isinstance(success, int) else "-",
-                        total if isinstance(total, int) else "-",
-                        row.get("timestamp") or "-",
-                    )
-                )
+            )
 
         lines.append("")
 
@@ -260,13 +257,13 @@ def update_leaderboards(base_dir: Path) -> None:
 
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
-        grouped[str(row.get("format") or "unknown")].append(row)
+        grouped[str(row.get("language") or "unknown")].append(row)
 
-    format_payloads = [
-        _build_format_payload(format_name, format_rows)
-        for format_name, format_rows in sorted(grouped.items(), key=lambda item: item[0])
+    language_payloads = [
+        _build_language_payload(language, language_rows)
+        for language, language_rows in sorted(grouped.items(), key=lambda item: item[0])
     ]
-    _write_leaderboard_outputs(base_dir, format_payloads)
+    _write_leaderboard_outputs(base_dir, language_payloads)
 
 
 def main() -> None:

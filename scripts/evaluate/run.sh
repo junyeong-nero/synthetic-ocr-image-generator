@@ -5,12 +5,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 CONFIG_DIR="$PROJECT_DIR/configs/models"
-DEFAULT_DATASET="junyeong-nero/synthetic-ocr-images-ko"
+DEFAULT_DATASET_PREFIX="junyeong-nero/synthetic-ocr-images"
+DEFAULT_LANGUAGE="ko"
 DEFAULT_SPLIT="test"
 
 if [[ $# -lt 1 ]]; then
     echo "Usage: $0 <config_name>|--model-id <config_name_or_model_id> [evaluation options...]"
-    echo "       $0 <config_name> [-d|--dataset <repo>] [-n|--max-samples <n>] [--split <train|test>] [other evaluate options...]"
+    echo "       $0 <config_name> [-d|--dataset <repo>] [--language <code>] [-n|--max-samples <n>] [--split <train|test>] [other evaluate options...]"
     echo ""
     echo "Available configs:"
     ls -1 "$CONFIG_DIR"/*.yaml 2>/dev/null | xargs -I{} basename {} .yaml | grep -v "^_" | sort
@@ -63,6 +64,12 @@ fi
 PASSTHROUGH_ARGS=()
 HAS_DATASET=false
 HAS_SPLIT=false
+LANGUAGE="$DEFAULT_LANGUAGE"
+
+is_valid_language() {
+    local value="$1"
+    [[ "$value" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]]
+}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -86,6 +93,27 @@ while [[ $# -gt 0 ]]; do
         --dataset=*)
             HAS_DATASET=true
             PASSTHROUGH_ARGS+=("$1")
+            shift
+            ;;
+        -l|--language)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: $1 requires a value"
+                exit 1
+            fi
+            if ! is_valid_language "$2"; then
+                echo "Error: --language must contain only letters, numbers, '_' or '-'"
+                exit 1
+            fi
+            LANGUAGE="$2"
+            shift 2
+            ;;
+        --language=*)
+            language_value="${1#*=}"
+            if ! is_valid_language "$language_value"; then
+                echo "Error: --language must contain only letters, numbers, '_' or '-'"
+                exit 1
+            fi
+            LANGUAGE="$language_value"
             shift
             ;;
         --split)
@@ -164,7 +192,7 @@ echo "Dependency Group: ${DEPENDENCY_GROUP:-none}"
 echo ""
 
 run_eval() {
-    local output_dir="$PROJECT_DIR/evaluation_result/$MODEL_DIR_NAME"
+    local output_dir="$PROJECT_DIR/evaluation_result/$MODEL_DIR_NAME/$LANGUAGE"
     mkdir -p "$output_dir"
 
     local cmd=(uv run --group evaluate)
@@ -173,14 +201,16 @@ run_eval() {
     fi
     cmd+=(main.py evaluate --model-config "$CONFIG_FILE" --output-dir "$output_dir")
     if [[ "$HAS_DATASET" == "false" ]]; then
-        cmd+=(-d "$DEFAULT_DATASET")
+        cmd+=(-d "${DEFAULT_DATASET_PREFIX}-${LANGUAGE}")
     fi
     if [[ "$HAS_SPLIT" == "false" ]]; then
         cmd+=(--split "$DEFAULT_SPLIT")
     fi
+    cmd+=(--language "$LANGUAGE")
 
     echo "Running evaluation"
     echo "Output: $output_dir"
+    echo "Language: $LANGUAGE"
     "${cmd[@]}" "${PASSTHROUGH_ARGS[@]}"
 }
 

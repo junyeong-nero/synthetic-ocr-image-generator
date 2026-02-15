@@ -7,13 +7,14 @@ PROJECT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 CONFIG_DIR="$PROJECT_DIR/configs/models"
 RUN_SCRIPT="$PROJECT_DIR/scripts/evaluate/run.sh"
 
-DEFAULT_DATASET="junyeong-nero/synthetic-ocr-images-ko"
+DEFAULT_DATASET_PREFIX="junyeong-nero/synthetic-ocr-images"
 DEFAULT_MAX_SAMPLES=200
 DEFAULT_SPLIT="test"
+DEFAULT_LANGUAGE="ko"
 
 usage() {
-    echo "Usage: $0 [--dataset <repo>] [-n|--max-samples <n>] [--split <train|test>]"
-    echo "       $0 [DATASET] [MAX_SAMPLES] [SPLIT]"
+    echo "Usage: $0 [--dataset <repo>] [--language <code>] [-n|--max-samples <n>] [--split <train|test>]"
+    echo "       $0 [DATASET] [MAX_SAMPLES] [SPLIT] [LANGUAGE]"
 }
 
 is_positive_integer() {
@@ -21,9 +22,15 @@ is_positive_integer() {
     [[ "$value" =~ ^[1-9][0-9]*$ ]]
 }
 
-DATASET="$DEFAULT_DATASET"
+is_valid_language() {
+    local value="$1"
+    [[ "$value" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]]
+}
+
+DATASET="${DEFAULT_DATASET_PREFIX}-${DEFAULT_LANGUAGE}"
 MAX_SAMPLES="$DEFAULT_MAX_SAMPLES"
 SPLIT="$DEFAULT_SPLIT"
+LANGUAGE="$DEFAULT_LANGUAGE"
 POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -39,6 +46,29 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dataset=*)
             DATASET="${1#*=}"
+            shift
+            ;;
+        -l|--language)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: $1 requires a value"
+                usage
+                exit 1
+            fi
+            if ! is_valid_language "$2"; then
+                echo "Error: --language must contain only letters, numbers, '_' or '-'"
+                usage
+                exit 1
+            fi
+            LANGUAGE="$2"
+            shift 2
+            ;;
+        --language=*)
+            LANGUAGE="${1#*=}"
+            if ! is_valid_language "$LANGUAGE"; then
+                echo "Error: --language must contain only letters, numbers, '_' or '-'"
+                usage
+                exit 1
+            fi
             shift
             ;;
         --max-samples|-n)
@@ -123,7 +153,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ ${#POSITIONAL_ARGS[@]} -gt 3 ]]; then
+if [[ ${#POSITIONAL_ARGS[@]} -gt 4 ]]; then
     echo "Error: too many positional arguments"
     usage
     exit 1
@@ -137,6 +167,19 @@ if [[ ${#POSITIONAL_ARGS[@]} -ge 2 ]]; then
 fi
 if [[ ${#POSITIONAL_ARGS[@]} -ge 3 ]]; then
     SPLIT="${POSITIONAL_ARGS[2]}"
+fi
+if [[ ${#POSITIONAL_ARGS[@]} -ge 4 ]]; then
+    LANGUAGE="${POSITIONAL_ARGS[3]}"
+fi
+
+if ! is_valid_language "$LANGUAGE"; then
+    echo "Error: language must contain only letters, numbers, '_' or '-'"
+    usage
+    exit 1
+fi
+
+if [[ "$DATASET" == "${DEFAULT_DATASET_PREFIX}-${DEFAULT_LANGUAGE}" ]]; then
+    DATASET="${DEFAULT_DATASET_PREFIX}-${LANGUAGE}"
 fi
 
 if [[ "$SPLIT" != "train" && "$SPLIT" != "test" ]]; then
@@ -163,6 +206,7 @@ echo "==========================================" | tee "$SUMMARY_FILE"
 echo "Running evaluations for all model configs" | tee -a "$SUMMARY_FILE"
 echo "==========================================" | tee -a "$SUMMARY_FILE"
 echo "Dataset: $DATASET" | tee -a "$SUMMARY_FILE"
+echo "Language: $LANGUAGE" | tee -a "$SUMMARY_FILE"
 echo "Max Samples: $MAX_SAMPLES" | tee -a "$SUMMARY_FILE"
 echo "Split: $SPLIT" | tee -a "$SUMMARY_FILE"
 echo "Log: $SUMMARY_FILE" | tee -a "$SUMMARY_FILE"
@@ -178,7 +222,7 @@ for config_file in "$CONFIG_DIR"/*.yaml; do
     echo "Config: $config_name" | tee -a "$SUMMARY_FILE"
     echo "------------------------------------------" | tee -a "$SUMMARY_FILE"
 
-    run_args=("$config_name" -d "$DATASET" --max-samples "$MAX_SAMPLES" --split "$SPLIT")
+    run_args=("$config_name" -d "$DATASET" --language "$LANGUAGE" --max-samples "$MAX_SAMPLES" --split "$SPLIT")
 
     if "$RUN_SCRIPT" "${run_args[@]}" 2>&1 | tee -a "$SUMMARY_FILE"; then
         PASSED=$((PASSED + 1))

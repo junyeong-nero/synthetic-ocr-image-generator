@@ -111,6 +111,7 @@ Wrapper-specific options:
 
 - `-m, --model-id <ref>`: Model config name or model ID.
 - `-d, --dataset <repo>`: Dataset ID/path override.
+- `-l, --language <code>`: Language code (default: `ko`).
 - `-n, --max-samples <n>`: Limit evaluation samples.
 - `--split <train|test>`: Dataset split override.
 
@@ -121,14 +122,15 @@ All other evaluation flags are forwarded to `uv run main.py evaluate`.
 Runs all configs under `configs/models/`.
 
 ```bash
-scripts/evaluate/run-all.sh [--dataset <repo>] [-n|--max-samples <n>] [--split <train|test>]
-scripts/evaluate/run-all.sh [DATASET] [MAX_SAMPLES] [SPLIT]
+scripts/evaluate/run-all.sh [--dataset <repo>] [--language <code>] [-n|--max-samples <n>] [--split <train|test>]
+scripts/evaluate/run-all.sh [DATASET] [MAX_SAMPLES] [SPLIT] [LANGUAGE]
 ```
 
 Notes:
 
 - Prefer `-n, --max-samples` for sample limits.
 - `-m` is still accepted for max samples as a deprecated alias.
+- `-l, --language` defaults to `ko` and is forwarded to each run.
 
 ### `scripts/dataset/generate_similarity_db.sh`
 

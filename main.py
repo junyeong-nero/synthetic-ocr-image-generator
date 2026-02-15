@@ -88,7 +88,7 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
                 "backend": entry.get("backend"),
                 "dataset": entry.get("dataset"),
                 "split": entry.get("split"),
-                "format": entry.get("format"),
+                "language": entry.get("language") or "unknown",
                 "average_score": entry.get("average_score", metric_value),
                 "normalized_average_score": normalized_average,
                 "average_empty_rate": entry.get("average_empty_rate", entry.get("empty_rate")),
@@ -104,49 +104,62 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
 
     leaderboard_entries.sort(
         key=lambda item: (
-            item.get("normalized_average_score") is not None,
-            item.get("normalized_average_score") or 0,
+            item.get("language") or "",
+            item.get("normalized_average_score") is None,
+            -(item.get("normalized_average_score") or 0),
         ),
-        reverse=True,
     )
 
     leaderboard_path = output_dir / "leaderboard.json"
     with open(leaderboard_path, "w", encoding="utf-8") as f:
         json.dump(leaderboard_entries, f, ensure_ascii=False, indent=2)
 
-    lines = [
-        "# OCR Benchmark Leaderboard",
-        "",
-        "| Rank | Model | Backend | Dataset | Split | Format | Normalized | Raw | Text | Table | Formula | Order | Empty Rate | Parse Fail Rate |",
-        "|---:|---|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
-    ]
-    for idx, entry in enumerate(leaderboard_entries, start=1):
-        normalized_score = entry.get("normalized_average_score")
-        raw_score = entry.get("average_score")
-        empty_rate = entry.get("average_empty_rate")
-        parse_fail_rate = entry.get("average_parse_fail_rate")
-        text_score = entry.get("markdown_text_score")
-        table_score = entry.get("markdown_table_teds")
-        formula_score = entry.get("markdown_formula_score")
-        order_score = entry.get("markdown_order_score")
-        lines.append(
-            "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
-                idx,
-                entry.get("model_id") or "-",
-                entry.get("backend") or "-",
-                entry.get("dataset") or "-",
-                entry.get("split") or "-",
-                entry.get("format") or "-",
-                f"{normalized_score:.4f}" if isinstance(normalized_score, (int, float)) else "-",
-                f"{raw_score:.4f}" if isinstance(raw_score, (int, float)) else "-",
-                f"{text_score:.4f}" if isinstance(text_score, (int, float)) else "-",
-                f"{table_score:.4f}" if isinstance(table_score, (int, float)) else "-",
-                f"{formula_score:.4f}" if isinstance(formula_score, (int, float)) else "-",
-                f"{order_score:.4f}" if isinstance(order_score, (int, float)) else "-",
-                f"{empty_rate:.4f}" if isinstance(empty_rate, (int, float)) else "-",
-                f"{parse_fail_rate:.4f}" if isinstance(parse_fail_rate, (int, float)) else "-",
-            )
+    by_language: dict[str, list[dict]] = {}
+    for entry in leaderboard_entries:
+        language = str(entry.get("language") or "unknown")
+        if language not in by_language:
+            by_language[language] = []
+        by_language[language].append(entry)
+
+    lines = ["# OCR Benchmark Leaderboard", ""]
+    for language in sorted(by_language.keys()):
+        lines.extend(
+            [
+                f"## {language}",
+                "",
+                "| Rank | Model | Backend | Dataset | Split | Normalized | Raw | Text | Table | Formula | Order | Empty Rate | Parse Fail Rate |",
+                "|---:|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+            ]
         )
+
+        for idx, entry in enumerate(by_language[language], start=1):
+            normalized_score = entry.get("normalized_average_score")
+            raw_score = entry.get("average_score")
+            empty_rate = entry.get("average_empty_rate")
+            parse_fail_rate = entry.get("average_parse_fail_rate")
+            text_score = entry.get("markdown_text_score")
+            table_score = entry.get("markdown_table_teds")
+            formula_score = entry.get("markdown_formula_score")
+            order_score = entry.get("markdown_order_score")
+            lines.append(
+                "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |".format(
+                    idx,
+                    entry.get("model_id") or "-",
+                    entry.get("backend") or "-",
+                    entry.get("dataset") or "-",
+                    entry.get("split") or "-",
+                    f"{normalized_score:.4f}" if isinstance(normalized_score, (int, float)) else "-",
+                    f"{raw_score:.4f}" if isinstance(raw_score, (int, float)) else "-",
+                    f"{text_score:.4f}" if isinstance(text_score, (int, float)) else "-",
+                    f"{table_score:.4f}" if isinstance(table_score, (int, float)) else "-",
+                    f"{formula_score:.4f}" if isinstance(formula_score, (int, float)) else "-",
+                    f"{order_score:.4f}" if isinstance(order_score, (int, float)) else "-",
+                    f"{empty_rate:.4f}" if isinstance(empty_rate, (int, float)) else "-",
+                    f"{parse_fail_rate:.4f}" if isinstance(parse_fail_rate, (int, float)) else "-",
+                )
+            )
+
+        lines.append("")
 
     leaderboard_md = output_dir / "leaderboard.md"
     with open(leaderboard_md, "w", encoding="utf-8") as f:
@@ -271,6 +284,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     config = EvaluationConfig(
         dataset_id=args.dataset,
         split=args.split,
+        language=args.language,
         model=model_config,
         batch_size=batch_size,
         max_samples=args.max_samples,
@@ -288,6 +302,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     print(f"  Model: {model_config.model_id}")
     print(f"  Backend: {backend_str}")
     print(f"  Dataset: {args.dataset} ({args.split})")
+    print(f"  Language: {args.language}")
     print("  Format: markdown (fixed)")
     print(f"  Batch Size: {batch_size}")
     print(f"  Temperature: {temperature}")
@@ -343,6 +358,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         "backend": backend_str,
         "dataset": args.dataset,
         "split": args.split,
+        "language": args.language,
         "seed": args.seed,
         "format": resolved_format,
         "metric_key": metric_key,
@@ -579,6 +595,12 @@ def main() -> None:
         help="Inference backend (optional if model config exists)",
     )
     eval_parser.add_argument("--split", default="train", help="Dataset split")
+    eval_parser.add_argument(
+        "--language",
+        "-l",
+        default="ko",
+        help="Dataset language code",
+    )
     eval_parser.add_argument(
         "--max-samples", type=int, default=None, help="Max samples to evaluate"
     )

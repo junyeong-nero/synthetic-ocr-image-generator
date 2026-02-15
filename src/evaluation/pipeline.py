@@ -289,6 +289,7 @@ class EvaluationPipeline:
         return {
             "dataset_id": self.config.dataset_id,
             "split": self.config.split,
+            "language": self.config.language,
             "format": "markdown",
             "batch_size": self.config.batch_size,
             "max_samples": self.config.max_samples,
