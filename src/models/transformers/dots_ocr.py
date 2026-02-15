@@ -34,13 +34,37 @@ class DotsOCR(BaseTransformersOCR):
 """
 
     def _load_model(self, model_id: str) -> None:
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_id,
-            attn_implementation=get_attn_implementation(),
-            torch_dtype=torch.bfloat16,
-            device_map="auto",
-            trust_remote_code=True,
-        )
+        if torch.cuda.is_available():
+            self.device = "cuda"
+            self.dtype = torch.bfloat16
+            attn_implementation = get_attn_implementation()
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                attn_implementation=attn_implementation,
+                torch_dtype=self.dtype,
+                device_map="auto",
+                trust_remote_code=True,
+            )
+        elif torch.backends.mps.is_available():
+            self.device = "mps"
+            self.dtype = torch.float16
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                attn_implementation="eager",
+                torch_dtype=self.dtype,
+                trust_remote_code=True,
+            ).to(self.device)
+        else:
+            self.device = "cpu"
+            self.dtype = torch.float32
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                attn_implementation="eager",
+                torch_dtype=self.dtype,
+                trust_remote_code=True,
+            ).to(self.device)
+
+        self.model.eval()
         self.processor = AutoProcessor.from_pretrained(
             model_id, trust_remote_code=True
         )
@@ -77,7 +101,9 @@ class DotsOCR(BaseTransformersOCR):
             text = self.processor.apply_chat_template(
                 messages, tokenize=False, add_generation_prompt=True
             )
-            image_inputs, video_inputs = process_vision_info(messages)
+            vision_info = process_vision_info(messages)
+            image_inputs = vision_info[0]
+            video_inputs = vision_info[1]
             inputs = self.processor(
                 text=[text],
                 images=image_inputs,
@@ -85,12 +111,17 @@ class DotsOCR(BaseTransformersOCR):
                 padding=True,
                 return_tensors="pt",
             )
-            inputs = inputs.to("cuda")
+            inputs = {
+                key: value.to(device=self.device, dtype=self.dtype)
+                if value.is_floating_point()
+                else value.to(self.device)
+                for key, value in inputs.items()
+            }
 
             generated_ids = self.model.generate(**inputs, max_new_tokens=max_tokens)
             generated_ids_trimmed = [
                 out_ids[len(in_ids) :]
-                for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+                for in_ids, out_ids in zip(inputs["input_ids"], generated_ids)
             ]
             output_text = self.processor.batch_decode(
                 generated_ids_trimmed,
