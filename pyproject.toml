@@ -91,7 +91,7 @@ evaluate = [
 ]
 
 nanonets-ocr2 = [
-    "transformers==4.46.3",
+    "transformers==4.53.1",
     "tokenizers==0.20.3",
 ]
 
