@@ -1,7 +1,7 @@
 model_id: paddleocr/paddle-ocr-korean
 backend: paddleocr
 dependency_group: paddle-ocr
-batch_size: 1
+batch_size: 12
 timeout: 60
 max_retries: 3
 prompt:
