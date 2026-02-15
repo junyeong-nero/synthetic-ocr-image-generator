@@ -13,12 +13,12 @@ tensor_parallel_size: 1
 subsets:
   figure:
     prompt:
-      prompt: Convert the document to markdown.
+      prompt: "<image>\n<|grounding|>Convert the document to markdown."
   description:
     prompt:
-      prompt: Convert the document to markdown.
+      prompt: "<image>\n<|grounding|>Convert the document to markdown."
   simple:
     prompt:
-      prompt: Convert the document to markdown.
+      prompt: "<image>\n<|grounding|>Convert the document to markdown."
 prompt:
-  prompt: Convert the document to markdown.
+  prompt: "<image>\n<|grounding|>Convert the document to markdown."

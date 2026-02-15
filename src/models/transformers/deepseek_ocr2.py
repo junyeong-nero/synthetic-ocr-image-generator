@@ -138,7 +138,13 @@ class DeepSeekOCR2(BaseTransformersOCR):
                 image.save(temp_image_file, format="PNG")
                 temp_image_path = temp_image_file.name
 
-            full_prompt = f"<image>\n<|grounding|>{prompt}"
+            prompt_text = prompt.lstrip()
+            if prompt_text.startswith("<image>"):
+                full_prompt = prompt_text
+            elif prompt_text.startswith("<|grounding|>"):
+                full_prompt = f"<image>\n{prompt_text}"
+            else:
+                full_prompt = f"<image>\n<|grounding|>{prompt_text}"
 
             try:
                 with io.StringIO() as infer_stdout_buffer, contextlib.redirect_stdout(
