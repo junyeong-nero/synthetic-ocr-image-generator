@@ -10,11 +10,17 @@ DEFAULT_SPLIT="test"
 
 if [[ $# -lt 1 ]]; then
     echo "Usage: $0 <config_name>|--model-id <config_name_or_model_id> [evaluation options...]"
+    echo "       $0 <config_name> [-d|--dataset <repo>] [-n|--max-samples <n>] [--split <train|test>] [other evaluate options...]"
     echo ""
     echo "Available configs:"
     ls -1 "$CONFIG_DIR"/*.yaml 2>/dev/null | xargs -I{} basename {} .yaml | grep -v "^_" | sort
     exit 1
 fi
+
+is_positive_integer() {
+    local value="$1"
+    [[ "$value" =~ ^[1-9][0-9]*$ ]]
+}
 
 extract_yaml_key() {
     local yaml_file="$1"
@@ -103,6 +109,27 @@ while [[ $# -gt 0 ]]; do
             fi
             HAS_SPLIT=true
             PASSTHROUGH_ARGS+=("$1")
+            shift
+            ;;
+        --max-samples|-n)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: $1 requires a value"
+                exit 1
+            fi
+            if ! is_positive_integer "$2"; then
+                echo "Error: --max-samples must be a positive integer"
+                exit 1
+            fi
+            PASSTHROUGH_ARGS+=("--max-samples" "$2")
+            shift 2
+            ;;
+        --max-samples=*)
+            max_samples_value="${1#*=}"
+            if ! is_positive_integer "$max_samples_value"; then
+                echo "Error: --max-samples must be a positive integer"
+                exit 1
+            fi
+            PASSTHROUGH_ARGS+=("--max-samples" "$max_samples_value")
             shift
             ;;
         *)

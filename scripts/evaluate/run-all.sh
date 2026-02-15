@@ -12,8 +12,13 @@ DEFAULT_MAX_SAMPLES=200
 DEFAULT_SPLIT="test"
 
 usage() {
-    echo "Usage: $0 [--dataset <repo>] [--max-samples <n>] [--split <train|test>]"
+    echo "Usage: $0 [--dataset <repo>] [-n|--max-samples <n>] [--split <train|test>]"
     echo "       $0 [DATASET] [MAX_SAMPLES] [SPLIT]"
+}
+
+is_positive_integer() {
+    local value="$1"
+    [[ "$value" =~ ^[1-9][0-9]*$ ]]
 }
 
 DATASET="$DEFAULT_DATASET"
@@ -36,17 +41,42 @@ while [[ $# -gt 0 ]]; do
             DATASET="${1#*=}"
             shift
             ;;
-        --max-samples|-m)
+        --max-samples|-n)
             if [[ $# -lt 2 ]]; then
                 echo "Error: $1 requires a value"
+                usage
+                exit 1
+            fi
+            if ! is_positive_integer "$2"; then
+                echo "Error: --max-samples must be a positive integer"
                 usage
                 exit 1
             fi
             MAX_SAMPLES="$2"
             shift 2
             ;;
+        -m)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: $1 requires a value"
+                usage
+                exit 1
+            fi
+            if ! is_positive_integer "$2"; then
+                echo "Error: --max-samples must be a positive integer"
+                usage
+                exit 1
+            fi
+            echo "Warning: -m for --max-samples is deprecated; use -n or --max-samples" >&2
+            MAX_SAMPLES="$2"
+            shift 2
+            ;;
         --max-samples=*)
             MAX_SAMPLES="${1#*=}"
+            if ! is_positive_integer "$MAX_SAMPLES"; then
+                echo "Error: --max-samples must be a positive integer"
+                usage
+                exit 1
+            fi
             shift
             ;;
         --split)
@@ -111,6 +141,12 @@ fi
 
 if [[ "$SPLIT" != "train" && "$SPLIT" != "test" ]]; then
     echo "Error: split must be one of: train, test"
+    usage
+    exit 1
+fi
+
+if ! is_positive_integer "$MAX_SAMPLES"; then
+    echo "Error: max samples must be a positive integer"
     usage
     exit 1
 fi

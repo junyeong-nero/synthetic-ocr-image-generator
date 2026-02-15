@@ -99,6 +99,37 @@ For common workflows, these scripts are recommended:
 - `scripts/evaluate/run-all.sh`
 - `scripts/evaluate/update-leaderboard.sh`
 
+### `scripts/evaluate/run.sh`
+
+Runs a single model config with dependency-group handling.
+
+```bash
+scripts/evaluate/run.sh <config_name>|--model-id <config_name_or_model_id> [evaluation options...]
+```
+
+Wrapper-specific options:
+
+- `-m, --model-id <ref>`: Model config name or model ID.
+- `-d, --dataset <repo>`: Dataset ID/path override.
+- `-n, --max-samples <n>`: Limit evaluation samples.
+- `--split <train|test>`: Dataset split override.
+
+All other evaluation flags are forwarded to `uv run main.py evaluate`.
+
+### `scripts/evaluate/run-all.sh`
+
+Runs all configs under `configs/models/`.
+
+```bash
+scripts/evaluate/run-all.sh [--dataset <repo>] [-n|--max-samples <n>] [--split <train|test>]
+scripts/evaluate/run-all.sh [DATASET] [MAX_SAMPLES] [SPLIT]
+```
+
+Notes:
+
+- Prefer `-n, --max-samples` for sample limits.
+- `-m` is still accepted for max samples as a deprecated alias.
+
 ### `scripts/dataset/generate_similarity_db.sh`
 
 Builds language-specific character similarity DB files used by `generate`.

@@ -103,3 +103,21 @@ Recommended wrappers:
 - Single model run: `scripts/evaluate/run.sh`
 - Run all configs: `scripts/evaluate/run-all.sh`
 - Leaderboard refresh: `scripts/evaluate/update-leaderboard.sh`
+
+Single model wrapper example:
+
+```bash
+scripts/evaluate/run.sh gpt-4o -d "username/my-dataset" -n 200 --split test
+```
+
+Batch wrapper example:
+
+```bash
+scripts/evaluate/run-all.sh -d "username/my-dataset" -n 200 --split test
+```
+
+Wrapper option notes:
+
+- `run.sh` uses `-m, --model-id` for model reference and `-n, --max-samples` for sample limit.
+- `run-all.sh` uses `-n, --max-samples` for sample limit.
+- `run-all.sh` still accepts `-m` for max samples as a deprecated alias.

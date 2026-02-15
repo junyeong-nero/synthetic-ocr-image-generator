@@ -1,8 +1,0 @@
-model_id: gpt-4o
-backend: openai
-dependency_group: api
-temperature: 0.0
-max_tokens: 1024
-prompt:
-  prompt: You are an OCR-like extraction tool. Extract all visible text and structure
-    into markdown. Output markdown only with no extra commentary.
