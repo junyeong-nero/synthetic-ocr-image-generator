@@ -1,4 +1,4 @@
-"""Claude Vision API model (Claude 3.5/4 Sonnet)."""
+"""Claude Vision API model (Claude 4.5/4.6 family)."""
 
 import os
 from typing import Optional
@@ -13,15 +13,12 @@ class ClaudeVision(APIModel):
     """
     Anthropic Claude Vision API model.
 
-    Supports Claude 3.5 Sonnet, Claude 4 Sonnet, etc.
+    Supports Claude Sonnet 4.5 and Claude Opus 4.6.
     """
 
     SUPPORTED_MODELS = [
-        "claude-sonnet-4-20250514",
-        "claude-3-5-sonnet-20241022",
-        "claude-3-opus-20240229",
-        "claude-3-sonnet-20240229",
-        "claude-3-haiku-20240307",
+        "claude-opus-4-6",
+        "claude-sonnet-4-5",
     ]
 
     def __init__(self, config: ModelConfig):
@@ -81,14 +78,21 @@ class ClaudeVision(APIModel):
             ],
         )
 
-        if response.content and len(response.content) > 0:
-            return response.content[0].text
-        return ""
+        if not response.content:
+            return ""
+
+        text_chunks: list[str] = []
+        for block in response.content:
+            block_text = getattr(block, "text", None)
+            if isinstance(block_text, str) and block_text:
+                text_chunks.append(block_text)
+
+        return "\n".join(text_chunks)
 
     @classmethod
     def from_model_id(
         cls,
-        model_id: str = "claude-sonnet-4-20250514",
+        model_id: str = "claude-sonnet-4-5",
         api_key: Optional[str] = None,
         **kwargs,
     ) -> "ClaudeVision":

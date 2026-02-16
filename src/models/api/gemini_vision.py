@@ -14,15 +14,12 @@ class GeminiVision(APIModel):
     """
     Google Gemini Vision API model.
 
-    Supports Gemini 1.5 Pro, Gemini 1.5 Flash, Gemini 2.0, etc.
+    Supports Gemini 3.0 Pro variants.
     """
 
     SUPPORTED_MODELS = [
-        "gemini-1.5-pro",
-        "gemini-1.5-flash",
-        "gemini-2.0-flash-exp",
-        "gemini-2.0-flash",
-        "gemini-pro-vision",
+        "gemini-3.0-pro",
+        "gemini-3.0-pro-latest",
     ]
 
     def __init__(self, config: ModelConfig):
@@ -43,12 +40,15 @@ class GeminiVision(APIModel):
                 "or pass api_key in config."
             )
 
-        genai.configure(api_key=api_key)
+        configure = getattr(genai, "configure")
+        configure(api_key=api_key)
 
         self._genai = genai
-        self.model = genai.GenerativeModel(
+        generative_model_cls = getattr(genai, "GenerativeModel")
+        generation_config_cls = getattr(genai, "GenerationConfig")
+        self.model = generative_model_cls(
             model_name=config.model_id,
-            generation_config=genai.GenerationConfig(
+            generation_config=generation_config_cls(
                 temperature=config.temperature,
                 top_p=config.top_p,
                 max_output_tokens=config.max_tokens,
@@ -79,7 +79,7 @@ class GeminiVision(APIModel):
     @classmethod
     def from_model_id(
         cls,
-        model_id: str = "gemini-1.5-flash",
+        model_id: str = "gemini-3.0-pro",
         api_key: Optional[str] = None,
         **kwargs,
     ) -> "GeminiVision":

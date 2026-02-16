@@ -1,4 +1,4 @@
-"""OpenAI Vision API model (GPT-4o, GPT-4V)."""
+"""OpenAI Vision API model (GPT-5 family)."""
 
 import asyncio
 import json
@@ -17,17 +17,13 @@ class OpenAIVision(APIModel):
     """
     OpenAI Vision API model.
 
-    Supports GPT-5+ and GPT-4o family.
+    Supports GPT-5, GPT-5-mini, and GPT-5-nano.
     """
 
     SUPPORTED_MODELS = [
         "gpt-5",
         "gpt-5-mini",
         "gpt-5-nano",
-        "gpt-4o",
-        "gpt-4o-mini",
-        "gpt-4-turbo",
-        "gpt-4-vision-preview",
     ]
 
     MAX_BATCH_MB = int(os.getenv("OPENAI_BATCH_MAX_MB", "100"))
@@ -310,7 +306,7 @@ class OpenAIVision(APIModel):
     @classmethod
     def from_model_id(
         cls,
-        model_id: str = "gpt-5",
+        model_id: str = "gpt-5-mini",
         api_key: Optional[str] = None,
         **kwargs,
     ) -> "OpenAIVision":

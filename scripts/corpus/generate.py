@@ -325,7 +325,7 @@ class LLMProvider:
 class OpenAIProvider(LLMProvider):
     """OpenAI API provider."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-5-mini"):
         try:
             from openai import AsyncOpenAI
         except ImportError:
@@ -347,7 +347,7 @@ class OpenAIProvider(LLMProvider):
 class AnthropicProvider(LLMProvider):
     """Anthropic API provider."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "claude-3-5-haiku-latest"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "claude-sonnet-4-5"):
         try:
             from anthropic import AsyncAnthropic
         except ImportError:
@@ -376,9 +376,9 @@ class AnthropicProvider(LLMProvider):
 def get_provider(provider_name: str, model: Optional[str] = None) -> LLMProvider:
     """Get LLM provider instance."""
     if provider_name == "openai":
-        return OpenAIProvider(model=model or "gpt-4o-mini")
+        return OpenAIProvider(model=model or "gpt-5-mini")
     elif provider_name == "anthropic":
-        return AnthropicProvider(model=model or "claude-3-5-haiku-latest")
+        return AnthropicProvider(model=model or "claude-sonnet-4-5")
     else:
         raise ValueError(f"Unknown provider: {provider_name}")
 
@@ -565,7 +565,7 @@ async def main():
         "--model",
         type=str,
         default=None,
-        help="Model to use (default: gpt-4o-mini for OpenAI, claude-3-5-haiku-latest for Anthropic)",
+        help="Model to use (default: gpt-5-mini for OpenAI, claude-sonnet-4-5 for Anthropic)",
     )
     parser.add_argument(
         "--output-dir",
