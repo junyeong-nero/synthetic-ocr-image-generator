@@ -1,6 +1,6 @@
 """Model registry and factory for VLM models."""
 
-from typing import Dict, Optional, Type
+from typing import Any, Dict, Optional, Type, cast
 
 from evaluation.config import InferenceBackend, ModelConfig
 from models.base import VLMModel
@@ -33,9 +33,10 @@ SPECIALIZED_MODEL_REGISTRY: list[tuple[str, InferenceBackend, str, str]] = [
 ]
 
 BACKEND_DISPLAY_NAMES: Dict[InferenceBackend, str] = {
-    InferenceBackend.OPENAI: "OpenAI API (GPT-4o, GPT-4V)",
-    InferenceBackend.ANTHROPIC: "Anthropic API (Claude 3.5/4)",
-    InferenceBackend.GOOGLE: "Google API (Gemini 1.5/2.0)",
+    InferenceBackend.OPENAI: "OpenAI API (GPT-5 family)",
+    InferenceBackend.ANTHROPIC: "Anthropic API (Claude Opus 4.6, Sonnet 4.5)",
+    InferenceBackend.GOOGLE: "Google API (Gemini 3.0 Pro)",
+    InferenceBackend.UPSTAGE: "Upstage API (Solar Document Parsing)",
     InferenceBackend.TRANSFORMERS: "HuggingFace Transformers",
     InferenceBackend.PADDLEOCR: "PaddleOCR",
     InferenceBackend.SURYA: "Surya OCR",
@@ -95,6 +96,10 @@ def get_model_class(backend: InferenceBackend, model_id: str = "") -> Type[VLMMo
         from models.api.gemini_vision import GeminiVision
         return GeminiVision
 
+    if backend == InferenceBackend.UPSTAGE:
+        from models.api.upstage_document_parse import UpstageDocumentParse
+        return UpstageDocumentParse
+
     if backend == InferenceBackend.TRANSFORMERS:
         from models.local.transformers_vlm import TransformersVLM
         return TransformersVLM
@@ -121,7 +126,7 @@ def create_model(config: ModelConfig) -> VLMModel:
         Instantiated model.
     """
     model_class = get_model_class(config.backend, config.model_id)
-    return model_class(config)
+    return cast(Any, model_class)(config)
 
 
 def create_model_from_args(model_id: str, backend: str, **kwargs) -> VLMModel:

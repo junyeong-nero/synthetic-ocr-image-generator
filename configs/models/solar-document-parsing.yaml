@@ -1,0 +1,10 @@
+model_id: document-parse-260128
+backend: upstage
+dependency_group: api
+temperature: 0.0
+max_tokens: 4096
+batch_size: 1
+timeout: 120
+max_retries: 3
+prompt:
+  prompt: Extract all visible text and structure into markdown. Preserve reading order, tables, and formulas. Output markdown only with no extra commentary.

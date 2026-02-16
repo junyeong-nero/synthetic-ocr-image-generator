@@ -23,6 +23,7 @@ def get_api_key(backend: str) -> Optional[str]:
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
         "google": "GOOGLE_API_KEY",
+        "upstage": "UPSTAGE_API_KEY",
     }
     env_var = key_map.get(backend)
     return os.environ.get(env_var) if env_var else None
@@ -585,12 +586,13 @@ def main() -> None:
         "-b",
         "--backend",
         choices=[
-            "openai",
-            "anthropic",
-            "google",
-            "transformers",
-            "paddleocr",
-            "surya",
+                "openai",
+                "anthropic",
+                "google",
+                "upstage",
+                "transformers",
+                "paddleocr",
+                "surya",
         ],
         help="Inference backend (optional if model config exists)",
     )

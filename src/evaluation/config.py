@@ -13,6 +13,7 @@ class InferenceBackend(str, Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
+    UPSTAGE = "upstage"
     # Local backends
     TRANSFORMERS = "transformers"
     PADDLEOCR = "paddleocr"
@@ -28,7 +29,7 @@ class EvaluationMode(str, Enum):
 class ModelConfig(BaseModel):
     """Model configuration."""
 
-    model_id: str = Field(description="Model identifier (e.g., 'gpt-4o', 'Qwen/Qwen2-VL-7B')")
+    model_id: str = Field(description="Model identifier (e.g., 'gpt-5-mini', 'Qwen/Qwen3-VL-4B-Instruct')")
     backend: InferenceBackend = Field(description="Inference backend to use")
 
     # Generation parameters
