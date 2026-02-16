@@ -11,9 +11,7 @@ class MarkdownEvaluator:
             for i in range(len(dataset))
         ]
 
-    def compute_metrics(
-        self, predictions: List[str], ground_truths: List[str], normalize: bool = True
-    ) -> Dict[str, float]:
+    def compute_metrics(self, predictions: List[str], ground_truths: List[str]) -> Dict[str, float]:
         from metrics.markdown_block_metrics import evaluate_markdown_blocks
 
         per_sample = [
@@ -50,6 +48,5 @@ class MarkdownEvaluator:
         self, predictions: List[str], ground_truths: List[str]
     ) -> Dict[str, Dict[str, float]]:
         return {
-            "raw": self.compute_metrics(predictions, ground_truths, normalize=False),
-            "normalized": self.compute_metrics(predictions, ground_truths, normalize=True),
+            "normalized": self.compute_metrics(predictions, ground_truths),
         }

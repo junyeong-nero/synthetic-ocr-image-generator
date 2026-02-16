@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import html
 import math
 import re
+import unicodedata
 from collections import Counter
 from typing import Any, Callable
 
 import numpy as np
+
+try:
+    from pylatexenc.latex2text import LatexNodes2Text
+except ImportError:
+    LatexNodes2Text = None
 
 from evaluation.utils import extract_html_table
 from metrics import TEDS
@@ -19,6 +26,150 @@ _DISPLAY_BRACKET_RE = re.compile(r"\\\[([\s\S]+?)\\\]")
 _INLINE_DOLLAR_RE = re.compile(r"(?<!\$)\$([^$\n]+?)\$(?!\$)")
 _INLINE_PAREN_RE = re.compile(r"\\\(([^\n]+?)\\\)")
 _FORMULA_TOKEN_RE = re.compile(r"(\\[a-zA-Z]+|\\.|[A-Za-z0-9]+|[^\s])")
+_INLINE_FORMULA_RE = re.compile(r"\$(.*?)\$|\\\((.*?)\\\)")
+_DISPLAY_BRACKET_FORMULA_RE = re.compile(r"\\\[(.+?)(?<!\\)\\\]")
+_FORMULA_TAG_RE = re.compile(r"\\tag\{.*?\}")
+_FORMULA_HSPACE_RE = re.compile(r"\\hspace\{.*?\}")
+_FORMULA_BEGIN_RE = re.compile(r"\\begin\{.*?\}")
+_FORMULA_END_RE = re.compile(r"\\end\{.*?\}")
+_FORMULA_ARRAYCOLSEP_RE = re.compile(r"\\arraycolsep.*?\}")
+_TABLE_CONTENT_RE = re.compile(r"<table\b[^>]*>(.*)</table>", re.IGNORECASE | re.DOTALL)
+_MATH_BLOCK_RE = re.compile(r"<math\b(?P<attrs>[^>]*)>.*?</math>", re.IGNORECASE | re.DOTALL)
+_MATH_SELF_CLOSING_RE = re.compile(r"<math\b(?P<attrs>[^>]*)/>", re.IGNORECASE | re.DOTALL)
+_MATH_ALTTEXT_RE = re.compile(r"alttext\s*=\s*(?:\"([^\"]*)\"|'([^']*)')", re.IGNORECASE)
+_OMNIDOC_FORMULA_FILTERS = [
+    "\\mathbf",
+    "\\mathrm",
+    "\\mathnormal",
+    "\\mathit",
+    "\\mathbb",
+    "\\mathcal",
+    "\\mathscr",
+    "\\mathfrak",
+    "\\mathsf",
+    "\\mathtt",
+    "\\textbf",
+    "\\text",
+    "\\boldmath",
+    "\\boldsymbol",
+    "\\operatorname",
+    "\\bm",
+    "\\symbfit",
+    "\\mathbfcal",
+    "\\symbf",
+    "\\scriptscriptstyle",
+    "\\notag",
+    "\\setlength",
+    "\\coloneqq",
+    "\\space",
+    "\\thickspace",
+    "\\thinspace",
+    "\\medspace",
+    "\\nobreakspace",
+    "\\negmedspace",
+    "\\quad",
+    "\\qquad",
+    "\\enspace",
+    "\\substackw",
+    " ",
+    "$$",
+    "\\left",
+    "\\right",
+    "\\displaystyle",
+    "\\text",
+]
+
+
+def _replace_math_with_alttext(source: str) -> str:
+    def _replacement(match: re.Match[str]) -> str:
+        attrs = match.group("attrs") or ""
+        alttext_match = _MATH_ALTTEXT_RE.search(attrs)
+        if not alttext_match:
+            return ""
+        alttext = alttext_match.group(1) if alttext_match.group(1) is not None else alttext_match.group(2)
+        return f"${alttext}$" if alttext else ""
+
+    normalized = _MATH_BLOCK_RE.sub(_replacement, source)
+    normalized = _MATH_SELF_CLOSING_RE.sub(_replacement, normalized)
+    return normalized
+
+
+def _normalize_table_html(text: str) -> str:
+    source = text if isinstance(text, str) else str(text)
+    if "<table" not in source.replace(" ", "").replace("'", '"').lower():
+        return ""
+
+    normalized = _replace_math_with_alttext(source)
+    normalized = re.sub(r"<th\b", "<td", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"</th>", "</td>", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"</?thead\b[^>]*>", "", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"</?span\b[^>]*>", "", normalized, flags=re.IGNORECASE)
+
+    normalized = html.unescape(normalized).replace("\n", "")
+    normalized = unicodedata.normalize("NFKC", normalized).strip()
+    tables = _TABLE_CONTENT_RE.findall(normalized)
+    table_content = "".join(tables)
+    if not table_content:
+        return ""
+
+    for attr in ("style", "height", "width", "align", "class"):
+        table_content = re.sub(rf"(\s{attr}=\".*?\")", "", table_content, flags=re.IGNORECASE)
+
+    table_content = re.sub(r"</?tbody\b[^>]*>", "", table_content, flags=re.IGNORECASE)
+    table_content = re.sub(r"</?sup\b[^>]*>", "", table_content, flags=re.IGNORECASE)
+    table_content = re.sub(r"</?sub\b[^>]*>", "", table_content, flags=re.IGNORECASE)
+    table_content = re.sub(r"</?span\b[^>]*>", "", table_content, flags=re.IGNORECASE)
+    table_content = re.sub(r"</?div\b[^>]*>", "", table_content, flags=re.IGNORECASE)
+    table_content = re.sub(r"</?p\b[^>]*>", "", table_content, flags=re.IGNORECASE)
+    table_content = re.sub(r"<colgroup\b[^>]*>.*?</colgroup>", "", table_content, flags=re.IGNORECASE | re.DOTALL)
+    table_content = re.sub(r"\s+", " ", table_content).strip()
+    if not table_content:
+        return ""
+
+    normalized_table = f'<html><body><table border="1" >{table_content}</table></body></html>'
+    normalized_table = re.sub(r"colspan=\"", ' colspan="', normalized_table, flags=re.IGNORECASE)
+    normalized_table = re.sub(r"rowspan=\"", ' rowspan="', normalized_table, flags=re.IGNORECASE)
+    normalized_table = re.sub(r"border=\"", ' border="', normalized_table, flags=re.IGNORECASE)
+    return normalized_table
+
+
+def _textblock_to_unicode(text: str) -> str:
+    if LatexNodes2Text is None:
+        return text
+
+    inline_matches = _INLINE_FORMULA_RE.finditer(text)
+    replacements: list[tuple[int, int, str]] = []
+    converter = LatexNodes2Text()
+
+    for match in inline_matches:
+        content = match.group(1) if match.group(1) is not None else match.group(2)
+        clean_content = re.sub(r"\\([\\_&%^])", "", content)
+        if not any(char in clean_content for char in r"\^_"):
+            continue
+        if clean_content.endswith("\\"):
+            clean_content += " "
+        try:
+            unicode_content = converter.latex_to_text(clean_content)
+        except Exception:
+            continue
+        replacements.append((match.start(), match.end(), unicode_content.strip()))
+
+    normalized = text
+    for start, end, unicode_content in sorted(replacements, reverse=True):
+        normalized = normalized[:start] + unicode_content + normalized[end:]
+    return normalized
+
+
+def _omnidoc_clean_string(text: str) -> str:
+    cleaned = (
+        text.replace("\\t", "")
+        .replace("\\n", "")
+        .replace("\t", "")
+        .replace("\n", "")
+        .replace("/t", "")
+        .replace("/n", "")
+    )
+    return re.sub(r"[^\w\u4e00-\u9fff]", "", cleaned)
 
 
 def _overlaps(span_a: tuple[int, int], span_b: tuple[int, int]) -> bool:
@@ -122,16 +273,8 @@ def split_markdown_blocks(markdown: str) -> list[dict[str, Any]]:
 
 
 def normalize_markdown_text(text: str) -> str:
-    lines: list[str] = []
-    for line in text.strip().split("\n"):
-        stripped = line.strip()
-        if not stripped:
-            continue
-        plain_text = re.sub(r"[#$`*_>\-+|\[\]()!~]", "", stripped)
-        plain_text = re.sub(r"\s+", " ", plain_text).strip()
-        if plain_text:
-            lines.append(plain_text)
-    return "\n".join(lines)
+    source = text if isinstance(text, str) else str(text)
+    return _omnidoc_clean_string(_textblock_to_unicode(source))
 
 
 def _safe_similarity_from_cer(reference: str, hypothesis: str) -> float:
@@ -169,8 +312,8 @@ def _table_block_score(gt_item: dict[str, Any] | None, pred_item: dict[str, Any]
     if gt_item is None or pred_item is None:
         return 0.0
 
-    gt_html = extract_html_table(str(gt_item.get("content", "")))
-    pred_html = extract_html_table(str(pred_item.get("content", "")))
+    gt_html = _normalize_table_html(extract_html_table(str(gt_item.get("content", ""))))
+    pred_html = _normalize_table_html(extract_html_table(str(pred_item.get("content", ""))))
 
     if not gt_html and not pred_html:
         return 1.0
@@ -226,8 +369,19 @@ def _bleu_score(reference_tokens: list[str], hypothesis_tokens: list[str], max_n
 
 
 def _normalize_formula(text: str) -> str:
-    normalized = _strip_formula_delimiters(text)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
+    normalized = _strip_formula_delimiters(text).strip().strip("$").strip("\n")
+    bracket_match = _DISPLAY_BRACKET_FORMULA_RE.search(normalized)
+    if bracket_match:
+        normalized = bracket_match.group(1).strip()
+    normalized = _FORMULA_TAG_RE.sub("", normalized)
+    normalized = _FORMULA_HSPACE_RE.sub("", normalized)
+    normalized = _FORMULA_BEGIN_RE.sub("", normalized)
+    normalized = _FORMULA_END_RE.sub("", normalized)
+    normalized = _FORMULA_ARRAYCOLSEP_RE.sub("", normalized)
+    normalized = normalized.strip(".")
+    for token in _OMNIDOC_FORMULA_FILTERS:
+        normalized = normalized.replace(token, "")
+    normalized = normalized.lower()
     return normalized
 
 

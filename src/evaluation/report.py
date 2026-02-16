@@ -87,32 +87,21 @@ class ReportGenerator:
                 lines.append(f"| {key} | {value} |")
 
         normalized_metrics = metric_views.get("normalized", {})
-        raw_metrics = metric_views.get("raw", {})
-        if normalized_metrics or raw_metrics:
+        if normalized_metrics:
             lines.extend([
                 "",
                 "## Metric Views",
                 "",
             ])
-            if normalized_metrics:
-                lines.extend([
-                    "### Normalized",
-                    "",
-                    "| Metric | Value |",
-                    "|--------|-------|",
-                ])
-                for key, value in normalized_metrics.items():
-                    lines.append(f"| {key} | {value:.4f} |" if isinstance(value, float) else f"| {key} | {value} |")
-                lines.append("")
-            if raw_metrics:
-                lines.extend([
-                    "### Raw",
-                    "",
-                    "| Metric | Value |",
-                    "|--------|-------|",
-                ])
-                for key, value in raw_metrics.items():
-                    lines.append(f"| {key} | {value:.4f} |" if isinstance(value, float) else f"| {key} | {value} |")
+            lines.extend([
+                "### Normalized",
+                "",
+                "| Metric | Value |",
+                "|--------|-------|",
+            ])
+            for key, value in normalized_metrics.items():
+                lines.append(f"| {key} | {value:.4f} |" if isinstance(value, float) else f"| {key} | {value} |")
+            lines.append("")
 
         lines.extend(
             [
@@ -187,19 +176,17 @@ class ReportGenerator:
                 metrics_rows += f"<tr><td>{key}</td><td>{value}</td></tr>\n"
 
         metric_view_sections = ""
-        for view_name in ("normalized", "raw"):
-            view_metrics = metric_views.get(view_name, {})
-            if not view_metrics:
-                continue
+        normalized_metrics = metric_views.get("normalized", {})
+        if normalized_metrics:
             view_rows = ""
-            for key, value in view_metrics.items():
+            for key, value in normalized_metrics.items():
                 if isinstance(value, float):
                     view_rows += f"<tr><td>{key}</td><td>{value:.4f}</td></tr>\n"
                 else:
                     view_rows += f"<tr><td>{key}</td><td>{value}</td></tr>\n"
-            metric_view_sections += f"""
+            metric_view_sections = f"""
     <div class=\"card\">
-        <h2>Metric View: {view_name.title()}</h2>
+        <h2>Metric View: Normalized</h2>
         <table>
             <tr><th>Metric</th><th>Value</th></tr>
             {view_rows}

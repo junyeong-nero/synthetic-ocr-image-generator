@@ -29,3 +29,21 @@ def test_evaluate_markdown_blocks_order_score_drops_on_reordered_blocks() -> Non
 
     assert metrics["markdown_order_score"] < 1.0
     assert metrics["markdown_overall_score"] < 1.0
+
+
+def test_evaluate_markdown_blocks_normalizes_table_forms_before_teds() -> None:
+    prediction = "| A | B |\n| --- | --- |\n| 1 | 2 |"
+    ground_truth = "<table><tr><td>A</td><td>B</td></tr><tr><td>1</td><td>2</td></tr></table>"
+
+    metrics = evaluate_markdown_blocks(prediction, ground_truth)
+
+    assert metrics["markdown_table_teds"] == 1.0
+
+
+def test_evaluate_markdown_blocks_normalizes_formula_style_tokens() -> None:
+    prediction = "$$\\left( X + y \\right)$$"
+    ground_truth = "$$(x+y)$$"
+
+    metrics = evaluate_markdown_blocks(prediction, ground_truth)
+
+    assert metrics["markdown_formula_score"] == 1.0

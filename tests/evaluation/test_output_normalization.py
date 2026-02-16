@@ -6,6 +6,7 @@ from evaluation.config import EvaluationConfig, InferenceBackend, ModelConfig
 from evaluation.pipeline import EvaluationPipeline
 from evaluation.utils import extract_html_table, parse_model_output_as_json
 from evaluation.types import InferenceResult
+from metrics.markdown_block_metrics import normalize_markdown_text
 from metrics.table_document_metrics import evaluate_document
 
 
@@ -30,6 +31,11 @@ def test_extract_html_table_converts_markdown_table() -> None:
     assert "<td>Pen</td>" in extracted
 
 
+def test_normalize_markdown_text_uses_omnidoc_style_cleaning() -> None:
+    text = "Hello,\tWorld!\n안녕? 123"
+    assert normalize_markdown_text(text) == "HelloWorld안녕123"
+
+
 def test_pipeline_exposes_metric_views(tmp_path: Path, monkeypatch) -> None:
     class DummyModel:
         def run(self, prompts, images):
@@ -50,8 +56,8 @@ def test_pipeline_exposes_metric_views(tmp_path: Path, monkeypatch) -> None:
     metrics = pipeline._compute_metrics(results)
 
     assert metrics["avg_markdown_text_score"] == 1.0
-    assert pipeline.metric_views["raw"]["avg_markdown_text_score"] == 1.0
     assert pipeline.metric_views["normalized"]["avg_markdown_text_score"] == 1.0
+    assert "raw" not in pipeline.metric_views
 
 
 def test_evaluate_document_uses_text_table_scores_and_ignores_formula_elements(monkeypatch) -> None:

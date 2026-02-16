@@ -149,7 +149,7 @@ class EvaluationPipeline:
             and str(r.prediction).strip() != ""
         ]
         if not valid_results:
-            self.metric_views = {"raw": {}, "normalized": {}}
+            self.metric_views = {"normalized": {}}
             return {}
 
         predictions = [str(r.prediction) for r in valid_results]
