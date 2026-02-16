@@ -99,7 +99,7 @@ class EvaluationConfig(BaseModel):
         return self
 
     # Output configuration
-    output_dir: str = Field(default="./evaluation_results")
+    output_dir: str = Field(default="./evaluation_result")
     resume_from_checkpoint: bool = Field(default=True)
 
     # Column mappings

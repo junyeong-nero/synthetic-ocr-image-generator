@@ -56,7 +56,7 @@ uv run main.py evaluate [OPTIONS]
 - `--batch-poll-seconds`: Polling interval for batch status.
 - `--batch-timeout-seconds`: Max wait time for batch completion.
 - `--batch-completion-window`: Batch completion window (default: `24h`).
-- `--output-dir`: Results directory (default: `./evaluation_results`).
+- `--output-dir`: Results directory (default: `./evaluation_result`).
 - `--report-format`: Output format (`json`, `markdown`, `html`, `all`) (default: `all`).
 - `--inference-only`: Run inference only and save `checkpoints.json`.
 - `--evaluate-only`: Skip inference and evaluate from `checkpoints.json`.

@@ -68,11 +68,11 @@ Top 5 snapshot (`avg_markdown_overall_score`, higher is better):
 
 | Rank | Model | Backend | Metric | Text | Table | Formula | Success/Total |
 |---:|---|---|---:|---:|---:|---:|---|
-| 1 | gpt-5-mini | openai | 0.9867 | 0.9467 | 1.0000 | 1.0000 | 7/10 |
-| 2 | lightonai/LightOnOCR-2-1B | transformers | 0.9701 | 0.8804 | 1.0000 | 1.0000 | 10/10 |
-| 3 | nanonets/Nanonets-OCR2-3B | transformers | 0.9610 | 0.9113 | 0.9327 | 1.0000 | 10/10 |
-| 4 | deepseek-ai/DeepSeek-OCR-2 | transformers | 0.9440 | 0.8554 | 0.9208 | 1.0000 | 10/10 |
-| 5 | Qwen/Qwen3-VL-4B-Instruct | transformers | 0.8897 | 0.6922 | 1.0000 | 1.0000 | 10/10 |
+| 1 | gpt-5-mini | openai | 0.9829 | 0.9315 | 1.0000 | 1.0000 | 7/10 |
+| 2 | nanonets/Nanonets-OCR2-3B | transformers | 0.9711 | 0.8916 | 0.9929 | 1.0000 | 10/10 |
+| 3 | lightonai/LightOnOCR-2-1B | transformers | 0.9602 | 0.8409 | 1.0000 | 1.0000 | 10/10 |
+| 4 | deepseek-ai/DeepSeek-OCR-2 | transformers | 0.9601 | 0.8403 | 1.0000 | 1.0000 | 10/10 |
+| 5 | ./weights/DotsOCR | transformers | 0.8847 | 0.7656 | 0.8897 | 1.0000 | 10/10 |
 
 Refresh leaderboard files:
 

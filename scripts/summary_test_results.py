@@ -2,7 +2,7 @@
 """Summarize evaluation report.json files into JSON and Markdown tables.
 
 Usage:
-    uv run summary_test_results.py test_results/20260210_111146
+    uv run summary_test_results.py evaluation_result/20260210_111146
 """
 
 from __future__ import annotations

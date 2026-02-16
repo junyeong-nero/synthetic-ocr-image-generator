@@ -322,7 +322,7 @@ def evaluate_pipeline(
     split: str = "test",
     batch_size: int = 1,
     max_samples: Optional[int] = None,
-    output_dir: str = "./evaluation_results",
+    output_dir: str = "./evaluation_result",
     **kwargs,
 ) -> EvaluationOutput:
     """

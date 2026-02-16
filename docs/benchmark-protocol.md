@@ -49,7 +49,7 @@ Supporting metrics:
 
 ## 4. Prompting Guidelines
 
-- Prefer setting prompts in `configs/models/*.yaml` under `prompts.markdown`.
+- Prefer setting prompts in `configs/models/*.yaml` under `prompt`.
 - Keep prompt changes explicit in version control when comparing runs.
 
 ## 5. Versioning

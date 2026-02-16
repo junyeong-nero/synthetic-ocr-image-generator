@@ -16,10 +16,10 @@ Python toolkit for synthetic OCR dataset generation and model evaluation, using 
 │   ├── evaluation/        # Evaluation pipeline + reporting
 │   ├── models/            # Model backends and registry
 │   └── metrics/           # Evaluation metrics
-├── scripts/               # CLI helpers (models/run.sh, models/test_all.sh, language scripts)
+├── scripts/               # CLI helpers (evaluate/run.sh, evaluate/run-all.sh, language scripts)
 ├── fonts/                 # Local font assets (ttf ignored by git)
 ├── data/                  # Local datasets (ignored by git)
-└── test_results/          # Evaluation runs (generated)
+└── evaluation_result/     # Evaluation runs (generated)
 ```
 
 ## WHERE TO LOOK
@@ -32,16 +32,16 @@ Python toolkit for synthetic OCR dataset generation and model evaluation, using 
 | Model backends | `src/models/` | Registry + api/local/transformers |
 | Metrics | `src/metrics/` | CER/WER/TEDS/Layout/KIE metrics |
 | Model configs | `configs/models/` | YAML source of prompts + params |
-| Run model groups | `scripts/models/run.sh` | Uses dependency_group |
-| Batch eval | `scripts/models/test_all.sh` | Generates `test_results/` |
+| Run model groups | `scripts/evaluate/run.sh` | Uses dependency_group |
+| Batch eval | `scripts/evaluate/run-all.sh` | Generates `evaluation_result/` |
 
 ## CONVENTIONS
-- Use `uv` dependency groups for model-specific installs; prefer `scripts/models/run.sh` to resolve `dependency_group`. Core groups: `generate`, `evaluate`, `api`.
+- Use `uv` dependency groups for model-specific installs; prefer `scripts/evaluate/run.sh` to resolve `dependency_group`. Core groups: `generate`, `evaluate`, `api`.
 - `configs/models/*.yaml` are source of truth for prompts and model params.
 - `main.py` injects `src` into `sys.path`; no console script entrypoint.
 
 ## ANTI-PATTERNS (THIS PROJECT)
-- Do not commit generated artifacts in `data/`, `evaluation_results/`, or `test_results/`.
+- Do not commit generated artifacts in `data/` or `evaluation_result/`.
 - Do not add a new `dependency_group` without updating `[dependency-groups]` and `[tool.uv.conflicts]` in `pyproject.toml`.
 
 ## UNIQUE STYLES
@@ -54,8 +54,8 @@ uv sync
 uv sync --extra eval
 uv run main.py generate --help
 uv run main.py evaluate --help
-./scripts/models/run.sh <config_name_or_model_id> [DATASET] [SUBSET] [MAX_SAMPLES] [args]
-./scripts/models/test_all.sh [DATASET] [SUBSET] [MAX_SAMPLES]
+./scripts/evaluate/run.sh <config_name_or_model_id> [DATASET] [SUBSET] [MAX_SAMPLES] [args]
+./scripts/evaluate/run-all.sh [DATASET] [SUBSET] [MAX_SAMPLES]
 ```
 
 ## NOTES

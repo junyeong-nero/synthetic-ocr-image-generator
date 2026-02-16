@@ -22,7 +22,7 @@ Common arguments:
 - `--split`: Dataset split (default: `train`).
 - `--max-samples`: Evaluate only first N samples.
 - `--seed`: Random seed for reproducibility.
-- `--output-dir`: Output directory (default: `./evaluation_results`).
+- `--output-dir`: Output directory (default: `./evaluation_result`).
 - `--report-format`: `json`, `markdown`, `html`, `all` (default: `all`).
 
 Execution mode flags:

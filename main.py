@@ -636,7 +636,7 @@ def main() -> None:
         help="Batch completion window",
     )
     eval_parser.add_argument(
-        "--output-dir", default="./evaluation_results", help="Output directory"
+        "--output-dir", default="./evaluation_result", help="Output directory"
     )
     eval_parser.add_argument(
         "--report-format",
