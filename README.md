@@ -46,7 +46,7 @@ uv run main.py generate \
 
 ```bash
 uv run main.py evaluate \
-  --model-config configs/models/gpt-4o.yaml \
+  --model-config configs/models/gpt-5-mini.yaml \
   --dataset "your-username/my-ocr-dataset" \
   --split train
 ```

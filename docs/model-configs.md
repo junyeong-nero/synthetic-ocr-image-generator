@@ -5,7 +5,7 @@ Model YAML files in `configs/models/` define backend selection, inference parame
 ## Minimal Example
 
 ```yaml
-model_id: "gpt-4o"
+model_id: "gpt-5-mini"
 backend: "openai"
 dependency_group: "api"
 
@@ -15,9 +15,8 @@ batch_size: 1
 timeout: 120
 max_retries: 3
 
-prompts:
-  markdown:
-    prompt: "Convert the image content to clean markdown. Output markdown only."
+prompt:
+  prompt: "Convert the image content to clean markdown. Output markdown only."
 ```
 
 ## Supported Fields
@@ -25,7 +24,7 @@ prompts:
 Common fields loaded by `src/evaluation/model_config.py`:
 
 - `model_id`
-- `backend` (`openai`, `anthropic`, `google`, `transformers`, `paddleocr`, `surya`)
+- `backend` (`openai`, `anthropic`, `google`, `upstage`, `transformers`, `paddleocr`, `surya`)
 - `dependency_group`
 - `temperature`, `max_tokens`, `top_p`, `batch_size`
 - `timeout`, `max_retries`

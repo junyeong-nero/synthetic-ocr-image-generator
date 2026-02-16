@@ -6,7 +6,7 @@ The current unified evaluation pipeline is markdown-focused.
 
 ```bash
 uv run main.py evaluate \
-  --model-config configs/models/gpt-4o.yaml \
+  --model-config configs/models/gpt-5-mini.yaml \
   --dataset "username/my-ocr-dataset" \
   --split train
 ```
@@ -55,7 +55,7 @@ Important behavior:
 
 ```bash
 uv run main.py evaluate \
-  --model-config configs/models/gpt-4o.yaml \
+  --model-config configs/models/gpt-5-mini.yaml \
   --dataset "username/my-dataset" \
   --batch-api
 ```
@@ -107,7 +107,7 @@ Recommended wrappers:
 Single model wrapper example:
 
 ```bash
-scripts/evaluate/run.sh gpt-4o -d "username/my-dataset" --language ko -n 200 --split test
+scripts/evaluate/run.sh gpt-5-mini -d "username/my-dataset" --language ko -n 200 --split test
 ```
 
 Batch wrapper example:
