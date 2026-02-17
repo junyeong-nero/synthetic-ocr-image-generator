@@ -9,7 +9,7 @@ from typing import Any, Sequence
 from PIL import Image
 from tqdm import tqdm
 
-from evaluation.config import EvaluationConfig
+from evaluation.config import EvaluationConfig, InferenceBackend
 from evaluation.types import InferenceResult, RunnerState
 from models.base import VLMModel
 
@@ -20,6 +20,13 @@ class EvaluationRunner:
 
     Handles batch processing, progress tracking, and resumable evaluation.
     """
+
+    _API_BACKENDS = {
+        InferenceBackend.OPENAI,
+        InferenceBackend.ANTHROPIC,
+        InferenceBackend.GOOGLE,
+        InferenceBackend.UPSTAGE,
+    }
 
     def __init__(
         self,
@@ -38,7 +45,9 @@ class EvaluationRunner:
         # Load or create state
         self.state = self._load_or_create_state()
         self._completed_indices = set(self.state.completed)
-        self._empty_prediction_max_retries = 1
+        self._empty_prediction_max_retries = (
+            5 if self.config.model.backend in self._API_BACKENDS else 1
+        )
         self._empty_prediction_retry_backoff_seconds = 0.5
 
     @staticmethod
