@@ -1,0 +1,19 @@
+[
+  {
+    "timestamp": "2026-02-17T14:53:09.790553Z",
+    "protocol_version": "1.0",
+    "model_id": "gemini-3.0-pro",
+    "backend": "google",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ja",
+    "split": "test",
+    "language": "ja",
+    "average_score": null,
+    "normalized_average_score": null,
+    "average_empty_rate": 1.0,
+    "average_parse_fail_rate": 0.0,
+    "markdown_text_score": null,
+    "markdown_table_teds": null,
+    "markdown_formula_score": null,
+    "markdown_order_score": null
+  }
+]

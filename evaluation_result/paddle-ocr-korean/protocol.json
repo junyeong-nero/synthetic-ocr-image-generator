@@ -1,0 +1,64 @@
+{
+  "protocol_version": "1.0",
+  "timestamp": "2026-02-16T08:50:06.857865Z",
+  "command": "evaluate",
+  "report_format": "all",
+  "config": {
+    "dataset_id": "junyeong-nero/synthetic-ocr-images-ko",
+    "split": "test",
+    "language": "ko",
+    "format": "markdown",
+    "batch_size": 12,
+    "max_samples": null,
+    "prompt": null,
+    "system_prompt": null,
+    "prompt_source": null,
+    "seed": null,
+    "batch_api": false,
+    "batch_poll_seconds": 60,
+    "batch_timeout_seconds": 86400,
+    "batch_completion_window": "24h",
+    "execution_mode": "evaluate_only",
+    "dataset_fingerprint": null,
+    "dataset_info": null,
+    "environment": {
+      "python": "3.11.13",
+      "platform": "macOS-26.2-arm64-arm-64bit",
+      "machine": "arm64",
+      "packages": {
+        "torch": "2.6.0",
+        "transformers": "4.46.3",
+        "datasets": "4.5.0",
+        "numpy": "2.2.6",
+        "pandas": "2.3.3",
+        "uv": null
+      },
+      "torch": {
+        "cuda_available": false,
+        "mps_available": true
+      }
+    },
+    "model_config_path": "/Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/paddleocr-korean.yaml",
+    "model": {
+      "model_id": "paddleocr/paddle-ocr-korean",
+      "backend": "paddleocr",
+      "temperature": 0.0,
+      "max_tokens": 4096
+    }
+  },
+  "summary": {
+    "total_samples": 10,
+    "successful": 10,
+    "failed": 0,
+    "avg_latency_ms": 4148.261761665344,
+    "model_id": "paddleocr/paddle-ocr-korean",
+    "backend": "paddleocr",
+    "empty_count": 0,
+    "empty_rate": 0.0,
+    "parse_fail_count": 0,
+    "parse_fail_rate": 0.0
+  },
+  "prompt": null,
+  "prompt_source": null,
+  "system_prompt": null
+}

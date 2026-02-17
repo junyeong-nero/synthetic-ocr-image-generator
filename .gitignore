@@ -9,6 +9,5 @@ data/
 .claude/
 
 __pycache__/
-evaluation_result/
 test_results/
 .env

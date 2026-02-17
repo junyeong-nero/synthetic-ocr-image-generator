@@ -1,0 +1,53 @@
+[
+  {
+    "timestamp": "2026-02-14T03:55:19.636772Z",
+    "protocol_version": "1.0",
+    "model_id": "gpt-5-mini",
+    "backend": "openai",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ko",
+    "split": "test",
+    "language": "ko",
+    "average_score": 0.9872861674424982,
+    "normalized_average_score": 0.9872861674424982,
+    "average_empty_rate": 0.6,
+    "average_parse_fail_rate": 0.0,
+    "markdown_text_score": 0.9491446697699923,
+    "markdown_table_teds": 1.0,
+    "markdown_formula_score": 1.0,
+    "markdown_order_score": 1.0
+  },
+  {
+    "timestamp": "2026-02-14T04:02:18.562019Z",
+    "protocol_version": "1.0",
+    "model_id": "gpt-5-mini",
+    "backend": "openai",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ko",
+    "split": "test",
+    "language": "ko",
+    "average_score": 0.9872861674424982,
+    "normalized_average_score": 0.9872861674424982,
+    "average_empty_rate": 0.6,
+    "average_parse_fail_rate": 0.0,
+    "markdown_text_score": 0.9491446697699923,
+    "markdown_table_teds": 1.0,
+    "markdown_formula_score": 1.0,
+    "markdown_order_score": 1.0
+  },
+  {
+    "timestamp": "2026-02-16T08:50:01.251008Z",
+    "protocol_version": "1.0",
+    "model_id": "gpt-5-mini",
+    "backend": "openai",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ko",
+    "split": "test",
+    "language": "ko",
+    "average_score": 0.983601860970408,
+    "normalized_average_score": 0.983601860970408,
+    "average_empty_rate": 0.6,
+    "average_parse_fail_rate": 0.0,
+    "markdown_text_score": 0.9344074438816319,
+    "markdown_table_teds": 1.0,
+    "markdown_formula_score": 1.0,
+    "markdown_order_score": 1.0
+  }
+]

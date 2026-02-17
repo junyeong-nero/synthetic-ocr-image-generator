@@ -1,0 +1,502 @@
+API benchmark (ja, max-samples=10)
+
+==== claude-sonnet-4-5 ====
+Config: claude-sonnet-4-5
+Model: claude-sonnet-4-5
+Dependency Group: api
+
+Running evaluation
+Output: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/claude-sonnet-4-5/ja
+Language: ja
+
+Configuration:
+  Model: claude-sonnet-4-5
+  Backend: anthropic
+  Dataset: junyeong-nero/synthetic-ocr-images-ja (test)
+  Language: ja
+  Format: markdown (fixed)
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 1024
+  Config File: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/claude-sonnet-4-5.yaml
+  Mode: all
+
+Evaluating claude-sonnet-4-5 on junyeong-nero/synthetic-ocr-images-ja...
+Loading dataset: junyeong-nero/synthetic-ocr-images-ja
+Generating train split:   0%|          | 0/90 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 90/90 [00:00<00:00, 1630.26 examples/s]
+Generating test split:   0%|          | 0/10 [00:00<?, ? examples/s]Generating test split: 100%|██████████| 10/10 [00:00<00:00, 5149.54 examples/s]
+Loaded 10 samples
+Format: markdown
+Processing 10 remaining samples...
+Evaluating:   0%|          | 0/10 [00:00<?, ?batch/s]Evaluating:  10%|█         | 1/10 [00:08<01:14,  8.29s/batch]Evaluating:  20%|██        | 2/10 [00:17<01:08,  8.56s/batch]Evaluating:  30%|███       | 3/10 [00:25<01:00,  8.67s/batch]Evaluating:  40%|████      | 4/10 [00:34<00:52,  8.70s/batch]Evaluating:  50%|█████     | 5/10 [00:43<00:43,  8.72s/batch]Evaluating:  60%|██████    | 6/10 [00:52<00:34,  8.73s/batch]Evaluating:  70%|███████   | 7/10 [01:00<00:26,  8.71s/batch]Evaluating:  80%|████████  | 8/10 [01:09<00:17,  8.71s/batch]Evaluating:  90%|█████████ | 9/10 [01:18<00:08,  8.75s/batch]Evaluating: 100%|██████████| 10/10 [01:26<00:00,  8.71s/batch]Evaluating: 100%|██████████| 10/10 [01:26<00:00,  8.69s/batch]
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDomyu1fmYJC2BgCcN7f'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDondK33QuYmUFvYRKRh'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDooGvifxvXKRDCm12Jg'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDoovGXkbrQa7jaTMsUc'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDopZdb69axosNbhnjsf'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDoqCytsoJNHohesYsCr'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDoqrBH1Pq9gt27zePPD'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDorVRszdYqyFEjLXRff'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDos9DEVi3fKR2qC6ccs'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDosn71m9yT8Mi4NYDe6'}
+
+Reports saved:
+  json: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/claude-sonnet-4-5/ja/report.json
+  markdown: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/claude-sonnet-4-5/ja/report.md
+  html: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/claude-sonnet-4-5/ja/report.html
+Protocol snapshot saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/claude-sonnet-4-5/ja/protocol.json
+
+============================================================
+ MARKDOWN EVALUATION RESULTS 
+============================================================
+  empty_count: 10.0000
+  empty_rate: 1.0000
+  parse_fail_count: 0.0000
+  parse_fail_rate: 0.0000
+============================================================
+
+Samples: 0/10
+Avg Latency: 0.00ms
+Warning: Missing representative metric 'avg_markdown_overall_score' for markdown
+
+Model summary saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/claude-sonnet-4-5/ja/model_summary.json
+[PASS] claude-sonnet-4-5
+
+==== claude-opus-4-6 ====
+Config: claude-opus-4-6
+Model: claude-opus-4-6
+Dependency Group: api
+
+Running evaluation
+Output: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/claude-opus-4-6/ja
+Language: ja
+
+Configuration:
+  Model: claude-opus-4-6
+  Backend: anthropic
+  Dataset: junyeong-nero/synthetic-ocr-images-ja (test)
+  Language: ja
+  Format: markdown (fixed)
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 1024
+  Config File: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/claude-opus-4-6.yaml
+  Mode: all
+
+Evaluating claude-opus-4-6 on junyeong-nero/synthetic-ocr-images-ja...
+Loading dataset: junyeong-nero/synthetic-ocr-images-ja
+Loaded 10 samples
+Format: markdown
+Processing 10 remaining samples...
+Evaluating:   0%|          | 0/10 [00:00<?, ?batch/s]Evaluating:  10%|█         | 1/10 [00:08<01:14,  8.31s/batch]Evaluating:  20%|██        | 2/10 [00:16<01:08,  8.51s/batch]Evaluating:  30%|███       | 3/10 [00:25<01:00,  8.60s/batch]Evaluating:  40%|████      | 4/10 [00:34<00:52,  8.79s/batch]Evaluating:  50%|█████     | 5/10 [00:43<00:43,  8.76s/batch]Evaluating:  60%|██████    | 6/10 [00:52<00:35,  8.76s/batch]Evaluating:  70%|███████   | 7/10 [01:01<00:26,  8.81s/batch]Evaluating:  80%|████████  | 8/10 [01:09<00:17,  8.75s/batch]Evaluating:  90%|█████████ | 9/10 [01:18<00:08,  8.71s/batch]Evaluating: 100%|██████████| 10/10 [01:27<00:00,  8.73s/batch]Evaluating: 100%|██████████| 10/10 [01:27<00:00,  8.71s/batch]
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDotkcVjF4p82A16hWZT'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDouPZFBLb5ppMLZJEN1'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDov2m8Ls1RdozSp2whj'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDovhZFeJBXPyRq9XBwz'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDowLranmXuK4EZ6HYDE'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDowzH7BZoMeXVA8vCkN'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDoxeTGzt8svpma9PAPu'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDoyHG67LT1QYzknz3mD'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDoyv97yr7z6Et8dZyHP'}
+Error processing batch: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'invalid x-api-key'}, 'request_id': 'req_011CYDozZdrwe6vBJHccvmmr'}
+
+Reports saved:
+  json: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/claude-opus-4-6/ja/report.json
+  markdown: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/claude-opus-4-6/ja/report.md
+  html: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/claude-opus-4-6/ja/report.html
+Protocol snapshot saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/claude-opus-4-6/ja/protocol.json
+
+============================================================
+ MARKDOWN EVALUATION RESULTS 
+============================================================
+  empty_count: 10.0000
+  empty_rate: 1.0000
+  parse_fail_count: 0.0000
+  parse_fail_rate: 0.0000
+============================================================
+
+Samples: 0/10
+Avg Latency: 0.00ms
+Warning: Missing representative metric 'avg_markdown_overall_score' for markdown
+
+Model summary saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/claude-opus-4-6/ja/model_summary.json
+[PASS] claude-opus-4-6
+
+==== gpt-5 ====
+Config: gpt-5
+Model: gpt-5
+Dependency Group: api
+
+Running evaluation
+Output: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5/ja
+Language: ja
+
+Configuration:
+  Model: gpt-5
+  Backend: openai
+  Dataset: junyeong-nero/synthetic-ocr-images-ja (test)
+  Language: ja
+  Format: markdown (fixed)
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 1024
+  Config File: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/gpt-5.yaml
+  Mode: all
+
+Evaluating gpt-5 on junyeong-nero/synthetic-ocr-images-ja...
+Loading dataset: junyeong-nero/synthetic-ocr-images-ja
+Loaded 10 samples
+Format: markdown
+Processing 10 remaining samples...
+Evaluating:   0%|          | 0/10 [00:00<?, ?batch/s]Evaluating:   0%|          | 0/10 [00:53<?, ?batch/s, latency=53861.0ms]Evaluating:  10%|█         | 1/10 [00:53<08:04, 53.87s/batch, latency=53861.0ms]Evaluating:  10%|█         | 1/10 [01:35<08:04, 53.87s/batch, latency=42085.1ms]Evaluating:  20%|██        | 2/10 [01:35<06:15, 46.94s/batch, latency=42085.1ms]Evaluating:  20%|██        | 2/10 [02:17<06:15, 46.94s/batch, latency=41757.3ms]Evaluating:  30%|███       | 3/10 [02:17<05:12, 44.58s/batch, latency=41757.3ms]Evaluating:  30%|███       | 3/10 [02:55<05:12, 44.58s/batch, latency=37692.8ms]Evaluating:  40%|████      | 4/10 [02:55<04:11, 41.86s/batch, latency=37692.8ms]Evaluating:  40%|████      | 4/10 [03:29<04:11, 41.86s/batch, latency=34287.6ms]Evaluating:  50%|█████     | 5/10 [03:29<03:15, 39.13s/batch, latency=34287.6ms]Evaluating:  50%|█████     | 5/10 [04:04<03:15, 39.13s/batch, latency=35107.5ms]Evaluating:  60%|██████    | 6/10 [04:04<02:31, 37.77s/batch, latency=35107.5ms]Evaluating:  60%|██████    | 6/10 [04:18<02:31, 37.77s/batch, latency=13198.0ms]Evaluating:  70%|███████   | 7/10 [04:18<01:29, 29.74s/batch, latency=13198.0ms]Evaluating:  70%|███████   | 7/10 [04:53<01:29, 29.74s/batch, latency=35389.7ms]Evaluating:  80%|████████  | 8/10 [04:53<01:03, 31.54s/batch, latency=35389.7ms]Evaluating:  80%|████████  | 8/10 [05:28<01:03, 31.54s/batch, latency=35508.9ms]Evaluating:  90%|█████████ | 9/10 [05:28<00:32, 32.78s/batch, latency=35508.9ms]Evaluating:  90%|█████████ | 9/10 [06:07<00:32, 32.78s/batch, latency=38181.6ms]Evaluating: 100%|██████████| 10/10 [06:07<00:00, 34.45s/batch, latency=38181.6ms]Evaluating: 100%|██████████| 10/10 [06:07<00:00, 36.72s/batch, latency=38181.6ms]
+
+Reports saved:
+  json: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5/ja/report.json
+  markdown: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5/ja/report.md
+  html: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5/ja/report.html
+Protocol snapshot saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5/ja/protocol.json
+
+============================================================
+ MARKDOWN EVALUATION RESULTS 
+============================================================
+  avg_markdown_text_score: 0.9961
+  std_markdown_text_score: 0.0000
+  avg_markdown_table_teds: 1.0000
+  std_markdown_table_teds: 0.0000
+  avg_markdown_formula_score: 1.0000
+  std_markdown_formula_score: 0.0000
+  avg_markdown_order_score: 1.0000
+  std_markdown_order_score: 0.0000
+  avg_markdown_overall_score: 0.9990
+  std_markdown_overall_score: 0.0000
+  empty_count: 9.0000
+  empty_rate: 0.9000
+  parse_fail_count: 0.0000
+  parse_fail_rate: 0.0000
+============================================================
+
+Samples: 1/10
+Avg Latency: 36706.95ms
+
+Model summary saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5/ja/model_summary.json
+[PASS] gpt-5
+
+==== gpt-5-mini ====
+Config: gpt-5-mini
+Model: gpt-5-mini
+Dependency Group: api
+
+Running evaluation
+Output: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-mini/ja
+Language: ja
+
+Configuration:
+  Model: gpt-5-mini
+  Backend: openai
+  Dataset: junyeong-nero/synthetic-ocr-images-ja (test)
+  Language: ja
+  Format: markdown (fixed)
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 1024
+  Config File: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/gpt-5-mini.yaml
+  Mode: all
+
+Evaluating gpt-5-mini on junyeong-nero/synthetic-ocr-images-ja...
+Loading dataset: junyeong-nero/synthetic-ocr-images-ja
+Loaded 10 samples
+Format: markdown
+Processing 10 remaining samples...
+Evaluating:   0%|          | 0/10 [00:00<?, ?batch/s]Evaluating:   0%|          | 0/10 [00:19<?, ?batch/s, latency=19268.6ms]Evaluating:  10%|█         | 1/10 [00:19<02:53, 19.27s/batch, latency=19268.6ms]Evaluating:  10%|█         | 1/10 [00:39<02:53, 19.27s/batch, latency=20355.3ms]Evaluating:  20%|██        | 2/10 [00:39<02:39, 19.92s/batch, latency=20355.3ms]Evaluating:  20%|██        | 2/10 [01:00<02:39, 19.92s/batch, latency=21194.6ms]Evaluating:  30%|███       | 3/10 [01:00<02:23, 20.50s/batch, latency=21194.6ms]Evaluating:  30%|███       | 3/10 [01:08<02:23, 20.50s/batch, latency=7851.9ms] Evaluating:  40%|████      | 4/10 [01:08<01:33, 15.51s/batch, latency=7851.9ms]Evaluating:  40%|████      | 4/10 [01:16<01:33, 15.51s/batch, latency=7977.0ms]Evaluating:  50%|█████     | 5/10 [01:16<01:03, 12.80s/batch, latency=7977.0ms]Evaluating:  50%|█████     | 5/10 [01:55<01:03, 12.80s/batch, latency=38727.7ms]Evaluating:  60%|██████    | 6/10 [01:55<01:26, 21.62s/batch, latency=38727.7ms]Evaluating:  60%|██████    | 6/10 [02:29<01:26, 21.62s/batch, latency=34091.4ms]Evaluating:  70%|███████   | 7/10 [02:29<01:17, 25.70s/batch, latency=34091.4ms]Evaluating:  70%|███████   | 7/10 [03:02<01:17, 25.70s/batch, latency=33272.9ms]Evaluating:  80%|████████  | 8/10 [03:02<00:56, 28.11s/batch, latency=33272.9ms]Evaluating:  80%|████████  | 8/10 [03:24<00:56, 28.11s/batch, latency=21806.5ms]Evaluating:  90%|█████████ | 9/10 [03:24<00:26, 26.14s/batch, latency=21806.5ms]Evaluating:  90%|█████████ | 9/10 [04:34<00:26, 26.14s/batch, latency=69443.8ms]Evaluating: 100%|██████████| 10/10 [04:34<00:00, 39.51s/batch, latency=69443.8ms]Evaluating: 100%|██████████| 10/10 [04:34<00:00, 27.41s/batch, latency=69443.8ms]
+
+Reports saved:
+  json: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-mini/ja/report.json
+  markdown: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-mini/ja/report.md
+  html: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-mini/ja/report.html
+Protocol snapshot saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-mini/ja/protocol.json
+
+============================================================
+ MARKDOWN EVALUATION RESULTS 
+============================================================
+  avg_markdown_text_score: 0.9629
+  std_markdown_text_score: 0.0235
+  avg_markdown_table_teds: 1.0000
+  std_markdown_table_teds: 0.0000
+  avg_markdown_formula_score: 1.0000
+  std_markdown_formula_score: 0.0000
+  avg_markdown_order_score: 1.0000
+  std_markdown_order_score: 0.0000
+  avg_markdown_overall_score: 0.9907
+  std_markdown_overall_score: 0.0059
+  empty_count: 7.0000
+  empty_rate: 0.7000
+  parse_fail_count: 0.0000
+  parse_fail_rate: 0.0000
+============================================================
+
+Samples: 3/10
+Avg Latency: 27398.98ms
+
+Model summary saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-mini/ja/model_summary.json
+[PASS] gpt-5-mini
+
+==== gpt-5-nano ====
+Config: gpt-5-nano
+Model: gpt-5-nano
+Dependency Group: api
+
+Running evaluation
+Output: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-nano/ja
+Language: ja
+
+Configuration:
+  Model: gpt-5-nano
+  Backend: openai
+  Dataset: junyeong-nero/synthetic-ocr-images-ja (test)
+  Language: ja
+  Format: markdown (fixed)
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 1024
+  Config File: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/gpt-5-nano.yaml
+  Mode: all
+
+Evaluating gpt-5-nano on junyeong-nero/synthetic-ocr-images-ja...
+Loading dataset: junyeong-nero/synthetic-ocr-images-ja
+Loaded 10 samples
+Format: markdown
+Processing 10 remaining samples...
+Evaluating:   0%|          | 0/10 [00:00<?, ?batch/s]Evaluating:   0%|          | 0/10 [00:18<?, ?batch/s, latency=18818.6ms]Evaluating:  10%|█         | 1/10 [00:18<02:49, 18.82s/batch, latency=18818.6ms]Evaluating:  10%|█         | 1/10 [00:41<02:49, 18.82s/batch, latency=22927.0ms]Evaluating:  20%|██        | 2/10 [00:41<02:49, 21.24s/batch, latency=22927.0ms]Evaluating:  20%|██        | 2/10 [01:01<02:49, 21.24s/batch, latency=19962.8ms]Evaluating:  30%|███       | 3/10 [01:01<02:24, 20.66s/batch, latency=19962.8ms]Evaluating:  30%|███       | 3/10 [01:20<02:24, 20.66s/batch, latency=18781.8ms]Evaluating:  40%|████      | 4/10 [01:20<01:59, 19.92s/batch, latency=18781.8ms]Evaluating:  40%|████      | 4/10 [01:37<01:59, 19.92s/batch, latency=16779.6ms]Evaluating:  50%|█████     | 5/10 [01:37<01:33, 18.79s/batch, latency=16779.6ms]Evaluating:  50%|█████     | 5/10 [01:57<01:33, 18.79s/batch, latency=20652.6ms]Evaluating:  60%|██████    | 6/10 [01:57<01:17, 19.43s/batch, latency=20652.6ms]Evaluating:  60%|██████    | 6/10 [02:17<01:17, 19.43s/batch, latency=19833.2ms]Evaluating:  70%|███████   | 7/10 [02:17<00:58, 19.56s/batch, latency=19833.2ms]Evaluating:  70%|███████   | 7/10 [02:35<00:58, 19.56s/batch, latency=17711.3ms]Evaluating:  80%|████████  | 8/10 [02:35<00:37, 18.98s/batch, latency=17711.3ms]Evaluating:  80%|████████  | 8/10 [02:55<00:37, 18.98s/batch, latency=19818.8ms]Evaluating:  90%|█████████ | 9/10 [02:55<00:19, 19.24s/batch, latency=19818.8ms]Evaluating:  90%|█████████ | 9/10 [03:13<00:19, 19.24s/batch, latency=17892.7ms]Evaluating: 100%|██████████| 10/10 [03:13<00:00, 18.83s/batch, latency=17892.7ms]Evaluating: 100%|██████████| 10/10 [03:13<00:00, 19.32s/batch, latency=17892.7ms]
+
+Reports saved:
+  json: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-nano/ja/report.json
+  markdown: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-nano/ja/report.md
+  html: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-nano/ja/report.html
+Protocol snapshot saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-nano/ja/protocol.json
+
+============================================================
+ MARKDOWN EVALUATION RESULTS 
+============================================================
+  empty_count: 10.0000
+  empty_rate: 1.0000
+  parse_fail_count: 0.0000
+  parse_fail_rate: 0.0000
+============================================================
+
+Samples: 0/10
+Avg Latency: 19317.84ms
+Warning: Missing representative metric 'avg_markdown_overall_score' for markdown
+
+Model summary saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-nano/ja/model_summary.json
+[PASS] gpt-5-nano
+
+==== gemini-3.0-pro ====
+Config: gemini-3.0-pro
+Model: gemini-3.0-pro
+Dependency Group: api
+
+Running evaluation
+Output: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gemini-3.0-pro/ja
+Language: ja
+/Users/junyeong-nero/workspace/synthetic-ocr-image-generator/src/models/api/gemini_vision.py:29: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+
+Configuration:
+  Model: gemini-3.0-pro
+  Backend: google
+  Dataset: junyeong-nero/synthetic-ocr-images-ja (test)
+  Language: ja
+  Format: markdown (fixed)
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 1024
+  Config File: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/gemini-3.0-pro.yaml
+  Mode: all
+
+Evaluating gemini-3.0-pro on junyeong-nero/synthetic-ocr-images-ja...
+Loading dataset: junyeong-nero/synthetic-ocr-images-ja
+Loaded 10 samples
+Format: markdown
+Processing 10 remaining samples...
+Evaluating:   0%|          | 0/10 [00:00<?, ?batch/s]Evaluating:  10%|█         | 1/10 [00:09<01:25,  9.49s/batch]Evaluating:  20%|██        | 2/10 [00:17<01:06,  8.37s/batch]Evaluating:  30%|███       | 3/10 [00:24<00:55,  8.00s/batch]Evaluating:  40%|████      | 4/10 [00:32<00:46,  7.82s/batch]Evaluating:  50%|█████     | 5/10 [00:39<00:38,  7.73s/batch]Evaluating:  60%|██████    | 6/10 [00:47<00:30,  7.67s/batch]Evaluating:  70%|███████   | 7/10 [00:54<00:22,  7.62s/batch]Evaluating:  80%|████████  | 8/10 [01:02<00:15,  7.59s/batch]Evaluating:  90%|█████████ | 9/10 [01:09<00:07,  7.58s/batch]Evaluating: 100%|██████████| 10/10 [01:17<00:00,  7.57s/batch]Evaluating: 100%|██████████| 10/10 [01:17<00:00,  7.75s/batch]
+Error processing batch: 400 API key not valid. Please pass a valid API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
+}
+, locale: "en-US"
+message: "API key not valid. Please pass a valid API key."
+]
+Error processing batch: 400 API key not valid. Please pass a valid API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
+}
+, locale: "en-US"
+message: "API key not valid. Please pass a valid API key."
+]
+Error processing batch: 400 API key not valid. Please pass a valid API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
+}
+, locale: "en-US"
+message: "API key not valid. Please pass a valid API key."
+]
+Error processing batch: 400 API key not valid. Please pass a valid API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
+}
+, locale: "en-US"
+message: "API key not valid. Please pass a valid API key."
+]
+Error processing batch: 400 API key not valid. Please pass a valid API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
+}
+, locale: "en-US"
+message: "API key not valid. Please pass a valid API key."
+]
+Error processing batch: 400 API key not valid. Please pass a valid API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
+}
+, locale: "en-US"
+message: "API key not valid. Please pass a valid API key."
+]
+Error processing batch: 400 API key not valid. Please pass a valid API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
+}
+, locale: "en-US"
+message: "API key not valid. Please pass a valid API key."
+]
+Error processing batch: 400 API key not valid. Please pass a valid API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
+}
+, locale: "en-US"
+message: "API key not valid. Please pass a valid API key."
+]
+Error processing batch: 400 API key not valid. Please pass a valid API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
+}
+, locale: "en-US"
+message: "API key not valid. Please pass a valid API key."
+]
+Error processing batch: 400 API key not valid. Please pass a valid API key. [reason: "API_KEY_INVALID"
+domain: "googleapis.com"
+metadata {
+  key: "service"
+  value: "generativelanguage.googleapis.com"
+}
+, locale: "en-US"
+message: "API key not valid. Please pass a valid API key."
+]
+
+Reports saved:
+  json: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gemini-3.0-pro/ja/report.json
+  markdown: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gemini-3.0-pro/ja/report.md
+  html: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gemini-3.0-pro/ja/report.html
+Protocol snapshot saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gemini-3.0-pro/ja/protocol.json
+
+============================================================
+ MARKDOWN EVALUATION RESULTS 
+============================================================
+  empty_count: 10.0000
+  empty_rate: 1.0000
+  parse_fail_count: 0.0000
+  parse_fail_rate: 0.0000
+============================================================
+
+Samples: 0/10
+Avg Latency: 0.00ms
+Warning: Missing representative metric 'avg_markdown_overall_score' for markdown
+
+Model summary saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gemini-3.0-pro/ja/model_summary.json
+[PASS] gemini-3.0-pro
+
+==== solar-document-parsing ====
+Config: solar-document-parsing
+Model: document-parse-260128
+Dependency Group: api
+
+Running evaluation
+Output: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/document-parse-260128/ja
+Language: ja
+
+Configuration:
+  Model: document-parse-260128
+  Backend: upstage
+  Dataset: junyeong-nero/synthetic-ocr-images-ja (test)
+  Language: ja
+  Format: markdown (fixed)
+  Batch Size: 1
+  Temperature: 0.0
+  Max Tokens: 4096
+  Config File: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/solar-document-parsing.yaml
+  Mode: all
+
+Evaluating document-parse-260128 on junyeong-nero/synthetic-ocr-images-ja...
+Loading dataset: junyeong-nero/synthetic-ocr-images-ja
+Loaded 10 samples
+Format: markdown
+Processing 10 remaining samples...
+Evaluating:   0%|          | 0/10 [00:00<?, ?batch/s]Evaluating:   0%|          | 0/10 [00:01<?, ?batch/s, latency=1539.7ms]Evaluating:  10%|█         | 1/10 [00:01<00:13,  1.54s/batch, latency=1539.7ms]Evaluating:  10%|█         | 1/10 [00:02<00:13,  1.54s/batch, latency=1119.0ms]Evaluating:  20%|██        | 2/10 [00:02<00:10,  1.30s/batch, latency=1119.0ms]Evaluating:  20%|██        | 2/10 [00:04<00:10,  1.30s/batch, latency=1322.3ms]Evaluating:  30%|███       | 3/10 [00:04<00:09,  1.32s/batch, latency=1322.3ms]Evaluating:  30%|███       | 3/10 [00:05<00:09,  1.32s/batch, latency=1241.5ms]Evaluating:  40%|████      | 4/10 [00:05<00:07,  1.29s/batch, latency=1241.5ms]Evaluating:  40%|████      | 4/10 [00:06<00:07,  1.29s/batch, latency=1110.1ms]Evaluating:  50%|█████     | 5/10 [00:06<00:06,  1.23s/batch, latency=1110.1ms]Evaluating:  50%|█████     | 5/10 [00:07<00:06,  1.23s/batch, latency=1379.2ms]Evaluating:  60%|██████    | 6/10 [00:07<00:05,  1.28s/batch, latency=1379.2ms]Evaluating:  60%|██████    | 6/10 [00:09<00:05,  1.28s/batch, latency=1302.3ms]Evaluating:  70%|███████   | 7/10 [00:09<00:03,  1.29s/batch, latency=1302.3ms]Evaluating:  70%|███████   | 7/10 [00:10<00:03,  1.29s/batch, latency=1055.6ms]Evaluating:  80%|████████  | 8/10 [00:10<00:02,  1.22s/batch, latency=1055.6ms]Evaluating:  80%|████████  | 8/10 [00:11<00:02,  1.22s/batch, latency=1205.9ms]Evaluating:  90%|█████████ | 9/10 [00:11<00:01,  1.22s/batch, latency=1205.9ms]Evaluating:  90%|█████████ | 9/10 [00:12<00:01,  1.22s/batch, latency=1310.3ms]Evaluating: 100%|██████████| 10/10 [00:12<00:00,  1.25s/batch, latency=1310.3ms]Evaluating: 100%|██████████| 10/10 [00:12<00:00,  1.27s/batch, latency=1310.3ms]
+
+Reports saved:
+  json: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/document-parse-260128/ja/report.json
+  markdown: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/document-parse-260128/ja/report.md
+  html: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/document-parse-260128/ja/report.html
+Protocol snapshot saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/document-parse-260128/ja/protocol.json
+
+============================================================
+ MARKDOWN EVALUATION RESULTS 
+============================================================
+  avg_markdown_text_score: 0.7629
+  std_markdown_text_score: 0.3244
+  avg_markdown_table_teds: 0.8000
+  std_markdown_table_teds: 0.4000
+  avg_markdown_formula_score: 1.0000
+  std_markdown_formula_score: 0.0000
+  avg_markdown_order_score: 0.8833
+  std_markdown_order_score: 0.2363
+  avg_markdown_overall_score: 0.8615
+  std_markdown_overall_score: 0.2361
+  empty_count: 0.0000
+  empty_rate: 0.0000
+  parse_fail_count: 0.0000
+  parse_fail_rate: 0.0000
+============================================================
+
+Samples: 10/10
+Avg Latency: 1258.60ms
+
+Model summary saved: /Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/document-parse-260128/ja/model_summary.json
+[PASS] solar-document-parsing
+
+RESULT pass=7 fail=0
+LOG=evaluation_result/_runs/api-ja-max10-20260217_233425.log

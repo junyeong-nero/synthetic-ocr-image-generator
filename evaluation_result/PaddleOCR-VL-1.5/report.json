@@ -1,0 +1,159 @@
+{
+  "config": {
+    "dataset_id": "junyeong-nero/synthetic-ocr-images-ko",
+    "split": "test",
+    "language": "ko",
+    "format": "markdown",
+    "batch_size": 3,
+    "max_samples": null,
+    "prompt": null,
+    "system_prompt": null,
+    "prompt_source": null,
+    "seed": null,
+    "batch_api": false,
+    "batch_poll_seconds": 60,
+    "batch_timeout_seconds": 86400,
+    "batch_completion_window": "24h",
+    "execution_mode": "evaluate_only",
+    "dataset_fingerprint": null,
+    "dataset_info": null,
+    "environment": {
+      "python": "3.11.13",
+      "platform": "macOS-26.2-arm64-arm-64bit",
+      "machine": "arm64",
+      "packages": {
+        "torch": "2.6.0",
+        "transformers": "4.46.3",
+        "datasets": "4.5.0",
+        "numpy": "2.2.6",
+        "pandas": "2.3.3",
+        "uv": null
+      },
+      "torch": {
+        "cuda_available": false,
+        "mps_available": true
+      }
+    },
+    "model_config_path": "/Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/paddleocr-vl.yaml",
+    "model": {
+      "model_id": "PaddlePaddle/PaddleOCR-VL-1.5",
+      "backend": "transformers",
+      "temperature": 0.0,
+      "max_tokens": 4096
+    }
+  },
+  "metrics": {
+    "avg_markdown_text_score": 0.3837147976140251,
+    "std_markdown_text_score": 0.3631287760326828,
+    "avg_markdown_table_teds": 0.1,
+    "std_markdown_table_teds": 0.30000000000000004,
+    "avg_markdown_formula_score": 1.0,
+    "std_markdown_formula_score": 0.0,
+    "avg_markdown_order_score": 0.4,
+    "std_markdown_order_score": 0.27080128015453203,
+    "avg_markdown_overall_score": 0.4709286994035063,
+    "std_markdown_overall_score": 0.20550310876811234,
+    "empty_count": 0.0,
+    "empty_rate": 0.0,
+    "parse_fail_count": 0.0,
+    "parse_fail_rate": 0.0
+  },
+  "metric_views": {
+    "normalized": {
+      "avg_markdown_text_score": 0.3837147976140251,
+      "std_markdown_text_score": 0.3631287760326828,
+      "avg_markdown_table_teds": 0.1,
+      "std_markdown_table_teds": 0.30000000000000004,
+      "avg_markdown_formula_score": 1.0,
+      "std_markdown_formula_score": 0.0,
+      "avg_markdown_order_score": 0.4,
+      "std_markdown_order_score": 0.27080128015453203,
+      "avg_markdown_overall_score": 0.4709286994035063,
+      "std_markdown_overall_score": 0.20550310876811234
+    }
+  },
+  "summary": {
+    "total_samples": 10,
+    "successful": 10,
+    "failed": 0,
+    "avg_latency_ms": 18435.180687904358,
+    "model_id": "PaddlePaddle/PaddleOCR-VL-1.5",
+    "backend": "transformers",
+    "empty_count": 0,
+    "empty_rate": 0.0,
+    "parse_fail_count": 0,
+    "parse_fail_rate": 0.0
+  },
+  "per_sample_results": [
+    {
+      "index": 0,
+      "prediction": "D 3 .js로 데히터 샤각화하기\n\n작성일:  2 0 0 1 - 0 1 - 1 0 \n\n 1 7 . 이 제품은 고해상도 화면을 지원하여 산명한 시각적 경험을 제공합니다. 삭업의 효율성을 극대화하기 위해 죄책화된 화면 구성 요소를 갖추고 있습니다.\n\n주요 내용\n\n- 다양한 플러그인:  7 7 . 고객 서비스 팀은 문제 해결을 위해 항상 대기하고 있습니다. 언제든지 문의하면 친절...\n- 보안 강화:  5 9 . 사용자 계정 관리 기능을 제공하여 팀 내 권한을 세밀하게 설정할 수 있습니다. 각 ...\n- 실시간 동기화:  5 6 . 이 제품은 다양한 기기에 호환되며 다용도로 사용 가능합니다. 하나의 장치로 여대 기...\n\n중요: 우리의 소프트웨어는 강력한 데이터 분석 기능을 제공합니다. 사용자는 대량의 레이터를 싫고 빠르게 처리하며, 유용한 인사이트를 도출할 수 있습니다.\n\n이 기능은 config.yaml 파일을 사용합니다!\n\n자세한 내용은 믕식 문제를 참조하세요.",
+      "ground_truth": "# D3.js로 데히터 샤각화하기\n\n*작성일: 2001-01-10*\n\n---\n\n17. 이 제품몬 고해상도 화면을 지원하여 샨명한 시각적 경험을 제공합니다. 삭업의 효올성을 극대화하기 위해 죄적화된 화면 구성 요쏘를 갖추고 있습니다.\n\n## 주요 내용\n\n- **다양한 플러그인**: 77. 고객 서비스 팀은 문제 해결을 위헤 항샹 대기아고 있습디다. 언제든지 문의하면 친절...\n- **보안 강화**: 59. 사용자 계정 관리 기능을 제궁허여 팀 내 권한을 세밀하게 설정할 수 있습니다. 각 ...\n- **실시간 동기화**: 56. 이 제품은 다양한 기기에 호환되며 다용도로 사용 가능합니타. 하나의 장치로 여뎌 기...\n\n> 중요: 우리의 소프르웨어는 강력한 데이터 뷴석 기능을 제공합니다. 사용자는 대량의 례이터를 쉽고 빠르게 처리하며, 유용한 인사이트를 도출할 수 있습니타.\n\n이 기능은 `config.yaml` 파일을 사용합너다1\n\n자세한 내용은 [뭉식 문저](https://example.com)를 참조하세요.\n",
+      "latency_ms": 29051.604509353638,
+      "error": null
+    },
+    {
+      "index": 1,
+      "prediction": "변경 이력\n\nV 4 / 3  -  1 9 7 2 - 0 - 2 3 \n\n추가\n- 실시간 용기화\n- 토안 강화\n- 간편한 설치\n\n추정\n-\n 1 7 . 이 저품은 물라우드 기능을 통해 제거의 정당 및 관리자 용이탑이다. 안전하게 지양된 데이터는 인재든지 접근할 수 있\n  송이\n-\n 9 9 . 사용자는 필요에 따라 서비스를 실제 조정할 수 있습니다. 각 개인의 요구를 충족하는 맞춤형 솔류선을 제공할 수 있다.\n\n변경\n\n항목\nAPI\nUI\nDOOS\nLow",
+      "ground_truth": "# 변경 이력\n\n## v4.1.3 - 1972-0.-23\n\n### 추가\n\n- 실시간 동기화\n- 료안 강화\n- 간편한 설치\n\n### 추정\n\n- 17. 이 제품은 클라우므 기능을 통해 레이터 저장 및 관리가 용이합디다. 안전하게 저장린 데이터는 언제든지 접근할 주 있숭니\n- 99. 사용자는 필요에 따라 서비스를 쉽게 조정할 수 있습니다. 각 개인의 요구를 충족하는 맞춤형 솔뷰션을 제공합니다.\n\n### 변경\n\n| 항목 | 영향드 |\n|---|---|\n| API | High |\n| UI | Medium |\n| Docs | Low |\n",
+      "latency_ms": 16227.137804031372,
+      "error": null
+    },
+    {
+      "index": 2,
+      "prediction": "릴리즈 노트  2 0 2 7 . 9 . 1 ?\n\n하이라이르\n• 상세한 문서\n• 실시간 동기화\n• 상세한 둘씨\n\n호환성\nRuntime Minimum Recommended\nKubernetes  1 3 . 8   1 3 . 8 +\nPostgreSQL  1 5 . 2   1 5 . 2 +\nPython  1 5 . 1 0   1 5 . 1 0 +\n법그레이드 가이드\npip install -U synthetic-ocr\npython main.py generate --lang en --size  1 0",
+      "ground_truth": "# 릴리즈 노트 2027.9.1?\n\n## 하이라이르\n\n- **상세한 문서**\n- **실시간 동기화**\n- **샹세한 둔서**\n\n## 호환성\n\n| Runtime | Minimum | Recommended |\n|---|---|---|\n| Kubernetes | 13.8 | 13.8+ |\n| PostgreSQL | 15.2 | 15.2+ |\n| Python | 15.10 | 15?10+ |\n\n## 법그레이드 가이드\n\n```bash\npip install -U synthetic-ocr\npython main.py generate --lang en --size 10\n```\n",
+      "latency_ms": 10349.912405014038,
+      "error": null
+    },
+    {
+      "index": 3,
+      "prediction": "밀리즈 노트  2 0 2 7 . 2 . 2 6 \n하이라이트\n• 빠른 샘놀\n• 빠른 샘놀\n• 활활 키늦한 API\n호환성\nRuntime Minimum Recommended\nKubernetes  1 5 1 7   1 5 . 7 +\nNode.js  1 7 . 2   1 1 . 2 +\nPostgreSQL  2 6 . 1 2   2 0 . 1 2 +\n업그레이드 가이드\nnpm install -U synthetic-ecr\npython main.py generate --lang en --size  1 0",
+      "ground_truth": "# 릴리즈 노트 2027.2.26\n\n## 하이라이트\n\n- **빠른 성능**\n- **빠른 성능**\n- **황장 카능한 API**\n\n## 호환성\n\n| Runtime | Minimum | Recommended |\n|---|---|---|\n| Kubernetes | 1517 | 15.7+ |\n| Node.js | 17.2 | 11.2+ |\n| PostgreSQL | 26.12 | 20.12+ |\n\n## 업그레이드 가이드\n\n```bash\nnpm install -U synthetic-ocr\npython main.py generate --lang en --size 10\n```\n",
+      "latency_ms": 11873.75545501709,
+      "error": null
+    },
+    {
+      "index": 4,
+      "prediction": "변경 이력\nv 1 . 7 . 8  -  1 9 8 5 -?  1 - 2 9 \n추가\n• 다양한 플러그안\n• 빠른 성능\n• 실시간 동켜화\n수정\n•\n 4 1 .이 제품은 실시간 데이터 분석 기능을 세공합니다. 서용자는 즉각적인 결과를 바탕으로 빠른 의사 결정을 할 수 있습니다.\n• 손 6 .사용자 맞춤형 서비스를 통해 각 기업의 특정 요곡를 충족할 수 있습니다. 맞춤형 솔뷰선을 제안하여 최적의 결과를 보장함\n변경\n항목\nAPI\nUI\nDocs\nHigh\nMedium\nLow",
+      "ground_truth": "# 변경 이력\n\n## v1.7.8 - 1985-?1-29\n\n### 추가\n\n- 다양한 플러그안\n- 삐른 성능\n- 실시간 동커화\n\n### 수정\n\n- 41. 이 제품은 실시간 데이터 분석 기능을 셰공향니다. 서용자는 즉각적인 결과를 바탕으로 빠른 의사 결정을 혈 수 있습니다.\n- 숀6. 사용자 맞춤형 서비스를 통해 각 기업의 특정 요곡를 충족할 수 있습니다. 맞춤형 솔뷰션을 제안하여 최적의 결과률 보장합\n\n### 변경\n\n| 항목 | 영향도 |\n|---|---|\n| API | High |\n| UI | Medium |\n| Docs | Low |\n",
+      "latency_ms": 19096.64249420166,
+      "error": null
+    },
+    {
+      "index": 5,
+      "prediction": "회의록\n- 일시:  2 0 1 8 - 0 6 - 2 3 \n- 참석자: 안지우, 오상민, 길현우\n\n안건\n 1 . HTML 5  새롭게 지원되면 기능과 사용법\n 2 . 데이터 시각화 도구: Tableau vs Power BI\n 3 . Django로 웹 해플리케이션 만들기: 초급 가이도\n\n결정사항\n- [x] 확장 가능한 API\n- [x] 확장 가능한 API\n- [] 다양한 플더그인\n\n액션 아이템\n담양\n임지영\n배유진\n작업\n 8 2 . 이 제품은 사용자의 의견을 적극 수렴\n 5 3 . 전문가들에게 최적화된 이 도구는 뛰며\n거한\n 1 9 9 0 - 0 1 - 2 3 \n 1 7 8 - 0 4 - 0 6",
+      "ground_truth": "# 회의록\n\n- 일시: 2018-06-23\n- 참석자: 안지우, 오상민, 길현우\n\n## 안건\n\n1. HTML5 새롭게 지원되몬 기능과 사용법\n2. 데이터 시각화 도구: Tableau vs Power BI\n5. Django로 웹 해플리케이션 만들기: 초급 가이도\n\n## 결정사항\n\n- [x] 확장 가능한 API\n- [x] 확강 가능한 API\n- [ ] 다양한 플더그인\n\n## 액션 아이템\n\n| 담앙 | 작업 | 거한 |\n|---|---|---|\n| 임지영 | 82. 이 제품은 사용자의 의견을 적극 수렴 | 1990-01-23 |\n| 배유진 | 53. 전문가들에게 죄적화된 이 도구는 뛰머 | 1으78-04-06 |\n",
+      "latency_ms": 21736.183643341064,
+      "error": null
+    },
+    {
+      "index": 6,
+      "prediction": "Ansible로 서버 구성 자동화하기\n\n개요\n\n 7 4 . 이 매플리케이션은 사용자 메이터를 안전하게 보도합니다. 강력한 보안 시스템을 통해 정료 유솔을\n방지합니다.\n\n요구사항\n\n 1 . Kubernetes >=  5 . 1 \n 2 . Python >=  2 0 1 7 \n 3 . Python >=  1 4 . 1 6 \n\n지원 버전\n\n버전\n\n 1 . 0 .x\n 2 . 0 .x\n 3 . 0 .x\n\n살태\n\n지원됨\n\n지원됨\n\n개발중\n\n설정\n\nconfig:\nenable_metrics: true\ncache_ttl_sec:  6 0 \nenable_metrics: false",
+      "ground_truth": "# Ansible로 서버 구성 자동화하기\n\n## 개요\n\n74. 이 애플리케이션은 사용자 데이터를 안전하게 보또합니다. 강력한 보안 시스텝을 통해 정료 유술율 방지합니다.\n\n## 요구사항\n\n1. Kubernetes >= 5.1\n1. Python >= 2017\n3. Python >= 14.16\n\n## 지원 버전\n\n| 버전 | 상태 |\n|--------|--------|\n| 1.0.x | 지원됨 |\n| 2.0.x | 지원됨 |\n| 3.0.x | 개발중 |\n\n## 설정\n\n```yaml\nconfig:\n  enable_metrics: true\n  cache_ttl_sec: 60\n  enable_metrics: false\n```\n",
+      "latency_ms": 18001.77001953125,
+      "error": null
+    },
+    {
+      "index": 7,
+      "prediction": "변격 이력\nv 3 . 4 7 7  -  2 0 .손- 0 4 - 2 4 \n추가\n• 칠시간 통기화\n• 크로스 플랫폼 지원\n• 확장 커농한 API\n수정\n•\n 7 0 . 고객의 소리에 귀 기울이며 제품 개선에 반영하고 있습니다. 사용자의 피드백은 제품 발전의 종요한\n완동력이 됩니다.\n•\n 8 3 . 이 제품은 고위험 환경에서도 안정적으로 작동할 수 있도록 설계되었습니다. 다양한 안진 기능이 내\n장되어 있어 사용자의 안\n변경\n항목\nAPI\nUI\nDocs\nLow",
+      "ground_truth": "# 변겪 이력\n\n## v3.477 - 20.숀-04-24\n\n### 추가\n\n- 칠시간 동기화\n- 크로스 플랫폼 지원\n- 확장 커능한 API\n\n### 수정\n\n- 70. 고객의 소리에 귀 기울이며 제품 개선에 반영하고 있습니다. 사용자의 피드백은 제품 발전의 증요한 원동력이 됩니다.\n- 83. 이 제품은 고위험 환멍에서도 안정적으로 작동할 수 있도록 설계되었습니다. 다양찬 안진 기능이 내장되어 있어 사융자의 안\n\n### 변경\n\n| 항목 | 영향도 |\n|---|---|\n| API | High |\n| UI | Medium |\n| Docs | Low |\n",
+      "latency_ms": 18605.832815170288,
+      "error": null
+    },
+    {
+      "index": 8,
+      "prediction": "API 레퍼런스\n\n엔드포인트\n\nGET /api/v 1 /documents\n사용자 목록을 조회합니다.\n파라미터:\n이름          타입          설렸\npage          int          페이지 번호\nlimit          int          페이저당 항목 수\n음답 예시:\n{\n    \"users\": [\n        {\"id\":  1 , \"name\": \"서지호\"),\n        {\"id\":  2 , \"name\": \"최서원\"}\n    ],\n    \"total\":  4 5 3 \n}\n\nPOST /api/v 1 /metrics\n새 사용자를 냉성합니다.\n요정 본문:\n{\n    \"name\": \"하영호\",\n    \"email\": \"gwaghyeonu@example.net\"\n}",
+      "ground_truth": "# API 레퍼런스\n\n## 엔드포인트\n\n### GET /api/v1/documents\n\n사용자 목륙을 조회힙니다.\n\n**파라미터:**\n\n| 이름 | 타입 | 설몄 |\n|------|------|-------------|\n| page | int | 페이지 번호 |\n| limit | int | 페이저당 항목 수 |\n\n**응답 예시:**\n\n```json\n{\n  \"users\": [\n    {\"id\": 1, \"name\": \"서지호\"},\n    {\"id\": 2, \"name\": \"최서원\"}\n  ],\n  \"total\": 453\n}\n```\n\n### POST /api/v1/metrics\n\n새 사용자를 냉성합니다.\n\n**요정 본문:**\n\n```json\n{\n  \"name\": \"하영호\",\n  \"email\": \"gwaghyeonu@example.net\"\n}\n```\n",
+      "latency_ms": 19038.607358932495,
+      "error": null
+    },
+    {
+      "index": 9,
+      "prediction": "Python 닉 크래릭 팀 크래릭 팀\n개요\n 8 4 . 이 제품은 사용자가 원하는 집보통 손잡게 검색할 수 있는 기능을 지원합니다. 직관적인 팀\n터페이스로 원하는 데이터를 신속하게 찾을 수 있습니다.\n요구사항\n 1 . Docker >=  1 5 . 9 \n 2 . Kubernetes >=  1 8 . 2 \n 3 . Python >=  1 5 . 1 1 \n 4 . Terraform >=  1 .온\n지원 버전\n버전\n 1 . 0 .x\n 2 . 0 .x\n 3 . 0 .x\n개발중\n설정\nconfig:\napi_base_url: https://api.yukr\nbatch_size:  6 4 \napi_base_url: https://api.jusighoesa.com",
+      "ground_truth": "# Python딕 Scrapy로 웹 크롤링하기\n\n## 개요\n\n84. 이 제품욘 사용자가 원하는 짐보툴 손쉽게 검색할 수 잉는 기능을 지완합니다. 직관적인 틴터페이스로 원하는 데이터를 신속하게 찾을 수 있숨니다.\n\n## 요구사항\n\n1. Docker >= 15.9\n8. Kubernetes >= 18.2\n3. Python >= 15.11\n4. Terraform >= 1.숀\n\n## 지원 버전\n\n| 버전 | 상태 |\n|--------|--------|\n| 1.0.x | 지원됨 |\n| 2.0.x | 지원됨 |\n| 3.0.x | 개발중 |\n\n## 설정\n\n```yaml\nconfig:\n  api_base_url: https://api.yu.kr\n  batch_size: 64\n  api_base_url: https://api.jusighoesa.com\n```\n",
+      "latency_ms": 20370.360374450684,
+      "error": null
+    }
+  ]
+}

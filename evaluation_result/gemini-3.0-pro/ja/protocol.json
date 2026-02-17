@@ -1,0 +1,74 @@
+{
+  "protocol_version": "1.0",
+  "timestamp": "2026-02-17T14:53:09.790395Z",
+  "command": "evaluate",
+  "report_format": "all",
+  "config": {
+    "dataset_id": "junyeong-nero/synthetic-ocr-images-ja",
+    "split": "test",
+    "language": "ja",
+    "format": "markdown",
+    "batch_size": 1,
+    "max_samples": 10,
+    "prompt": "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary.",
+    "system_prompt": null,
+    "prompt_source": "model_config",
+    "seed": null,
+    "batch_api": false,
+    "batch_poll_seconds": 60,
+    "batch_timeout_seconds": 86400,
+    "batch_completion_window": "24h",
+    "execution_mode": "all",
+    "dataset_fingerprint": "e2d90e381366e92b",
+    "dataset_info": {
+      "builder_name": "parquet",
+      "version": "0.0.0",
+      "features": [
+        "image",
+        "template",
+        "GT_markdown",
+        "GT_json",
+        "similar_char_mutations"
+      ]
+    },
+    "environment": {
+      "python": "3.11.13",
+      "platform": "macOS-26.3-arm64-arm-64bit",
+      "machine": "arm64",
+      "packages": {
+        "torch": "2.6.0",
+        "transformers": "4.46.3",
+        "datasets": "4.5.0",
+        "numpy": "2.2.6",
+        "pandas": "2.3.3",
+        "uv": null
+      },
+      "torch": {
+        "cuda_available": false,
+        "mps_available": true
+      }
+    },
+    "model_config_path": "/Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/gemini-3.0-pro.yaml",
+    "model": {
+      "model_id": "gemini-3.0-pro",
+      "backend": "google",
+      "temperature": 0.0,
+      "max_tokens": 1024
+    }
+  },
+  "summary": {
+    "total_samples": 10,
+    "successful": 0,
+    "failed": 10,
+    "avg_latency_ms": 0.0,
+    "model_id": "gemini-3.0-pro",
+    "backend": "google",
+    "empty_count": 10,
+    "empty_rate": 1.0,
+    "parse_fail_count": 0,
+    "parse_fail_rate": 0.0
+  },
+  "prompt": "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary.",
+  "prompt_source": "model_config",
+  "system_prompt": null
+}

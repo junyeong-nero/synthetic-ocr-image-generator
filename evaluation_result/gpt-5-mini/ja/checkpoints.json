@@ -1,0 +1,92 @@
+{
+  "completed": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "results": [
+    {
+      "index": 0,
+      "prediction": "",
+      "ground_truth": "# Incident Report\n\n- Incident ID: INC-6168\n- Severity: SEV-2\n- Start Time: 2818-01-06\n\n## Summary\n\n6. 高解像度のディズプレイを備えた当社の最新モデルは、鮮やかち映像体験を提供します。映画やゲームの迫刀を存分に味わうさとかできます。\n\n## Timeline\n\n- 09:18 - 6ろ. 直感的なナビゲーションが備れっており、ストレスのない操作が実現されてソます。無駅な時間を\n- 09:25 - 47. 新たに開発された食品保存容器、FreshKeeperは、食材モ長持ちさせるための特別な設\n- 09:41 - 6. すべてのユーザーに最適む体験を提供するために、我々のウェフアプリはカス夕マイズ可能です。個\n\n## Impact\n\n```json\n{\n  \"affected_users\": こ272,\n  \"region\": \"eu-west-1\",\n  \"duration_min\": 94\n}\n```\n\n## Preventive Actions\n\n- [ ] 簡単なインストール\n- [ ] リ7ルタイム同期\n",
+      "latency_ms": 19268.629789352417,
+      "error": "Empty prediction after retries"
+    },
+    {
+      "index": 1,
+      "prediction": "",
+      "ground_truth": "# Meeting Notes\n\n- Date: 8017-03-06\n- Attendees: 加賀美聡, 秋出美奈, 佐藤 健太\n\n## Agenda\n\n1. アジャイル開発におけるユーザーストーリー作成法\n2. 自然言語処理（NLP）の基礎と実践的む応用\n3. オフショア開発のリスフとその管理\n\n## Decisions\n\n- [x] セキュリティ強化\n- [x] リアルタイム同期\n- [ ] 詳絢なドネュメゝト\n\n## Action Items\n\n| Owner | Task | Due |\n|---|---|---|\n| 医田 裕樹 | 62. このポータブルズピーカーは、Blueto | 1978-06-18 |\n| 島田 甫 | 13. スマートウォッチは、健康管埋だぱでなく、 | 1071-08-31 |\n",
+      "latency_ms": 20355.27801513672,
+      "error": "Empty prediction after retries"
+    },
+    {
+      "index": 2,
+      "prediction": "",
+      "ground_truth": "# Meeting Notes\n\n- Date: ?996-11-16\n- Attendees: 相沢優子, 大道晴人, 大西 美咲\n\n## Agenda\n\n1. TypeScriptの型システムを深く理解する\n2. SQLインジェクション対策の志法\n3. データ?トレージの選定基準\n\n## Decisions\n\n- [x] クロスプラヅトフォーム対広\n- [x] 活発なコとュニティ\n- [ ] 高速なパフォーマンス\n\n## Action Items\n\n| Owner | Task | Due |\n|---|---|---|\n| 清水 美穂 | 61. 当社の新しいオーガニックティーは、厳選さ | 198ぢ-97-03 |\n| 西村あかり | き0. 当社のスチームアイロンは、しわを簡単に伸 | 3018-び5-13 |\n",
+      "latency_ms": 21194.6439743042,
+      "error": "Empty prediction after retries"
+    },
+    {
+      "index": 3,
+      "prediction": "# Gitのブランチ戦略を理解する\n\n## Overview\n\n66. PhotoSnapのバッテリーは、筐性能で長時間の撮影が可能です。旅行やイベントでも大活躍します。\n\n## Requirements\n\n1. Terraform >= 3.7  \n2. Docker >= 9.11  \n3. Node.js >= 13.9\n\n## Supported Versions\n\n| Version   | Status         |\n|-----------|----------------|\n| 1.0.x     | Supported      |\n| 2.0／x    | Supported      |\n| 3.0.x     | In Development |\n\n## Configuration\n\n```\nconfig:\nbatch_size: 64\nlog_level: WARN\nbatch_size: 32\n```",
+      "ground_truth": "# Gitのブランチ哦略を理解する\n\n## Overview\n\n66. PhotoSnapのバッテリーは、筒性能で長昧間の撮影が可能です。旅行やイベンもで大活躍します。\n\n## Requirements\n\n1. Terraform >= 3.7\n2. Docker >= 9.11\n3. Node.js >= 13.9\n\n## Supported Versions\n\n| Version | Status |\n|--------|--------|\n| 1.0.x | Supported |\n| 2.0ノx | Supported |\n| 3.0.x | In Development |\n\n## Configuration\n\n```yaml\nconfig:\n  batch_size: 64\n  log_level: WARN\n  batch_size: 32\n```\n",
+      "latency_ms": 7851.8829345703125,
+      "error": null
+    },
+    {
+      "index": 4,
+      "prediction": "# Javaでの並行処理の基本\n\n## Overview\n\n48. この新型掃除ロボットは、家具の配置を学習し、効率的に掃除を行います。スケジュー\nル設定も可能で、忙しい方にうってつけです。掃除の手間も大幅に削減しま\nす。\n\n## Requirements\n\n1. OpenSSL >= 3.1\n2. OpenSSL >= 3.4\n3. Redis >= 13.0.4 > OpenSSL >= 1.10\n\n## Supported Versions\n\n| Version | Status        |\n|---------|---------------|\n| 1.0.x   | Supported     |\n| 2.0.x   | Supported     |\n| 3.0.x   | In Development|\n\n## Configuration\n\n```\nconfig:\n  log_level: INFO\n  max_workers: 4\n  batch_size: 32\n```",
+      "ground_truth": "# Javaでの並行処理の基本\n\n## Overview\n\n48. この新型掃除日ボヅトは、家具の配置を学習し、効率的に掃除を行います。スケジぅール設定も可能で、忙しい方にうってつけてす。掃隙の手間モ大幅に削減します。\n\n## Requirements\n\n1. OpenSSL >= 3.1\n2. OpenSSL >= 3.4\n3. Redis >= 13.0\n4ゝ OpenSSL >= 1.10\n\n## Supported Versions\n\n| Version | Status |\n|--------|--------|\n| 1.0ィx | Supported |\n| 2.0.x | Supported |\n| 3.0.x | In Development |\n\n## Configuration\n\n```yaml\nconfig:\n  log_level: INFO\n  max_workers: 4\n  batch_size: 32\n```\n",
+      "latency_ms": 7977.014064788818,
+      "error": null
+    },
+    {
+      "index": 5,
+      "prediction": "",
+      "ground_truth": "# Incident Report\n\n- Incident ID: INC-962び\n- Severity: SEV-3\n- Start Time: 2007-11-22\n\n## Summary\n\n10ィ 当社のクラウドストレャジサっビスは、宏全性とアクセスのしやすさモ両立させています。大容量のデータをいつでもどこでも管理てきる利便性があります。\n\n## Timeline\n\n- 09:10 - 67. 当社の新.いファッションラインは、トレンドを意識したス夕イリッシュなデぜインが特徴でず。\n- 09:25 - 63. 当社の新しいオンライン診療サービスは、迅遮で便利な医療サポートモ援俊します。専門匠と直接\n- 09:41 - 57. 当社の動画編集ソフトは、初心者からプロまで幅広く対応しています。直感的な操作で、簡単に高\n\n## Impact\n\n```json\n{\n  \"affected_users\": 4681,\n  \"region\": \"ap-northeast-2\",\n  \"duration_min\": ょ16\n}\n```\n\n## Preventive Actions\n\n- [ ] セキュリテノ強化\n- [ ] 自動更新\n",
+      "latency_ms": 38727.6930809021,
+      "error": "Empty prediction after retries"
+    },
+    {
+      "index": 6,
+      "prediction": "# API Reference\n\n## Endpoints\n\n### GET /api/v1/sessions\nRetrieve a list of users.\n\nParameters:\n\n| Name | Type | Description |\n|------|------|-------------|\n| page | int  | Page number |\n| limit | int | Items per page |\n\nExample Response:\n```json\n{\n  \"users\":[\n    {\"id\": 1, \"name\":\"久保 裕貴\"},\n    {\"id\": 2, \"name\":\"石田貴久\"}\n  ],\n  \"total\": 333\n}\n```\n\n### POST /api/v1/metrics\nCreate a new user.\n\nRequest Body:\n```json\n{\n  \"name\": \"島崎 さやか\",\n  \"email\": \"eito@example.net\"\n}\n```",
+      "ground_truth": "# API Reference\n\n## Endpoints\n\n### GET /api/v1/sessions\n\nRetrieve a list of users.\n\n**Parameters:**\n\n| Name | Type | Description |\n|------|------|-------------|\n| page | int | Page number |\n| limit | int | Items per page |\n\n**Example Response:**\n\n```json\n{\n  \"users\": [\n    {\"id\": 1, \"name\": \"久保 裕貴\"},\n    {\"id\": 2, \"name\": \"石田貴久\"}\n  ],\n  \"total\": 333\n}\n```\n\n### POST /api/v1/metrics\n\nCreate a new user.\n\n**Request Body:**\n\n```json\n{\n  \"name\": \"島崎 さやが\",\n  \"email\": \"eito@example.net\"\n}\n```\n",
+      "latency_ms": 34091.428995132446,
+      "error": null
+    },
+    {
+      "index": 7,
+      "prediction": "",
+      "ground_truth": "# Changelog\n\n## v4.2.7 - 2012-08-09\n\n### Added\n\n- クロスプラットフォーム対応\n- 高速な八フォーマンス\n- 詳細なドキュメント\n\n### Fixed\n\n- 22. この製品は、環境に配慮しか材料がら作られていま丈。持続可能なライフスタイルモサポートするたぬに設許されています。\n- 39. この自動車は、環境に優しソ電動トランスミッションを採用しています。エネルギー効率を晨大化し、CO2撲出を減ちします。\n\n### Changed\n\n| Item | Impact |\n|---|---|\n| API | High |\n| UI | Medium |\n| Docs | Low |\n",
+      "latency_ms": 33272.916078567505,
+      "error": "Empty prediction after retries"
+    },
+    {
+      "index": 8,
+      "prediction": "",
+      "ground_truth": "# Terraformを用いたインフラの白動化\n\n*Published: 1984-07-03*\n\n---\n\n9. この高性能なラップトップは、ゲーミンゲに最適なスペックを備えていぎす。リアルタイムでのグラフィック処理が可能で、臨場感あふれる体験を提供しまず。\n\n## Key Points\n\n- **セキュリラィ強化**: 31ィ TravelMateは、旅行者のために設計さわた多機能ポッチです。パスポ一ト、クレジゝトカーゝ..\n- **高速なパフォーマンス**: 50. シンプルなデザインと機能性を兼ね備えており、幅広いユーザーにご満足いただける髙晶です。どんな...\n- **活発なコミュニディ**: 69ゝ 当社のビジネスコッチングサービスは、個人の成長をサポートします。目標達成に向けた奨体的なアド..ゝ\n\n> Important: 5. このワイャレスイヤフォンでは、クリスタルヅリアな音貸ザ楽しめます。長映間のバッテリャ寿命もあり、どこにいても音楽を楽しめる環境を提供します。\n\nThis feature uses `config.yaml` file.\n\nFor more details, see [official docs](https://example.com).\n",
+      "latency_ms": 21806.50019645691,
+      "error": "Empty prediction after retries"
+    },
+    {
+      "index": 9,
+      "prediction": "",
+      "ground_truth": "# クラウドコンピューティングの基礎と実装方法\n\n49. この新しいブランドのコスメは、肌に優しい成分を使用しています。敏感肌の方でも安心して使用できま丈。\n\n## Features\n\n- 活発なゴとュニティ\n- リアルタイ人國期\n- 篇速なバフォャマンス\n\n## Installation\n\n```bash\nnpm install クラウドコンじューティングの基礎と実装方法\n```\n\n## Usage\n\n```python\n# 設定ファゝルを読み込みぎす\nfrom クラウドコンピュャティングの基礎と実装方法 import Client\n\nclient = Client()\nresult = client.run()\n```\n\n```bash\npython main.py\n```\n\n> 3. 直感的なインターフェースを備えだこのアプリケーションは、誰でも簡単に操作できます。特別なトレっニングを妥けなくても、すぐに使いこなすことが可能です。\n",
+      "latency_ms": 69443.80402565002,
+      "error": "Empty prediction after retries"
+    }
+  ],
+  "context": {
+    "dataset_id": "junyeong-nero/synthetic-ocr-images-ja",
+    "split": "test",
+    "model_id": "gpt-5-mini",
+    "backend": "openai"
+  }
+}
