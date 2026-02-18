@@ -10,4 +10,5 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
     --repo-id "junyeong-nero/synthetic-ocr-images-en" \
     --lang "en" \
     --size 1000 \
-    --label "English"
+    --label "English" \
+    "$@"
