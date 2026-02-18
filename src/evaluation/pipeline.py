@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from datasets import Dataset, load_dataset
 
+from evaluation.checkpoint import build_checkpoint_context, resolve_checkpoint_path
 from evaluation.config import (
     DEFAULT_PROMPT,
     EvaluationConfig,
@@ -51,10 +52,8 @@ class EvaluationPipeline:
 
     def _load_checkpoint_results(self) -> List[InferenceResult]:
         output_dir = Path(self.config.output_dir)
-        checkpoint_path = output_dir / "checkpoints.json"
-        legacy_path = output_dir / "checkpoint.json"
-        checkpoint_to_load = checkpoint_path if checkpoint_path.exists() else legacy_path
-        if not checkpoint_to_load.exists():
+        checkpoint_to_load = resolve_checkpoint_path(output_dir)
+        if checkpoint_to_load is None:
             raise FileNotFoundError(
                 f"Checkpoint file not found in {output_dir}. "
                 "Run with --inference-only first or use full evaluation mode."
@@ -65,12 +64,7 @@ class EvaluationPipeline:
         except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
             raise RuntimeError(f"Failed to load checkpoint {checkpoint_to_load}: {exc}") from exc
 
-        expected_context = {
-            "dataset_id": self.config.dataset_id,
-            "split": self.config.split,
-            "model_id": self.config.model.model_id,
-            "backend": self.config.model.backend.value,
-        }
+        expected_context = build_checkpoint_context(self.config)
         if state.context and state.context != expected_context:
             raise RuntimeError(
                 "Checkpoint context mismatch. "

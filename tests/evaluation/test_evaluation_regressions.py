@@ -6,6 +6,7 @@ import pytest
 from PIL import Image
 
 from evaluation.config import EvaluationConfig, EvaluationMode, InferenceBackend, ModelConfig
+from evaluation.checkpoint import build_checkpoint_context, resolve_checkpoint_path
 from evaluation.pipeline import EvaluationPipeline
 from evaluation.runner import EvaluationRunner
 from evaluation.strategies import MarkdownEvaluator
@@ -40,6 +41,24 @@ class FixedBatchModel:
         }
 
 
+class RetryThenSuccessModel:
+    def __init__(self):
+        self.sync_calls = 0
+        self.async_calls = 0
+
+    def run(self, prompts, images):
+        self.sync_calls += 1
+        if self.sync_calls == 1:
+            return [""] * len(prompts)
+        return ["ok"] * len(prompts)
+
+    async def run_async(self, prompts, images):
+        self.async_calls += 1
+        if self.async_calls == 1:
+            return [""] * len(prompts)
+        return ["ok"] * len(prompts)
+
+
 def make_config(tmp_path: Path) -> EvaluationConfig:
     return EvaluationConfig(
         dataset_id="dummy-dataset",
@@ -49,6 +68,28 @@ def make_config(tmp_path: Path) -> EvaluationConfig:
         output_dir=str(tmp_path),
         resume_from_checkpoint=True,
     )
+
+
+def test_checkpoint_helpers_build_context_and_resolve_path(tmp_path: Path) -> None:
+    config = make_config(tmp_path)
+    expected = {
+        "dataset_id": "dummy-dataset",
+        "split": "train",
+        "model_id": "dummy-model",
+        "backend": "openai",
+    }
+    assert build_checkpoint_context(config) == expected
+
+    legacy_path = tmp_path / "checkpoint.json"
+    plural_path = tmp_path / "checkpoints.json"
+
+    assert resolve_checkpoint_path(tmp_path) is None
+
+    legacy_path.write_text("{}", encoding="utf-8")
+    assert resolve_checkpoint_path(tmp_path) == legacy_path
+
+    plural_path.write_text("{}", encoding="utf-8")
+    assert resolve_checkpoint_path(tmp_path) == plural_path
 
 
 def test_runner_ignores_checkpoint_from_different_context(tmp_path: Path) -> None:
@@ -135,6 +176,44 @@ def test_runner_batch_api_ignores_invalid_batch_metadata_and_submits_new_batch(
     assert len(results) == 1
     assert results[0].prediction == "predicted"
     assert results[0].error is None
+
+
+def test_runner_empty_prediction_retry_uses_sync_model_retry_path(tmp_path: Path) -> None:
+    config = make_config(tmp_path).model_copy(update={"batch_size": 1})
+    model = RetryThenSuccessModel()
+    runner = EvaluationRunner(config, model)
+    runner._empty_prediction_max_retries = 2
+    runner._empty_prediction_retry_backoff_seconds = 0
+
+    images = [Image.new("RGB", (4, 4))]
+    ground_truths = ["gt"]
+    prompts = ["prompt"]
+
+    results = runner.run(images, ground_truths, prompts)
+
+    assert len(results) == 1
+    assert results[0].prediction == "ok"
+    assert results[0].error is None
+    assert model.sync_calls == 2
+
+
+def test_runner_empty_prediction_retry_uses_async_model_retry_path(tmp_path: Path) -> None:
+    config = make_config(tmp_path).model_copy(update={"batch_size": 1})
+    model = RetryThenSuccessModel()
+    runner = EvaluationRunner(config, model)
+    runner._empty_prediction_max_retries = 2
+    runner._empty_prediction_retry_backoff_seconds = 0
+
+    images = [Image.new("RGB", (4, 4))]
+    ground_truths = ["gt"]
+    prompts = ["prompt"]
+
+    results = asyncio.run(runner.run_async(images, ground_truths, prompts))
+
+    assert len(results) == 1
+    assert results[0].prediction == "ok"
+    assert results[0].error is None
+    assert model.async_calls == 2
 
 
 def test_pipeline_compute_metrics_skips_none_predictions(

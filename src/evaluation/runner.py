@@ -4,11 +4,12 @@ import asyncio
 import json
 import time
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 from PIL import Image
 from tqdm import tqdm
 
+from evaluation.checkpoint import build_checkpoint_context, resolve_checkpoint_path
 from evaluation.config import EvaluationConfig, InferenceBackend
 from evaluation.types import InferenceResult, RunnerState
 from models.base import VLMModel
@@ -40,7 +41,6 @@ class EvaluationRunner:
         self.output_dir = Path(config.output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.checkpoint_path = self.output_dir / "checkpoints.json"
-        self.legacy_checkpoint_path = self.output_dir / "checkpoint.json"
 
         # Load or create state
         self.state = self._load_or_create_state()
@@ -78,6 +78,50 @@ class EvaluationRunner:
             return True
         return isinstance(prediction, str) and prediction.strip() == ""
 
+    def _empty_prediction_positions(self, predictions: list[str]) -> list[int]:
+        return [
+            index
+            for index, prediction in enumerate(predictions)
+            if self._is_empty_prediction(prediction)
+        ]
+
+    @staticmethod
+    def _prepare_retry_batch(
+        empty_positions: list[int],
+        batch_prompts: list[str],
+        batch_images: list[Image.Image],
+    ) -> tuple[list[str], list[Image.Image]]:
+        retry_prompts = [batch_prompts[position] for position in empty_positions]
+        retry_images = [batch_images[position] for position in empty_positions]
+        return retry_prompts, retry_images
+
+    @staticmethod
+    def _finalize_retry_errors(
+        predictions: list[str],
+        errors: dict[int, str],
+        is_empty: Callable[[Any], bool],
+    ) -> dict[int, str]:
+        for position, prediction in enumerate(predictions):
+            if is_empty(prediction):
+                errors[position] = errors.get(position) or "Empty prediction after retries"
+        return errors
+
+    @staticmethod
+    def _apply_retry_results(
+        current_predictions: list[str],
+        empty_positions: list[int],
+        retried_predictions: list[str],
+        errors: dict[int, str],
+    ) -> bool:
+        if len(retried_predictions) != len(empty_positions):
+            for position in empty_positions:
+                errors[position] = "Empty prediction retry returned mismatched batch size"
+            return False
+
+        for position, retry_prediction in zip(empty_positions, retried_predictions):
+            current_predictions[position] = retry_prediction
+        return True
+
     async def _retry_empty_predictions_async(
         self,
         predictions: list[str],
@@ -88,14 +132,15 @@ class EvaluationRunner:
         current = list(predictions)
 
         for attempt in range(1, self._empty_prediction_max_retries + 1):
-            empty_positions = [
-                pos for pos, pred in enumerate(current) if self._is_empty_prediction(pred)
-            ]
+            empty_positions = self._empty_prediction_positions(current)
             if not empty_positions:
                 break
 
-            retry_prompts = [batch_prompts[pos] for pos in empty_positions]
-            retry_images = [batch_images[pos] for pos in empty_positions]
+            retry_prompts, retry_images = self._prepare_retry_batch(
+                empty_positions,
+                batch_prompts,
+                batch_images,
+            )
 
             try:
                 if hasattr(self.model, "run_async"):
@@ -104,30 +149,20 @@ class EvaluationRunner:
                     retried = self.model.run(retry_prompts, retry_images)
                 retried_list = self._normalize_predictions(retried)
             except Exception as exc:
-                for pos in empty_positions:
-                    errors[pos] = f"Empty prediction retry failed: {exc}"
+                for position in empty_positions:
+                    errors[position] = f"Empty prediction retry failed: {exc}"
                 break
 
-            if len(retried_list) != len(empty_positions):
-                for pos in empty_positions:
-                    errors[pos] = (
-                        "Empty prediction retry returned mismatched batch size"
-                    )
+            if not self._apply_retry_results(current, empty_positions, retried_list, errors):
                 break
-
-            for pos, retried_pred in zip(empty_positions, retried_list):
-                current[pos] = retried_pred
 
             if attempt < self._empty_prediction_max_retries:
                 await asyncio.sleep(
                     self._empty_prediction_retry_backoff_seconds * attempt
                 )
 
-        for pos, pred in enumerate(current):
-            if self._is_empty_prediction(pred):
-                errors[pos] = errors.get(pos) or "Empty prediction after retries"
-
-        return current, errors
+        finalized_errors = self._finalize_retry_errors(current, errors, self._is_empty_prediction)
+        return current, finalized_errors
 
     def _retry_empty_predictions_sync(
         self,
@@ -139,56 +174,40 @@ class EvaluationRunner:
         current = list(predictions)
 
         for attempt in range(1, self._empty_prediction_max_retries + 1):
-            empty_positions = [
-                pos for pos, pred in enumerate(current) if self._is_empty_prediction(pred)
-            ]
+            empty_positions = self._empty_prediction_positions(current)
             if not empty_positions:
                 break
 
-            retry_prompts = [batch_prompts[pos] for pos in empty_positions]
-            retry_images = [batch_images[pos] for pos in empty_positions]
+            retry_prompts, retry_images = self._prepare_retry_batch(
+                empty_positions,
+                batch_prompts,
+                batch_images,
+            )
 
             try:
                 retried = self.model.run(retry_prompts, retry_images)
                 retried_list = self._normalize_predictions(retried)
             except Exception as exc:
-                for pos in empty_positions:
-                    errors[pos] = f"Empty prediction retry failed: {exc}"
+                for position in empty_positions:
+                    errors[position] = f"Empty prediction retry failed: {exc}"
                 break
 
-            if len(retried_list) != len(empty_positions):
-                for pos in empty_positions:
-                    errors[pos] = (
-                        "Empty prediction retry returned mismatched batch size"
-                    )
+            if not self._apply_retry_results(current, empty_positions, retried_list, errors):
                 break
-
-            for pos, retried_pred in zip(empty_positions, retried_list):
-                current[pos] = retried_pred
 
             if attempt < self._empty_prediction_max_retries:
                 time.sleep(self._empty_prediction_retry_backoff_seconds * attempt)
 
-        for pos, pred in enumerate(current):
-            if self._is_empty_prediction(pred):
-                errors[pos] = errors.get(pos) or "Empty prediction after retries"
-
-        return current, errors
+        finalized_errors = self._finalize_retry_errors(current, errors, self._is_empty_prediction)
+        return current, finalized_errors
 
     def _checkpoint_context(self) -> dict[str, Any]:
-        return {
-            "dataset_id": self.config.dataset_id,
-            "split": self.config.split,
-            "model_id": self.config.model.model_id,
-            "backend": self.config.model.backend.value,
-        }
+        return build_checkpoint_context(self.config)
 
     def _load_or_create_state(self) -> RunnerState:
         """Load checkpoint if exists and resuming is enabled."""
         expected_context = self._checkpoint_context()
-        checkpoint_to_load = self.checkpoint_path
-        if not checkpoint_to_load.exists() and self.legacy_checkpoint_path.exists():
-            checkpoint_to_load = self.legacy_checkpoint_path
+        checkpoint_to_load = resolve_checkpoint_path(self.output_dir) or self.checkpoint_path
 
         if self.config.resume_from_checkpoint and checkpoint_to_load.exists():
             try:
