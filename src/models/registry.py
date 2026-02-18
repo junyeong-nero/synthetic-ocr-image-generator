@@ -1,5 +1,6 @@
 """Model registry and factory for VLM models."""
 
+from importlib import import_module
 from typing import Any, Dict, Optional, Type, cast
 
 from evaluation.config import InferenceBackend, ModelConfig
@@ -42,6 +43,21 @@ BACKEND_DISPLAY_NAMES: Dict[InferenceBackend, str] = {
     InferenceBackend.SURYA: "Surya OCR",
 }
 
+BACKEND_MODEL_IMPORTS: Dict[InferenceBackend, tuple[str, str]] = {
+    InferenceBackend.OPENAI: ("models.api.openai_vision", "OpenAIVision"),
+    InferenceBackend.ANTHROPIC: ("models.api.claude_vision", "ClaudeVision"),
+    InferenceBackend.GOOGLE: ("models.api.gemini_vision", "GeminiVision"),
+    InferenceBackend.UPSTAGE: ("models.api.upstage_document_parse", "UpstageDocumentParse"),
+    InferenceBackend.TRANSFORMERS: ("models.local.transformers_vlm", "TransformersVLM"),
+    InferenceBackend.PADDLEOCR: ("models.local.paddle_ocr_engine", "PaddleOCREngine"),
+    InferenceBackend.SURYA: ("models.local.surya_ocr_engine", "SuryaOCREngine"),
+}
+
+
+def _import_model_class(module_path: str, class_name: str) -> Type[VLMModel]:
+    module = import_module(module_path)
+    return cast(Type[VLMModel], getattr(module, class_name))
+
 
 def get_specialized_model_class(
     model_id: str, backend: InferenceBackend
@@ -56,12 +72,9 @@ def get_specialized_model_class(
     Returns:
         Specialized model class if found, None otherwise.
     """
-    from importlib import import_module
-
     for pattern, reg_backend, module_path, class_name in SPECIALIZED_MODEL_REGISTRY:
         if pattern in model_id and reg_backend == backend:
-            module = import_module(module_path)
-            return getattr(module, class_name)
+            return _import_model_class(module_path, class_name)
     return None
 
 
@@ -84,35 +97,12 @@ def get_model_class(backend: InferenceBackend, model_id: str = "") -> Type[VLMMo
         if specialized_class is not None:
             return specialized_class
 
-    if backend == InferenceBackend.OPENAI:
-        from models.api.openai_vision import OpenAIVision
-        return OpenAIVision
+    module_target = BACKEND_MODEL_IMPORTS.get(backend)
+    if module_target is None:
+        raise ValueError(f"Unknown backend: {backend}")
 
-    if backend == InferenceBackend.ANTHROPIC:
-        from models.api.claude_vision import ClaudeVision
-        return ClaudeVision
-
-    if backend == InferenceBackend.GOOGLE:
-        from models.api.gemini_vision import GeminiVision
-        return GeminiVision
-
-    if backend == InferenceBackend.UPSTAGE:
-        from models.api.upstage_document_parse import UpstageDocumentParse
-        return UpstageDocumentParse
-
-    if backend == InferenceBackend.TRANSFORMERS:
-        from models.local.transformers_vlm import TransformersVLM
-        return TransformersVLM
-
-    if backend == InferenceBackend.PADDLEOCR:
-        from models.local.paddle_ocr_engine import PaddleOCREngine
-        return PaddleOCREngine
-
-    if backend == InferenceBackend.SURYA:
-        from models.local.surya_ocr_engine import SuryaOCREngine
-        return SuryaOCREngine
-
-    raise ValueError(f"Unknown backend: {backend}")
+    module_path, class_name = module_target
+    return _import_model_class(module_path, class_name)
 
 
 def create_model(config: ModelConfig) -> VLMModel:
