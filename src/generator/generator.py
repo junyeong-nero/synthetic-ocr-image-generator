@@ -7,14 +7,16 @@ This module provides comprehensive markdown document generation capabilities inc
 - Ground truth format with raw markdown text and rendered image
 """
 
-import random
 import logging
+import random
 import tempfile
 import importlib
+import re
+from collections import Counter, deque
+from difflib import SequenceMatcher
 import numpy as np
 from pathlib import Path
 from dataclasses import dataclass
-from enum import Enum
 from html import escape
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -29,18 +31,349 @@ from utils import markdown_to_json_ast, read_json
 logger = logging.getLogger(__name__)
 
 
-class MarkdownTemplate(Enum):
-    """Markdown template types."""
-    README = "readme"
-    TECHNICAL_DOC = "technical_doc"
-    BLOG_POST = "blog_post"
-    API_DOC = "api_doc"
-    TUTORIAL = "tutorial"
-    CHANGELOG = "changelog"
-    MEETING_NOTES = "meeting_notes"
-    INCIDENT_REPORT = "incident_report"
-    RELEASE_NOTE = "release_note"
-    COMPLIANCE_CHECKLIST = "compliance_checklist"
+DEFAULT_NOVELTY_WINDOW = 80
+DEFAULT_NOVELTY_THRESHOLD = 0.95
+DEFAULT_NOVELTY_MAX_ATTEMPTS = 4
+DEFAULT_BLUEPRINT_MAX_TOTAL_LINES = 115
+DEFAULT_BLUEPRINT_MAX_PARAGRAPH_CHARS = 220
+A4_MAX_WIDTH_PX = 2480
+A4_MAX_HEIGHT_PX = 3508
+
+_MARKDOWN_IMAGE_PATTERN = re.compile(r"^!\[(?P<alt>[^\]]*)\]\((?P<src>[^)]+)\)$")
+_MARKDOWN_FORMULA_PATTERN = re.compile(r"^\$\$\s*(?P<formula>.+?)\s*\$\$$")
+
+
+def parse_markdown_image_line(line: str) -> Optional[Tuple[str, str]]:
+    match = _MARKDOWN_IMAGE_PATTERN.match(line.strip())
+    if not match:
+        return None
+    return match.group("alt").strip(), match.group("src").strip()
+
+
+def parse_markdown_formula_line(line: str) -> Optional[str]:
+    match = _MARKDOWN_FORMULA_PATTERN.match(line.strip())
+    if not match:
+        return None
+    return match.group("formula").strip()
+
+_DEFAULT_TEMPLATE_DIR = Path("configs") / "generator" / "templates"
+_DEFAULT_LEGACY_TEMPLATE_SPECS: List[Dict[str, Any]] = [
+    {
+        "id": "readme",
+        "family": "legacy",
+        "complexity": 1,
+        "weight": 1.0,
+        "mode": "legacy",
+        "legacy_method": "readme",
+    },
+    {
+        "id": "technical_doc",
+        "family": "legacy",
+        "complexity": 2,
+        "weight": 1.0,
+        "mode": "legacy",
+        "legacy_method": "technical_doc",
+    },
+    {
+        "id": "blog_post",
+        "family": "legacy",
+        "complexity": 1,
+        "weight": 1.0,
+        "mode": "legacy",
+        "legacy_method": "blog_post",
+    },
+    {
+        "id": "api_doc",
+        "family": "legacy",
+        "complexity": 2,
+        "weight": 1.0,
+        "mode": "legacy",
+        "legacy_method": "api_doc",
+    },
+    {
+        "id": "tutorial",
+        "family": "legacy",
+        "complexity": 2,
+        "weight": 1.0,
+        "mode": "legacy",
+        "legacy_method": "tutorial",
+    },
+    {
+        "id": "changelog",
+        "family": "legacy",
+        "complexity": 2,
+        "weight": 1.0,
+        "mode": "legacy",
+        "legacy_method": "changelog",
+    },
+    {
+        "id": "meeting_notes",
+        "family": "legacy",
+        "complexity": 2,
+        "weight": 1.0,
+        "mode": "legacy",
+        "legacy_method": "meeting_notes",
+    },
+    {
+        "id": "incident_report",
+        "family": "legacy",
+        "complexity": 3,
+        "weight": 1.0,
+        "mode": "legacy",
+        "legacy_method": "incident_report",
+    },
+    {
+        "id": "release_note",
+        "family": "legacy",
+        "complexity": 2,
+        "weight": 1.0,
+        "mode": "legacy",
+        "legacy_method": "release_note",
+    },
+    {
+        "id": "compliance_checklist",
+        "family": "legacy",
+        "complexity": 3,
+        "weight": 1.0,
+        "mode": "legacy",
+        "legacy_method": "compliance_checklist",
+    },
+]
+
+
+def _canonicalize_template_ref(value: str) -> str:
+    return value.strip().lower().replace("-", "_").replace(" ", "_")
+
+
+@dataclass
+class TemplateSpec:
+    template_id: str
+    family: str = "legacy"
+    complexity: int = 1
+    weight: float = 1.0
+    mode: str = "legacy"
+    legacy_method: Optional[str] = None
+    blueprint: Optional[Dict[str, Any]] = None
+    aliases: Optional[List[str]] = None
+    version: str = "1"
+    source: str = "builtin"
+    tags: Optional[List[str]] = None
+
+    def __post_init__(self) -> None:
+        if self.blueprint is None:
+            self.blueprint = {}
+        if self.aliases is None:
+            self.aliases = []
+        if self.tags is None:
+            self.tags = []
+
+    def refs(self) -> List[str]:
+        refs: List[str] = [_canonicalize_template_ref(self.template_id)]
+        for alias in self.aliases or []:
+            normalized = _canonicalize_template_ref(alias)
+            if normalized and normalized not in refs:
+                refs.append(normalized)
+        return refs
+
+
+class TemplateCatalog:
+    def __init__(self, config_dir: Optional[str] = None):
+        self.config_dir = Path(config_dir) if config_dir else _DEFAULT_TEMPLATE_DIR
+        self.templates: Dict[str, TemplateSpec] = {}
+        self.alias_to_id: Dict[str, str] = {}
+        self._loaded = False
+
+    @staticmethod
+    def _extract_entries(data: Any) -> List[Dict[str, Any]]:
+        if isinstance(data, list):
+            return [item for item in data if isinstance(item, dict)]
+        if isinstance(data, dict):
+            templates = data.get("templates")
+            if isinstance(templates, list):
+                return [item for item in templates if isinstance(item, dict)]
+            if "id" in data:
+                return [data]
+        return []
+
+    @staticmethod
+    def _coerce_spec(raw: Dict[str, Any], source: str) -> Optional[TemplateSpec]:
+        template_id = _canonicalize_template_ref(str(raw.get("id", "")))
+        if not template_id:
+            return None
+
+        mode = str(raw.get("mode", "legacy")).strip().lower()
+        if mode in {"dynamic", "procedural"}:
+            mode = "blueprint"
+        if mode not in {"legacy", "blueprint"}:
+            logger.warning("Unknown template mode '%s' for '%s'. Falling back to legacy.", mode, template_id)
+            mode = "legacy"
+
+        family = str(raw.get("family") or mode).strip().lower() or mode
+
+        try:
+            complexity = int(raw.get("complexity", 1))
+        except (TypeError, ValueError):
+            complexity = 1
+        complexity = max(1, min(5, complexity))
+
+        try:
+            weight = float(raw.get("weight", 1.0))
+        except (TypeError, ValueError):
+            weight = 1.0
+        weight = max(0.01, weight)
+
+        aliases_raw = raw.get("aliases", [])
+        aliases: List[str] = []
+        if isinstance(aliases_raw, list):
+            for item in aliases_raw:
+                if isinstance(item, str) and item.strip():
+                    aliases.append(item.strip())
+
+        tags_raw = raw.get("tags", [])
+        tags: List[str] = []
+        if isinstance(tags_raw, list):
+            for item in tags_raw:
+                if isinstance(item, str) and item.strip():
+                    tags.append(item.strip())
+
+        blueprint_raw = raw.get("blueprint")
+        blueprint: Dict[str, Any] = blueprint_raw if isinstance(blueprint_raw, dict) else {}
+
+        legacy_method_raw = raw.get("legacy_method")
+        legacy_method = str(legacy_method_raw).strip() if isinstance(legacy_method_raw, str) else None
+        if mode == "legacy" and not legacy_method:
+            legacy_method = template_id
+
+        return TemplateSpec(
+            template_id=template_id,
+            family=family,
+            complexity=complexity,
+            weight=weight,
+            mode=mode,
+            legacy_method=legacy_method,
+            blueprint=blueprint,
+            aliases=aliases,
+            version=str(raw.get("version", "1")),
+            source=source,
+            tags=tags,
+        )
+
+    def load(self) -> None:
+        template_by_id: Dict[str, TemplateSpec] = {}
+        for item in _DEFAULT_LEGACY_TEMPLATE_SPECS:
+            spec = self._coerce_spec(item, source="builtin")
+            if spec is not None:
+                template_by_id[spec.template_id] = spec
+
+        if self.config_dir.exists():
+            import yaml
+
+            for yaml_path in sorted(self.config_dir.glob("*.y*ml")):
+                try:
+                    with open(yaml_path, encoding="utf-8") as f:
+                        data = yaml.safe_load(f)
+                except Exception as exc:
+                    logger.warning("Failed to read template catalog '%s': %s", yaml_path, exc)
+                    continue
+
+                for raw in self._extract_entries(data):
+                    spec = self._coerce_spec(raw, source=str(yaml_path))
+                    if spec is not None:
+                        template_by_id[spec.template_id] = spec
+
+        self.templates = template_by_id
+        self.alias_to_id = {}
+        for template_id, spec in self.templates.items():
+            for ref in spec.refs():
+                self.alias_to_id[ref] = template_id
+
+        self._loaded = True
+
+    def _ensure_loaded(self) -> None:
+        if not self._loaded:
+            self.load()
+
+    def all_specs(self) -> List[TemplateSpec]:
+        self._ensure_loaded()
+        return [self.templates[key] for key in sorted(self.templates)]
+
+    def get(self, template_ref: str) -> Optional[TemplateSpec]:
+        self._ensure_loaded()
+        template_id = self.alias_to_id.get(_canonicalize_template_ref(template_ref))
+        if not template_id:
+            return None
+        return self.templates.get(template_id)
+
+    def resolve(
+        self,
+        template: Optional[str],
+        template_family: Optional[str],
+        min_complexity: Optional[int],
+        max_complexity: Optional[int],
+    ) -> List[TemplateSpec]:
+        self._ensure_loaded()
+
+        if template:
+            resolved = self.get(template)
+            if resolved is not None:
+                return [resolved]
+            logger.warning("Unknown template '%s'; applying filters over full catalog.", template)
+
+        candidates = self.all_specs()
+        if template_family:
+            family = template_family.strip().lower()
+            candidates = [spec for spec in candidates if spec.family == family]
+        if min_complexity is not None:
+            candidates = [spec for spec in candidates if spec.complexity >= min_complexity]
+        if max_complexity is not None:
+            candidates = [spec for spec in candidates if spec.complexity <= max_complexity]
+
+        if not candidates:
+            logger.warning("Template filters returned no candidates; falling back to full catalog.")
+            return self.all_specs()
+
+        return candidates
+
+
+def parse_coverage_targets(raw: Any) -> Dict[str, float]:
+    if raw is None:
+        return {}
+
+    parsed: Dict[str, float] = {}
+
+    def put(key: str, value: Any) -> None:
+        normalized = key.strip().lower()
+        if not normalized:
+            return
+        try:
+            ratio = float(value)
+        except (TypeError, ValueError):
+            return
+        parsed[normalized] = max(0.0, min(1.0, ratio))
+
+    if isinstance(raw, dict):
+        for key, value in raw.items():
+            put(str(key), value)
+        return parsed
+
+    items: List[str] = []
+    if isinstance(raw, str):
+        items.extend(token for token in raw.split(",") if token.strip())
+    elif isinstance(raw, (list, tuple, set)):
+        for item in raw:
+            if isinstance(item, str):
+                items.extend(token for token in item.split(",") if token.strip())
+
+    for item in items:
+        if "=" in item:
+            key, value = item.split("=", 1)
+        elif ":" in item:
+            key, value = item.split(":", 1)
+        else:
+            continue
+        put(key, value)
+
+    return parsed
 
 
 @dataclass
@@ -90,10 +423,22 @@ class MarkdownDataGenerator:
 
     def generate_markdown(
         self,
-        template: MarkdownTemplate = MarkdownTemplate.README,
+        template_id: str = "readme",
+        template_spec: Optional[TemplateSpec] = None,
     ) -> str:
-        gen_func = getattr(self, f"_generate_{template.value}")
-        return gen_func()
+        if template_spec and template_spec.mode == "blueprint":
+            return self._generate_from_blueprint(template_spec.template_id, template_spec.blueprint or {})
+
+        legacy_method_value = template_id
+        if template_spec and template_spec.legacy_method:
+            legacy_method_value = template_spec.legacy_method
+        legacy_method = legacy_method_value.strip().lower()
+        gen_func = getattr(self, f"_generate_{legacy_method}", None)
+        if callable(gen_func):
+            return str(gen_func())
+
+        logger.warning("Unknown legacy template method '%s'. Falling back to readme.", legacy_method)
+        return self._generate_readme()
 
     @staticmethod
     def _slugify(text: str, max_parts: int = 3) -> str:
@@ -144,6 +489,383 @@ class MarkdownDataGenerator:
         if len(words) == 1:
             return words[0], "1.0"
         return words[0], words[-1]
+
+    @staticmethod
+    def _coerce_positive_int(value: Any, default: int, lower: int, upper: int) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            parsed = default
+        return max(lower, min(upper, parsed))
+
+    @staticmethod
+    def _clip_text(text: str, max_chars: int) -> str:
+        normalized = " ".join(text.split())
+        if max_chars <= 0 or len(normalized) <= max_chars:
+            return normalized
+        clipped = normalized[:max_chars].rstrip()
+        split_at = clipped.rfind(" ")
+        if split_at >= int(max_chars * 0.6):
+            clipped = clipped[:split_at].rstrip()
+        return clipped.rstrip(" ,;:") + "..."
+
+    @staticmethod
+    def _coerce_int_range(value: Any, default_min: int, default_max: int) -> Tuple[int, int]:
+        if isinstance(value, (list, tuple)) and len(value) == 2:
+            try:
+                lower = int(value[0])
+                upper = int(value[1])
+            except (TypeError, ValueError):
+                return default_min, default_max
+            if lower > upper:
+                lower, upper = upper, lower
+            return lower, upper
+
+        if isinstance(value, int):
+            return value, value
+
+        return default_min, default_max
+
+    @staticmethod
+    def _coerce_probability(value: Any, default: float) -> float:
+        try:
+            ratio = float(value)
+        except (TypeError, ValueError):
+            return default
+        return max(0.0, min(1.0, ratio))
+
+    def _build_blueprint_table(self, min_rows: int, max_rows: int) -> List[str]:
+        template_name = random.choice(["invoice", "schedule", "product", "contact"])
+        headers = self.data.headers(template_name)
+        row_count = random.randint(min_rows, max_rows)
+        lines = ["| " + " | ".join(headers) + " |", "|" + "|".join(["---"] * len(headers)) + "|"]
+        for _ in range(row_count):
+            row_values: List[str] = []
+            for index, _ in enumerate(headers):
+                if index == 0:
+                    row_values.append(self.data.product_name())
+                elif index == 1:
+                    row_values.append(str(self.data.quantity()))
+                elif index == 2:
+                    row_values.append(self.data.format_currency(self.data.random_price()))
+                else:
+                    row_values.append(self.data.feature())
+            lines.append("| " + " | ".join(row_values) + " |")
+        return lines
+
+    def _build_blueprint_code(self) -> List[str]:
+        code_kind = random.choice(["python", "bash", "json", "yaml"])
+        if code_kind == "python":
+            return [
+                "```python",
+                self.data.code_comment(),
+                "def run():",
+                f"    return '{self.data.word()}'",
+                "```",
+            ]
+        if code_kind == "bash":
+            return [
+                "```bash",
+                self.data.install_command(package_name=self._project_slug()),
+                self.data.usage_command(entrypoint="main.py"),
+                "```",
+            ]
+        if code_kind == "json":
+            return [
+                "```json",
+                "{",
+                f"  \"id\": \"{self.data.word()}-{random.randint(100, 999)}\",",
+                f"  \"status\": \"{random.choice(['ok', 'pending', 'failed'])}\"",
+                "}",
+                "```",
+            ]
+        return [
+            "```yaml",
+            "config:",
+            f"  {self.data.config_line()}",
+            f"  {self.data.config_line()}",
+            "```",
+        ]
+
+    @staticmethod
+    def _normalize_blueprint_block_type(block_type: str) -> str:
+        normalized = block_type.strip().lower().replace("-", "_").replace(" ", "_")
+        aliases = {
+            "bullet": "bullet_points",
+            "bullets": "bullet_points",
+            "bullet_list": "bullet_points",
+            "bulletlist": "bullet_points",
+            "points": "bullet_points",
+            "ordered_list": "numbered_list",
+            "ordered": "numbered_list",
+            "numbered": "numbered_list",
+            "subheading": "subtitle",
+            "heading": "subtitle",
+            "table_of_contents": "contents",
+            "toc": "contents",
+            "equation": "formula",
+            "math": "formula",
+            "latex": "formula",
+            "figure": "image",
+            "images": "image",
+            "img": "image",
+        }
+        return aliases.get(normalized, normalized)
+
+    def _build_blueprint_formula(self) -> List[str]:
+        variable = random.choice(["x", "y", "n", "t", "k"])
+        expressions = [
+            f"f({variable}) = {random.randint(2, 9)}{variable} + {random.randint(1, 20)}",
+            "a^2 + b^2 = c^2",
+            "E = mc^2",
+            "\\frac{n(n+1)}{2}",
+            "P(A|B) = \\frac{P(B|A)P(A)}{P(B)}",
+            "\\sum_{i=1}^n i = \\frac{n(n+1)}{2}",
+        ]
+        expression = random.choice(expressions)
+        return [f"$$ {expression} $$"]
+
+    def _build_blueprint_image(self) -> List[str]:
+        alt_text = self.data.title()
+        image_ref = f"placeholder://{self._slugify(alt_text, max_parts=6)}-{random.randint(100, 999)}"
+        return [f"![{alt_text}]({image_ref})", f"*Figure: {self.data.sentence()}*"]
+
+    def _build_blueprint_contents(
+        self,
+        section_titles: Optional[List[str]],
+        list_item_range: Tuple[int, int],
+        max_title_chars: int,
+    ) -> List[str]:
+        lower_items, upper_items = list_item_range
+        if section_titles:
+            entries = list(section_titles)
+            random.shuffle(entries)
+            max_items = min(len(entries), upper_items)
+            min_items = min(len(entries), max(1, lower_items))
+            if max_items < min_items:
+                max_items = min_items
+            item_count = random.randint(min_items, max_items)
+            selected_titles = entries[:item_count]
+        else:
+            item_count = random.randint(lower_items, upper_items)
+            selected_titles = [self.data.title() for _ in range(item_count)]
+
+        lines = ["## Contents"]
+        for index, title in enumerate(selected_titles, start=1):
+            clipped_title = self._clip_text(title, max_title_chars)
+            anchor = self._slugify(clipped_title, max_parts=8)
+            lines.append(f"{index}. [{clipped_title}](#{anchor})")
+        return lines
+
+    def _build_blueprint_block(
+        self,
+        block_type: str,
+        list_item_range: Tuple[int, int],
+        table_row_range: Tuple[int, int],
+        section_titles: Optional[List[str]] = None,
+        max_paragraph_chars: int = DEFAULT_BLUEPRINT_MAX_PARAGRAPH_CHARS,
+    ) -> List[str]:
+        block_type = self._normalize_blueprint_block_type(block_type)
+        lower_items, upper_items = list_item_range
+        lower_rows, upper_rows = table_row_range
+
+        if block_type == "title":
+            return ["## " + self._clip_text(self.data.title(), 90)]
+
+        if block_type == "subtitle":
+            return ["### " + self._clip_text(self.data.title(), 90)]
+
+        if block_type == "contents":
+            return self._build_blueprint_contents(section_titles, list_item_range, max_title_chars=80)
+
+        if block_type == "bullet_points":
+            item_count = random.randint(lower_items, upper_items)
+            return [f"- {item}" for item in self.data.features(item_count)]
+
+        if block_type == "numbered_list":
+            item_count = random.randint(lower_items, upper_items)
+            return [f"{idx}. {item}" for idx, item in enumerate(self.data.features(item_count), start=1)]
+
+        if block_type == "checklist":
+            item_count = random.randint(lower_items, upper_items)
+            lines: List[str] = []
+            for item in self.data.features(item_count):
+                marker = "x" if random.random() < 0.5 else " "
+                lines.append(f"- [{marker}] {item}")
+            return lines
+
+        if block_type == "table":
+            return self._build_blueprint_table(lower_rows, upper_rows)
+
+        if block_type == "formula":
+            return self._build_blueprint_formula()
+
+        if block_type == "image":
+            return self._build_blueprint_image()
+
+        if block_type == "code":
+            return self._build_blueprint_code()
+
+        if block_type == "quote":
+            return ["> " + self._clip_text(self.data.paragraph(), max_paragraph_chars)]
+
+        if block_type == "rule":
+            return ["---"]
+
+        if block_type == "command":
+            return ["`" + self.data.usage_command(entrypoint="main.py") + "`"]
+
+        return [self._clip_text(self.data.paragraph(), max_paragraph_chars)]
+
+    def _generate_from_blueprint(self, template_id: str, blueprint: Dict[str, Any]) -> str:
+        section_min, section_max = self._coerce_int_range(blueprint.get("section_count"), 2, 5)
+        block_min, block_max = self._coerce_int_range(blueprint.get("blocks_per_section"), 1, 3)
+        paragraph_min, paragraph_max = self._coerce_int_range(blueprint.get("paragraphs_per_section"), 1, 2)
+        list_item_range = self._coerce_int_range(blueprint.get("list_items"), 2, 5)
+        table_row_range = self._coerce_int_range(blueprint.get("table_rows"), 2, 4)
+        max_total_lines = self._coerce_positive_int(
+            blueprint.get("max_total_lines"),
+            DEFAULT_BLUEPRINT_MAX_TOTAL_LINES,
+            40,
+            260,
+        )
+        max_paragraph_chars = self._coerce_positive_int(
+            blueprint.get("max_paragraph_chars"),
+            DEFAULT_BLUEPRINT_MAX_PARAGRAPH_CHARS,
+            80,
+            900,
+        )
+
+        heading_level = int(blueprint.get("section_heading_level", 2))
+        heading_level = max(2, min(3, heading_level))
+
+        frontmatter_probability = self._coerce_probability(blueprint.get("frontmatter_probability"), 0.0)
+        section_rule_probability = self._coerce_probability(blueprint.get("section_rule_probability"), 0.2)
+
+        allowed_blocks_raw = blueprint.get("allowed_blocks")
+        if isinstance(allowed_blocks_raw, list) and allowed_blocks_raw:
+            allowed_blocks = []
+            for item in allowed_blocks_raw:
+                normalized = self._normalize_blueprint_block_type(str(item))
+                if normalized and normalized not in allowed_blocks:
+                    allowed_blocks.append(normalized)
+        else:
+            allowed_blocks = [
+                "subtitle",
+                "contents",
+                "bullet_points",
+                "numbered_list",
+                "checklist",
+                "table",
+                "formula",
+                "image",
+                "code",
+                "quote",
+                "command",
+                "rule",
+            ]
+
+        required_raw = blueprint.get("required_blocks")
+        required_blocks: List[str] = []
+        if isinstance(required_raw, list):
+            for item in required_raw:
+                normalized = self._normalize_blueprint_block_type(str(item))
+                if normalized:
+                    required_blocks.append(normalized)
+        pending_required = [item for item in required_blocks if item in allowed_blocks]
+
+        title_prefix = str(blueprint.get("title_prefix") or "Document")
+        lines: List[str] = []
+
+        def _append_lines(chunk: List[str], trailing_blank: bool = False) -> bool:
+            required_slots = len(chunk) + (1 if trailing_blank else 0)
+            if len(lines) + required_slots > max_total_lines:
+                return False
+            lines.extend(chunk)
+            if trailing_blank:
+                lines.append("")
+            return True
+
+        if random.random() < frontmatter_probability:
+            _append_lines(
+                [
+                    "---",
+                    f"template_id: {template_id}",
+                    f"generated_at: {self.data.date()}",
+                    "---",
+                    "",
+                ],
+                trailing_blank=False,
+            )
+
+        root_heading = self._clip_text(f"{title_prefix}: {self.data.title()}", 110)
+        if not _append_lines([f"# {root_heading}"], trailing_blank=True):
+            return "\n".join(lines)
+
+        intro_paragraph = self._clip_text(self.data.paragraph(), max_paragraph_chars)
+        if not _append_lines([intro_paragraph], trailing_blank=True):
+            return "\n".join(lines)
+
+        section_count = random.randint(section_min, section_max)
+        section_titles = [self.data.title() for _ in range(section_count)]
+        section_prefix = "#" * heading_level
+        stop_generation = False
+
+        for section_idx in range(section_count):
+            section_title = self._clip_text(section_titles[section_idx], 100)
+            if not _append_lines([f"{section_prefix} {section_title}"], trailing_blank=True):
+                stop_generation = True
+                break
+
+            paragraph_count = random.randint(paragraph_min, paragraph_max)
+            for _ in range(paragraph_count):
+                paragraph = self._clip_text(self.data.paragraph(), max_paragraph_chars)
+                if not _append_lines([paragraph], trailing_blank=True):
+                    stop_generation = True
+                    break
+
+            if stop_generation:
+                break
+
+            block_count = random.randint(block_min, block_max)
+            for _ in range(block_count):
+                if pending_required:
+                    block_type = pending_required.pop(0)
+                else:
+                    block_type = random.choice(allowed_blocks)
+
+                block_lines = self._build_blueprint_block(
+                    block_type,
+                    list_item_range,
+                    table_row_range,
+                    section_titles=section_titles,
+                    max_paragraph_chars=max_paragraph_chars,
+                )
+                if not _append_lines(block_lines, trailing_blank=True):
+                    stop_generation = True
+                    break
+
+            if stop_generation:
+                break
+
+            if section_idx < section_count - 1 and random.random() < section_rule_probability:
+                if not _append_lines(["---"], trailing_blank=True):
+                    stop_generation = True
+                    break
+
+        if pending_required and not stop_generation:
+            for block_type in pending_required:
+                block_lines = self._build_blueprint_block(
+                    block_type,
+                    list_item_range,
+                    table_row_range,
+                    section_titles=section_titles,
+                    max_paragraph_chars=max_paragraph_chars,
+                )
+                if not _append_lines(block_lines, trailing_blank=True):
+                    break
+
+        return "\n".join(lines[:max_total_lines])
 
     def _generate_readme(self) -> str:
         title = self.data.title()
@@ -602,6 +1324,18 @@ class MarkdownRenderer:
     def _is_ordered_list_item(stripped: str) -> bool:
         return bool(stripped) and stripped[0].isdigit() and ". " in stripped
 
+    @staticmethod
+    def _parse_image_line(stripped: str) -> Optional[Tuple[str, str]]:
+        return parse_markdown_image_line(stripped)
+
+    @staticmethod
+    def _parse_formula_line(stripped: str) -> Optional[str]:
+        return parse_markdown_formula_line(stripped)
+
+    @staticmethod
+    def _image_placeholder_height(style: MarkdownStyle) -> int:
+        return int(max(110, style.body_font_size * 7.0))
+
     def render(self, markdown_text: str) -> Image.Image:
         """Render markdown text to image."""
         lines = markdown_text.split("\n")
@@ -655,6 +1389,10 @@ class MarkdownRenderer:
 
             if in_code_block:
                 current_y = self._draw_code_line(draw, line, current_y, style)
+            elif (image_payload := self._parse_image_line(stripped)) is not None:
+                current_y = self._draw_image_placeholder(draw, image_payload[0], current_y, style)
+            elif (formula_text := self._parse_formula_line(stripped)) is not None:
+                current_y = self._draw_formula_line(draw, formula_text, current_y, style)
             elif stripped.startswith("# "):
                 current_y = self._draw_h1(draw, stripped[2:], current_y, style)
             elif stripped.startswith("## "):
@@ -705,6 +1443,10 @@ class MarkdownRenderer:
             return int(self.style.h2_font_size * self.style.line_spacing) + 8
         if stripped.startswith("### "):
             return int(self.style.h3_font_size * self.style.line_spacing) + 6
+        if self._parse_image_line(stripped):
+            return self._image_placeholder_height(self.style) + 14
+        if self._parse_formula_line(stripped):
+            return base_spacing + 18
         if stripped.startswith("```"):
             return 5
         if stripped.startswith("> "):
@@ -877,6 +1619,53 @@ class MarkdownRenderer:
         )
         return y + 20
 
+    def _draw_formula_line(self, draw: ImageDraw.ImageDraw, formula_text: str, y: int, style: MarkdownStyle) -> int:
+        text = formula_text.strip()
+        x = style.margin_left + 8
+        text_y = y + 4
+        bbox = draw.textbbox((x, text_y), text, font=self.code_font)
+        box_left = style.margin_left
+        box_top = y + 1
+        box_right = min(style.margin_left + style.content_width, bbox[2] + 10)
+        box_bottom = bbox[3] + 5
+
+        draw.rectangle(
+            [box_left, box_top, box_right, box_bottom],
+            fill=style.code_bg_color,
+            outline=style.blockquote_border_color,
+            width=1,
+        )
+        draw.text((x, text_y), text, font=self.code_font, fill=style.code_text_color)
+        return int(box_bottom + 8)
+
+    def _draw_image_placeholder(self, draw: ImageDraw.ImageDraw, alt_text: str, y: int, style: MarkdownStyle) -> int:
+        placeholder_height = self._image_placeholder_height(style)
+        left = style.margin_left
+        top = y + 4
+        right = style.margin_left + style.content_width
+        bottom = top + placeholder_height
+
+        draw.rectangle(
+            [left, top, right, bottom],
+            fill=(245, 245, 245),
+            outline=(170, 170, 170),
+            width=2,
+        )
+        draw.line([(left + 8, top + 8), (right - 8, bottom - 8)], fill=(190, 190, 190), width=1)
+        draw.line([(left + 8, bottom - 8), (right - 8, top + 8)], fill=(190, 190, 190), width=1)
+
+        label = f"Image: {alt_text}" if alt_text else "Image"
+        label_bbox = draw.textbbox((0, 0), label, font=self.body_font)
+        label_x = left + max(8, (style.content_width - (label_bbox[2] - label_bbox[0])) // 2)
+        label_y = top + max(8, (placeholder_height - (label_bbox[3] - label_bbox[1])) // 2)
+        draw.rectangle(
+            [label_x - 6, label_y - 3, label_x + (label_bbox[2] - label_bbox[0]) + 6, label_y + (label_bbox[3] - label_bbox[1]) + 3],
+            fill=(255, 255, 255),
+        )
+        draw.text((label_x, label_y), label, font=self.body_font, fill=(90, 90, 90))
+
+        return int(bottom + 10)
+
     def _draw_italic(self, draw: ImageDraw.ImageDraw, text: str, y: int, style: MarkdownStyle) -> int:
         """Draw italic text (simulated)."""
         draw.text((style.margin_left, y), text, font=self.body_font, fill=(100, 100, 100))
@@ -934,6 +1723,35 @@ class HtmlMarkdownRenderer:
             extensions=["extra", "tables", "fenced_code", "sane_lists"],
         )
 
+    @staticmethod
+    def _prepare_component_markdown(markdown_text: str) -> str:
+        prepared_lines: List[str] = []
+        for raw_line in markdown_text.splitlines():
+            stripped = raw_line.strip()
+
+            image_payload = parse_markdown_image_line(stripped)
+            if image_payload is not None:
+                alt_text = image_payload[0] or "Image"
+                safe_alt = escape(alt_text)
+                prepared_lines.extend(
+                    [
+                        '<figure class="md-image-placeholder">',
+                        f'  <div class="md-image-box" aria-label="{safe_alt}"><span>{safe_alt}</span></div>',
+                        f"  <figcaption>{safe_alt}</figcaption>",
+                        "</figure>",
+                    ]
+                )
+                continue
+
+            formula_text = parse_markdown_formula_line(stripped)
+            if formula_text is not None:
+                prepared_lines.append(f'<div class="md-formula">{escape(formula_text)}</div>')
+                continue
+
+            prepared_lines.append(raw_line)
+
+        return "\n".join(prepared_lines)
+
     def _estimate_viewport_height(self, markdown_text: str) -> int:
         lines = markdown_text.splitlines() or [""]
         body_line_px = int(self.style.body_font_size * self.style.line_spacing)
@@ -943,6 +1761,8 @@ class HtmlMarkdownRenderer:
         header_bonus = 0
         code_bonus = 0
         table_bonus = 0
+        image_bonus = 0
+        formula_bonus = 0
         for raw in lines:
             line = raw.strip()
             wrapped_line_count += max(1, (len(raw) // chars_per_line) + 1)
@@ -956,6 +1776,10 @@ class HtmlMarkdownRenderer:
                 code_bonus += int(self.style.code_font_size * self.style.line_spacing * 2)
             if line.startswith("|"):
                 table_bonus += int(body_line_px * 0.6)
+            if parse_markdown_image_line(line):
+                image_bonus += max(120, int(self.style.body_font_size * 8.5))
+            if parse_markdown_formula_line(line):
+                formula_bonus += int(body_line_px * 1.6)
 
         estimated = (
             self.style.margin_top
@@ -964,12 +1788,15 @@ class HtmlMarkdownRenderer:
             + header_bonus
             + code_bonus
             + table_bonus
+            + image_bonus
+            + formula_bonus
             + 120
         )
         return max(300, min(9000, int(estimated)))
 
     def _build_html_document(self, markdown_text: str) -> str:
-        rendered_html = self._coerce_markdown_html(markdown_text)
+        prepared_markdown = self._prepare_component_markdown(markdown_text)
+        rendered_html = self._coerce_markdown_html(prepared_markdown)
         css = f"""
 @font-face {{
   font-family: 'RenderFont';
@@ -1034,6 +1861,35 @@ body {{
   text-align: left;
   padding: 6px;
   overflow-wrap: anywhere;
+}}
+.markdown-body .md-formula {{
+  margin: 0 0 12px 0;
+  padding: 8px 10px;
+  background: rgb{self.style.code_bg_color};
+  color: rgb{self.style.code_text_color};
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  font-family: 'RenderFont', monospace;
+  font-size: {self.style.code_font_size}px;
+  overflow-wrap: anywhere;
+}}
+.markdown-body .md-image-placeholder {{
+  margin: 0 0 12px 0;
+}}
+.markdown-body .md-image-box {{
+  width: 100%;
+  min-height: 130px;
+  border: 2px solid rgba(0, 0, 0, 0.28);
+  background: rgba(240, 240, 240, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(0, 0, 0, 0.6);
+  font-weight: 600;
+}}
+.markdown-body .md-image-placeholder figcaption {{
+  margin-top: 6px;
+  color: rgba(0, 0, 0, 0.65);
+  font-size: {max(10, self.style.body_font_size - 1)}px;
 }}
 """
         return f"""<!DOCTYPE html>
@@ -1132,13 +1988,29 @@ class Generator(BaseGenerator):
         self.similarity_db_path = ""
         self._similarity_db_source: Optional[str] = None
         self._protected_chars = set("#`|[](){}<>!+-=_~*/\\")
-        self.templates: List[MarkdownTemplate] = list(MarkdownTemplate)
+        self.template_catalog = TemplateCatalog()
+        self.template_specs: List[TemplateSpec] = self.template_catalog.all_specs()
+        self.template_counts: Counter[str] = Counter()
+        self.family_counts: Counter[str] = Counter()
+        self.coverage_targets: Dict[str, float] = {}
+        self.template_family: Optional[str] = None
+        self.min_template_complexity: Optional[int] = None
+        self.max_template_complexity: Optional[int] = None
+        self.template_config_dir: Optional[str] = None
         self.add_noise = True
         self.add_blur = False
         self.noise_ratio = 0.1
         self.blur_ratio = 0.1
         self.similar_char_ratio = 0.08
         self.markdown_renderer = "pil"
+        self.style_profile = "balanced"
+        self.novelty_window = DEFAULT_NOVELTY_WINDOW
+        self.novelty_threshold = DEFAULT_NOVELTY_THRESHOLD
+        self.novelty_max_attempts = DEFAULT_NOVELTY_MAX_ATTEMPTS
+        self._recent_signatures: deque[str] = deque(maxlen=self.novelty_window)
+        self.base_seed: Optional[int] = None
+        self.max_render_width = A4_MAX_WIDTH_PX
+        self.max_render_height = A4_MAX_HEIGHT_PX
 
     def _load_similarity_db(self, db_path: Optional[str]) -> None:
         source_key = db_path or "__auto__"
@@ -1171,58 +2043,165 @@ class Generator(BaseGenerator):
         self.similarity_db = {}
         self.similarity_db_path = ""
 
-    def _resolve_templates(self, template: Optional[str]) -> List[MarkdownTemplate]:
-        if not template:
-            return list(MarkdownTemplate)
-
+    @staticmethod
+    def _coerce_optional_int(value: Any) -> Optional[int]:
+        if value is None:
+            return None
         try:
-            return [MarkdownTemplate(template)]
-        except ValueError:
-            logger.warning("Unknown template '%s', using random templates", template)
-            return list(MarkdownTemplate)
+            return int(value)
+        except (TypeError, ValueError):
+            return None
 
-    def _configure_generation(self, **kwargs) -> None:
-        def _coerce_ratio(value: Any, default: float) -> float:
-            if value is None:
-                return default
-            try:
-                ratio = float(value)
-            except (TypeError, ValueError):
-                return default
-            return max(0.0, min(1.0, ratio))
+    @staticmethod
+    def _coerce_ratio(value: Any, default: float) -> float:
+        if value is None:
+            return default
+        try:
+            ratio = float(value)
+        except (TypeError, ValueError):
+            return default
+        return max(0.0, min(1.0, ratio))
 
-        def _coerce_bool(value: Any, default: bool) -> bool:
-            if value is None:
-                return default
-            if isinstance(value, bool):
-                return value
-            if isinstance(value, str):
-                lowered = value.strip().lower()
-                if lowered in {"1", "true", "yes", "y", "on"}:
-                    return True
-                if lowered in {"0", "false", "no", "n", "off"}:
-                    return False
-            return bool(value)
+    @staticmethod
+    def _coerce_bool(value: Any, default: bool) -> bool:
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"1", "true", "yes", "y", "on"}:
+                return True
+            if lowered in {"0", "false", "no", "n", "off"}:
+                return False
+        return bool(value)
+
+    @staticmethod
+    def _normalize_choice(
+        value: Any,
+        allowed: set[str],
+        fallback: str,
+        warning_label: str,
+    ) -> str:
+        normalized = str(value).strip().lower()
+        if normalized in allowed:
+            return normalized
+        logger.warning(
+            "Unknown %s '%s'. Falling back to '%s'.",
+            warning_label,
+            normalized,
+            fallback,
+        )
+        return fallback
+
+    def _resolve_effect_settings(
+        self,
+        *,
+        enabled_key: str,
+        ratio_key: str,
+        enabled_default: bool,
+        ratio_default: float,
+        kwargs: dict[str, Any],
+    ) -> tuple[bool, float]:
+        enabled = self._coerce_bool(kwargs.get(enabled_key), enabled_default)
+        ratio = self._coerce_ratio(kwargs.get(ratio_key), ratio_default)
+        if enabled_key in kwargs and kwargs.get(enabled_key) is not None:
+            ratio = 1.0 if enabled else 0.0
+        return enabled, ratio
+
+    def _resolve_template_specs(self, template: Optional[str]) -> List[TemplateSpec]:
+        return self.template_catalog.resolve(
+            template=template,
+            template_family=self.template_family,
+            min_complexity=self.min_template_complexity,
+            max_complexity=self.max_template_complexity,
+        )
+
+    def _configure_template_selection(self, **kwargs) -> None:
+        self.template_family = kwargs.get("template_family")
+        self.min_template_complexity = self._coerce_optional_int(
+            kwargs.get("min_template_complexity")
+        )
+        self.max_template_complexity = self._coerce_optional_int(
+            kwargs.get("max_template_complexity")
+        )
+        if (
+            self.min_template_complexity is not None
+            and self.max_template_complexity is not None
+            and self.min_template_complexity > self.max_template_complexity
+        ):
+            self.min_template_complexity, self.max_template_complexity = (
+                self.max_template_complexity,
+                self.min_template_complexity,
+            )
+
+        requested_catalog_dir = kwargs.get("template_config_dir")
+        if requested_catalog_dir != self.template_config_dir:
+            self.template_catalog = TemplateCatalog(config_dir=requested_catalog_dir)
+            self.template_config_dir = requested_catalog_dir
 
         template = kwargs.get("template")
-        self.templates = self._resolve_templates(template)
-        self.add_noise = _coerce_bool(kwargs.get("add_noise"), True)
-        self.add_blur = _coerce_bool(kwargs.get("add_blur"), False)
-        self.noise_ratio = _coerce_ratio(kwargs.get("noise_ratio"), 0.1)
-        self.blur_ratio = _coerce_ratio(kwargs.get("blur_ratio"), 0.1)
-        if "add_noise" in kwargs and kwargs.get("add_noise") is not None:
-            self.noise_ratio = 1.0 if self.add_noise else 0.0
-        if "add_blur" in kwargs and kwargs.get("add_blur") is not None:
-            self.blur_ratio = 1.0 if self.add_blur else 0.0
+        self.template_specs = self._resolve_template_specs(template)
+        self.coverage_targets = parse_coverage_targets(kwargs.get("coverage_targets"))
+
+    def _configure_rendering(self, **kwargs) -> None:
+        self.add_noise, self.noise_ratio = self._resolve_effect_settings(
+            enabled_key="add_noise",
+            ratio_key="noise_ratio",
+            enabled_default=True,
+            ratio_default=0.1,
+            kwargs=kwargs,
+        )
+        self.add_blur, self.blur_ratio = self._resolve_effect_settings(
+            enabled_key="add_blur",
+            ratio_key="blur_ratio",
+            enabled_default=False,
+            ratio_default=0.1,
+            kwargs=kwargs,
+        )
         self.similar_char_ratio = float(kwargs.get("similar_char_ratio", 0.08))
-        requested_renderer = str(kwargs.get("markdown_renderer", self.markdown_renderer)).strip().lower()
-        if requested_renderer not in {"pil", "html2image"}:
-            logger.warning(
-                "Unknown markdown renderer '%s'. Falling back to 'pil'.",
-                requested_renderer,
-            )
-            requested_renderer = "pil"
-        self.markdown_renderer = requested_renderer
+
+        self.markdown_renderer = self._normalize_choice(
+            kwargs.get("markdown_renderer", self.markdown_renderer),
+            {"pil", "html2image"},
+            "pil",
+            "markdown renderer",
+        )
+
+        self.style_profile = self._normalize_choice(
+            kwargs.get("style_profile", self.style_profile),
+            {"legacy", "balanced", "aggressive"},
+            "balanced",
+            "style profile",
+        )
+
+    def _configure_novelty(self, **kwargs) -> None:
+        self.novelty_window = max(
+            5,
+            self._coerce_optional_int(kwargs.get("novelty_window")) or self.novelty_window,
+        )
+        self.novelty_threshold = self._coerce_ratio(
+            kwargs.get("novelty_threshold"),
+            self.novelty_threshold,
+        )
+        self.novelty_max_attempts = max(
+            1,
+            self._coerce_optional_int(kwargs.get("novelty_max_attempts"))
+            or self.novelty_max_attempts,
+        )
+        self._recent_signatures = deque(
+            self._recent_signatures,
+            maxlen=self.novelty_window,
+        )
+
+    def _configure_generation(self, **kwargs) -> None:
+        if "seed" in kwargs:
+            self.base_seed = self._coerce_optional_int(kwargs.get("seed"))
+
+        self._configure_template_selection(**kwargs)
+        self._configure_rendering(**kwargs)
+        self._configure_novelty(**kwargs)
+
         self._load_similarity_db(kwargs.get("similarity_db_path"))
 
     def _mutate_similar_text(self, text: str, ratio: float) -> Tuple[str, int]:
@@ -1271,6 +2250,111 @@ class Generator(BaseGenerator):
 
         return "".join(chars), mutated_count
 
+    def _derive_sample_seed(self, sample_index: int, attempt: int) -> Optional[int]:
+        if self.base_seed is None:
+            return None
+        return int(self.base_seed + sample_index * 1009 + attempt * 9176)
+
+    def _seed_for_sample(self, sample_seed: Optional[int]) -> None:
+        if sample_seed is None:
+            return
+
+        random.seed(sample_seed)
+        np.random.seed(sample_seed % (2**32 - 1))
+
+        faker = getattr(self.data_generator.data, "faker", None)
+        if faker is not None:
+            try:
+                faker.seed_instance(sample_seed)
+            except Exception:
+                pass
+
+    def _fit_image_to_a4(self, image: Image.Image) -> Tuple[Image.Image, bool]:
+        width, height = image.size
+        if width <= self.max_render_width and height <= self.max_render_height:
+            return image, False
+
+        ratio = min(self.max_render_width / max(1, width), self.max_render_height / max(1, height))
+        new_width = max(1, int(width * ratio))
+        new_height = max(1, int(height * ratio))
+        if hasattr(Image, "Resampling"):
+            resized = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        else:
+            resized = image.resize((new_width, new_height), getattr(Image, "LANCZOS", 1))
+        return resized, True
+
+    @staticmethod
+    def _structure_signature(markdown_text: str) -> str:
+        tokens: List[str] = []
+        for raw_line in markdown_text.splitlines():
+            line = raw_line.strip()
+            if not line:
+                tokens.append("blank")
+            elif parse_markdown_image_line(line):
+                tokens.append("image")
+            elif parse_markdown_formula_line(line):
+                tokens.append("formula")
+            elif line.startswith("# "):
+                tokens.append("h1")
+            elif line.startswith("## "):
+                tokens.append("h2")
+            elif line.startswith("### "):
+                tokens.append("h3")
+            elif line.startswith("```"):
+                tokens.append("code")
+            elif line.startswith("| ") and line.endswith(" |"):
+                tokens.append("table")
+            elif line.startswith("- [ ") or line.startswith("- [x"):
+                tokens.append("check")
+            elif line.startswith("- "):
+                tokens.append("ul")
+            elif line and line[0].isdigit() and ". " in line:
+                tokens.append("ol")
+            elif line.startswith("> "):
+                tokens.append("quote")
+            elif line in {"---", "***"}:
+                tokens.append("rule")
+            else:
+                tokens.append("p")
+        return "|".join(tokens)
+
+    def _novelty_score(self, signature: str) -> float:
+        if not self._recent_signatures:
+            return 0.0
+        return max(
+            SequenceMatcher(None, signature, existing).ratio()
+            for existing in self._recent_signatures
+        )
+
+    def _select_template_spec(self) -> Tuple[TemplateSpec, float]:
+        if not self.template_specs:
+            self.template_specs = self.template_catalog.all_specs()
+
+        total_generated = sum(self.family_counts.values())
+        weights: List[float] = []
+        for spec in self.template_specs:
+            template_seen = self.template_counts.get(spec.template_id, 0)
+            family_seen = self.family_counts.get(spec.family, 0)
+
+            diversity_factor = 1.0 / (1.0 + template_seen * 0.45)
+            family_balance_factor = 1.0 / (1.0 + family_seen * 0.2)
+            coverage_factor = 1.0
+
+            if self.coverage_targets:
+                target_ratio = self.coverage_targets.get(spec.family)
+                if target_ratio is not None:
+                    if total_generated == 0:
+                        coverage_factor = 1.5
+                    else:
+                        observed_ratio = family_seen / total_generated
+                        deficit = target_ratio - observed_ratio
+                        coverage_factor = max(0.25, 1.0 + deficit * 5.0)
+
+            weights.append(max(0.01, spec.weight * diversity_factor * family_balance_factor * coverage_factor))
+
+        selected_index = random.choices(range(len(self.template_specs)), weights=weights, k=1)[0]
+        return self.template_specs[selected_index], weights[selected_index]
+
     def generate(
         self,
         num_images: int,
@@ -1278,10 +2362,13 @@ class Generator(BaseGenerator):
     ) -> List[Dict[str, Any]]:
         """Generate markdown images."""
         self._configure_generation(**kwargs)
+        self.template_counts = Counter()
+        self.family_counts = Counter()
+        self._recent_signatures = deque(maxlen=self.novelty_window)
 
         metadata = []
         for idx in tqdm(range(num_images), desc="Generating markdown images"):
-            image, meta = self.generate_single()
+            image, meta = self.generate_single(sample_index=idx)
 
             # Save image
             filename = f"markdown_{idx:05d}.png"
@@ -1292,18 +2379,43 @@ class Generator(BaseGenerator):
 
         return metadata
 
-    def generate_single(self, **kwargs) -> Tuple[Image.Image, Dict[str, Any]]:
+    def generate_single(self, sample_index: int = 0, **kwargs) -> Tuple[Image.Image, Dict[str, Any]]:
         if kwargs:
             self._configure_generation(**kwargs)
 
-        selected_template = random.choice(self.templates)
+        available_specs = self.template_specs or self.template_catalog.all_specs()
+        if not available_specs:
+            raise RuntimeError("Template catalog is empty. Add template specs under configs/generator/templates.")
 
-        # Generate markdown content
-        original_markdown = self.data_generator.generate_markdown(template=selected_template)
-        markdown_text, mutation_count = self._mutate_similar_text(
-            original_markdown,
-            self.similar_char_ratio,
-        )
+        selected_template: TemplateSpec = available_specs[0]
+        selected_weight = 0.0
+        markdown_text = ""
+        mutation_count = 0
+        signature = ""
+        novelty_score = 0.0
+        sample_seed: Optional[int] = None
+        selection_attempt = 1
+
+        for attempt in range(self.novelty_max_attempts):
+            sample_seed = self._derive_sample_seed(sample_index, attempt)
+            self._seed_for_sample(sample_seed)
+
+            selected_template, selected_weight = self._select_template_spec()
+
+            original_markdown = self.data_generator.generate_markdown(
+                template_id=selected_template.template_id,
+                template_spec=selected_template,
+            )
+            markdown_text, mutation_count = self._mutate_similar_text(
+                original_markdown,
+                self.similar_char_ratio,
+            )
+            signature = self._structure_signature(markdown_text)
+            novelty_score = self._novelty_score(signature)
+            selection_attempt = attempt + 1
+
+            if novelty_score < self.novelty_threshold or attempt == self.novelty_max_attempts - 1:
+                break
 
         # Create style with random variations
         style = self._random_style()
@@ -1317,19 +2429,44 @@ class Generator(BaseGenerator):
         else:
             renderer = MarkdownRenderer(font_path, style)
         image = renderer.render(markdown_text)
+        image, a4_scaled = self._fit_image_to_a4(image)
+
+        self.template_counts[selected_template.template_id] += 1
+        self.family_counts[selected_template.family] += 1
+        self._recent_signatures.append(signature)
+
+        generated_count = max(1, sum(self.family_counts.values()))
+        family_ratio = self.family_counts[selected_template.family] / generated_count
 
         metadata = {
-            "template": selected_template.value,
+            "template": selected_template.template_id,
+            "template_id": selected_template.template_id,
+            "template_family": selected_template.family,
+            "template_complexity": selected_template.complexity,
+            "template_mode": selected_template.mode,
+            "template_version": selected_template.version,
+            "template_source": selected_template.source,
+            "template_weight": round(selected_weight, 6),
             "GT_markdown": markdown_text,
             "GT_json": markdown_to_json_ast(markdown_text),
             "similar_char_mutations": mutation_count,
             "renderer": self.markdown_renderer,
+            "style_profile": self.style_profile,
+            "sample_index": sample_index,
+            "sample_seed": sample_seed,
+            "selection_attempt": selection_attempt,
+            "structure_signature": signature,
+            "novelty_score": round(novelty_score, 6),
+            "family_ratio": round(family_ratio, 6),
+            "a4_scaled": a4_scaled,
+            "image_width": image.width,
+            "image_height": image.height,
         }
         return image, metadata
 
-    def _random_style(self) -> MarkdownStyle:
-        """Generate random style variations."""
-        styles = [
+    @staticmethod
+    def _base_styles() -> List[MarkdownStyle]:
+        return [
             MarkdownStyle(
                 background_color=(255, 255, 255),
                 h1_color=(0, 0, 0),
@@ -1397,9 +2534,89 @@ class Generator(BaseGenerator):
                 line_spacing=1.4,
             ),
         ]
-        selected = random.choice(styles)
-        selected.margin_top += random.randint(-8, 14)
-        selected.margin_bottom += random.randint(-8, 14)
-        selected.content_width += random.randint(-24, 24)
-        selected.line_spacing = max(1.3, min(1.7, selected.line_spacing + random.uniform(-0.08, 0.1)))
+
+    @staticmethod
+    def _clamp_color(value: int) -> int:
+        return max(0, min(255, value))
+
+    def _jitter_color(self, color: Tuple[int, int, int], span: int) -> Tuple[int, int, int]:
+        return (
+            self._clamp_color(color[0] + random.randint(-span, span)),
+            self._clamp_color(color[1] + random.randint(-span, span)),
+            self._clamp_color(color[2] + random.randint(-span, span)),
+        )
+
+    def _random_style(self) -> MarkdownStyle:
+        """Generate random style variations."""
+        selected = random.choice(self._base_styles())
+
+        if self.style_profile == "legacy":
+            selected.margin_top += random.randint(-8, 14)
+            selected.margin_bottom += random.randint(-8, 14)
+            selected.content_width += random.randint(-24, 24)
+            selected.line_spacing = max(1.3, min(1.7, selected.line_spacing + random.uniform(-0.08, 0.1)))
+            return selected
+
+        if self.style_profile == "balanced":
+            selected.margin_top += random.randint(-16, 24)
+            selected.margin_bottom += random.randint(-16, 24)
+            selected.margin_left += random.randint(-10, 16)
+            selected.margin_right += random.randint(-10, 16)
+            selected.content_width += random.randint(-64, 72)
+            selected.line_spacing = max(1.2, min(1.9, selected.line_spacing + random.uniform(-0.2, 0.25)))
+            selected.background_color = self._jitter_color(selected.background_color, 12)
+            selected.h1_color = self._jitter_color(selected.h1_color, 16)
+            selected.h2_color = self._jitter_color(selected.h2_color, 16)
+            selected.text_color = self._jitter_color(selected.text_color, 12)
+            selected.link_color = self._jitter_color(selected.link_color, 24)
+        else:
+            selected.margin_top += random.randint(-24, 36)
+            selected.margin_bottom += random.randint(-24, 36)
+            selected.margin_left += random.randint(-18, 24)
+            selected.margin_right += random.randint(-18, 24)
+            selected.content_width += random.randint(-96, 108)
+            selected.line_spacing = max(1.15, min(2.0, selected.line_spacing + random.uniform(-0.28, 0.35)))
+            selected.body_font_size = max(12, min(18, selected.body_font_size + random.randint(-2, 3)))
+            selected.code_font_size = max(10, min(16, selected.code_font_size + random.randint(-1, 3)))
+            selected.h1_font_size = max(
+                selected.body_font_size + 6,
+                min(40, selected.h1_font_size + random.randint(-4, 8)),
+            )
+            selected.h2_font_size = max(
+                selected.body_font_size + 3,
+                min(34, selected.h2_font_size + random.randint(-3, 6)),
+            )
+            selected.h3_font_size = max(
+                selected.body_font_size + 1,
+                min(28, selected.h3_font_size + random.randint(-2, 5)),
+            )
+
+            bg_base = random.randint(220, 255)
+            selected.background_color = (
+                bg_base,
+                self._clamp_color(bg_base + random.randint(-12, 10)),
+                self._clamp_color(bg_base + random.randint(-12, 10)),
+            )
+            selected.text_color = (
+                random.randint(18, 70),
+                random.randint(18, 70),
+                random.randint(18, 70),
+            )
+            selected.h1_color = (
+                random.randint(0, 60),
+                random.randint(0, 60),
+                random.randint(0, 80),
+            )
+            selected.h2_color = self._jitter_color(selected.h1_color, 20)
+            selected.link_color = (
+                random.randint(0, 40),
+                random.randint(80, 150),
+                random.randint(140, 220),
+            )
+
+        selected.margin_top = max(16, selected.margin_top)
+        selected.margin_bottom = max(16, selected.margin_bottom)
+        selected.margin_left = max(20, selected.margin_left)
+        selected.margin_right = max(20, selected.margin_right)
+        selected.content_width = max(460, min(720, selected.content_width))
         return selected
