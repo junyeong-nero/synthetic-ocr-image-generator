@@ -14,7 +14,7 @@ from datasets import (
     Image as HFImage,
     load_dataset,
 )
-from huggingface_hub import whoami
+from huggingface_hub import HfApi, whoami
 
 logger = logging.getLogger(__name__)
 
@@ -254,6 +254,27 @@ def upload_subset_to_hub(
             f"Error: An unexpected error occurred while uploading subset '{config_name}': {e}",
             exc_info=True,
         )
+
+
+def upload_dataset_readme_to_hub(
+    repo_id: str,
+    readme_content: str,
+    commit_message: str = "docs: update dataset card",
+) -> None:
+    logger.info("\n▶ Uploading dataset README.md to '%s'...", repo_id)
+    try:
+        _ensure_hf_login()
+        api = HfApi()
+        api.upload_file(
+            path_or_fileobj=readme_content.encode("utf-8"),
+            path_in_repo="README.md",
+            repo_id=repo_id,
+            repo_type="dataset",
+            commit_message=commit_message,
+        )
+        logger.info("✔ README.md uploaded successfully!")
+    except Exception as exc:
+        logger.error("Failed to upload README.md: %s", exc, exc_info=True)
 
 
 _FEATURE_TYPE_MAPPING = {
