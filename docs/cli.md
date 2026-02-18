@@ -27,7 +27,16 @@ uv run main.py generate [OPTIONS]
 - `--seed`: Random seed for reproducible generation.
 - `--size`: Number of images to generate (default: `100`).
 - `--template`: Optional generation template name.
+- `--template-family`: Optional template family filter.
+- `--min-template-complexity`: Minimum template complexity filter (`1-5`).
+- `--max-template-complexity`: Maximum template complexity filter (`1-5`).
+- `--template-config-dir`: Template catalog directory path.
 - `--markdown-renderer`: Markdown render backend (`pil`, `html2image`) (default: `pil`).
+- `--style-profile`: Style variation profile (`legacy`, `balanced`, `aggressive`).
+- `--coverage-target`: Family target ratio (`family=ratio`), repeatable.
+- `--novelty-window`: Recent-sample window size for novelty guard.
+- `--novelty-threshold`: Similarity threshold for novelty guard.
+- `--novelty-max-attempts`: Retry count before accepting low-novelty sample.
 - `--similar-char-ratio`: Ratio of similar-character substitutions (default: `0.08`).
 - `--similarity-db-path`: Optional similarity DB JSON path.
 - `--add-noise`, `--no-add-noise`: Enable/disable noise effect.

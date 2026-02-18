@@ -15,11 +15,18 @@ Some additional evaluator/generator modules exist in the codebase, but the unifi
 
 ### Generation (`src/pipeline.py`, `src/generator/`)
 
-- Orchestrates markdown image creation.
+The generation pipeline follows a structured A/B/C phase model:
+
+- **Phase A: Legacy Compatibility**: Traditional template methods (e.g., `readme`, `tutorial`) are now catalog-driven via YAML but remain backward compatible.
+- **Phase B: Dynamic Blueprints**: Flexible document structures defined in `configs/generator/templates/*.yaml` using blueprint specifications (sections, blocks, complexity levels).
+- **Phase C: Quality & Diversity**: Advanced controls including novelty guards, template family coverage targets, and style profiles to ensure high-quality, diverse datasets.
+
+Core logic:
+- Orchestrates markdown image creation via a multi-stage pipeline (config -> generation -> novelty check -> rendering -> upload).
 - Loads fonts from `fonts/<lang>/`.
 - Supports renderer selection (`pil` or `html2image`).
 - Applies optional noise/blur and similarity-based substitutions.
-- Uploads generated outputs to Hugging Face Hub.
+- Uploads generated outputs to Hugging Face Hub with comprehensive metadata traces.
 
 ### Evaluation (`src/evaluation/`)
 
