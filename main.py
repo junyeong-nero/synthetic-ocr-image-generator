@@ -6,7 +6,7 @@ import os
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 sys.path.insert(0, "src")
 from env_utils import load_env_file, set_global_seed
@@ -167,6 +167,179 @@ def _write_leaderboard(output_dir: Path, summary_entries: list[dict]) -> None:
         f.write("\n".join(lines))
 
 
+def _build_summary_entry(
+    *,
+    output,
+    model_id: str,
+    backend: str,
+    dataset: str,
+    split: str,
+    language: str,
+    seed: Optional[int],
+    resolved_format: str,
+    metric_key: Optional[str],
+    metric_value: Optional[float],
+) -> dict[str, Any]:
+    return {
+        "timestamp": _iso_timestamp(),
+        "protocol_version": PROTOCOL_VERSION,
+        "model_id": model_id,
+        "backend": backend,
+        "dataset": dataset,
+        "split": split,
+        "language": language,
+        "seed": seed,
+        "format": resolved_format,
+        "metric_key": metric_key,
+        "metric_value": metric_value,
+        "average_score": metric_value,
+        "empty_rate": output.summary.get("empty_rate"),
+        "parse_fail_rate": output.summary.get("parse_fail_rate"),
+        "total_samples": output.summary.get("total_samples"),
+        "prompt_source": output.config.get("prompt_source"),
+        "metrics": {
+            key: float(value)
+            for key, value in output.metrics.items()
+            if isinstance(value, (int, float))
+        },
+    }
+
+
+def _load_summary_entries(summary_path: Path) -> list[dict[str, Any]]:
+    if not summary_path.exists():
+        return []
+
+    try:
+        with open(summary_path, encoding="utf-8") as f:
+            loaded = json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        corrupt_path = summary_path.with_suffix(".corrupt.json")
+        try:
+            if summary_path.exists():
+                summary_path.replace(corrupt_path)
+        finally:
+            raise RuntimeError(
+                f"Corrupt summary file moved to {corrupt_path}"
+            ) from exc
+
+    if isinstance(loaded, list):
+        return loaded
+    if isinstance(loaded, dict):
+        return [loaded]
+    return []
+
+
+def _save_summary_entries(summary_path: Path, entries: list[dict[str, Any]]) -> None:
+    tmp_path = summary_path.with_suffix(".json.tmp")
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(entries, f, ensure_ascii=False, indent=2)
+    os.replace(tmp_path, summary_path)
+
+
+def _resolve_execution_mode(args: argparse.Namespace):
+    from evaluation.config import EvaluationMode
+
+    if args.inference_only:
+        return EvaluationMode.INFERENCE_ONLY
+    if args.evaluate_only:
+        return EvaluationMode.EVALUATE_ONLY
+    return EvaluationMode.ALL
+
+
+def _resolve_evaluation_runtime(
+    args: argparse.Namespace,
+    model_specific_config,
+) -> dict[str, Any]:
+    backend_str = args.backend or model_specific_config.backend
+    runtime = {
+        "backend": backend_str,
+        "temperature": model_specific_config.get_temperature(),
+        "max_tokens": model_specific_config.get_max_tokens(),
+        "batch_size": model_specific_config.get_batch_size(),
+        "tensor_parallel_size": model_specific_config.tensor_parallel_size,
+        "api_base": model_specific_config.api_base,
+        "timeout": model_specific_config.timeout,
+        "max_retries": model_specific_config.max_retries,
+        "device": model_specific_config.device,
+        "dtype": model_specific_config.dtype,
+        "rate_limit_rpm": model_specific_config.rate_limit_rpm,
+    }
+
+    cli_overrides = {
+        "temperature": "temperature",
+        "max_tokens": "max_tokens",
+        "batch_size": "batch_size",
+        "tensor_parallel": "tensor_parallel_size",
+        "api_base": "api_base",
+    }
+    for arg_key, runtime_key in cli_overrides.items():
+        value = getattr(args, arg_key, None)
+        if value is not None:
+            runtime[runtime_key] = value
+
+    return runtime
+
+
+def _build_evaluation_config(
+    args: argparse.Namespace,
+    model_specific_config,
+):
+    from evaluation.config import InferenceBackend, ModelConfig, EvaluationConfig
+
+    runtime = _resolve_evaluation_runtime(args, model_specific_config)
+    backend_str = str(runtime["backend"])
+    model_config = ModelConfig(
+        model_id=model_specific_config.get_model_id(),
+        backend=InferenceBackend(backend_str),
+        api_key=get_api_key(backend_str),
+        api_base=runtime["api_base"],
+        tensor_parallel_size=runtime["tensor_parallel_size"],
+        temperature=runtime["temperature"],
+        max_tokens=runtime["max_tokens"],
+        timeout=runtime["timeout"],
+        max_retries=runtime["max_retries"],
+        device=runtime["device"],
+        dtype=runtime["dtype"],
+        rate_limit_rpm=runtime["rate_limit_rpm"],
+    )
+
+    execution_mode = _resolve_execution_mode(args)
+    config = EvaluationConfig(
+        dataset_id=args.dataset,
+        split=args.split,
+        language=args.language,
+        model=model_config,
+        batch_size=runtime["batch_size"],
+        max_samples=args.max_samples,
+        output_dir=str(args.output_dir),
+        seed=args.seed,
+        batch_api=args.batch_api,
+        batch_poll_seconds=args.batch_poll_seconds,
+        batch_timeout_seconds=args.batch_timeout_seconds,
+        batch_completion_window=args.batch_completion_window,
+        execution_mode=execution_mode,
+        model_config_path=args.model_config,
+    )
+
+    return config, model_config, runtime, execution_mode
+
+
+def _save_evaluation_reports(output, output_path: Path, report_format: str) -> None:
+    from evaluation.report import ReportGenerator
+
+    generator = ReportGenerator(output)
+    if report_format == "all":
+        paths = generator.save_all(output_path)
+        print("\nReports saved:")
+        for fmt, path in paths.items():
+            print(f"  {fmt}: {path}")
+        return
+
+    method = getattr(generator, f"to_{report_format}")
+    path = method(output_path / f"report.{report_format}")
+    print(f"\nReport saved: {path}")
+
+
 def print_results(metrics: dict, format_name: str) -> None:
     """Print evaluation results to console."""
     print("\n" + "=" * 60)
@@ -192,40 +365,206 @@ def load_model_config(
     return loader.load_from_path(Path(model_config_path))
 
 
+GENERATE_ARG_TO_PIPELINE_KEY: tuple[tuple[str, str], ...] = (
+    ("repo_id", "repo_id"),
+    ("output_dir", "output_dir"),
+    ("lang", "lang"),
+    ("size", "size"),
+    ("template", "template"),
+    ("template_family", "template_family"),
+    ("min_template_complexity", "min_template_complexity"),
+    ("max_template_complexity", "max_template_complexity"),
+    ("template_config_dir", "template_config_dir"),
+    ("markdown_renderer", "markdown_renderer"),
+    ("style_profile", "style_profile"),
+    ("coverage_target", "coverage_targets"),
+    ("novelty_window", "novelty_window"),
+    ("novelty_threshold", "novelty_threshold"),
+    ("novelty_max_attempts", "novelty_max_attempts"),
+    ("similar_char_ratio", "similar_char_ratio"),
+    ("similarity_db_path", "similarity_db_path"),
+    ("add_noise", "add_noise"),
+    ("add_blur", "add_blur"),
+    ("mixed", "mixed"),
+    ("train_ratio", "train_ratio"),
+    ("test_ratio", "test_ratio"),
+    ("seed", "seed"),
+)
+
+
+def _build_generate_pipeline_args(args: argparse.Namespace) -> dict[str, Any]:
+    return {
+        pipeline_key: getattr(args, arg_name)
+        for arg_name, pipeline_key in GENERATE_ARG_TO_PIPELINE_KEY
+    }
+
+
+def _add_optional_generation_effect_argument(
+    parser: argparse.ArgumentParser,
+    option_name: str,
+    help_text: str,
+) -> None:
+    parser.add_argument(
+        option_name,
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=help_text,
+    )
+
+
+def _configure_generate_parser(gen_parser: argparse.ArgumentParser) -> None:
+    gen_parser.add_argument(
+        "--repo-id",
+        required=True,
+        help="Hugging Face Hub repository ID for dataset upload",
+    )
+    gen_parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="./data",
+        help="Base directory for all generated data",
+    )
+    gen_parser.add_argument(
+        "--lang",
+        type=str,
+        default="ko",
+        help="Language code (e.g., ko, en)",
+    )
+    gen_parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for reproducible generation",
+    )
+    gen_parser.add_argument(
+        "--size",
+        type=int,
+        default=100,
+        help="Number of images to generate",
+    )
+    gen_parser.add_argument(
+        "--template",
+        type=str,
+        default=None,
+        help="Template for generation",
+    )
+    gen_parser.add_argument(
+        "--template-family",
+        type=str,
+        default=None,
+        help="Template family filter (e.g. legacy, operations, api)",
+    )
+    gen_parser.add_argument(
+        "--min-template-complexity",
+        type=int,
+        default=None,
+        help="Minimum template complexity filter (1-5)",
+    )
+    gen_parser.add_argument(
+        "--max-template-complexity",
+        type=int,
+        default=None,
+        help="Maximum template complexity filter (1-5)",
+    )
+    gen_parser.add_argument(
+        "--template-config-dir",
+        type=str,
+        default=None,
+        help="Directory containing template YAML configs (default: configs/generator/templates)",
+    )
+    gen_parser.add_argument(
+        "--markdown-renderer",
+        type=str,
+        default="pil",
+        choices=["pil", "html2image"],
+        help="Markdown rendering pipeline (pil or markdown->html->image via html2image)",
+    )
+    gen_parser.add_argument(
+        "--style-profile",
+        type=str,
+        default="balanced",
+        choices=["legacy", "balanced", "aggressive"],
+        help="Style sampling profile controlling visual variation",
+    )
+    gen_parser.add_argument(
+        "--coverage-target",
+        action="append",
+        default=None,
+        help="Coverage target per family, e.g. legacy=0.5 (repeatable)",
+    )
+    gen_parser.add_argument(
+        "--novelty-window",
+        type=int,
+        default=80,
+        help="Recent sample window size used for novelty checks",
+    )
+    gen_parser.add_argument(
+        "--novelty-threshold",
+        type=float,
+        default=0.95,
+        help="Similarity threshold for novelty guard (higher means stricter)",
+    )
+    gen_parser.add_argument(
+        "--novelty-max-attempts",
+        type=int,
+        default=4,
+        help="Max attempts per sample before accepting low-novelty output",
+    )
+    gen_parser.add_argument(
+        "--similar-char-ratio",
+        type=float,
+        default=0.08,
+        help="Ratio of characters to replace with similar-looking characters",
+    )
+    gen_parser.add_argument(
+        "--similarity-db-path",
+        type=str,
+        default=None,
+        help="Path to character similarity DB JSON from src/character_similarity.py",
+    )
+    _add_optional_generation_effect_argument(
+        gen_parser,
+        "--add-noise",
+        "Enable or disable noise effect (default: generator setting)",
+    )
+    _add_optional_generation_effect_argument(
+        gen_parser,
+        "--add-blur",
+        "Enable or disable blur effect (default: generator setting)",
+    )
+    gen_parser.add_argument(
+        "--mixed",
+        action="store_true",
+        default=False,
+        help="Generate mixed format dataset",
+    )
+    gen_parser.add_argument(
+        "--train-ratio",
+        type=float,
+        default=0.9,
+        help="Train split ratio in mixed mode (default: 0.9)",
+    )
+    gen_parser.add_argument(
+        "--test-ratio",
+        type=float,
+        default=0.1,
+        help="Test split ratio in mixed mode (default: 0.1)",
+    )
+
+
 def cmd_generate(args: argparse.Namespace) -> None:
     """Run generation command."""
     from pipeline import pipeline
 
     set_global_seed(args.seed)
-    pipeline_args = {
-        "repo_id": args.repo_id,
-        "output_dir": args.output_dir,
-        "lang": args.lang,
-        "size": args.size,
-        "template": args.template,
-        "markdown_renderer": args.markdown_renderer,
-        "similar_char_ratio": args.similar_char_ratio,
-        "similarity_db_path": args.similarity_db_path,
-        "add_noise": args.add_noise,
-        "add_blur": args.add_blur,
-        "mixed": args.mixed,
-        "train_ratio": args.train_ratio,
-        "test_ratio": args.test_ratio,
-        "seed": args.seed,
-    }
+    pipeline_args = _build_generate_pipeline_args(args)
     pipeline(**pipeline_args)
 
 
 def cmd_evaluate(args: argparse.Namespace) -> None:
     """Run evaluation command."""
-    from evaluation.config import (
-        InferenceBackend,
-        ModelConfig,
-        EvaluationConfig,
-        EvaluationMode,
-    )
+    from evaluation.config import EvaluationMode
     from evaluation.pipeline import EvaluationPipeline
-    from evaluation.report import ReportGenerator
 
     model_specific_config = load_model_config(args.model_config)
 
@@ -235,69 +574,11 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         "markdown": "avg_markdown_overall_score",
     }
 
-    backend_str = args.backend
-    if not backend_str:
-        backend_str = model_specific_config.backend
-
-    temperature = model_specific_config.get_temperature()
-    max_tokens = model_specific_config.get_max_tokens()
-    batch_size = model_specific_config.get_batch_size()
-    tensor_parallel = model_specific_config.tensor_parallel_size
-    api_base = model_specific_config.api_base
-    timeout = model_specific_config.timeout
-    max_retries = model_specific_config.max_retries
-    device = model_specific_config.device
-    dtype = model_specific_config.dtype
-    rate_limit_rpm = model_specific_config.rate_limit_rpm
-
-    if hasattr(args, "temperature") and args.temperature is not None:
-        temperature = args.temperature
-    if hasattr(args, "max_tokens") and args.max_tokens is not None:
-        max_tokens = args.max_tokens
-    if hasattr(args, "batch_size") and args.batch_size is not None:
-        batch_size = args.batch_size
-    if hasattr(args, "tensor_parallel") and args.tensor_parallel is not None:
-        tensor_parallel = args.tensor_parallel
-    if hasattr(args, "api_base") and args.api_base is not None:
-        api_base = args.api_base
-
-    model_config = ModelConfig(
-        model_id=model_specific_config.get_model_id(),
-        backend=InferenceBackend(backend_str),
-        api_key=get_api_key(backend_str),
-        api_base=api_base,
-        tensor_parallel_size=tensor_parallel,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        timeout=timeout,
-        max_retries=max_retries,
-        device=device,
-        dtype=dtype,
-        rate_limit_rpm=rate_limit_rpm,
+    config, model_config, runtime, execution_mode = _build_evaluation_config(
+        args,
+        model_specific_config,
     )
-
-    execution_mode = EvaluationMode.ALL
-    if args.inference_only:
-        execution_mode = EvaluationMode.INFERENCE_ONLY
-    elif args.evaluate_only:
-        execution_mode = EvaluationMode.EVALUATE_ONLY
-
-    config = EvaluationConfig(
-        dataset_id=args.dataset,
-        split=args.split,
-        language=args.language,
-        model=model_config,
-        batch_size=batch_size,
-        max_samples=args.max_samples,
-        output_dir=str(args.output_dir),
-        seed=args.seed,
-        batch_api=args.batch_api,
-        batch_poll_seconds=args.batch_poll_seconds,
-        batch_timeout_seconds=args.batch_timeout_seconds,
-        batch_completion_window=args.batch_completion_window,
-        execution_mode=execution_mode,
-        model_config_path=args.model_config,
-    )
+    backend_str = str(runtime["backend"])
 
     print("\nConfiguration:")
     print(f"  Model: {model_config.model_id}")
@@ -305,9 +586,9 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     print(f"  Dataset: {args.dataset} ({args.split})")
     print(f"  Language: {args.language}")
     print("  Format: markdown (fixed)")
-    print(f"  Batch Size: {batch_size}")
-    print(f"  Temperature: {temperature}")
-    print(f"  Max Tokens: {max_tokens}")
+    print(f"  Batch Size: {runtime['batch_size']}")
+    print(f"  Temperature: {runtime['temperature']}")
+    print(f"  Max Tokens: {runtime['max_tokens']}")
     print(f"  Config File: {args.model_config}")
     print(f"  Mode: {execution_mode.value}")
 
@@ -328,16 +609,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         output = pipeline.run()
 
     output_path = Path(args.output_dir)
-    generator = ReportGenerator(output)
-    if args.report_format == "all":
-        paths = generator.save_all(output_path)
-        print("\nReports saved:")
-        for fmt, path in paths.items():
-            print(f"  {fmt}: {path}")
-    else:
-        method = getattr(generator, f"to_{args.report_format}")
-        path = method(output_path / f"report.{args.report_format}")
-        print(f"\nReport saved: {path}")
+    _save_evaluation_reports(output, output_path, args.report_format)
 
     protocol_path = _write_protocol_snapshot(output_path, output, args.report_format)
     print(f"Protocol snapshot saved: {protocol_path}")
@@ -352,59 +624,27 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     if metric_key and metric_value is None:
         print(f"Warning: Missing representative metric '{metric_key}' for {resolved_format}")
 
-    summary_entry = {
-        "timestamp": _iso_timestamp(),
-        "protocol_version": PROTOCOL_VERSION,
-        "model_id": model_config.model_id,
-        "backend": backend_str,
-        "dataset": args.dataset,
-        "split": args.split,
-        "language": args.language,
-        "seed": args.seed,
-        "format": resolved_format,
-        "metric_key": metric_key,
-        "metric_value": metric_value,
-        "average_score": metric_value,
-        "empty_rate": output.summary.get("empty_rate"),
-        "parse_fail_rate": output.summary.get("parse_fail_rate"),
-        "total_samples": output.summary.get("total_samples"),
-        "prompt_source": output.config.get("prompt_source"),
-        "metrics": {
-            key: float(value)
-            for key, value in output.metrics.items()
-            if isinstance(value, (int, float))
-        },
-    }
+    summary_entry = _build_summary_entry(
+        output=output,
+        model_id=model_config.model_id,
+        backend=backend_str,
+        dataset=args.dataset,
+        split=args.split,
+        language=args.language,
+        seed=args.seed,
+        resolved_format=resolved_format,
+        metric_key=metric_key,
+        metric_value=metric_value,
+    )
 
     summary_output_dir = Path(args.output_dir)
 
     summary_path = summary_output_dir / "model_summary.json"
     summary_path.parent.mkdir(parents=True, exist_ok=True)
-    existing = []
-    if summary_path.exists():
-        try:
-            with open(summary_path, encoding="utf-8") as f:
-                loaded = json.load(f)
-            if isinstance(loaded, list):
-                existing = loaded
-            elif isinstance(loaded, dict):
-                existing = [loaded]
-        except (json.JSONDecodeError, OSError) as exc:
-            corrupt_path = summary_path.with_suffix(".corrupt.json")
-            try:
-                if summary_path.exists():
-                    summary_path.replace(corrupt_path)
-            finally:
-                raise RuntimeError(
-                    f"Corrupt summary file moved to {corrupt_path}"
-                ) from exc
+    existing = _load_summary_entries(summary_path)
 
     existing.append(summary_entry)
-
-    tmp_path = summary_path.with_suffix(".json.tmp")
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        json.dump(existing, f, ensure_ascii=False, indent=2)
-    os.replace(tmp_path, summary_path)
+    _save_summary_entries(summary_path, existing)
     print(f"\nModel summary saved: {summary_path}")
 
     _write_leaderboard(summary_output_dir, existing)
@@ -487,90 +727,7 @@ def main() -> None:
 
     # Generate command (legacy main arguments)
     gen_parser = subparsers.add_parser("generate", help="Generate synthetic dataset")
-    gen_parser.add_argument(
-        "--repo-id",
-        required=True,
-        help="Hugging Face Hub repository ID for dataset upload",
-    )
-    gen_parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="./data",
-        help="Base directory for all generated data",
-    )
-    gen_parser.add_argument(
-        "--lang",
-        type=str,
-        default="ko",
-        help="Language code (e.g., ko, en)",
-    )
-    gen_parser.add_argument(
-        "--seed",
-        type=int,
-        default=None,
-        help="Random seed for reproducible generation",
-    )
-    gen_parser.add_argument(
-        "--size",
-        type=int,
-        default=100,
-        help="Number of images to generate",
-    )
-    gen_parser.add_argument(
-        "--template",
-        type=str,
-        default=None,
-        help="Template for generation",
-    )
-    gen_parser.add_argument(
-        "--markdown-renderer",
-        type=str,
-        default="pil",
-        choices=["pil", "html2image"],
-        help="Markdown rendering pipeline (pil or markdown->html->image via html2image)",
-    )
-    gen_parser.add_argument(
-        "--similar-char-ratio",
-        type=float,
-        default=0.08,
-        help="Ratio of characters to replace with similar-looking characters",
-    )
-    gen_parser.add_argument(
-        "--similarity-db-path",
-        type=str,
-        default=None,
-        help="Path to character similarity DB JSON from src/character_similarity.py",
-    )
-    gen_parser.add_argument(
-        "--add-noise",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help="Enable or disable noise effect (default: generator setting)",
-    )
-    gen_parser.add_argument(
-        "--add-blur",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help="Enable or disable blur effect (default: generator setting)",
-    )
-    gen_parser.add_argument(
-        "--mixed",
-        action="store_true",
-        default=False,
-        help="Generate mixed format dataset",
-    )
-    gen_parser.add_argument(
-        "--train-ratio",
-        type=float,
-        default=0.9,
-        help="Train split ratio in mixed mode (default: 0.9)",
-    )
-    gen_parser.add_argument(
-        "--test-ratio",
-        type=float,
-        default=0.1,
-        help="Test split ratio in mixed mode (default: 0.1)",
-    )
+    _configure_generate_parser(gen_parser)
 
     # Evaluate command
     eval_parser = subparsers.add_parser("evaluate", help="Run model evaluation")
