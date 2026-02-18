@@ -9,5 +9,5 @@ COMMON_SCRIPT="$DATASET_DIR/generate.sh"
 "$COMMON_SCRIPT" \
     --repo-id "junyeong-nero/synthetic-ocr-images-ja" \
     --lang "ja" \
-    --size 100 \
+    --size 1000 \
     --label "Japanese"
