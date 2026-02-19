@@ -118,6 +118,7 @@ TemplateCatalog = generator_module.TemplateCatalog
 TemplateSpec = generator_module.TemplateSpec
 parse_coverage_targets = generator_module.parse_coverage_targets
 parse_markdown_formula_line = generator_module.parse_markdown_formula_line
+normalize_chained_scripts = generator_module._normalize_chained_scripts
 
 
 def test_parse_coverage_targets_accepts_list_and_dict() -> None:
@@ -225,6 +226,28 @@ def test_normalize_formula_text_converts_ge_le_aliases() -> None:
     assert data_generator._normalize_formula_text(
         r"|x+y| \le |x| + |y|"
     ) == r"|x+y| \leq |x| + |y|"
+
+
+def test_normalize_chained_scripts_rewrites_double_superscript_expression() -> None:
+    expression = r"\lim_{n\to 1} \alpha^{2m}^{n}"
+    assert normalize_chained_scripts(expression) == r"\lim_{n\to 1} \alpha^{2m^{n}}"
+
+
+def test_normalize_chained_scripts_rewrites_double_subscript_expression() -> None:
+    expression = r"x_{a}_{b}"
+    assert normalize_chained_scripts(expression) == r"x_{a_{b}}"
+
+
+def test_normalize_chained_scripts_rewrites_mixed_script_duplicates() -> None:
+    expression_sup = r"x^{a}_{b}^{c}"
+    expression_sub = r"x_{a}^{b}_{c}"
+    assert normalize_chained_scripts(expression_sup) == r"x^{a^{c}}_{b}"
+    assert normalize_chained_scripts(expression_sub) == r"x_{a_{c}}^{b}"
+
+
+def test_normalize_chained_scripts_handles_simple_script_tokens() -> None:
+    expression = r"x^a_b^c"
+    assert normalize_chained_scripts(expression) == r"x^{a^{c}}_{b}"
 
 
 def test_grammar_formula_generator_emits_math_like_expression() -> None:

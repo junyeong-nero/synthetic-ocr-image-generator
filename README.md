@@ -31,6 +31,13 @@ uv sync
 
 Install extra dependency groups only when needed (for example, model-specific backends).
 
+### Formula Rendering System Dependencies
+
+Markdown formula rendering uses `latex-to-image`, which requires a working XeLaTeX runtime.
+
+- Verify XeLaTeX is installed: `xelatex --help`
+- On macOS, install MacTeX so `xelatex` is available on your system
+
 ## Quick Start
 
 1) Generate a dataset
