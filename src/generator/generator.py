@@ -46,6 +46,7 @@ DEFAULT_BLUEPRINT_MAX_PARAGRAPH_CHARS = 220
 A4_MAX_WIDTH_PX = 2480
 A4_MAX_HEIGHT_PX = 3508
 MAX_RENDER_ASPECT_RATIO = 2.0
+FORMULA_MATHTEXT_FONTSET = "cm"
 
 _MARKDOWN_IMAGE_PATTERN = re.compile(r"^!\[(?P<alt>[^\]]*)\]\((?P<src>[^)]+)\)$")
 _MARKDOWN_FORMULA_PATTERN = re.compile(r"^\$\$\s*(?P<formula>.+?)\s*\$\$$")
@@ -55,7 +56,20 @@ DEFAULT_FORMULA_SOURCE_WEIGHTS: Dict[str, float] = {
     "random": 0.30,
     "synthetic": 0.25,
 }
-HARD_CODED_FORMULA_EXPRESSIONS: Tuple[str, ...] = (
+_MATHTEXT_ALIAS_PATTERNS: Tuple[Tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\\ge(?![A-Za-z])"), r"\\geq"),
+    (re.compile(r"\\le(?![A-Za-z])"), r"\\leq"),
+)
+
+
+def _normalize_mathtext_commands(formula: str) -> str:
+    normalized = formula
+    for pattern, replacement in _MATHTEXT_ALIAS_PATTERNS:
+        normalized = pattern.sub(replacement, normalized)
+    return normalized
+
+
+_RAW_HARD_CODED_FORMULA_EXPRESSIONS: Tuple[str, ...] = (
     r"a^2 + b^2 = c^2",
     r"E = mc^2",
     r"(a+b)^2 = a^2 + 2ab + b^2",
@@ -216,6 +230,29 @@ HARD_CODED_FORMULA_EXPRESSIONS: Tuple[str, ...] = (
     r"\operatorname{MSE}=\frac{1}{n}\sum_{i=1}^{n}(y_i-\hat{y}_i)^2",
     r"\operatorname{MAE}=\frac{1}{n}\sum_{i=1}^{n}|y_i-\hat{y}_i|",
     r"R^2=1-\frac{\sum_i(y_i-\hat{y}_i)^2}{\sum_i(y_i-\bar{y})^2}",
+    r"\mathcal{L}_{\operatorname{SFT}}=-\sum_{t=1}^{T}\log p_{\theta}(y_t|y_{<t},x)",
+    r"\mathcal{L}_{\operatorname{NLL}}=-\mathbb{E}_{(x,y)}\sum_{t=1}^{T}\log p_{\theta}(y_t|y_{<t},x)",
+    r"\mathcal{L}_{\operatorname{CE}}=-\sum_{v=1}^{V}q(v)\log p_{\theta}(v)",
+    r"q'(v)=(1-\epsilon)\delta_{v,y}+\frac{\epsilon}{V}",
+    r"\mathcal{L}_{\operatorname{LS}}=-\sum_{v=1}^{V}q'(v)\log p_{\theta}(v)",
+    r"\mathcal{L}_{\operatorname{KD}}=\tau^2\operatorname{KL}(p_T^{\tau}\|p_S^{\tau})",
+    r"\mathcal{L}_{\operatorname{KL}}=\operatorname{KL}(\pi_{\theta}(\cdot|x)\|\pi_{\operatorname{ref}}(\cdot|x))",
+    r"\mathcal{L}_{\operatorname{PPO}}=\mathbb{E}_t\left[\min\left(r_t(\theta)A_t,\operatorname{clip}(r_t(\theta),1-\epsilon,1+\epsilon)A_t\right)\right]",
+    r"r_t(\theta)=\frac{\pi_{\theta}(a_t|s_t)}{\pi_{\theta_{\operatorname{old}}}(a_t|s_t)}",
+    r"\mathcal{L}_{\operatorname{RLHF}}=-\mathbb{E}_{y\sim\pi_{\theta}}[r(x,y)-\beta\log\frac{\pi_{\theta}(y|x)}{\pi_{\operatorname{ref}}(y|x)}]",
+    r"\mathcal{L}_{\operatorname{DPO}}=-\mathbb{E}_{(x,y_w,y_l)}\log\sigma\left(\beta\left(\log\frac{\pi_{\theta}(y_w|x)}{\pi_{\operatorname{ref}}(y_w|x)}-\log\frac{\pi_{\theta}(y_l|x)}{\pi_{\operatorname{ref}}(y_l|x)}\right)\right)",
+    r"\mathcal{L}_{\operatorname{IPO}}=-\mathbb{E}_{(x,y_w,y_l)}\log\sigma\left(\Delta_{\theta}(x,y_w,y_l)-\frac{1}{2\beta}\right)",
+    r"\Delta_{\theta}(x,y_w,y_l)=\log\pi_{\theta}(y_w|x)-\log\pi_{\theta}(y_l|x)",
+    r"\mathcal{L}_{\operatorname{ORPO}}=\mathcal{L}_{\operatorname{NLL}}+\lambda\log\sigma\left(\log\frac{\pi_{\theta}(y_w|x)}{\pi_{\theta}(y_l|x)}\right)",
+    r"\mathcal{L}_{\operatorname{SimPO}}=-\mathbb{E}_{(x,y_w,y_l)}\log\sigma\left(\beta(\log\pi_{\theta}(y_w|x)-\log\pi_{\theta}(y_l|x))-\gamma\right)",
+    r"\mathcal{L}_{\operatorname{InfoNCE}}=-\log\frac{\exp(\operatorname{sim}(z_i,z_i^+)/\tau)}{\sum_{j=1}^{N}\exp(\operatorname{sim}(z_i,z_j)/\tau)}",
+    r"\mathcal{L}_{\operatorname{Triplet}}=\max(0,d(z,z^+)-d(z,z^-)+m)",
+    r"\mathcal{L}_{\operatorname{MoE}}=\alpha N\sum_{e=1}^{E}f_eP_e",
+    r"\operatorname{PPL}=\exp\left(-\frac{1}{T}\sum_{t=1}^{T}\log p_{\theta}(y_t|y_{<t},x)\right)",
+)
+HARD_CODED_FORMULA_EXPRESSIONS: Tuple[str, ...] = tuple(
+    _normalize_mathtext_commands(formula)
+    for formula in _RAW_HARD_CODED_FORMULA_EXPRESSIONS
 )
 def parse_markdown_image_line(line: str) -> Optional[Tuple[str, str]]:
     match = _MARKDOWN_IMAGE_PATTERN.match(line.strip())
@@ -251,9 +288,10 @@ def _render_formula_image(
         return cached.copy() if cached is not None else None
 
     try:
+        matplotlib = importlib.import_module("matplotlib")
         math_to_image = importlib.import_module("matplotlib.mathtext").math_to_image
         font_properties = importlib.import_module("matplotlib.font_manager").FontProperties(
-            size=max(10, int(font_size))
+            size=max(6, int(font_size))
         )
     except Exception:
         _FORMULA_IMAGE_CACHE[cache_key] = None
@@ -265,14 +303,15 @@ def _render_formula_image(
 
     buffer = BytesIO()
     try:
-        math_to_image(
-            wrapped_expression,
-            buffer,
-            dpi=220,
-            format="png",
-            color=_rgb_to_hex(text_color),
-            prop=font_properties,
-        )
+        with matplotlib.rc_context({"mathtext.fontset": FORMULA_MATHTEXT_FONTSET}):
+            math_to_image(
+                wrapped_expression,
+                buffer,
+                dpi=220,
+                format="png",
+                color=_rgb_to_hex(text_color),
+                prop=font_properties,
+            )
         buffer.seek(0)
         formula_image = Image.open(buffer).convert("RGBA")
         formula_image.load()
@@ -637,6 +676,7 @@ class MarkdownDataGenerator:
         elif text.startswith("$") and text.endswith("$") and len(text) >= 2:
             text = text[1:-1].strip()
 
+        text = _normalize_mathtext_commands(text)
         return " ".join(text.split())
 
     @classmethod
@@ -976,7 +1016,7 @@ class MarkdownDataGenerator:
         if branch == "equation":
             left = self._build_grammar_formula_term(depth)
             right = self._build_grammar_formula_term(max(1, depth - 1))
-            relation = random.choice(["=", r"\le", r"\ge"])
+            relation = random.choice(["=", r"\leq", r"\geq"])
             return f"{left} {relation} {right}"
 
         if branch == "integral":
@@ -1113,6 +1153,10 @@ class MarkdownRenderer:
     @staticmethod
     def _image_placeholder_height(style: MarkdownStyle) -> int:
         return int(max(110, style.body_font_size * 7.0))
+
+    @staticmethod
+    def _formula_font_size(style: MarkdownStyle) -> int:
+        return int(style.body_font_size * 0.5)
 
     @staticmethod
     def _resolve_image_asset(
@@ -1302,7 +1346,7 @@ class MarkdownRenderer:
         if (formula_text := self._parse_formula_line(stripped)) is not None:
             formula_image = _render_formula_image(
                 formula_text,
-                max(12, int(self.style.code_font_size * 1.2)),
+                self._formula_font_size(self.style),
                 self.style.code_text_color,
             )
             if formula_image is not None:
@@ -1491,7 +1535,7 @@ class MarkdownRenderer:
         text = formula_text.strip()
         formula_image = _render_formula_image(
             text,
-            max(12, int(style.code_font_size * 1.2)),
+            self._formula_font_size(style),
             style.code_text_color,
         )
 
@@ -1519,8 +1563,11 @@ class MarkdownRenderer:
 
         x = style.margin_left + 8
         text_y = y + 4
+        text_bbox = draw.textbbox((0, 0), text, font=self.code_font)
+        text_width = max(1, text_bbox[2] - text_bbox[0])
+        x = style.margin_left + max(8, (style.content_width - text_width) // 2)
         bbox = draw.textbbox((x, text_y), text, font=self.code_font)
-        box_right = min(style.margin_left + style.content_width, bbox[2] + 10)
+        box_right = style.margin_left + style.content_width
         box_bottom = bbox[3] + 5
 
         draw.rectangle(
@@ -1683,7 +1730,7 @@ class HtmlMarkdownRenderer:
             if formula_text is not None:
                 formula_image = _render_formula_image(
                     formula_text,
-                    max(12, int(self.style.code_font_size * 1.2)),
+                    MarkdownRenderer._formula_font_size(self.style),
                     self.style.code_text_color,
                 )
                 if formula_image is not None:
@@ -1729,7 +1776,7 @@ class HtmlMarkdownRenderer:
             if formula_text:
                 formula_image = _render_formula_image(
                     formula_text,
-                    max(12, int(self.style.code_font_size * 1.2)),
+                    MarkdownRenderer._formula_font_size(self.style),
                     self.style.code_text_color,
                 )
                 if formula_image is not None:
@@ -1757,6 +1804,7 @@ class HtmlMarkdownRenderer:
     ) -> str:
         prepared_markdown = self._prepare_component_markdown(markdown_text, image_assets=image_assets)
         rendered_html = self._coerce_markdown_html(prepared_markdown)
+        page_width = self.style.margin_left + self.style.content_width + self.style.margin_right
         css = f"""
 @font-face {{
   font-family: 'RenderFont';
@@ -1765,13 +1813,14 @@ class HtmlMarkdownRenderer:
 html, body {{
   margin: 0;
   padding: 0;
+  width: {page_width}px;
   background: rgb{self.style.background_color};
 }}
-body {{
-  width: {self.style.margin_left + self.style.content_width + self.style.margin_right}px;
+*, *::before, *::after {{
+  box-sizing: border-box;
 }}
 .markdown-body {{
-  width: {self.style.content_width}px;
+  width: {page_width}px;
   padding: {self.style.margin_top}px {self.style.margin_right}px {self.style.margin_bottom}px {self.style.margin_left}px;
   color: rgb{self.style.text_color};
   font-family: 'RenderFont', sans-serif;
@@ -1831,6 +1880,11 @@ body {{
   font-family: 'RenderFont', monospace;
   font-size: {self.style.code_font_size}px;
   overflow-wrap: anywhere;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }}
 .markdown-body .md-image-placeholder {{
   margin: 0 0 12px 0;
@@ -1847,11 +1901,13 @@ body {{
   font-weight: 600;
 }}
 .markdown-body .md-image-rendered {{
-  width: 100%;
+  width: auto;
+  max-width: 100%;
   display: block;
   border: 1px solid rgba(0, 0, 0, 0.28);
-  object-fit: cover;
+  object-fit: contain;
   max-height: 520px;
+  margin: 0 auto;
 }}
 .markdown-body .md-image-placeholder figcaption {{
   margin-top: 6px;
@@ -1862,6 +1918,7 @@ body {{
   display: block;
   max-width: 100%;
   height: auto;
+  margin: 0 auto;
 }}
 """
         return f"""<!DOCTYPE html>
@@ -2324,28 +2381,7 @@ class Generator(BaseGenerator):
                 pass
 
     def _fit_image_to_a4(self, image: Image.Image) -> Tuple[Image.Image, bool]:
-        width, height = image.size
-
-        clipped_width = min(width, self.max_render_width)
-        clipped_height = min(height, self.max_render_height)
-        clipped = image
-        clipped_any = clipped_width != width or clipped_height != height
-        if clipped_any:
-            clipped = image.crop((0, 0, clipped_width, clipped_height))
-
-        max_ratio = max(1.0, float(self.max_render_aspect_ratio))
-        ratio_width = clipped_width
-        ratio_height = clipped_height
-        if clipped_height > int(clipped_width * max_ratio):
-            ratio_height = max(1, int(clipped_width * max_ratio))
-        elif clipped_width > int(clipped_height * max_ratio):
-            ratio_width = max(1, int(clipped_height * max_ratio))
-
-        ratio_clipped = ratio_width != clipped_width or ratio_height != clipped_height
-        if ratio_clipped:
-            clipped = clipped.crop((0, 0, ratio_width, ratio_height))
-
-        return clipped, clipped_any or ratio_clipped
+        return image, False
 
     @staticmethod
     def _structure_signature(markdown_text: str) -> str:

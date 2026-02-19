@@ -1,6 +1,7 @@
 import random
 import sys
 import importlib
+import re
 from datetime import datetime
 from types import ModuleType
 
@@ -189,6 +190,41 @@ def test_sections_generation_composes_text_table_formula_blocks() -> None:
 def test_hardcoded_formula_pool_has_100_plus_entries() -> None:
     assert len(HARD_CODED_FORMULA_EXPRESSIONS) >= 100
     assert any("\\int" in formula for formula in HARD_CODED_FORMULA_EXPRESSIONS)
+
+
+def test_hardcoded_formula_pool_normalizes_relation_aliases() -> None:
+    assert all(
+        re.search(r"\\ge(?![A-Za-z])", formula) is None
+        for formula in HARD_CODED_FORMULA_EXPRESSIONS
+    )
+    assert all(
+        re.search(r"\\le(?![A-Za-z])", formula) is None
+        for formula in HARD_CODED_FORMULA_EXPRESSIONS
+    )
+
+
+def test_hardcoded_formula_pool_includes_llm_objectives() -> None:
+    required_tokens = (
+        r"\mathcal{L}_{\operatorname{SFT}}",
+        r"\mathcal{L}_{\operatorname{DPO}}",
+        r"\mathcal{L}_{\operatorname{PPO}}",
+        r"\mathcal{L}_{\operatorname{KD}}",
+        r"\mathcal{L}_{\operatorname{InfoNCE}}",
+    )
+    assert all(
+        any(token in formula for formula in HARD_CODED_FORMULA_EXPRESSIONS)
+        for token in required_tokens
+    )
+
+
+def test_normalize_formula_text_converts_ge_le_aliases() -> None:
+    data_generator = MarkdownDataGenerator(lang="en")
+    assert data_generator._normalize_formula_text(
+        r"\operatorname{CRLB}(\hat{\theta})\ge \frac{1}{nI(\theta)}"
+    ) == r"\operatorname{CRLB}(\hat{\theta})\geq \frac{1}{nI(\theta)}"
+    assert data_generator._normalize_formula_text(
+        r"|x+y| \le |x| + |y|"
+    ) == r"|x+y| \leq |x| + |y|"
 
 
 def test_grammar_formula_generator_emits_math_like_expression() -> None:
@@ -427,6 +463,26 @@ def test_html_renderer_component_preprocessing_handles_image_and_formula() -> No
     assert "placeholder://" not in prepared
 
 
+def test_html_renderer_formula_css_is_center_aligned() -> None:
+    renderer = HtmlMarkdownRenderer(font_path="/tmp/does-not-need-to-exist.ttf")
+    html_doc = renderer._build_html_document("$$ E = mc^2 $$", image_assets={})
+
+    assert "text-align: center;" in html_doc
+    assert "align-items: center;" in html_doc
+    assert "margin: 0 auto;" in html_doc
+
+
+def test_html_renderer_css_prevents_horizontal_overflow_clipping() -> None:
+    renderer = HtmlMarkdownRenderer(font_path="/tmp/does-not-need-to-exist.ttf")
+    html_doc = renderer._build_html_document("![Wide](placeholder://wide)", image_assets={})
+
+    assert "box-sizing: border-box;" in html_doc
+    assert ".markdown-body .md-image-rendered" in html_doc
+    assert "width: auto;" in html_doc
+    assert "max-width: 100%;" in html_doc
+    assert "object-fit: contain;" in html_doc
+
+
 def test_html_renderer_component_preprocessing_embeds_real_image_when_asset_exists() -> None:
     markdown = "![Chart](placeholder://chart-101)"
     renderer = HtmlMarkdownRenderer(font_path="/tmp/does-not-need-to-exist.ttf")
@@ -465,7 +521,7 @@ def test_sections_generation_respects_configured_section_counts() -> None:
     assert merge_order.count("formula") == 1
 
 
-def test_fit_image_to_a4_clips_large_images() -> None:
+def test_fit_image_to_a4_keeps_original_size_without_clipping() -> None:
     generator = Generator.__new__(Generator)
     generator.max_render_width = A4_MAX_WIDTH_PX
     generator.max_render_height = A4_MAX_HEIGHT_PX
@@ -473,16 +529,29 @@ def test_fit_image_to_a4_clips_large_images() -> None:
 
     large = Image.new("RGB", (3200, 4200), color=(255, 255, 255))
     fitted, clipped = generator._fit_image_to_a4(large)
-    assert clipped is True
-    assert fitted.size == (A4_MAX_WIDTH_PX, A4_MAX_HEIGHT_PX)
+    assert clipped is False
+    assert fitted.size == large.size
 
     tall = Image.new("RGB", (656, 3508), color=(255, 255, 255))
     fitted_tall, clipped_tall = generator._fit_image_to_a4(tall)
-    assert clipped_tall is True
-    assert fitted_tall.size == (656, 1312)
-    assert fitted_tall.height <= fitted_tall.width * 2
+    assert clipped_tall is False
+    assert fitted_tall.size == tall.size
 
     small = Image.new("RGB", (900, 1200), color=(255, 255, 255))
     fitted_small, clipped_small = generator._fit_image_to_a4(small)
     assert clipped_small is False
     assert fitted_small.size == small.size
+
+
+def test_fit_image_to_a4_does_not_enforce_aspect_ratio() -> None:
+    generator = Generator.__new__(Generator)
+    generator.max_render_width = A4_MAX_WIDTH_PX
+    generator.max_render_height = A4_MAX_HEIGHT_PX
+    generator.max_render_aspect_ratio = 2.0
+
+    wide = Image.new("RGB", (1200, 300), color=(250, 250, 250))
+    fitted, clipped = generator._fit_image_to_a4(wide)
+
+    assert clipped is False
+    assert fitted.width == 1200
+    assert fitted.height == 300
