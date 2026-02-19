@@ -1,10 +1,10 @@
-"""Markdown Generator Module for synthetic OCR markdown image generation.
+"""Markdown generator module for synthetic OCR markdown image generation.
 
-This module provides comprehensive markdown document generation capabilities including:
-- Various markdown elements (headers, paragraphs, lists, code blocks, tables, blockquotes)
-- Multiple markdown templates (readme, technical_doc, blog_post, api_doc, tutorial)
-- Layout variations (backgrounds, noise effects)
-- Ground truth format with raw markdown text and rendered image
+This module now supports composable document generation:
+- `TextGenerator`: emits text-only markdown sections
+- `TableGenerator`: emits markdown table sections
+- `FormularGenerator`: emits markdown formula sections
+- `MergeOrchestrator`: merges and shuffles sections into one markdown document
 """
 
 import logging
@@ -12,6 +12,10 @@ import random
 import tempfile
 import importlib
 import re
+import base64
+import csv
+import json
+from io import BytesIO
 from collections import Counter, deque
 from difflib import SequenceMatcher
 import numpy as np
@@ -26,6 +30,10 @@ from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageFilter, ImageEnhan
 from character_similarity import find_similar_chars
 from generator.base import BaseGenerator
 from generator.data_provider import DataProvider
+from generator.formula_generator import FormularGenerator
+from generator.merge_orchestrator import MergeOrchestrator
+from generator.table_generator import TableGenerator
+from generator.text_generator import TextGenerator
 from utils import markdown_to_json_ast, read_json
 
 logger = logging.getLogger(__name__)
@@ -34,15 +42,181 @@ logger = logging.getLogger(__name__)
 DEFAULT_NOVELTY_WINDOW = 80
 DEFAULT_NOVELTY_THRESHOLD = 0.95
 DEFAULT_NOVELTY_MAX_ATTEMPTS = 4
-DEFAULT_BLUEPRINT_MAX_TOTAL_LINES = 115
 DEFAULT_BLUEPRINT_MAX_PARAGRAPH_CHARS = 220
 A4_MAX_WIDTH_PX = 2480
 A4_MAX_HEIGHT_PX = 3508
+MAX_RENDER_ASPECT_RATIO = 2.0
 
 _MARKDOWN_IMAGE_PATTERN = re.compile(r"^!\[(?P<alt>[^\]]*)\]\((?P<src>[^)]+)\)$")
 _MARKDOWN_FORMULA_PATTERN = re.compile(r"^\$\$\s*(?P<formula>.+?)\s*\$\$$")
-
-
+_FORMULA_IMAGE_CACHE: Dict[Tuple[str, int, Tuple[int, int, int]], Optional[Image.Image]] = {}
+DEFAULT_FORMULA_SOURCE_WEIGHTS: Dict[str, float] = {
+    "dataset": 0.45,
+    "random": 0.30,
+    "synthetic": 0.25,
+}
+HARD_CODED_FORMULA_EXPRESSIONS: Tuple[str, ...] = (
+    r"a^2 + b^2 = c^2",
+    r"E = mc^2",
+    r"(a+b)^2 = a^2 + 2ab + b^2",
+    r"(a-b)^2 = a^2 - 2ab + b^2",
+    r"a^3 - b^3 = (a-b)(a^2 + ab + b^2)",
+    r"a^3 + b^3 = (a+b)(a^2 - ab + b^2)",
+    r"x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}",
+    r"\Delta = b^2 - 4ac",
+    r"\frac{n(n+1)}{2}",
+    r"\sum_{k=1}^{n} k = \frac{n(n+1)}{2}",
+    r"\sum_{k=1}^{n} k^2 = \frac{n(n+1)(2n+1)}{6}",
+    r"\sum_{k=1}^{n} k^3 = \left(\frac{n(n+1)}{2}\right)^2",
+    r"\prod_{k=1}^{n} k = n!",
+    r"\binom{n}{k} = \frac{n!}{k!(n-k)!}",
+    r"(x+y)^n = \sum_{k=0}^{n} \binom{n}{k}x^{n-k}y^k",
+    r"\sum_{k=0}^{n}\binom{n}{k} = 2^n",
+    r"\sum_{k=0}^{n}(-1)^k\binom{n}{k} = 0",
+    r"\gcd(a,b)\cdot\operatorname{lcm}(a,b)=ab",
+    r"|x+y| \le |x| + |y|",
+    r"||x|-|y|| \le |x-y|",
+    r"\log_a(xy)=\log_a x + \log_a y",
+    r"\log_a\left(\frac{x}{y}\right)=\log_a x - \log_a y",
+    r"\log_a(x^r)=r\log_a x",
+    r"a^{\log_a x}=x",
+    r"\frac{1}{1-r}=\sum_{k=0}^{\infty}r^k,\ |r|<1",
+    r"e^{i\theta}=\cos\theta+i\sin\theta",
+    r"e^{i\pi}+1=0",
+    r"|z|=\sqrt{z\bar{z}}",
+    r"\operatorname{Re}(z)=\frac{z+\bar{z}}{2}",
+    r"\operatorname{Im}(z)=\frac{z-\bar{z}}{2i}",
+    r"\sin^2 x + \cos^2 x = 1",
+    r"1+\tan^2 x = \sec^2 x",
+    r"1+\cot^2 x = \csc^2 x",
+    r"\sin(2x)=2\sin x \cos x",
+    r"\cos(2x)=\cos^2 x - \sin^2 x",
+    r"\sin(x\pm y)=\sin x\cos y \pm \cos x\sin y",
+    r"\cos(x\pm y)=\cos x\cos y \mp \sin x\sin y",
+    r"\tan(x\pm y)=\frac{\tan x \pm \tan y}{1 \mp \tan x\tan y}",
+    r"\arcsin x + \arccos x = \frac{\pi}{2}",
+    r"\sin x \approx x - \frac{x^3}{3!}",
+    r"\cos x \approx 1 - \frac{x^2}{2!}",
+    r"\tan x \approx x + \frac{x^3}{3}",
+    r"\sum_{k=0}^{\infty}(-1)^k\frac{x^{2k+1}}{(2k+1)!}=\sin x",
+    r"\sum_{k=0}^{\infty}(-1)^k\frac{x^{2k}}{(2k)!}=\cos x",
+    r"\sum_{k=1}^{\infty}\frac{\sin(kx)}{k} = \frac{\pi-x}{2},\ 0<x<2\pi",
+    r"\lim_{x\to 0}\frac{\sin x}{x}=1",
+    r"\lim_{x\to 0}\frac{1-\cos x}{x^2}=\frac{1}{2}",
+    r"\lim_{n\to\infty}\left(1+\frac{1}{n}\right)^n=e",
+    r"f'(x)=\lim_{h\to 0}\frac{f(x+h)-f(x)}{h}",
+    r"\frac{d}{dx}x^n = nx^{n-1}",
+    r"\frac{d}{dx}e^x = e^x",
+    r"\frac{d}{dx}\ln x = \frac{1}{x}",
+    r"\frac{d}{dx}\sin x = \cos x",
+    r"\frac{d}{dx}\cos x = -\sin x",
+    r"\frac{d}{dx}\tan x = \sec^2 x",
+    r"\frac{d}{dx}\arcsin x = \frac{1}{\sqrt{1-x^2}}",
+    r"\frac{d}{dx}\arctan x = \frac{1}{1+x^2}",
+    r"\frac{d}{dx}(uv)=u'v+uv'",
+    r"\frac{d}{dx}\left(\frac{u}{v}\right)=\frac{u'v-uv'}{v^2}",
+    r"\frac{d}{dx}f(g(x)) = f'(g(x))g'(x)",
+    r"\int x^n\,dx = \frac{x^{n+1}}{n+1}+C,\ n\ne -1",
+    r"\int \frac{1}{x}\,dx = \ln|x| + C",
+    r"\int e^x\,dx = e^x + C",
+    r"\int \sin x\,dx = -\cos x + C",
+    r"\int \cos x\,dx = \sin x + C",
+    r"\int \sec^2 x\,dx = \tan x + C",
+    r"\int \frac{1}{1+x^2}\,dx = \arctan x + C",
+    r"\int \frac{1}{\sqrt{1-x^2}}\,dx = \arcsin x + C",
+    r"\int_0^1 x^2\,dx = \frac{1}{3}",
+    r"\int_0^\pi \sin x\,dx = 2",
+    r"\int_0^{\infty} e^{-ax}\,dx = \frac{1}{a},\ a>0",
+    r"\int_{-\infty}^{\infty}e^{-x^2}\,dx = \sqrt{\pi}",
+    r"\int_0^{\infty} x^{s-1}e^{-x}\,dx = \Gamma(s)",
+    r"\Gamma(n+1)=n!",
+    r"B(p,q)=\int_0^1 t^{p-1}(1-t)^{q-1}\,dt",
+    r"B(p,q)=\frac{\Gamma(p)\Gamma(q)}{\Gamma(p+q)}",
+    r"\int u\,dv = uv - \int v\,du",
+    r"\int_a^b f'(x)\,dx = f(b)-f(a)",
+    r"\frac{d}{dx}\int_a^x f(t)\,dt = f(x)",
+    r"\sum_{n=0}^{\infty}\frac{x^n}{n!}=e^x",
+    r"\ln(1+x)=\sum_{n=1}^{\infty}\frac{(-1)^{n+1}x^n}{n},\ |x|<1",
+    r"\frac{1}{1-x}=\sum_{n=0}^{\infty}x^n,\ |x|<1",
+    r"\arctan x = \sum_{n=0}^{\infty}(-1)^n\frac{x^{2n+1}}{2n+1},\ |x|\le 1",
+    r"f(x)=f(a)+f'(a)(x-a)+\frac{f''(a)}{2!}(x-a)^2+\cdots",
+    r"R_n(x)=\frac{f^{(n+1)}(\xi)}{(n+1)!}(x-a)^{n+1}",
+    r"\nabla f = \left(\frac{\partial f}{\partial x},\frac{\partial f}{\partial y},\frac{\partial f}{\partial z}\right)",
+    r"\nabla\cdot \mathbf{F}=\frac{\partial F_x}{\partial x}+\frac{\partial F_y}{\partial y}+\frac{\partial F_z}{\partial z}",
+    r"\nabla\times \mathbf{F}=\left(\frac{\partial F_z}{\partial y}-\frac{\partial F_y}{\partial z},\frac{\partial F_x}{\partial z}-\frac{\partial F_z}{\partial x},\frac{\partial F_y}{\partial x}-\frac{\partial F_x}{\partial y}\right)",
+    r"\nabla\cdot(\nabla\times\mathbf{F})=0",
+    r"\nabla\times(\nabla \phi)=0",
+    r"y' + p(x)y = q(x)",
+    r"y(x)=e^{-\int p(x)\,dx}\left(\int q(x)e^{\int p(x)\,dx}\,dx + C\right)",
+    r"y'' + \omega^2 y = 0",
+    r"y(t)=C_1\cos(\omega t)+C_2\sin(\omega t)",
+    r"\frac{dy}{dx}=ky",
+    r"y=Ce^{kx}",
+    r"\frac{d^2x}{dt^2}+\frac{k}{m}x=0",
+    r"\frac{\partial u}{\partial t}=\alpha \frac{\partial^2 u}{\partial x^2}",
+    r"\frac{\partial^2 u}{\partial t^2}=c^2\frac{\partial^2 u}{\partial x^2}",
+    r"i\hbar\frac{\partial \psi}{\partial t}=\hat{H}\psi",
+    r"-\frac{\hbar^2}{2m}\nabla^2\psi + V\psi = E\psi",
+    r"\mathcal{L}\{f(t)\}(s)=\int_0^\infty e^{-st}f(t)\,dt",
+    r"\mathcal{L}\{f'(t)\}=sF(s)-f(0)",
+    r"\mathcal{L}^{-1}\left\{\frac{1}{s-a}\right\}=e^{at}",
+    r"\mathcal{F}\{f(x)\}(\omega)=\int_{-\infty}^{\infty}f(x)e^{-i\omega x}\,dx",
+    r"f(x)=\frac{1}{2\pi}\int_{-\infty}^{\infty}\hat{f}(\omega)e^{i\omega x}\,d\omega",
+    r"\int_{-\infty}^{\infty}|f(x)|^2\,dx=\frac{1}{2\pi}\int_{-\infty}^{\infty}|\hat{f}(\omega)|^2\,d\omega",
+    r"X_k=\sum_{n=0}^{N-1}x_n e^{-i2\pi kn/N}",
+    r"A\mathbf{v}=\lambda \mathbf{v}",
+    r"\det(A-\lambda I)=0",
+    r"A=Q\Lambda Q^{-1}",
+    r"A=U\Sigma V^\top",
+    r"\operatorname{rank}(A)+\operatorname{nullity}(A)=n",
+    r"\det(AB)=\det(A)\det(B)",
+    r"\det(A^\top)=\det(A)",
+    r"(AB)^\top = B^\top A^\top",
+    r"(A^{-1})^\top = (A^\top)^{-1}",
+    r"\operatorname{tr}(AB)=\operatorname{tr}(BA)",
+    r"\|Ax\|_2 \le \|A\|_2\|x\|_2",
+    r"\langle x,y\rangle \le \|x\|_2\|y\|_2",
+    r"\|x+y\|_2 \le \|x\|_2+\|y\|_2",
+    r"\sum_{i=1}^{n}\lambda_i = \operatorname{tr}(A)",
+    r"\prod_{i=1}^{n}\lambda_i = \det(A)",
+    r"\mathbf{a}\cdot\mathbf{b}=\|\mathbf{a}\|\|\mathbf{b}\|\cos\theta",
+    r"\|\mathbf{a}\times\mathbf{b}\|=\|\mathbf{a}\|\|\mathbf{b}\|\sin\theta",
+    r"\oint_{\partial S}\mathbf{F}\cdot d\mathbf{r}=\iint_{S}(\nabla\times\mathbf{F})\cdot d\mathbf{S}",
+    r"\iiint_{V}\nabla\cdot\mathbf{F}\,dV=\iint_{\partial V}\mathbf{F}\cdot d\mathbf{S}",
+    r"\oint_{C}\mathbf{E}\cdot d\mathbf{l}=-\frac{d}{dt}\iint_{S}\mathbf{B}\cdot d\mathbf{S}",
+    r"\oint_{C}\mathbf{B}\cdot d\mathbf{l}=\mu_0 I_{\text{enc}}+\mu_0\epsilon_0\frac{d}{dt}\iint_S\mathbf{E}\cdot d\mathbf{S}",
+    r"\nabla^2\phi = \frac{\partial^2\phi}{\partial x^2}+\frac{\partial^2\phi}{\partial y^2}+\frac{\partial^2\phi}{\partial z^2}",
+    r"P(A|B)=\frac{P(B|A)P(A)}{P(B)}",
+    r"P(A\cap B)=P(A)P(B)\ \text{(independent)}",
+    r"P(A\cup B)=P(A)+P(B)-P(A\cap B)",
+    r"\mathbb{E}[X]=\sum_x x\,p(x)",
+    r"\mathbb{E}[X]=\int_{-\infty}^{\infty}x f_X(x)\,dx",
+    r"\operatorname{Var}(X)=\mathbb{E}[X^2]-\mathbb{E}[X]^2",
+    r"\operatorname{Cov}(X,Y)=\mathbb{E}[XY]-\mathbb{E}[X]\mathbb{E}[Y]",
+    r"\rho_{X,Y}=\frac{\operatorname{Cov}(X,Y)}{\sigma_X\sigma_Y}",
+    r"X\sim\operatorname{Bin}(n,p),\ P(X=k)=\binom{n}{k}p^k(1-p)^{n-k}",
+    r"X\sim\operatorname{Poisson}(\lambda),\ P(X=k)=e^{-\lambda}\frac{\lambda^k}{k!}",
+    r"f(x)=\frac{1}{\sqrt{2\pi\sigma^2}}e^{-\frac{(x-\mu)^2}{2\sigma^2}}",
+    r"Z=\frac{X-\mu}{\sigma}",
+    r"\chi^2=\sum_{i=1}^{n}\frac{(O_i-E_i)^2}{E_i}",
+    r"t=\frac{\bar{X}-\mu}{S/\sqrt{n}}",
+    r"F=\frac{S_1^2}{S_2^2}",
+    r"\hat{\theta}_{\text{MLE}}=\arg\max_{\theta}\prod_{i=1}^{n}p(x_i|\theta)",
+    r"\ell(\theta)=\sum_{i=1}^{n}\log p(x_i|\theta)",
+    r"I(\theta)=\mathbb{E}\left[\left(\frac{\partial}{\partial\theta}\log p(X|\theta)\right)^2\right]",
+    r"\operatorname{CRLB}(\hat{\theta})\ge \frac{1}{nI(\theta)}",
+    r"\operatorname{KL}(P\|Q)=\sum_x P(x)\log\frac{P(x)}{Q(x)}",
+    r"H(X)=-\sum_x p(x)\log p(x)",
+    r"I(X;Y)=H(X)-H(X|Y)",
+    r"\operatorname{softmax}(z_i)=\frac{e^{z_i}}{\sum_j e^{z_j}}",
+    r"\sigma(x)=\frac{1}{1+e^{-x}}",
+    r"J(\theta)=\frac{1}{m}\sum_{i=1}^{m}(h_\theta(x^{(i)})-y^{(i)})^2",
+    r"\nabla_\theta J(\theta)=\frac{1}{m}X^\top(X\theta-y)",
+    r"\theta_{t+1}=\theta_t-\eta\nabla_\theta J(\theta_t)",
+    r"\operatorname{MSE}=\frac{1}{n}\sum_{i=1}^{n}(y_i-\hat{y}_i)^2",
+    r"\operatorname{MAE}=\frac{1}{n}\sum_{i=1}^{n}|y_i-\hat{y}_i|",
+    r"R^2=1-\frac{\sum_i(y_i-\hat{y}_i)^2}{\sum_i(y_i-\bar{y})^2}",
+)
 def parse_markdown_image_line(line: str) -> Optional[Tuple[str, str]]:
     match = _MARKDOWN_IMAGE_PATTERN.match(line.strip())
     if not match:
@@ -56,89 +230,78 @@ def parse_markdown_formula_line(line: str) -> Optional[str]:
         return None
     return match.group("formula").strip()
 
+
+def _rgb_to_hex(color: Tuple[int, int, int]) -> str:
+    red, green, blue = color
+    return f"#{red:02x}{green:02x}{blue:02x}"
+
+
+def _render_formula_image(
+    formula_text: str,
+    font_size: int,
+    text_color: Tuple[int, int, int],
+) -> Optional[Image.Image]:
+    expression = formula_text.strip()
+    if not expression:
+        return None
+
+    cache_key = (expression, int(font_size), text_color)
+    if cache_key in _FORMULA_IMAGE_CACHE:
+        cached = _FORMULA_IMAGE_CACHE[cache_key]
+        return cached.copy() if cached is not None else None
+
+    try:
+        math_to_image = importlib.import_module("matplotlib.mathtext").math_to_image
+        font_properties = importlib.import_module("matplotlib.font_manager").FontProperties(
+            size=max(10, int(font_size))
+        )
+    except Exception:
+        _FORMULA_IMAGE_CACHE[cache_key] = None
+        return None
+
+    wrapped_expression = expression
+    if not (wrapped_expression.startswith("$") and wrapped_expression.endswith("$")):
+        wrapped_expression = f"${wrapped_expression}$"
+
+    buffer = BytesIO()
+    try:
+        math_to_image(
+            wrapped_expression,
+            buffer,
+            dpi=220,
+            format="png",
+            color=_rgb_to_hex(text_color),
+            prop=font_properties,
+        )
+        buffer.seek(0)
+        formula_image = Image.open(buffer).convert("RGBA")
+        formula_image.load()
+    except Exception:
+        _FORMULA_IMAGE_CACHE[cache_key] = None
+        return None
+
+    _FORMULA_IMAGE_CACHE[cache_key] = formula_image
+    return formula_image.copy()
+
+
+def _image_to_data_uri(image: Image.Image) -> str:
+    buffer = BytesIO()
+    image.convert("RGB").save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
 _DEFAULT_TEMPLATE_DIR = Path("configs") / "generator" / "templates"
-_DEFAULT_LEGACY_TEMPLATE_SPECS: List[Dict[str, Any]] = [
-    {
-        "id": "readme",
-        "family": "legacy",
-        "complexity": 1,
-        "weight": 1.0,
-        "mode": "legacy",
-        "legacy_method": "readme",
+_DEFAULT_SECTION_TEMPLATE: Dict[str, Any] = {
+    "id": "default",
+    "family": "sections",
+    "complexity": 2,
+    "mode": "sections",
+    "blueprint": {
+        "text": {"section_count": [3, 5]},
+        "table": {"section_count": [1, 2], "rows": [2, 4], "columns": [3, 5]},
+        "formula": {"section_count": [1, 2]},
     },
-    {
-        "id": "technical_doc",
-        "family": "legacy",
-        "complexity": 2,
-        "weight": 1.0,
-        "mode": "legacy",
-        "legacy_method": "technical_doc",
-    },
-    {
-        "id": "blog_post",
-        "family": "legacy",
-        "complexity": 1,
-        "weight": 1.0,
-        "mode": "legacy",
-        "legacy_method": "blog_post",
-    },
-    {
-        "id": "api_doc",
-        "family": "legacy",
-        "complexity": 2,
-        "weight": 1.0,
-        "mode": "legacy",
-        "legacy_method": "api_doc",
-    },
-    {
-        "id": "tutorial",
-        "family": "legacy",
-        "complexity": 2,
-        "weight": 1.0,
-        "mode": "legacy",
-        "legacy_method": "tutorial",
-    },
-    {
-        "id": "changelog",
-        "family": "legacy",
-        "complexity": 2,
-        "weight": 1.0,
-        "mode": "legacy",
-        "legacy_method": "changelog",
-    },
-    {
-        "id": "meeting_notes",
-        "family": "legacy",
-        "complexity": 2,
-        "weight": 1.0,
-        "mode": "legacy",
-        "legacy_method": "meeting_notes",
-    },
-    {
-        "id": "incident_report",
-        "family": "legacy",
-        "complexity": 3,
-        "weight": 1.0,
-        "mode": "legacy",
-        "legacy_method": "incident_report",
-    },
-    {
-        "id": "release_note",
-        "family": "legacy",
-        "complexity": 2,
-        "weight": 1.0,
-        "mode": "legacy",
-        "legacy_method": "release_note",
-    },
-    {
-        "id": "compliance_checklist",
-        "family": "legacy",
-        "complexity": 3,
-        "weight": 1.0,
-        "mode": "legacy",
-        "legacy_method": "compliance_checklist",
-    },
-]
+}
 
 
 def _canonicalize_template_ref(value: str) -> str:
@@ -148,14 +311,13 @@ def _canonicalize_template_ref(value: str) -> str:
 @dataclass
 class TemplateSpec:
     template_id: str
-    family: str = "legacy"
-    complexity: int = 1
+    family: str = "sections"
+    complexity: int = 2
     weight: float = 1.0
-    mode: str = "legacy"
-    legacy_method: Optional[str] = None
+    mode: str = "sections"
     blueprint: Optional[Dict[str, Any]] = None
     aliases: Optional[List[str]] = None
-    version: str = "1"
+    version: str = "2"
     source: str = "builtin"
     tags: Optional[List[str]] = None
 
@@ -191,6 +353,21 @@ class TemplateCatalog:
             templates = data.get("templates")
             if isinstance(templates, list):
                 return [item for item in templates if isinstance(item, dict)]
+            if any(key in data for key in ("text", "table", "formula")):
+                return [
+                    {
+                        "id": data.get("id", "default"),
+                        "family": data.get("family", "sections"),
+                        "complexity": data.get("complexity", 2),
+                        "mode": "sections",
+                        "version": data.get("version", "2"),
+                        "blueprint": {
+                            "text": data.get("text", {}),
+                            "table": data.get("table", {}),
+                            "formula": data.get("formula", {}),
+                        },
+                    }
+                ]
             if "id" in data:
                 return [data]
         return []
@@ -201,19 +378,17 @@ class TemplateCatalog:
         if not template_id:
             return None
 
-        mode = str(raw.get("mode", "legacy")).strip().lower()
-        if mode in {"dynamic", "procedural"}:
-            mode = "blueprint"
-        if mode not in {"legacy", "blueprint"}:
-            logger.warning("Unknown template mode '%s' for '%s'. Falling back to legacy.", mode, template_id)
-            mode = "legacy"
+        mode = str(raw.get("mode", "sections")).strip().lower()
+        if mode != "sections":
+            logger.warning("Unsupported template mode '%s' for '%s'. Coercing to sections.", mode, template_id)
+            mode = "sections"
 
         family = str(raw.get("family") or mode).strip().lower() or mode
 
         try:
-            complexity = int(raw.get("complexity", 1))
+            complexity = int(raw.get("complexity", 2))
         except (TypeError, ValueError):
-            complexity = 1
+            complexity = 2
         complexity = max(1, min(5, complexity))
 
         try:
@@ -239,31 +414,21 @@ class TemplateCatalog:
         blueprint_raw = raw.get("blueprint")
         blueprint: Dict[str, Any] = blueprint_raw if isinstance(blueprint_raw, dict) else {}
 
-        legacy_method_raw = raw.get("legacy_method")
-        legacy_method = str(legacy_method_raw).strip() if isinstance(legacy_method_raw, str) else None
-        if mode == "legacy" and not legacy_method:
-            legacy_method = template_id
-
         return TemplateSpec(
             template_id=template_id,
             family=family,
             complexity=complexity,
             weight=weight,
             mode=mode,
-            legacy_method=legacy_method,
             blueprint=blueprint,
             aliases=aliases,
-            version=str(raw.get("version", "1")),
+            version=str(raw.get("version", "2")),
             source=source,
             tags=tags,
         )
 
     def load(self) -> None:
         template_by_id: Dict[str, TemplateSpec] = {}
-        for item in _DEFAULT_LEGACY_TEMPLATE_SPECS:
-            spec = self._coerce_spec(item, source="builtin")
-            if spec is not None:
-                template_by_id[spec.template_id] = spec
 
         if self.config_dir.exists():
             import yaml
@@ -280,6 +445,11 @@ class TemplateCatalog:
                     spec = self._coerce_spec(raw, source=str(yaml_path))
                     if spec is not None:
                         template_by_id[spec.template_id] = spec
+
+        if not template_by_id:
+            fallback = self._coerce_spec(dict(_DEFAULT_SECTION_TEMPLATE), source="builtin")
+            if fallback is not None:
+                template_by_id[fallback.template_id] = fallback
 
         self.templates = template_by_id
         self.alias_to_id = {}
@@ -420,83 +590,210 @@ class MarkdownDataGenerator:
     def __init__(self, lang: str = "ko", data_provider: Optional[DataProvider] = None):
         self.lang = lang
         self.data = data_provider or DataProvider(lang=lang)
+        self._last_merge_order: List[str] = []
+        self.formula_source_mode = "mixed"
+        self.formula_source_weights: Dict[str, float] = dict(DEFAULT_FORMULA_SOURCE_WEIGHTS)
+        self.formula_dataset_path: Optional[str] = None
+        self._formula_dataset: List[str] = []
+
+    @staticmethod
+    def _normalize_source_mode(value: Any, fallback: str = "mixed") -> str:
+        normalized = str(value or "").strip().lower()
+        allowed = {"mixed", "dataset", "random", "synthetic"}
+        return normalized if normalized in allowed else fallback
+
+    @staticmethod
+    def _normalize_source_weights(
+        dataset_weight: Any,
+        random_weight: Any,
+        synthetic_weight: Any,
+        defaults: Dict[str, float],
+    ) -> Dict[str, float]:
+        weights: Dict[str, float] = {}
+        for key, raw_value in {
+            "dataset": dataset_weight,
+            "random": random_weight,
+            "synthetic": synthetic_weight,
+        }.items():
+            default_value = defaults.get(key, 0.0)
+            try:
+                parsed = float(raw_value)
+            except (TypeError, ValueError):
+                parsed = default_value
+            weights[key] = max(0.0, parsed)
+
+        if sum(weights.values()) <= 0:
+            return dict(defaults)
+        return weights
+
+    @staticmethod
+    def _normalize_formula_text(raw_formula: str) -> str:
+        text = str(raw_formula).strip()
+        if not text:
+            return ""
+
+        if text.startswith("$$") and text.endswith("$$") and len(text) >= 4:
+            text = text[2:-2].strip()
+        elif text.startswith("$") and text.endswith("$") and len(text) >= 2:
+            text = text[1:-1].strip()
+
+        return " ".join(text.split())
+
+    @classmethod
+    def _extract_formula_candidate(cls, payload: Any) -> str:
+        if isinstance(payload, str):
+            return cls._normalize_formula_text(payload)
+        if isinstance(payload, dict):
+            for key in ("formula", "equation", "latex", "math", "content", "text"):
+                value = payload.get(key)
+                if isinstance(value, str) and value.strip():
+                    normalized = cls._normalize_formula_text(value)
+                    if normalized:
+                        return normalized
+        return ""
+
+    @classmethod
+    def _load_formula_dataset_entries(cls, dataset_path: Optional[str]) -> List[str]:
+        if not dataset_path:
+            return []
+
+        path = Path(dataset_path).expanduser()
+        if not path.exists() or not path.is_file():
+            logger.warning("Formula dataset file not found: %s", dataset_path)
+            return []
+
+        formulas: List[str] = []
+        suffix = path.suffix.lower()
+
+        def push_formula(candidate: Any) -> None:
+            normalized = cls._extract_formula_candidate(candidate)
+            if normalized:
+                formulas.append(normalized)
+
+        try:
+            if suffix == ".json":
+                with open(path, "r", encoding="utf-8") as file:
+                    payload = json.load(file)
+                if isinstance(payload, list):
+                    for item in payload:
+                        push_formula(item)
+                elif isinstance(payload, dict):
+                    list_like = None
+                    for key in ("formulas", "equations", "items", "records", "data"):
+                        value = payload.get(key)
+                        if isinstance(value, list):
+                            list_like = value
+                            break
+                    if list_like is not None:
+                        for item in list_like:
+                            push_formula(item)
+                    else:
+                        push_formula(payload)
+            elif suffix == ".jsonl":
+                with open(path, "r", encoding="utf-8") as file:
+                    for line in file:
+                        stripped = line.strip()
+                        if not stripped:
+                            continue
+                        try:
+                            push_formula(json.loads(stripped))
+                        except json.JSONDecodeError:
+                            push_formula(stripped)
+            elif suffix in {".csv", ".tsv"}:
+                delimiter = "\t" if suffix == ".tsv" else ","
+                with open(path, "r", encoding="utf-8", newline="") as file:
+                    reader = csv.DictReader(file, delimiter=delimiter)
+                    formula_key = None
+                    if reader.fieldnames:
+                        lowered = {name.lower(): name for name in reader.fieldnames if name}
+                        for key in ("formula", "equation", "latex", "math", "content", "text"):
+                            if key in lowered:
+                                formula_key = lowered[key]
+                                break
+                        if formula_key is None:
+                            formula_key = next((name for name in reader.fieldnames if name), None)
+
+                    if formula_key:
+                        for row in reader:
+                            push_formula(row.get(formula_key, ""))
+            else:
+                with open(path, "r", encoding="utf-8") as file:
+                    for line in file:
+                        push_formula(line)
+        except Exception as exc:
+            logger.warning("Failed to load formula dataset '%s': %s", dataset_path, exc)
+            return []
+
+        deduplicated: List[str] = []
+        seen: set[str] = set()
+        for formula in formulas:
+            if formula not in seen:
+                seen.add(formula)
+                deduplicated.append(formula)
+
+        return deduplicated
+
+    def configure_content_sources(
+        self,
+        *,
+        formula_source_mode: str = "mixed",
+        formula_dataset_path: Optional[str] = None,
+        formula_dataset_weight: float = DEFAULT_FORMULA_SOURCE_WEIGHTS["dataset"],
+        formula_random_weight: float = DEFAULT_FORMULA_SOURCE_WEIGHTS["random"],
+        formula_synthetic_weight: float = DEFAULT_FORMULA_SOURCE_WEIGHTS["synthetic"],
+    ) -> None:
+        self.formula_source_mode = self._normalize_source_mode(formula_source_mode)
+        self.formula_source_weights = self._normalize_source_weights(
+            formula_dataset_weight,
+            formula_random_weight,
+            formula_synthetic_weight,
+            DEFAULT_FORMULA_SOURCE_WEIGHTS,
+        )
+
+        normalized_formula_path = str(Path(formula_dataset_path).expanduser()) if formula_dataset_path else None
+
+        if normalized_formula_path != self.formula_dataset_path:
+            self.formula_dataset_path = normalized_formula_path
+            self._formula_dataset = self._load_formula_dataset_entries(self.formula_dataset_path)
+
+    def pop_merge_order(self) -> List[str]:
+        merge_order = list(self._last_merge_order)
+        self._last_merge_order = []
+        return merge_order
+
+    @staticmethod
+    def _select_source(
+        mode: str,
+        weights: Dict[str, float],
+        available_sources: List[str],
+        fallback: str,
+    ) -> str:
+        if not available_sources:
+            return fallback
+
+        if mode != "mixed":
+            if mode in available_sources:
+                return mode
+            if fallback in available_sources:
+                return fallback
+            return available_sources[0]
+
+        candidates = [source for source in available_sources if weights.get(source, 0.0) > 0]
+        if not candidates:
+            return random.choice(available_sources)
+
+        source_weights = [weights.get(source, 0.0) for source in candidates]
+        return random.choices(candidates, weights=source_weights, k=1)[0]
 
     def generate_markdown(
         self,
-        template_id: str = "readme",
+        template_id: str = "default",
         template_spec: Optional[TemplateSpec] = None,
     ) -> str:
-        if template_spec and template_spec.mode == "blueprint":
-            return self._generate_from_blueprint(template_spec.template_id, template_spec.blueprint or {})
-
-        legacy_method_value = template_id
-        if template_spec and template_spec.legacy_method:
-            legacy_method_value = template_spec.legacy_method
-        legacy_method = legacy_method_value.strip().lower()
-        gen_func = getattr(self, f"_generate_{legacy_method}", None)
-        if callable(gen_func):
-            return str(gen_func())
-
-        logger.warning("Unknown legacy template method '%s'. Falling back to readme.", legacy_method)
-        return self._generate_readme()
-
-    @staticmethod
-    def _slugify(text: str, max_parts: int = 3) -> str:
-        chunks: List[str] = []
-        for token in text.lower().replace("_", "-").split():
-            cleaned = "".join(ch for ch in token if ch.isalnum() or ch == "-").strip("-")
-            if cleaned:
-                chunks.append(cleaned)
-            if len(chunks) >= max_parts:
-                break
-        return "-".join(chunks) if chunks else "sample-app"
-
-    def _project_slug(self) -> str:
-        title = self.data.title()
-        return self._slugify(title)
-
-    def _sample_requirements(self, count: int = 3) -> List[str]:
-        items = set()
-        while len(items) < count:
-            items.add(self.data.requirement_line())
-        return list(items)
-
-    def _sample_config_lines(self, count: int = 3) -> List[str]:
-        items = set()
-        while len(items) < count:
-            items.add(self.data.config_line())
-        return list(items)
-
-    @staticmethod
-    def _to_config_entry(line: str) -> Tuple[str, str]:
-        if ":" in line:
-            key, value = line.split(":", 1)
-            return key.strip(), value.strip()
-        token = "".join(ch for ch in line.lower().replace(" ", "_") if ch.isalnum() or ch == "_")
-        return token or "option", "true"
-
-    @staticmethod
-    def _to_runtime_version(requirement: str) -> Tuple[str, str]:
-        if ">=" in requirement:
-            name, version = requirement.split(">=", 1)
-            return name.strip(), version.strip()
-        if "==" in requirement:
-            name, version = requirement.split("==", 1)
-            return name.strip(), version.strip()
-        words = requirement.split()
-        if not words:
-            return "Runtime", "1.0"
-        if len(words) == 1:
-            return words[0], "1.0"
-        return words[0], words[-1]
-
-    @staticmethod
-    def _coerce_positive_int(value: Any, default: int, lower: int, upper: int) -> int:
-        try:
-            parsed = int(value)
-        except (TypeError, ValueError):
-            parsed = default
-        return max(lower, min(upper, parsed))
+        _ = template_id
+        self._last_merge_order = []
+        section_blueprint = template_spec.blueprint if template_spec and isinstance(template_spec.blueprint, dict) else {}
+        return self._generate_from_sections(section_blueprint)
 
     @staticmethod
     def _clip_text(text: str, max_chars: int) -> str:
@@ -526,768 +823,249 @@ class MarkdownDataGenerator:
 
         return default_min, default_max
 
-    @staticmethod
-    def _coerce_probability(value: Any, default: float) -> float:
-        try:
-            ratio = float(value)
-        except (TypeError, ValueError):
-            return default
-        return max(0.0, min(1.0, ratio))
-
-    def _build_blueprint_table(self, min_rows: int, max_rows: int) -> List[str]:
-        template_name = random.choice(["invoice", "schedule", "product", "contact"])
-        headers = self.data.headers(template_name)
-        row_count = random.randint(min_rows, max_rows)
-        lines = ["| " + " | ".join(headers) + " |", "|" + "|".join(["---"] * len(headers)) + "|"]
-        for _ in range(row_count):
-            row_values: List[str] = []
-            for index, _ in enumerate(headers):
-                if index == 0:
-                    row_values.append(self.data.product_name())
-                elif index == 1:
-                    row_values.append(str(self.data.quantity()))
-                elif index == 2:
-                    row_values.append(self.data.format_currency(self.data.random_price()))
-                else:
-                    row_values.append(self.data.feature())
-            lines.append("| " + " | ".join(row_values) + " |")
-        return lines
-
-    def _build_blueprint_code(self) -> List[str]:
-        code_kind = random.choice(["python", "bash", "json", "yaml"])
-        if code_kind == "python":
-            return [
-                "```python",
-                self.data.code_comment(),
-                "def run():",
-                f"    return '{self.data.word()}'",
-                "```",
-            ]
-        if code_kind == "bash":
-            return [
-                "```bash",
-                self.data.install_command(package_name=self._project_slug()),
-                self.data.usage_command(entrypoint="main.py"),
-                "```",
-            ]
-        if code_kind == "json":
-            return [
-                "```json",
-                "{",
-                f"  \"id\": \"{self.data.word()}-{random.randint(100, 999)}\",",
-                f"  \"status\": \"{random.choice(['ok', 'pending', 'failed'])}\"",
-                "}",
-                "```",
-            ]
-        return [
-            "```yaml",
-            "config:",
-            f"  {self.data.config_line()}",
-            f"  {self.data.config_line()}",
-            "```",
-        ]
-
-    @staticmethod
-    def _normalize_blueprint_block_type(block_type: str) -> str:
-        normalized = block_type.strip().lower().replace("-", "_").replace(" ", "_")
-        aliases = {
-            "bullet": "bullet_points",
-            "bullets": "bullet_points",
-            "bullet_list": "bullet_points",
-            "bulletlist": "bullet_points",
-            "points": "bullet_points",
-            "ordered_list": "numbered_list",
-            "ordered": "numbered_list",
-            "numbered": "numbered_list",
-            "subheading": "subtitle",
-            "heading": "subtitle",
-            "table_of_contents": "contents",
-            "toc": "contents",
-            "equation": "formula",
-            "math": "formula",
-            "latex": "formula",
-            "figure": "image",
-            "images": "image",
-            "img": "image",
-        }
-        return aliases.get(normalized, normalized)
-
-    def _build_blueprint_formula(self) -> List[str]:
-        variable = random.choice(["x", "y", "n", "t", "k"])
-        expressions = [
-            f"f({variable}) = {random.randint(2, 9)}{variable} + {random.randint(1, 20)}",
-            "a^2 + b^2 = c^2",
-            "E = mc^2",
-            "\\frac{n(n+1)}{2}",
-            "P(A|B) = \\frac{P(B|A)P(A)}{P(B)}",
-            "\\sum_{i=1}^n i = \\frac{n(n+1)}{2}",
-        ]
-        expression = random.choice(expressions)
-        return [f"$$ {expression} $$"]
-
-    def _build_blueprint_image(self) -> List[str]:
-        alt_text = self.data.title()
-        image_ref = f"placeholder://{self._slugify(alt_text, max_parts=6)}-{random.randint(100, 999)}"
-        return [f"![{alt_text}]({image_ref})", f"*Figure: {self.data.sentence()}*"]
-
-    def _build_blueprint_contents(
-        self,
-        section_titles: Optional[List[str]],
-        list_item_range: Tuple[int, int],
-        max_title_chars: int,
-    ) -> List[str]:
-        lower_items, upper_items = list_item_range
-        if section_titles:
-            entries = list(section_titles)
-            random.shuffle(entries)
-            max_items = min(len(entries), upper_items)
-            min_items = min(len(entries), max(1, lower_items))
-            if max_items < min_items:
-                max_items = min_items
-            item_count = random.randint(min_items, max_items)
-            selected_titles = entries[:item_count]
-        else:
-            item_count = random.randint(lower_items, upper_items)
-            selected_titles = [self.data.title() for _ in range(item_count)]
-
-        lines = ["## Contents"]
-        for index, title in enumerate(selected_titles, start=1):
-            clipped_title = self._clip_text(title, max_title_chars)
-            anchor = self._slugify(clipped_title, max_parts=8)
-            lines.append(f"{index}. [{clipped_title}](#{anchor})")
-        return lines
-
-    def _build_blueprint_block(
-        self,
-        block_type: str,
-        list_item_range: Tuple[int, int],
-        table_row_range: Tuple[int, int],
-        section_titles: Optional[List[str]] = None,
-        max_paragraph_chars: int = DEFAULT_BLUEPRINT_MAX_PARAGRAPH_CHARS,
-    ) -> List[str]:
-        block_type = self._normalize_blueprint_block_type(block_type)
-        lower_items, upper_items = list_item_range
-        lower_rows, upper_rows = table_row_range
-
-        if block_type == "title":
-            return ["## " + self._clip_text(self.data.title(), 90)]
-
-        if block_type == "subtitle":
-            return ["### " + self._clip_text(self.data.title(), 90)]
-
-        if block_type == "contents":
-            return self._build_blueprint_contents(section_titles, list_item_range, max_title_chars=80)
-
-        if block_type == "bullet_points":
-            item_count = random.randint(lower_items, upper_items)
-            return [f"- {item}" for item in self.data.features(item_count)]
-
-        if block_type == "numbered_list":
-            item_count = random.randint(lower_items, upper_items)
-            return [f"{idx}. {item}" for idx, item in enumerate(self.data.features(item_count), start=1)]
-
-        if block_type == "checklist":
-            item_count = random.randint(lower_items, upper_items)
-            lines: List[str] = []
-            for item in self.data.features(item_count):
-                marker = "x" if random.random() < 0.5 else " "
-                lines.append(f"- [{marker}] {item}")
-            return lines
-
-        if block_type == "table":
-            return self._build_blueprint_table(lower_rows, upper_rows)
-
-        if block_type == "formula":
-            return self._build_blueprint_formula()
-
-        if block_type == "image":
-            return self._build_blueprint_image()
-
-        if block_type == "code":
-            return self._build_blueprint_code()
-
-        if block_type == "quote":
-            return ["> " + self._clip_text(self.data.paragraph(), max_paragraph_chars)]
-
-        if block_type == "rule":
-            return ["---"]
-
-        if block_type == "command":
-            return ["`" + self.data.usage_command(entrypoint="main.py") + "`"]
-
-        return [self._clip_text(self.data.paragraph(), max_paragraph_chars)]
-
-    def _generate_from_blueprint(self, template_id: str, blueprint: Dict[str, Any]) -> str:
-        section_min, section_max = self._coerce_int_range(blueprint.get("section_count"), 2, 5)
-        block_min, block_max = self._coerce_int_range(blueprint.get("blocks_per_section"), 1, 3)
-        paragraph_min, paragraph_max = self._coerce_int_range(blueprint.get("paragraphs_per_section"), 1, 2)
-        list_item_range = self._coerce_int_range(blueprint.get("list_items"), 2, 5)
-        table_row_range = self._coerce_int_range(blueprint.get("table_rows"), 2, 4)
-        max_total_lines = self._coerce_positive_int(
-            blueprint.get("max_total_lines"),
-            DEFAULT_BLUEPRINT_MAX_TOTAL_LINES,
-            40,
-            260,
-        )
-        max_paragraph_chars = self._coerce_positive_int(
-            blueprint.get("max_paragraph_chars"),
-            DEFAULT_BLUEPRINT_MAX_PARAGRAPH_CHARS,
-            80,
-            900,
+    def _generate_formula_expression(self) -> str:
+        formula_source = self._select_source(
+            self.formula_source_mode,
+            self.formula_source_weights,
+            self._available_formula_sources(),
+            fallback="random",
         )
 
-        heading_level = int(blueprint.get("section_heading_level", 2))
-        heading_level = max(2, min(3, heading_level))
-
-        frontmatter_probability = self._coerce_probability(blueprint.get("frontmatter_probability"), 0.0)
-        section_rule_probability = self._coerce_probability(blueprint.get("section_rule_probability"), 0.2)
-
-        allowed_blocks_raw = blueprint.get("allowed_blocks")
-        if isinstance(allowed_blocks_raw, list) and allowed_blocks_raw:
-            allowed_blocks = []
-            for item in allowed_blocks_raw:
-                normalized = self._normalize_blueprint_block_type(str(item))
-                if normalized and normalized not in allowed_blocks:
-                    allowed_blocks.append(normalized)
+        expression = ""
+        if formula_source == "dataset" and self._formula_dataset:
+            expression = random.choice(self._formula_dataset)
+        elif formula_source == "synthetic":
+            expression = self._build_synthetic_formula_expression()
         else:
-            allowed_blocks = [
-                "subtitle",
-                "contents",
-                "bullet_points",
-                "numbered_list",
-                "checklist",
-                "table",
-                "formula",
-                "image",
-                "code",
-                "quote",
-                "command",
-                "rule",
-            ]
+            expression = self._build_random_formula_expression()
 
-        required_raw = blueprint.get("required_blocks")
-        required_blocks: List[str] = []
-        if isinstance(required_raw, list):
-            for item in required_raw:
-                normalized = self._normalize_blueprint_block_type(str(item))
-                if normalized:
-                    required_blocks.append(normalized)
-        pending_required = [item for item in required_blocks if item in allowed_blocks]
+        expression = self._normalize_formula_text(expression)
+        if not expression:
+            expression = self._build_random_formula_expression()
+        return expression
 
-        title_prefix = str(blueprint.get("title_prefix") or "Document")
-        lines: List[str] = []
+    def _generate_from_sections(self, blueprint: Dict[str, Any]) -> str:
+        text_cfg = blueprint.get("text") if isinstance(blueprint.get("text"), dict) else {}
+        table_cfg = blueprint.get("table") if isinstance(blueprint.get("table"), dict) else {}
+        formula_cfg = blueprint.get("formula") if isinstance(blueprint.get("formula"), dict) else {}
 
-        def _append_lines(chunk: List[str], trailing_blank: bool = False) -> bool:
-            required_slots = len(chunk) + (1 if trailing_blank else 0)
-            if len(lines) + required_slots > max_total_lines:
-                return False
-            lines.extend(chunk)
-            if trailing_blank:
-                lines.append("")
-            return True
+        text_section_range = self._coerce_int_range(text_cfg.get("section_count"), 3, 5)
+        table_section_range = self._coerce_int_range(table_cfg.get("section_count"), 1, 2)
+        formula_section_range = self._coerce_int_range(formula_cfg.get("section_count"), 1, 2)
 
-        if random.random() < frontmatter_probability:
-            _append_lines(
-                [
-                    "---",
-                    f"template_id: {template_id}",
-                    f"generated_at: {self.data.date()}",
-                    "---",
-                    "",
-                ],
-                trailing_blank=False,
+        row_value = table_cfg.get("rows", table_cfg.get("row_count"))
+        col_value = table_cfg.get("columns", table_cfg.get("cols", table_cfg.get("column_count")))
+        table_row_range = self._coerce_int_range(row_value, 2, 4)
+        table_col_range = self._coerce_int_range(col_value, 3, 5)
+
+        text_count = random.randint(*text_section_range)
+        table_count = random.randint(*table_section_range)
+        formula_count = random.randint(*formula_section_range)
+
+        text_generator = TextGenerator(
+            data=self.data,
+            clip_text=self._clip_text,
+            max_paragraph_chars=DEFAULT_BLUEPRINT_MAX_PARAGRAPH_CHARS,
+        )
+        table_generator = TableGenerator(data=self.data, clip_text=self._clip_text)
+        formular_generator = FormularGenerator(
+            data=self.data,
+            clip_text=self._clip_text,
+            formula_supplier=self._generate_formula_expression,
+        )
+        orchestrator = MergeOrchestrator(data=self.data, clip_text=self._clip_text)
+
+        text_sections = text_generator.generate_sections(section_count=text_count)
+        table_sections = table_generator.generate_sections(
+            section_count=table_count,
+            row_range=table_row_range,
+            column_range=table_col_range,
+        )
+        formula_sections = formular_generator.generate_sections(section_count=formula_count)
+
+        markdown_text, merge_order = orchestrator.merge(
+            text_sections=text_sections,
+            table_sections=table_sections,
+            formula_sections=formula_sections,
+        )
+        self._last_merge_order = merge_order
+        return markdown_text
+
+    def _available_formula_sources(self) -> List[str]:
+        sources = ["random", "synthetic"]
+        if self._formula_dataset:
+            sources.append("dataset")
+        return sources
+
+    @staticmethod
+    def _build_hard_coded_formula_expression() -> str:
+        return random.choice(HARD_CODED_FORMULA_EXPRESSIONS)
+
+    @staticmethod
+    def _wrap_grouped_expression(expression: str) -> str:
+        text = expression.strip()
+        if not text:
+            return "1"
+        if any(token in text for token in (" + ", " - ", r"\cdot", "=")):
+            return rf"\left({text}\right)"
+        return text
+
+    def _build_formula_terminal(self) -> str:
+        symbol = random.choice(["x", "y", "z", "t", "n", "k", r"\theta", r"\lambda"])
+        if symbol in {"x", "y", "z"} and random.random() < 0.22:
+            symbol = f"{symbol}_{random.randint(1, 4)}"
+
+        if random.random() < 0.15:
+            numerator = random.randint(1, 11)
+            denominator = random.randint(2, 12)
+            return rf"\frac{{{numerator}}}{{{denominator}}}"
+
+        terminals = [symbol, str(random.randint(1, 12)), random.choice([r"\pi", "e", r"\alpha", r"\beta"])]
+        return random.choice(terminals)
+
+    def _build_grammar_formula_term(self, depth: int) -> str:
+        if depth <= 0:
+            return self._build_formula_terminal()
+
+        production = random.choices(
+            ["binary", "fraction", "power", "function", "root", "terminal"],
+            weights=[0.34, 0.16, 0.16, 0.14, 0.08, 0.12],
+            k=1,
+        )[0]
+
+        if production == "binary":
+            left = self._build_grammar_formula_term(depth - 1)
+            right = self._build_grammar_formula_term(depth - 1)
+            operator = random.choice([" + ", " - ", r" \cdot "])
+            return f"{left}{operator}{right}"
+
+        if production == "fraction":
+            numerator = self._build_grammar_formula_term(depth - 1)
+            denominator = self._build_grammar_formula_term(max(0, depth - 2))
+            if denominator.strip() in {"0", "{0}"}:
+                denominator = str(random.randint(1, 9))
+            return rf"\frac{{{numerator}}}{{{denominator}}}"
+
+        if production == "power":
+            base = self._wrap_grouped_expression(self._build_grammar_formula_term(depth - 1))
+            exponent = random.choice([str(random.randint(2, 5)), "n", "k", "2m"])
+            return rf"{base}^{{{exponent}}}"
+
+        if production == "function":
+            function = random.choice([r"\sin", r"\cos", r"\tan", r"\ln", r"\log"])
+            argument = self._build_grammar_formula_term(depth - 1)
+            if function == r"\log" and random.random() < 0.4:
+                base = random.randint(2, 10)
+                return rf"\log_{{{base}}}\left({argument}\right)"
+            return rf"{function}\left({argument}\right)"
+
+        if production == "root":
+            radicand = self._build_grammar_formula_term(depth - 1)
+            return rf"\sqrt{{{radicand}}}"
+
+        return self._build_formula_terminal()
+
+    def _build_grammar_formula_expression(self) -> str:
+        depth = random.randint(2, 3)
+        branch = random.choices(
+            ["equation", "integral", "derivative", "summation", "limit", "probability", "norm"],
+            weights=[0.26, 0.18, 0.16, 0.14, 0.10, 0.10, 0.06],
+            k=1,
+        )[0]
+
+        if branch == "equation":
+            left = self._build_grammar_formula_term(depth)
+            right = self._build_grammar_formula_term(max(1, depth - 1))
+            relation = random.choice(["=", r"\le", r"\ge"])
+            return f"{left} {relation} {right}"
+
+        if branch == "integral":
+            variable = random.choice(["x", "t"])
+            integrand = self._build_grammar_formula_term(max(1, depth - 1))
+            if random.random() < 0.45:
+                lower = random.randint(0, 3)
+                upper = random.randint(lower + 1, lower + random.randint(2, 8))
+                return rf"\int_{{{lower}}}^{{{upper}}} {integrand}\, d{variable}"
+            primitive = self._build_grammar_formula_term(max(1, depth - 1))
+            return rf"\int {integrand}\, d{variable} = {primitive} + C"
+
+        if branch == "derivative":
+            variable = random.choice(["x", "t"])
+            target = self._build_grammar_formula_term(max(1, depth - 1))
+            inner = self._build_grammar_formula_term(max(1, depth - 1))
+            if random.random() < 0.55:
+                return rf"\frac{{d}}{{d{variable}}}\left({inner}\right) = {target}"
+            return rf"\frac{{\partial}}{{\partial {variable}}}\left({inner}\right) = {target}"
+
+        if branch == "summation":
+            index = random.choice(["i", "k", "n"])
+            upper = random.randint(4, 16)
+            term = self._build_grammar_formula_term(max(1, depth - 1))
+            if random.random() < 0.45:
+                closed_form = self._build_grammar_formula_term(max(1, depth - 1))
+                return rf"\sum_{{{index}=1}}^{{{upper}}} {term} = {closed_form}"
+            return rf"\sum_{{{index}=0}}^{{\infty}} {term}"
+
+        if branch == "limit":
+            variable = random.choice(["x", "n", "t"])
+            approaching = random.choice(["0", "1", "2", r"\infty"])
+            expression = self._build_grammar_formula_term(max(1, depth - 1))
+            return rf"\lim_{{{variable}\to {approaching}}} {expression}"
+
+        if branch == "probability":
+            event_a = random.choice(["A", "B", "C"])
+            event_b_candidates = [token for token in ("A", "B", "C") if token != event_a]
+            event_b = random.choice(event_b_candidates)
+            if random.random() < 0.6:
+                return rf"P({event_a}\mid {event_b}) = \frac{{P({event_b}\mid {event_a})P({event_a})}}{{P({event_b})}}"
+            variable = random.choice(["x", "z"])
+            mean = random.choice([r"\mu", "0"])
+            sigma = random.choice([r"\sigma", "1"])
+            return (
+                rf"f_X({variable}) = \frac{{1}}{{{sigma}\sqrt{{2\pi}}}}"
+                rf"\exp\left(-\frac{{({variable}-{mean})^2}}{{2{sigma}^2}}\right)"
             )
 
-        root_heading = self._clip_text(f"{title_prefix}: {self.data.title()}", 110)
-        if not _append_lines([f"# {root_heading}"], trailing_blank=True):
-            return "\n".join(lines)
+        vector_a = random.choice([r"\mathbf{a}", r"\mathbf{x}", r"\mathbf{u}"])
+        vector_b = random.choice([r"\mathbf{b}", r"\mathbf{y}", r"\mathbf{v}"])
+        return rf"\|{vector_a} + {vector_b}\|_2 \le \|{vector_a}\|_2 + \|{vector_b}\|_2"
 
-        intro_paragraph = self._clip_text(self.data.paragraph(), max_paragraph_chars)
-        if not _append_lines([intro_paragraph], trailing_blank=True):
-            return "\n".join(lines)
+    def _build_parametric_synthetic_formula_expression(self) -> str:
+        variable = random.choice(["x", "y", "z", "n", "k", "t"])
+        coeff_a = random.randint(2, 9)
+        coeff_b = random.randint(1, 12)
+        coeff_c = random.randint(1, 30)
+        power = random.randint(2, 4)
+        upper = random.randint(3, 12)
+        base = random.randint(2, 9)
 
-        section_count = random.randint(section_min, section_max)
-        section_titles = [self.data.title() for _ in range(section_count)]
-        section_prefix = "#" * heading_level
-        stop_generation = False
-
-        for section_idx in range(section_count):
-            section_title = self._clip_text(section_titles[section_idx], 100)
-            if not _append_lines([f"{section_prefix} {section_title}"], trailing_blank=True):
-                stop_generation = True
-                break
-
-            paragraph_count = random.randint(paragraph_min, paragraph_max)
-            for _ in range(paragraph_count):
-                paragraph = self._clip_text(self.data.paragraph(), max_paragraph_chars)
-                if not _append_lines([paragraph], trailing_blank=True):
-                    stop_generation = True
-                    break
-
-            if stop_generation:
-                break
-
-            block_count = random.randint(block_min, block_max)
-            for _ in range(block_count):
-                if pending_required:
-                    block_type = pending_required.pop(0)
-                else:
-                    block_type = random.choice(allowed_blocks)
-
-                block_lines = self._build_blueprint_block(
-                    block_type,
-                    list_item_range,
-                    table_row_range,
-                    section_titles=section_titles,
-                    max_paragraph_chars=max_paragraph_chars,
-                )
-                if not _append_lines(block_lines, trailing_blank=True):
-                    stop_generation = True
-                    break
-
-            if stop_generation:
-                break
-
-            if section_idx < section_count - 1 and random.random() < section_rule_probability:
-                if not _append_lines(["---"], trailing_blank=True):
-                    stop_generation = True
-                    break
-
-        if pending_required and not stop_generation:
-            for block_type in pending_required:
-                block_lines = self._build_blueprint_block(
-                    block_type,
-                    list_item_range,
-                    table_row_range,
-                    section_titles=section_titles,
-                    max_paragraph_chars=max_paragraph_chars,
-                )
-                if not _append_lines(block_lines, trailing_blank=True):
-                    break
-
-        return "\n".join(lines[:max_total_lines])
-
-    def _generate_readme(self) -> str:
-        title = self.data.title()
-        project_slug = self._slugify(title)
-        install_command = self.data.install_command(package_name=project_slug)
-        usage_command = self.data.usage_command(entrypoint="main.py")
-        lines = [
-            f"# {title}",
-            "",
-            self.data.paragraph(),
-            "",
-            "## " + ("기능" if self.lang == "ko" else "Features"),
-            "",
+        expressions = [
+            f"{coeff_a}{variable}^{power} + {coeff_b}{variable} + {coeff_c} = 0",
+            f"\\frac{{d}}{{d{variable}}}({coeff_a}{variable}^{power}) = {coeff_a * power}{variable}^{max(1, power - 1)}",
+            f"\\sum_{{i=1}}^{upper} i = \\frac{{{upper}({upper}+1)}}{{2}}",
+            f"\\int_0^{upper} {variable}^{power} \\, d{variable}",
+            f"\\log_{{{base}}}({base}^{variable}) = {variable}",
         ]
+        return random.choice(expressions)
 
-        # Add feature list
-        num_features = random.randint(3, 5)
-        for feature in self.data.features(num_features):
-            lines.append(f"- {feature}")
-        lines.append("")
+    def _build_random_formula_expression(self) -> str:
+        variable = random.choice(["x", "y", "n", "t", "k"])
+        if random.random() < 0.2:
+            return f"f({variable}) = {random.randint(2, 9)}{variable} + {random.randint(1, 20)}"
+        return self._build_hard_coded_formula_expression()
 
-        # Add installation section
-        lines.extend([
-            "## " + ("설치" if self.lang == "ko" else "Installation"),
-            "",
-            "```bash",
-            install_command,
-            "```",
-            "",
-        ])
+    def _build_synthetic_formula_expression(self) -> str:
+        branch = random.choices(
+            ["grammar", "parametric", "hardcoded"],
+            weights=[0.55, 0.30, 0.15],
+            k=1,
+        )[0]
 
-        # Add usage section
-        lines.extend([
-            "## " + ("사용법" if self.lang == "ko" else "Usage"),
-            "",
-            "```python",
-            self.data.code_comment(),
-            f"from {project_slug.replace('-', '_')} import Client",
-            "",
-            "client = Client()",
-            "result = client.run()",
-            "```",
-            "",
-            "```bash",
-            usage_command,
-            "```",
-            "",
-        ])
-
-        # Add quote
-        lines.extend([
-            "> " + self.data.paragraph(),
-            "",
-        ])
-
-        return "\n".join(lines)
-
-    def _generate_technical_doc(self) -> str:
-        title = self.data.title()
-        requirements = self._sample_requirements(random.randint(3, 5))
-        cfg_lines = self._sample_config_lines(3)
-        lines = [
-            f"# {title}",
-            "",
-            "## " + ("개요" if self.lang == "ko" else "Overview"),
-            "",
-            self.data.paragraph(),
-            "",
-            "## " + ("요구사항" if self.lang == "ko" else "Requirements"),
-            "",
-        ]
-
-        # Add requirements list
-        for i, req in enumerate(requirements, 1):
-            lines.append(f"{i}. {req}")
-        lines.append("")
-
-        # Add table
-        lines.extend([
-            "## " + ("지원 버전" if self.lang == "ko" else "Supported Versions"),
-            "",
-            "| " + ("버전" if self.lang == "ko" else "Version") + " | " + ("상태" if self.lang == "ko" else "Status") + " |",
-            "|--------|--------|",
-            "| 1.0.x | " + ("지원됨" if self.lang == "ko" else "Supported") + " |",
-            "| 2.0.x | " + ("지원됨" if self.lang == "ko" else "Supported") + " |",
-            "| 3.0.x | " + ("개발중" if self.lang == "ko" else "In Development") + " |",
-            "",
-        ])
-
-        # Add code block
-        lines.extend([
-            "## " + ("설정" if self.lang == "ko" else "Configuration"),
-            "",
-            "```yaml",
-            "config:",
-            f"  {cfg_lines[0]}",
-            f"  {cfg_lines[1]}",
-            f"  {cfg_lines[2]}",
-            "```",
-            "",
-        ])
-
-        return "\n".join(lines)
-
-    def _generate_blog_post(self) -> str:
-        title = self.data.title()
-        date = self.data.date()
-
-        lines = [
-            f"# {title}",
-            "",
-            "*" + ("작성일" if self.lang == "ko" else "Published") + f": {date}*",
-            "",
-            "---",
-            "",
-            self.data.paragraph(),
-            "",
-            "## " + ("주요 내용" if self.lang == "ko" else "Key Points"),
-            "",
-        ]
-
-        # Add bullet points
-        for feature in self.data.features(3):
-            lines.append(f"- **{feature}**: " + self.data.paragraph()[:50] + "...")
-        lines.append("")
-
-        # Add blockquote
-        lines.extend([
-            "> " + ("중요" if self.lang == "ko" else "Important") + ": " + self.data.paragraph(),
-            "",
-        ])
-
-        # Add inline code
-        lines.extend([
-            ("이 기능은 " if self.lang == "ko" else "This feature uses ") + "`config.yaml`" + (" 파일을 사용합니다." if self.lang == "ko" else " file."),
-            "",
-        ])
-
-        # Add link
-        lines.extend([
-            ("자세한 내용은 " if self.lang == "ko" else "For more details, see ") + "[" + ("공식 문서" if self.lang == "ko" else "official docs") + "](https://example.com)" + ("를 참조하세요." if self.lang == "ko" else "."),
-            "",
-        ])
-
-        return "\n".join(lines)
-
-    def _generate_api_doc(self) -> str:
-        endpoint_get = self.data.api_endpoint()
-        endpoint_post = self.data.api_endpoint()
-        if endpoint_post == endpoint_get:
-            endpoint_post = endpoint_get.rstrip("s") + "s"
-
-        user_one = self.data.name()
-        user_two = self.data.name()
-        user_email = self.data.email()
-        page_name = "페이지 번호" if self.lang == "ko" else "Page number"
-        limit_name = "페이지당 항목 수" if self.lang == "ko" else "Items per page"
-        lines = [
-            "# API " + ("레퍼런스" if self.lang == "ko" else "Reference"),
-            "",
-            "## " + ("엔드포인트" if self.lang == "ko" else "Endpoints"),
-            "",
-            f"### GET {endpoint_get}",
-            "",
-            ("사용자 목록을 조회합니다." if self.lang == "ko" else "Retrieve a list of users."),
-            "",
-            "**" + ("파라미터" if self.lang == "ko" else "Parameters") + ":**",
-            "",
-            "| " + ("이름" if self.lang == "ko" else "Name") + " | " + ("타입" if self.lang == "ko" else "Type") + " | " + ("설명" if self.lang == "ko" else "Description") + " |",
-            "|------|------|-------------|",
-            f"| page | int | {page_name} |",
-            f"| limit | int | {limit_name} |",
-            "",
-            "**" + ("응답 예시" if self.lang == "ko" else "Example Response") + ":**",
-            "",
-            "```json",
-            "{",
-            '  "users": [',
-            f'    {{"id": 1, "name": "{user_one}"}},',
-            f'    {{"id": 2, "name": "{user_two}"}}',
-            "  ],",
-            f'  "total": {random.randint(20, 500)}',
-            "}",
-            "```",
-            "",
-            f"### POST {endpoint_post}",
-            "",
-            ("새 사용자를 생성합니다." if self.lang == "ko" else "Create a new user."),
-            "",
-            "**" + ("요청 본문" if self.lang == "ko" else "Request Body") + ":**",
-            "",
-            "```json",
-            "{",
-            f'  "name": "{self.data.name()}",',
-            f'  "email": "{user_email}"',
-            "}",
-            "```",
-            "",
-        ]
-
-        return "\n".join(lines)
-
-    def _generate_tutorial(self) -> str:
-        title = self.data.title()
-        project_slug = self._slugify(title)
-        install_command = self.data.install_command(package_name=project_slug)
-        run_command = self.data.usage_command(entrypoint="main.py")
-        requirements = self._sample_requirements(3)
-        cfg_lines = self._sample_config_lines(2)
-        cfg_1_key, cfg_1_value = self._to_config_entry(cfg_lines[0])
-        cfg_2_key, cfg_2_value = self._to_config_entry(cfg_lines[1])
-        lines = [
-            "# " + ("튜토리얼" if self.lang == "ko" else "Tutorial") + f": {title}",
-            "",
-            self.data.paragraph(),
-            "",
-            "## " + ("시작하기 전에" if self.lang == "ko" else "Before You Begin"),
-            "",
-            ("다음 항목이 필요합니다:" if self.lang == "ko" else "You will need:"),
-            "",
-            f"- [ ] {requirements[0]}",
-            f"- [ ] {requirements[1]}",
-            f"- [ ] {requirements[2]}",
-            "",
-            "## " + ("1단계" if self.lang == "ko" else "Step 1") + ": " + ("설치" if self.lang == "ko" else "Installation"),
-            "",
-            ("먼저 패키지를 설치합니다:" if self.lang == "ko" else "First, install the package:"),
-            "",
-            "```bash",
-            install_command,
-            "```",
-            "",
-            "## " + ("2단계" if self.lang == "ko" else "Step 2") + ": " + ("설정" if self.lang == "ko" else "Configuration"),
-            "",
-            ("설정 파일을 생성합니다:" if self.lang == "ko" else "Create a configuration file:"),
-            "",
-            "```python",
-            self.data.code_comment(),
-            "config = {",
-            f'    "{cfg_1_key}": "{cfg_1_value}",',
-            f'    "{cfg_2_key}": "{cfg_2_value}"',
-            "}",
-            "```",
-            "",
-            "> **" + ("팁" if self.lang == "ko" else "Tip") + "**: " + self.data.paragraph()[:60],
-            "",
-            "## " + ("3단계" if self.lang == "ko" else "Step 3") + ": " + ("실행" if self.lang == "ko" else "Run"),
-            "",
-            "```bash",
-            run_command,
-            "```",
-            "",
-            ("예상 출력:" if self.lang == "ko" else "Expected output:"),
-            "",
-            "```",
-            f"Success! Service started for {project_slug}",
-            "```",
-            "",
-        ]
-
-        return "\n".join(lines)
-
-    def _generate_changelog(self) -> str:
-        version = f"v{random.randint(1, 4)}.{random.randint(0, 9)}.{random.randint(0, 12)}"
-        lines = [
-            "# " + ("변경 이력" if self.lang == "ko" else "Changelog"),
-            "",
-            f"## {version} - {self.data.date()}",
-            "",
-            "### " + ("추가" if self.lang == "ko" else "Added"),
-            "",
-        ]
-        for feature in self.data.features(3):
-            lines.append(f"- {feature}")
-        lines.extend([
-            "",
-            "### " + ("수정" if self.lang == "ko" else "Fixed"),
-            "",
-            f"- {self.data.paragraph()[:70]}",
-            f"- {self.data.paragraph()[:70]}",
-            "",
-            "### " + ("변경" if self.lang == "ko" else "Changed"),
-            "",
-            "| " + ("항목" if self.lang == "ko" else "Item") + " | " + ("영향도" if self.lang == "ko" else "Impact") + " |",
-            "|---|---|",
-            "| API | High |",
-            "| UI | Medium |",
-            "| Docs | Low |",
-            "",
-        ])
-        return "\n".join(lines)
-
-    def _generate_meeting_notes(self) -> str:
-        lines = [
-            "# " + ("회의록" if self.lang == "ko" else "Meeting Notes"),
-            "",
-            "- " + ("일시" if self.lang == "ko" else "Date") + f": {self.data.date()}",
-            "- " + ("참석자" if self.lang == "ko" else "Attendees") + f": {self.data.name()}, {self.data.name()}, {self.data.name()}",
-            "",
-            "## " + ("안건" if self.lang == "ko" else "Agenda"),
-            "",
-            "1. " + self.data.title(),
-            "2. " + self.data.title(),
-            "3. " + self.data.title(),
-            "",
-            "## " + ("결정사항" if self.lang == "ko" else "Decisions"),
-            "",
-            "- [x] " + self.data.features(1)[0],
-            "- [x] " + self.data.features(1)[0],
-            "- [ ] " + self.data.features(1)[0],
-            "",
-            "## " + ("액션 아이템" if self.lang == "ko" else "Action Items"),
-            "",
-            "| " + ("담당" if self.lang == "ko" else "Owner") + " | " + ("작업" if self.lang == "ko" else "Task") + " | " + ("기한" if self.lang == "ko" else "Due") + " |",
-            "|---|---|---|",
-            f"| {self.data.name()} | {self.data.paragraph()[:24]} | {self.data.date()} |",
-            f"| {self.data.name()} | {self.data.paragraph()[:24]} | {self.data.date()} |",
-            "",
-        ]
-        return "\n".join(lines)
-
-    def _generate_incident_report(self) -> str:
-        severity = random.choice(["SEV-1", "SEV-2", "SEV-3"])
-        lines = [
-            "# " + ("장애 보고서" if self.lang == "ko" else "Incident Report"),
-            "",
-            f"- Incident ID: INC-{random.randint(1000, 9999)}",
-            f"- Severity: {severity}",
-            "- " + ("발생 시각" if self.lang == "ko" else "Start Time") + f": {self.data.date()}",
-            "",
-            "## " + ("요약" if self.lang == "ko" else "Summary"),
-            "",
-            self.data.paragraph(),
-            "",
-            "## " + ("타임라인" if self.lang == "ko" else "Timeline"),
-            "",
-            f"- 09:10 - {self.data.paragraph()[:48]}",
-            f"- 09:25 - {self.data.paragraph()[:48]}",
-            f"- 09:41 - {self.data.paragraph()[:48]}",
-            "",
-            "## " + ("영향 범위" if self.lang == "ko" else "Impact"),
-            "",
-            "```json",
-            "{",
-            f"  \"affected_users\": {random.randint(100, 5000)},",
-            f"  \"region\": \"{random.choice(['ap-northeast-2', 'us-east-1', 'eu-west-1'])}\",",
-            f"  \"duration_min\": {random.randint(10, 180)}",
-            "}",
-            "```",
-            "",
-            "## " + ("재발 방지" if self.lang == "ko" else "Preventive Actions"),
-            "",
-            "- [ ] " + self.data.features(1)[0],
-            "- [ ] " + self.data.features(1)[0],
-            "",
-        ]
-        return "\n".join(lines)
-
-    def _generate_release_note(self) -> str:
-        release = f"{random.randint(2024, 2027)}.{random.randint(1, 12)}.{random.randint(1, 28)}"
-        requirements = self._sample_requirements(3)
-        runtime_1, min_1 = self._to_runtime_version(requirements[0])
-        runtime_2, min_2 = self._to_runtime_version(requirements[1])
-        runtime_3, min_3 = self._to_runtime_version(requirements[2])
-        install_cmd = self.data.install_command(package_name="synthetic-ocr")
-        run_cmd = self.data.usage_command(entrypoint="main.py")
-        lines = [
-            "# " + ("릴리즈 노트" if self.lang == "ko" else "Release Notes") + f" {release}",
-            "",
-            "## " + ("하이라이트" if self.lang == "ko" else "Highlights"),
-            "",
-            f"- **{self.data.features(1)[0]}**",
-            f"- **{self.data.features(1)[0]}**",
-            f"- **{self.data.features(1)[0]}**",
-            "",
-            "## " + ("호환성" if self.lang == "ko" else "Compatibility"),
-            "",
-            "| Runtime | Minimum | Recommended |",
-            "|---|---|---|",
-            f"| {runtime_1} | {min_1} | {min_1}+ |",
-            f"| {runtime_2} | {min_2} | {min_2}+ |",
-            f"| {runtime_3} | {min_3} | {min_3}+ |",
-            "",
-            "## " + ("업그레이드 가이드" if self.lang == "ko" else "Upgrade Guide"),
-            "",
-            "```bash",
-            install_cmd.replace(" install ", " install -U "),
-            f"{run_cmd} generate --lang en --size 10" if run_cmd.startswith("python") else run_cmd,
-            "```",
-            "",
-        ]
-        return "\n".join(lines)
-
-    def _generate_compliance_checklist(self) -> str:
-        lines = [
-            "# " + ("컴플라이언스 체크리스트" if self.lang == "ko" else "Compliance Checklist"),
-            "",
-            "## " + ("데이터 보안" if self.lang == "ko" else "Data Security"),
-            "",
-            "- [x] Encryption at rest",
-            "- [x] Encryption in transit",
-            "- [ ] Data retention policy review",
-            "",
-            "## " + ("접근 통제" if self.lang == "ko" else "Access Control"),
-            "",
-            "1. MFA enabled for admins",
-            "2. Role-based access matrix updated",
-            "3. Quarterly permission audit completed",
-            "",
-            "## " + ("감사 로그" if self.lang == "ko" else "Audit Logs"),
-            "",
-            "```yaml",
-            "audit:",
-            "  enabled: true",
-            "  retention_days: 365",
-            "  export: s3://compliance-logs",
-            "```",
-            "",
-            "> " + ("주의" if self.lang == "ko" else "Note") + ": " + self.data.paragraph(),
-            "",
-        ]
-        return "\n".join(lines)
+        if branch == "hardcoded":
+            return self._build_hard_coded_formula_expression()
+        if branch == "parametric":
+            return self._build_parametric_synthetic_formula_expression()
+        return self._build_grammar_formula_expression()
 
 
 class MarkdownRenderer:
@@ -1336,7 +1114,71 @@ class MarkdownRenderer:
     def _image_placeholder_height(style: MarkdownStyle) -> int:
         return int(max(110, style.body_font_size * 7.0))
 
-    def render(self, markdown_text: str) -> Image.Image:
+    @staticmethod
+    def _resolve_image_asset(
+        image_src: str,
+        image_assets: Optional[Dict[str, Image.Image]],
+    ) -> Optional[Image.Image]:
+        if image_assets:
+            cached = image_assets.get(image_src)
+            if cached is not None:
+                return cached
+
+        candidate_path: Optional[Path] = None
+        if image_src.startswith("file://"):
+            candidate_path = Path(image_src[len("file://") :])
+        elif "://" not in image_src:
+            candidate_path = Path(image_src)
+
+        if candidate_path is None or not candidate_path.exists() or not candidate_path.is_file():
+            return None
+
+        try:
+            loaded = Image.open(candidate_path).convert("RGB")
+            loaded.load()
+            return loaded
+        except Exception:
+            return None
+
+    @staticmethod
+    def _fit_media_image(image: Image.Image, max_width: int, max_height: int) -> Image.Image:
+        safe_max_width = max(1, int(max_width))
+        safe_max_height = max(1, int(max_height))
+        width, height = image.size
+        if width <= 0 or height <= 0:
+            return image
+
+        ratio = min(safe_max_width / width, safe_max_height / height)
+        if ratio >= 1.0:
+            return image.copy()
+
+        new_width = max(1, int(width * ratio))
+        new_height = max(1, int(height * ratio))
+        if hasattr(Image, "Resampling"):
+            return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        return image.resize((new_width, new_height), getattr(Image, "LANCZOS", 1))
+
+    def _image_block_height(
+        self,
+        style: MarkdownStyle,
+        image_src: str,
+        image_assets: Optional[Dict[str, Image.Image]],
+    ) -> int:
+        fallback = self._image_placeholder_height(style)
+        image_asset = self._resolve_image_asset(image_src, image_assets)
+        if image_asset is None:
+            return fallback
+
+        available_width = max(30, style.content_width - 12)
+        estimated_height = int(available_width * image_asset.height / max(1, image_asset.width))
+        max_height = max(fallback, int(style.content_width * 0.85))
+        return max(fallback, min(max_height, estimated_height))
+
+    def render(
+        self,
+        markdown_text: str,
+        image_assets: Optional[Dict[str, Image.Image]] = None,
+    ) -> Image.Image:
         """Render markdown text to image."""
         lines = markdown_text.split("\n")
         style = self.style
@@ -1346,7 +1188,7 @@ class MarkdownRenderer:
         line_heights = []
 
         for line in lines:
-            height = self._get_line_height(line)
+            height = self._get_line_height(line, image_assets=image_assets)
             line_heights.append(height)
             total_height += height
 
@@ -1390,9 +1232,17 @@ class MarkdownRenderer:
             if in_code_block:
                 current_y = self._draw_code_line(draw, line, current_y, style)
             elif (image_payload := self._parse_image_line(stripped)) is not None:
-                current_y = self._draw_image_placeholder(draw, image_payload[0], current_y, style)
+                current_y = self._draw_image_block(
+                    img,
+                    draw,
+                    image_payload[0],
+                    image_payload[1],
+                    current_y,
+                    style,
+                    image_assets,
+                )
             elif (formula_text := self._parse_formula_line(stripped)) is not None:
-                current_y = self._draw_formula_line(draw, formula_text, current_y, style)
+                current_y = self._draw_formula_line(img, draw, formula_text, current_y, style)
             elif stripped.startswith("# "):
                 current_y = self._draw_h1(draw, stripped[2:], current_y, style)
             elif stripped.startswith("## "):
@@ -1432,7 +1282,11 @@ class MarkdownRenderer:
 
         return img
 
-    def _get_line_height(self, line: str) -> int:
+    def _get_line_height(
+        self,
+        line: str,
+        image_assets: Optional[Dict[str, Image.Image]] = None,
+    ) -> int:
         """Calculate height needed for a line."""
         stripped = line.strip()
         base_spacing = int(self.style.line_spacing * self.style.body_font_size)
@@ -1443,9 +1297,16 @@ class MarkdownRenderer:
             return int(self.style.h2_font_size * self.style.line_spacing) + 8
         if stripped.startswith("### "):
             return int(self.style.h3_font_size * self.style.line_spacing) + 6
-        if self._parse_image_line(stripped):
-            return self._image_placeholder_height(self.style) + 14
-        if self._parse_formula_line(stripped):
+        if (image_payload := self._parse_image_line(stripped)) is not None:
+            return self._image_block_height(self.style, image_payload[1], image_assets) + 14
+        if (formula_text := self._parse_formula_line(stripped)) is not None:
+            formula_image = _render_formula_image(
+                formula_text,
+                max(12, int(self.style.code_font_size * 1.2)),
+                self.style.code_text_color,
+            )
+            if formula_image is not None:
+                return max(base_spacing + 18, formula_image.height + 20)
             return base_spacing + 18
         if stripped.startswith("```"):
             return 5
@@ -1619,13 +1480,46 @@ class MarkdownRenderer:
         )
         return y + 20
 
-    def _draw_formula_line(self, draw: ImageDraw.ImageDraw, formula_text: str, y: int, style: MarkdownStyle) -> int:
+    def _draw_formula_line(
+        self,
+        canvas: Image.Image,
+        draw: ImageDraw.ImageDraw,
+        formula_text: str,
+        y: int,
+        style: MarkdownStyle,
+    ) -> int:
         text = formula_text.strip()
+        formula_image = _render_formula_image(
+            text,
+            max(12, int(style.code_font_size * 1.2)),
+            style.code_text_color,
+        )
+
+        box_left = style.margin_left
+        box_top = y + 1
+        box_right = style.margin_left + style.content_width
+
+        if formula_image is not None:
+            available_width = max(20, style.content_width - 16)
+            available_height = max(20, int(style.content_width * 0.45))
+            rendered_formula = self._fit_media_image(formula_image, available_width, available_height)
+            box_bottom = box_top + rendered_formula.height + 10
+
+            draw.rectangle(
+                [box_left, box_top, box_right, box_bottom],
+                fill=style.code_bg_color,
+                outline=style.blockquote_border_color,
+                width=1,
+            )
+
+            formula_x = box_left + max(8, (style.content_width - rendered_formula.width) // 2)
+            formula_y = box_top + 5
+            canvas.paste(rendered_formula, (formula_x, formula_y), rendered_formula)
+            return int(box_bottom + 8)
+
         x = style.margin_left + 8
         text_y = y + 4
         bbox = draw.textbbox((x, text_y), text, font=self.code_font)
-        box_left = style.margin_left
-        box_top = y + 1
         box_right = min(style.margin_left + style.content_width, bbox[2] + 10)
         box_bottom = bbox[3] + 5
 
@@ -1638,12 +1532,38 @@ class MarkdownRenderer:
         draw.text((x, text_y), text, font=self.code_font, fill=style.code_text_color)
         return int(box_bottom + 8)
 
-    def _draw_image_placeholder(self, draw: ImageDraw.ImageDraw, alt_text: str, y: int, style: MarkdownStyle) -> int:
-        placeholder_height = self._image_placeholder_height(style)
+    def _draw_image_block(
+        self,
+        canvas: Image.Image,
+        draw: ImageDraw.ImageDraw,
+        alt_text: str,
+        image_src: str,
+        y: int,
+        style: MarkdownStyle,
+        image_assets: Optional[Dict[str, Image.Image]],
+    ) -> int:
+        block_height = self._image_block_height(style, image_src, image_assets)
         left = style.margin_left
         top = y + 4
         right = style.margin_left + style.content_width
-        bottom = top + placeholder_height
+        bottom = top + block_height
+
+        image_asset = self._resolve_image_asset(image_src, image_assets)
+        if image_asset is not None:
+            draw.rectangle(
+                [left, top, right, bottom],
+                fill=(250, 250, 250),
+                outline=(175, 175, 175),
+                width=1,
+            )
+
+            max_width = max(24, style.content_width - 12)
+            max_height = max(24, block_height - 12)
+            rendered_image = self._fit_media_image(image_asset.convert("RGB"), max_width, max_height)
+            paste_x = left + (style.content_width - rendered_image.width) // 2
+            paste_y = top + (block_height - rendered_image.height) // 2
+            canvas.paste(rendered_image, (paste_x, paste_y))
+            return int(bottom + 10)
 
         draw.rectangle(
             [left, top, right, bottom],
@@ -1657,7 +1577,7 @@ class MarkdownRenderer:
         label = f"Image: {alt_text}" if alt_text else "Image"
         label_bbox = draw.textbbox((0, 0), label, font=self.body_font)
         label_x = left + max(8, (style.content_width - (label_bbox[2] - label_bbox[0])) // 2)
-        label_y = top + max(8, (placeholder_height - (label_bbox[3] - label_bbox[1])) // 2)
+        label_y = top + max(8, (block_height - (label_bbox[3] - label_bbox[1])) // 2)
         draw.rectangle(
             [label_x - 6, label_y - 3, label_x + (label_bbox[2] - label_bbox[0]) + 6, label_y + (label_bbox[3] - label_bbox[1]) + 3],
             fill=(255, 255, 255),
@@ -1723,8 +1643,11 @@ class HtmlMarkdownRenderer:
             extensions=["extra", "tables", "fenced_code", "sane_lists"],
         )
 
-    @staticmethod
-    def _prepare_component_markdown(markdown_text: str) -> str:
+    def _prepare_component_markdown(
+        self,
+        markdown_text: str,
+        image_assets: Optional[Dict[str, Image.Image]] = None,
+    ) -> str:
         prepared_lines: List[str] = []
         for raw_line in markdown_text.splitlines():
             stripped = raw_line.strip()
@@ -1733,19 +1656,43 @@ class HtmlMarkdownRenderer:
             if image_payload is not None:
                 alt_text = image_payload[0] or "Image"
                 safe_alt = escape(alt_text)
-                prepared_lines.extend(
-                    [
-                        '<figure class="md-image-placeholder">',
-                        f'  <div class="md-image-box" aria-label="{safe_alt}"><span>{safe_alt}</span></div>',
-                        f"  <figcaption>{safe_alt}</figcaption>",
-                        "</figure>",
-                    ]
-                )
+                image_src = image_payload[1]
+                image_asset = MarkdownRenderer._resolve_image_asset(image_src, image_assets)
+                if image_asset is not None:
+                    data_uri = _image_to_data_uri(image_asset)
+                    prepared_lines.extend(
+                        [
+                            '<figure class="md-image-placeholder">',
+                            f'  <img class="md-image-rendered" src="{data_uri}" alt="{safe_alt}" />',
+                            f"  <figcaption>{safe_alt}</figcaption>",
+                            "</figure>",
+                        ]
+                    )
+                else:
+                    prepared_lines.extend(
+                        [
+                            '<figure class="md-image-placeholder">',
+                            f'  <div class="md-image-box" aria-label="{safe_alt}"><span>{safe_alt}</span></div>',
+                            f"  <figcaption>{safe_alt}</figcaption>",
+                            "</figure>",
+                        ]
+                    )
                 continue
 
             formula_text = parse_markdown_formula_line(stripped)
             if formula_text is not None:
-                prepared_lines.append(f'<div class="md-formula">{escape(formula_text)}</div>')
+                formula_image = _render_formula_image(
+                    formula_text,
+                    max(12, int(self.style.code_font_size * 1.2)),
+                    self.style.code_text_color,
+                )
+                if formula_image is not None:
+                    formula_data_uri = _image_to_data_uri(formula_image)
+                    prepared_lines.append(
+                        f'<div class="md-formula"><img class="md-formula-img" src="{formula_data_uri}" alt="formula" /></div>'
+                    )
+                else:
+                    prepared_lines.append(f'<div class="md-formula">{escape(formula_text)}</div>')
                 continue
 
             prepared_lines.append(raw_line)
@@ -1778,8 +1725,17 @@ class HtmlMarkdownRenderer:
                 table_bonus += int(body_line_px * 0.6)
             if parse_markdown_image_line(line):
                 image_bonus += max(120, int(self.style.body_font_size * 8.5))
-            if parse_markdown_formula_line(line):
-                formula_bonus += int(body_line_px * 1.6)
+            formula_text = parse_markdown_formula_line(line)
+            if formula_text:
+                formula_image = _render_formula_image(
+                    formula_text,
+                    max(12, int(self.style.code_font_size * 1.2)),
+                    self.style.code_text_color,
+                )
+                if formula_image is not None:
+                    formula_bonus += formula_image.height + 12
+                else:
+                    formula_bonus += int(body_line_px * 1.6)
 
         estimated = (
             self.style.margin_top
@@ -1794,8 +1750,12 @@ class HtmlMarkdownRenderer:
         )
         return max(300, min(9000, int(estimated)))
 
-    def _build_html_document(self, markdown_text: str) -> str:
-        prepared_markdown = self._prepare_component_markdown(markdown_text)
+    def _build_html_document(
+        self,
+        markdown_text: str,
+        image_assets: Optional[Dict[str, Image.Image]] = None,
+    ) -> str:
+        prepared_markdown = self._prepare_component_markdown(markdown_text, image_assets=image_assets)
         rendered_html = self._coerce_markdown_html(prepared_markdown)
         css = f"""
 @font-face {{
@@ -1886,10 +1846,22 @@ body {{
   color: rgba(0, 0, 0, 0.6);
   font-weight: 600;
 }}
+.markdown-body .md-image-rendered {{
+  width: 100%;
+  display: block;
+  border: 1px solid rgba(0, 0, 0, 0.28);
+  object-fit: cover;
+  max-height: 520px;
+}}
 .markdown-body .md-image-placeholder figcaption {{
   margin-top: 6px;
   color: rgba(0, 0, 0, 0.65);
   font-size: {max(10, self.style.body_font_size - 1)}px;
+}}
+.markdown-body .md-formula .md-formula-img {{
+  display: block;
+  max-width: 100%;
+  height: auto;
 }}
 """
         return f"""<!DOCTYPE html>
@@ -1939,7 +1911,11 @@ body {{
         noise_img = Image.fromarray(noise, mode="RGB")
         return Image.blend(img, noise_img, 0.03)
 
-    def render(self, markdown_text: str) -> Image.Image:
+    def render(
+        self,
+        markdown_text: str,
+        image_assets: Optional[Dict[str, Image.Image]] = None,
+    ) -> Image.Image:
         try:
             Html2Image = importlib.import_module("html2image").Html2Image
         except ImportError as exc:
@@ -1950,7 +1926,7 @@ body {{
 
         width = self.style.margin_left + self.style.content_width + self.style.margin_right
         height = self._estimate_viewport_height(markdown_text)
-        html_doc = self._build_html_document(markdown_text)
+        html_doc = self._build_html_document(markdown_text, image_assets=image_assets)
 
         with tempfile.TemporaryDirectory(prefix="markdown-html2image-") as temp_dir:
             hti = Html2Image(
@@ -2011,6 +1987,7 @@ class Generator(BaseGenerator):
         self.base_seed: Optional[int] = None
         self.max_render_width = A4_MAX_WIDTH_PX
         self.max_render_height = A4_MAX_HEIGHT_PX
+        self.max_render_aspect_ratio = MAX_RENDER_ASPECT_RATIO
 
     def _load_similarity_db(self, db_path: Optional[str]) -> None:
         source_key = db_path or "__auto__"
@@ -2194,6 +2171,27 @@ class Generator(BaseGenerator):
             maxlen=self.novelty_window,
         )
 
+    def _configure_content_sources(self, **kwargs) -> None:
+        self.data_generator.configure_content_sources(
+            formula_source_mode=kwargs.get(
+                "formula_source_mode",
+                self.data_generator.formula_source_mode,
+            ),
+            formula_dataset_path=kwargs.get("formula_dataset_path", self.data_generator.formula_dataset_path),
+            formula_dataset_weight=kwargs.get(
+                "formula_dataset_weight",
+                self.data_generator.formula_source_weights.get("dataset", DEFAULT_FORMULA_SOURCE_WEIGHTS["dataset"]),
+            ),
+            formula_random_weight=kwargs.get(
+                "formula_random_weight",
+                self.data_generator.formula_source_weights.get("random", DEFAULT_FORMULA_SOURCE_WEIGHTS["random"]),
+            ),
+            formula_synthetic_weight=kwargs.get(
+                "formula_synthetic_weight",
+                self.data_generator.formula_source_weights.get("synthetic", DEFAULT_FORMULA_SOURCE_WEIGHTS["synthetic"]),
+            ),
+        )
+
     def _configure_generation(self, **kwargs) -> None:
         if "seed" in kwargs:
             self.base_seed = self._coerce_optional_int(kwargs.get("seed"))
@@ -2201,6 +2199,7 @@ class Generator(BaseGenerator):
         self._configure_template_selection(**kwargs)
         self._configure_rendering(**kwargs)
         self._configure_novelty(**kwargs)
+        self._configure_content_sources(**kwargs)
 
         self._load_similarity_db(kwargs.get("similarity_db_path"))
 
@@ -2250,6 +2249,61 @@ class Generator(BaseGenerator):
 
         return "".join(chars), mutated_count
 
+    def _mutate_text_generator_sections(
+        self,
+        markdown_text: str,
+        ratio: float,
+        merge_order: List[str],
+    ) -> Tuple[str, int]:
+        if not merge_order:
+            return markdown_text, 0
+
+        lines = markdown_text.splitlines()
+        if not lines:
+            return markdown_text, 0
+
+        preface_lines: List[str] = []
+        sections: List[str] = []
+        current_section: List[str] = []
+        in_section = False
+
+        for line in lines:
+            if line.startswith("## "):
+                if current_section:
+                    sections.append("\n".join(current_section).rstrip())
+                current_section = [line]
+                in_section = True
+                continue
+
+            if in_section:
+                current_section.append(line)
+            else:
+                preface_lines.append(line)
+
+        if current_section:
+            sections.append("\n".join(current_section).rstrip())
+
+        if len(sections) != len(merge_order):
+            return markdown_text, 0
+
+        mutated_sections: List[str] = []
+        mutated_count = 0
+        for section_text, section_type in zip(sections, merge_order):
+            if section_type == "text":
+                mutated_section, section_mutations = self._mutate_similar_text(section_text, ratio)
+                mutated_sections.append(mutated_section)
+                mutated_count += section_mutations
+            else:
+                mutated_sections.append(section_text)
+
+        prefix = "\n".join(preface_lines).rstrip()
+        body = "\n\n".join(mutated_sections).strip()
+        if prefix and body:
+            return f"{prefix}\n\n{body}", mutated_count
+        if body:
+            return body, mutated_count
+        return prefix, mutated_count
+
     def _derive_sample_seed(self, sample_index: int, attempt: int) -> Optional[int]:
         if self.base_seed is None:
             return None
@@ -2271,17 +2325,27 @@ class Generator(BaseGenerator):
 
     def _fit_image_to_a4(self, image: Image.Image) -> Tuple[Image.Image, bool]:
         width, height = image.size
-        if width <= self.max_render_width and height <= self.max_render_height:
-            return image, False
 
-        ratio = min(self.max_render_width / max(1, width), self.max_render_height / max(1, height))
-        new_width = max(1, int(width * ratio))
-        new_height = max(1, int(height * ratio))
-        if hasattr(Image, "Resampling"):
-            resized = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        else:
-            resized = image.resize((new_width, new_height), getattr(Image, "LANCZOS", 1))
-        return resized, True
+        clipped_width = min(width, self.max_render_width)
+        clipped_height = min(height, self.max_render_height)
+        clipped = image
+        clipped_any = clipped_width != width or clipped_height != height
+        if clipped_any:
+            clipped = image.crop((0, 0, clipped_width, clipped_height))
+
+        max_ratio = max(1.0, float(self.max_render_aspect_ratio))
+        ratio_width = clipped_width
+        ratio_height = clipped_height
+        if clipped_height > int(clipped_width * max_ratio):
+            ratio_height = max(1, int(clipped_width * max_ratio))
+        elif clipped_width > int(clipped_height * max_ratio):
+            ratio_width = max(1, int(clipped_height * max_ratio))
+
+        ratio_clipped = ratio_width != clipped_width or ratio_height != clipped_height
+        if ratio_clipped:
+            clipped = clipped.crop((0, 0, ratio_width, ratio_height))
+
+        return clipped, clipped_any or ratio_clipped
 
     @staticmethod
     def _structure_signature(markdown_text: str) -> str:
@@ -2395,6 +2459,7 @@ class Generator(BaseGenerator):
         novelty_score = 0.0
         sample_seed: Optional[int] = None
         selection_attempt = 1
+        merge_order: List[str] = []
 
         for attempt in range(self.novelty_max_attempts):
             sample_seed = self._derive_sample_seed(sample_index, attempt)
@@ -2406,9 +2471,11 @@ class Generator(BaseGenerator):
                 template_id=selected_template.template_id,
                 template_spec=selected_template,
             )
-            markdown_text, mutation_count = self._mutate_similar_text(
+            merge_order = self.data_generator.pop_merge_order()
+            markdown_text, mutation_count = self._mutate_text_generator_sections(
                 original_markdown,
                 self.similar_char_ratio,
+                merge_order,
             )
             signature = self._structure_signature(markdown_text)
             novelty_score = self._novelty_score(signature)
@@ -2429,7 +2496,7 @@ class Generator(BaseGenerator):
         else:
             renderer = MarkdownRenderer(font_path, style)
         image = renderer.render(markdown_text)
-        image, a4_scaled = self._fit_image_to_a4(image)
+        image, a4_clipped = self._fit_image_to_a4(image)
 
         self.template_counts[selected_template.template_id] += 1
         self.family_counts[selected_template.family] += 1
@@ -2458,7 +2525,9 @@ class Generator(BaseGenerator):
             "structure_signature": signature,
             "novelty_score": round(novelty_score, 6),
             "family_ratio": round(family_ratio, 6),
-            "a4_scaled": a4_scaled,
+            "merge_order": merge_order,
+            "a4_scaled": a4_clipped,
+            "a4_clipped": a4_clipped,
             "image_width": image.width,
             "image_height": image.height,
         }
