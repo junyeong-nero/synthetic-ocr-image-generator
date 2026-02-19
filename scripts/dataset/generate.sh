@@ -8,13 +8,18 @@ usage() {
     echo "Options:"
     echo "  --size <n>            Number of markdown samples (default: 1000)"
     echo "  --similar-char-ratio <r> Similar character replacement ratio (default: 0.08)"
-    echo "  --template <id>       Fixed template id or alias"
-    echo "  --template-family <f> Template family filter"
-    echo "  --min-template-complexity <n> Minimum template complexity (1-5)"
-    echo "  --max-template-complexity <n> Maximum template complexity (1-5)"
-    echo "  --template-config-dir <dir> Template catalog directory"
+    echo "  --formula-source-mode <m> Formula source mode: mixed|dataset|random|synthetic (default: mixed)"
+    echo "  --formula-dataset-path <path> Formula dataset file path (.txt/.json/.jsonl/.csv/.tsv)"
+    echo "  --formula-dataset-weight <w> Formula dataset weight in mixed mode (default: 0.45)"
+    echo "  --formula-random-weight <w> Formula random weight in mixed mode (default: 0.30)"
+    echo "  --formula-synthetic-weight <w> Formula synthetic weight in mixed mode (default: 0.25)"
+    echo "  --text-section-count <min,max> Text section count range (default: 3,5)"
+    echo "  --table-section-count <min,max> Table section count range (default: 1,2)"
+    echo "  --table-rows <min,max> Table row range (default: 2,4)"
+    echo "  --table-columns <min,max> Table column range (default: 3,5)"
+    echo "  --formula-section-count <min,max> Formula section count range (default: 1,2)"
+    echo "  --template-config-dir <dir> Use an explicit template config directory (optional)"
     echo "  --style-profile <p>   Style profile: legacy|balanced|aggressive (default: balanced)"
-    echo "  --coverage-target <family=ratio> Coverage target (repeatable)"
     echo "  --novelty-window <n>  Novelty guard window size (default: 80)"
     echo "  --novelty-threshold <r> Novelty similarity threshold (default: 0.95)"
     echo "  --novelty-max-attempts <n> Novelty retry count (default: 4)"
@@ -27,6 +32,8 @@ usage() {
     exit 1
 }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 REPO_ID=""
 LANG=""
 SIZE=1000
@@ -34,17 +41,41 @@ LABEL=""
 SIMILAR_CHAR_RATIO=0.08
 TRAIN_RATIO=0.9
 TEST_RATIO=0.1
-TEMPLATE=""
-TEMPLATE_FAMILY=""
-MIN_TEMPLATE_COMPLEXITY="1"
-MAX_TEMPLATE_COMPLEXITY="3"
 TEMPLATE_CONFIG_DIR=""
 STYLE_PROFILE="balanced"
 NOVELTY_WINDOW=80
 NOVELTY_THRESHOLD=0.95
 NOVELTY_MAX_ATTEMPTS=4
 MARKDOWN_RENDERER="html2image"
-COVERAGE_TARGETS=()
+TEXT_SECTION_COUNT="3,5"
+TABLE_SECTION_COUNT="1,2"
+TABLE_ROWS="2,4"
+TABLE_COLUMNS="3,5"
+FORMULA_SECTION_COUNT="1,2"
+FORMULA_SOURCE_MODE="mixed"
+FORMULA_DATASET_PATH=""
+FORMULA_DATASET_WEIGHT=0.45
+FORMULA_RANDOM_WEIGHT=0.30
+FORMULA_SYNTHETIC_WEIGHT=0.25
+
+parse_range() {
+    local raw="$1"
+    local label="$2"
+
+    if [[ ! "$raw" =~ ^[0-9]+,[0-9]+$ ]]; then
+        echo "Invalid ${label}: '$raw' (expected: min,max)" >&2
+        exit 1
+    fi
+
+    local left="${raw%,*}"
+    local right="${raw#*,}"
+
+    if (( left <= right )); then
+        echo "$left, $right"
+    else
+        echo "$right, $left"
+    fi
+}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -68,20 +99,44 @@ while [[ $# -gt 0 ]]; do
             SIMILAR_CHAR_RATIO="$2"
             shift 2
             ;;
-        --template)
-            TEMPLATE="$2"
+        --formula-source-mode)
+            FORMULA_SOURCE_MODE="$2"
             shift 2
             ;;
-        --template-family)
-            TEMPLATE_FAMILY="$2"
+        --formula-dataset-path)
+            FORMULA_DATASET_PATH="$2"
             shift 2
             ;;
-        --min-template-complexity)
-            MIN_TEMPLATE_COMPLEXITY="$2"
+        --formula-dataset-weight)
+            FORMULA_DATASET_WEIGHT="$2"
             shift 2
             ;;
-        --max-template-complexity)
-            MAX_TEMPLATE_COMPLEXITY="$2"
+        --formula-random-weight)
+            FORMULA_RANDOM_WEIGHT="$2"
+            shift 2
+            ;;
+        --formula-synthetic-weight)
+            FORMULA_SYNTHETIC_WEIGHT="$2"
+            shift 2
+            ;;
+        --text-section-count)
+            TEXT_SECTION_COUNT="$2"
+            shift 2
+            ;;
+        --table-section-count)
+            TABLE_SECTION_COUNT="$2"
+            shift 2
+            ;;
+        --table-rows)
+            TABLE_ROWS="$2"
+            shift 2
+            ;;
+        --table-columns)
+            TABLE_COLUMNS="$2"
+            shift 2
+            ;;
+        --formula-section-count)
+            FORMULA_SECTION_COUNT="$2"
             shift 2
             ;;
         --template-config-dir)
@@ -90,10 +145,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --style-profile)
             STYLE_PROFILE="$2"
-            shift 2
-            ;;
-        --coverage-target)
-            COVERAGE_TARGETS+=("$2")
             shift 2
             ;;
         --novelty-window)
@@ -138,6 +189,35 @@ if [[ -z "$LABEL" ]]; then
     LABEL="$REPO_ID"
 fi
 
+TEXT_SECTION_RANGE="$(parse_range "$TEXT_SECTION_COUNT" "text-section-count")"
+TABLE_SECTION_RANGE="$(parse_range "$TABLE_SECTION_COUNT" "table-section-count")"
+TABLE_ROWS_RANGE="$(parse_range "$TABLE_ROWS" "table-rows")"
+TABLE_COLUMNS_RANGE="$(parse_range "$TABLE_COLUMNS" "table-columns")"
+FORMULA_SECTION_RANGE="$(parse_range "$FORMULA_SECTION_COUNT" "formula-section-count")"
+
+GENERATED_TEMPLATE_DIR=""
+if [[ -z "$TEMPLATE_CONFIG_DIR" ]]; then
+    GENERATED_TEMPLATE_DIR="$(mktemp -d "/tmp/synthetic-ocr-sections-XXXXXX")"
+    TEMPLATE_CONFIG_DIR="$GENERATED_TEMPLATE_DIR"
+    trap 'rm -rf "$GENERATED_TEMPLATE_DIR"' EXIT
+    cat > "$TEMPLATE_CONFIG_DIR/default.yaml" <<YAML
+version: 2
+id: default
+mode: sections
+
+text:
+  section_count: [${TEXT_SECTION_RANGE}]
+
+table:
+  section_count: [${TABLE_SECTION_RANGE}]
+  rows: [${TABLE_ROWS_RANGE}]
+  columns: [${TABLE_COLUMNS_RANGE}]
+
+formula:
+  section_count: [${FORMULA_SECTION_RANGE}]
+YAML
+fi
+
 echo "=========================================="
 echo "Generating OCR images: $LABEL"
 echo "=========================================="
@@ -159,32 +239,15 @@ CMD=(
     --novelty-window "$NOVELTY_WINDOW"
     --novelty-threshold "$NOVELTY_THRESHOLD"
     --novelty-max-attempts "$NOVELTY_MAX_ATTEMPTS"
+    --formula-source-mode "$FORMULA_SOURCE_MODE"
+    --formula-dataset-weight "$FORMULA_DATASET_WEIGHT"
+    --formula-random-weight "$FORMULA_RANDOM_WEIGHT"
+    --formula-synthetic-weight "$FORMULA_SYNTHETIC_WEIGHT"
+    --template-config-dir "$TEMPLATE_CONFIG_DIR"
 )
 
-if [[ -n "$TEMPLATE" ]]; then
-    CMD+=(--template "$TEMPLATE")
-fi
-
-if [[ -n "$TEMPLATE_FAMILY" ]]; then
-    CMD+=(--template-family "$TEMPLATE_FAMILY")
-fi
-
-if [[ -n "$MIN_TEMPLATE_COMPLEXITY" ]]; then
-    CMD+=(--min-template-complexity "$MIN_TEMPLATE_COMPLEXITY")
-fi
-
-if [[ -n "$MAX_TEMPLATE_COMPLEXITY" ]]; then
-    CMD+=(--max-template-complexity "$MAX_TEMPLATE_COMPLEXITY")
-fi
-
-if [[ -n "$TEMPLATE_CONFIG_DIR" ]]; then
-    CMD+=(--template-config-dir "$TEMPLATE_CONFIG_DIR")
-fi
-
-if (( ${#COVERAGE_TARGETS[@]} > 0 )); then
-    for target in "${COVERAGE_TARGETS[@]}"; do
-        CMD+=(--coverage-target "$target")
-    done
+if [[ -n "$FORMULA_DATASET_PATH" ]]; then
+    CMD+=(--formula-dataset-path "$FORMULA_DATASET_PATH")
 fi
 
 "${CMD[@]}"

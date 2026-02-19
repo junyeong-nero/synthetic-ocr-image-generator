@@ -383,6 +383,11 @@ GENERATE_ARG_TO_PIPELINE_KEY: tuple[tuple[str, str], ...] = (
     ("novelty_max_attempts", "novelty_max_attempts"),
     ("similar_char_ratio", "similar_char_ratio"),
     ("similarity_db_path", "similarity_db_path"),
+    ("formula_source_mode", "formula_source_mode"),
+    ("formula_dataset_path", "formula_dataset_path"),
+    ("formula_dataset_weight", "formula_dataset_weight"),
+    ("formula_random_weight", "formula_random_weight"),
+    ("formula_synthetic_weight", "formula_synthetic_weight"),
     ("add_noise", "add_noise"),
     ("add_blur", "add_blur"),
     ("mixed", "mixed"),
@@ -452,7 +457,7 @@ def _configure_generate_parser(gen_parser: argparse.ArgumentParser) -> None:
         "--template-family",
         type=str,
         default=None,
-        help="Template family filter (e.g. legacy, operations, api)",
+        help="Template family filter (e.g. sections, operations, api)",
     )
     gen_parser.add_argument(
         "--min-template-complexity",
@@ -490,7 +495,7 @@ def _configure_generate_parser(gen_parser: argparse.ArgumentParser) -> None:
         "--coverage-target",
         action="append",
         default=None,
-        help="Coverage target per family, e.g. legacy=0.5 (repeatable)",
+        help="Coverage target per family, e.g. sections=0.5 (repeatable)",
     )
     gen_parser.add_argument(
         "--novelty-window",
@@ -521,6 +526,37 @@ def _configure_generate_parser(gen_parser: argparse.ArgumentParser) -> None:
         type=str,
         default=None,
         help="Path to character similarity DB JSON from src/character_similarity.py",
+    )
+    gen_parser.add_argument(
+        "--formula-source-mode",
+        type=str,
+        default="mixed",
+        choices=["mixed", "dataset", "random", "synthetic"],
+        help="Formula source strategy: mixed, dataset, random, or synthetic",
+    )
+    gen_parser.add_argument(
+        "--formula-dataset-path",
+        type=str,
+        default=None,
+        help="Path to formula dataset file (.txt/.json/.jsonl/.csv/.tsv)",
+    )
+    gen_parser.add_argument(
+        "--formula-dataset-weight",
+        type=float,
+        default=0.45,
+        help="Formula source weight for dataset entries in mixed mode",
+    )
+    gen_parser.add_argument(
+        "--formula-random-weight",
+        type=float,
+        default=0.30,
+        help="Formula source weight for random templates in mixed mode",
+    )
+    gen_parser.add_argument(
+        "--formula-synthetic-weight",
+        type=float,
+        default=0.25,
+        help="Formula source weight for synthetic formulas in mixed mode",
     )
     _add_optional_generation_effect_argument(
         gen_parser,
@@ -725,7 +761,7 @@ def main() -> None:
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    # Generate command (legacy main arguments)
+    # Generate command
     gen_parser = subparsers.add_parser("generate", help="Generate synthetic dataset")
     _configure_generate_parser(gen_parser)
 

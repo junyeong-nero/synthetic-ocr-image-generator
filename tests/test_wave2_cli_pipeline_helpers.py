@@ -119,6 +119,11 @@ def test_build_generation_kwargs_includes_optional_toggles_only_when_set() -> No
         novelty_max_attempts=4,
         similar_char_ratio=0.08,
         similarity_db_path=None,
+        formula_source_mode="mixed",
+        formula_dataset_path=None,
+        formula_dataset_weight=0.45,
+        formula_random_weight=0.30,
+        formula_synthetic_weight=0.25,
         seed=7,
         add_noise=None,
         add_blur=True,
@@ -138,18 +143,23 @@ def test_build_generate_pipeline_args_maps_expected_keys() -> None:
         lang="ko",
         size=10,
         template="readme",
-        template_family="legacy",
+        template_family="sections",
         min_template_complexity=1,
         max_template_complexity=3,
         template_config_dir="configs/generator/templates",
         markdown_renderer="pil",
         style_profile="balanced",
-        coverage_target=["legacy=0.5"],
+        coverage_target=["sections=0.5"],
         novelty_window=80,
         novelty_threshold=0.95,
         novelty_max_attempts=4,
         similar_char_ratio=0.08,
         similarity_db_path=None,
+        formula_source_mode="mixed",
+        formula_dataset_path=None,
+        formula_dataset_weight=0.45,
+        formula_random_weight=0.30,
+        formula_synthetic_weight=0.25,
         add_noise=True,
         add_blur=False,
         mixed=False,
@@ -161,7 +171,7 @@ def test_build_generate_pipeline_args_maps_expected_keys() -> None:
     pipeline_args = main_module._build_generate_pipeline_args(args)
 
     assert pipeline_args["repo_id"] == "repo"
-    assert pipeline_args["coverage_targets"] == ["legacy=0.5"]
+    assert pipeline_args["coverage_targets"] == ["sections=0.5"]
     assert pipeline_args["seed"] == 123
     assert len(pipeline_args) == len(main_module.GENERATE_ARG_TO_PIPELINE_KEY)
 
