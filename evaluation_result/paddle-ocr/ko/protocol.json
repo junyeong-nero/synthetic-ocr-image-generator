@@ -1,6 +1,6 @@
 {
   "protocol_version": "1.0",
-  "timestamp": "2026-02-20T08:02:08.226367Z",
+  "timestamp": "2026-02-20T06:51:20.920857Z",
   "command": "evaluate",
   "report_format": "all",
   "config": {
@@ -8,9 +8,9 @@
     "split": "test",
     "language": "ko",
     "format": "markdown",
-    "batch_size": 1,
+    "batch_size": 12,
     "max_samples": null,
-    "prompt": "Extract all visible text and structure into markdown. Preserve reading order, tables, and formulas. Output markdown only with no extra commentary.",
+    "prompt": "ignored",
     "system_prompt": null,
     "prompt_source": "model_config",
     "seed": null,
@@ -48,10 +48,10 @@
         "mps_available": true
       }
     },
-    "model_config_path": "/Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/solar-document-parsing.yaml",
+    "model_config_path": "/Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/paddleocr.yaml",
     "model": {
-      "model_id": "document-parse-260128",
-      "backend": "upstage",
+      "model_id": "paddleocr/paddle-ocr",
+      "backend": "paddleocr",
       "temperature": 0.0,
       "max_tokens": 4096
     }
@@ -60,15 +60,15 @@
     "total_samples": 100,
     "successful": 100,
     "failed": 0,
-    "avg_latency_ms": 1519.2983937263489,
-    "model_id": "document-parse-260128",
-    "backend": "upstage",
+    "avg_latency_ms": 5572.199251651767,
+    "model_id": "paddleocr/paddle-ocr",
+    "backend": "paddleocr",
     "empty_count": 0,
     "empty_rate": 0.0,
     "parse_fail_count": 0,
     "parse_fail_rate": 0.0
   },
-  "prompt": "Extract all visible text and structure into markdown. Preserve reading order, tables, and formulas. Output markdown only with no extra commentary.",
+  "prompt": "ignored",
   "prompt_source": "model_config",
   "system_prompt": null
 }

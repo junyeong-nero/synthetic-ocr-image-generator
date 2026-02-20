@@ -1,6 +1,6 @@
 {
   "protocol_version": "1.0",
-  "timestamp": "2026-02-20T08:02:08.226367Z",
+  "timestamp": "2026-02-20T08:08:39.877581Z",
   "command": "evaluate",
   "report_format": "all",
   "config": {
@@ -10,7 +10,7 @@
     "format": "markdown",
     "batch_size": 1,
     "max_samples": null,
-    "prompt": "Extract all visible text and structure into markdown. Preserve reading order, tables, and formulas. Output markdown only with no extra commentary.",
+    "prompt": "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary.",
     "system_prompt": null,
     "prompt_source": "model_config",
     "seed": null,
@@ -48,27 +48,27 @@
         "mps_available": true
       }
     },
-    "model_config_path": "/Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/solar-document-parsing.yaml",
+    "model_config_path": "/Users/junyeong-nero/workspace/synthetic-ocr-image-generator/configs/models/gemini-3-flash-preview.yaml",
     "model": {
-      "model_id": "document-parse-260128",
-      "backend": "upstage",
+      "model_id": "gemini-3-flash-preview",
+      "backend": "google",
       "temperature": 0.0,
       "max_tokens": 4096
     }
   },
   "summary": {
     "total_samples": 100,
-    "successful": 100,
-    "failed": 0,
-    "avg_latency_ms": 1519.2983937263489,
-    "model_id": "document-parse-260128",
-    "backend": "upstage",
-    "empty_count": 0,
-    "empty_rate": 0.0,
+    "successful": 40,
+    "failed": 60,
+    "avg_latency_ms": 8834.138841629028,
+    "model_id": "gemini-3-flash-preview",
+    "backend": "google",
+    "empty_count": 60,
+    "empty_rate": 0.6,
     "parse_fail_count": 0,
     "parse_fail_rate": 0.0
   },
-  "prompt": "Extract all visible text and structure into markdown. Preserve reading order, tables, and formulas. Output markdown only with no extra commentary.",
+  "prompt": "You are an OCR-like extraction tool. Extract all visible text and structure into markdown. Output markdown only with no extra commentary.",
   "prompt_source": "model_config",
   "system_prompt": null
 }

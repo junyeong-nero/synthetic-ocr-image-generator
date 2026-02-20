@@ -1,0 +1,36 @@
+[
+  {
+    "timestamp": "2026-02-20T08:08:39.878150Z",
+    "protocol_version": "1.0",
+    "model_id": "gemini-3-flash-preview",
+    "backend": "google",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ko",
+    "split": "test",
+    "language": "ko",
+    "seed": null,
+    "format": "markdown",
+    "metric_key": "avg_markdown_overall_score",
+    "metric_value": 0.6971030269061993,
+    "average_score": 0.6971030269061993,
+    "empty_rate": 0.6,
+    "parse_fail_rate": 0.0,
+    "total_samples": 100,
+    "prompt_source": "model_config",
+    "metrics": {
+      "avg_markdown_text_score": 0.612133274194425,
+      "std_markdown_text_score": 0.3696282742448614,
+      "avg_markdown_table_teds": 0.7432210491034021,
+      "std_markdown_table_teds": 0.41824119476442884,
+      "avg_markdown_formula_score": 0.7088911176603035,
+      "std_markdown_formula_score": 0.42533458825940734,
+      "avg_markdown_order_score": 0.7241666666666666,
+      "std_markdown_order_score": 0.32313460387619,
+      "avg_markdown_overall_score": 0.6971030269061993,
+      "std_markdown_overall_score": 0.3229347325334865,
+      "empty_count": 60.0,
+      "empty_rate": 0.6,
+      "parse_fail_count": 0.0,
+      "parse_fail_rate": 0.0
+    }
+  }
+]
