@@ -114,6 +114,7 @@ Generator = generator_module.Generator
 HARD_CODED_FORMULA_EXPRESSIONS = generator_module.HARD_CODED_FORMULA_EXPRESSIONS
 HtmlMarkdownRenderer = generator_module.HtmlMarkdownRenderer
 MarkdownDataGenerator = generator_module.MarkdownDataGenerator
+TextGenerator = generator_module.TextGenerator
 TemplateCatalog = generator_module.TemplateCatalog
 TemplateSpec = generator_module.TemplateSpec
 parse_coverage_targets = generator_module.parse_coverage_targets
@@ -542,6 +543,37 @@ def test_sections_generation_respects_configured_section_counts() -> None:
     assert merge_order.count("text") == 3
     assert merge_order.count("table") == 2
     assert merge_order.count("formula") == 1
+
+
+def test_text_generator_rotates_across_corpus_backed_context_fields() -> None:
+    random.seed(73)
+    data_generator = MarkdownDataGenerator(lang="en")
+    text_generator = TextGenerator(
+        data=data_generator.data,
+        clip_text=lambda text, max_len: text if len(text) <= max_len else text[:max_len],
+        max_paragraph_chars=220,
+    )
+
+    sections = text_generator.generate_sections(section_count=6)
+    markdown = "\n\n".join(sections)
+
+    expected_markers = [
+        "- Person:",
+        "- Company:",
+        "- Position:",
+        "- Department:",
+        "- Address:",
+        "- Store:",
+        "- Product:",
+        "- Feature:",
+        "- Requirement:",
+        "- API Endpoint:",
+        "- Config:",
+        "- Install:",
+        "- Usage:",
+    ]
+    for marker in expected_markers:
+        assert marker in markdown
 
 
 def test_fit_image_to_a4_keeps_original_size_without_clipping() -> None:
