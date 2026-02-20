@@ -1,8 +1,8 @@
-model_id: gemini-3.0-pro
+model_id: gemini-3-flash-preview
 backend: google
 dependency_group: api
 temperature: 0.0
-max_tokens: 1024
+max_tokens: 4096
 subsets:
   markdown:
     max_tokens: 4096
