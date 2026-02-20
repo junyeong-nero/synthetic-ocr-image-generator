@@ -20,17 +20,19 @@ class GeminiVision(APIModel):
     SUPPORTED_MODELS = [
         "gemini-3.0-pro",
         "gemini-3.0-pro-latest",
+        "gemini-3-flash-preview",
     ]
 
     def __init__(self, config: ModelConfig):
         super().__init__(config)
 
         try:
-            import google.generativeai as genai
+            from google import genai
+            from google.genai import types
         except ImportError:
             raise ImportError(
-                "google-generativeai package is required for Gemini Vision. "
-                "Install with: pip install google-generativeai"
+                "google-genai package is required for Gemini Vision. "
+                "Install with: pip install google-genai"
             )
 
         api_key = config.api_key or os.environ.get("GOOGLE_API_KEY")
@@ -40,19 +42,11 @@ class GeminiVision(APIModel):
                 "or pass api_key in config."
             )
 
-        configure = getattr(genai, "configure")
-        configure(api_key=api_key)
-
-        self._genai = genai
-        generative_model_cls = getattr(genai, "GenerativeModel")
-        generation_config_cls = getattr(genai, "GenerationConfig")
-        self.model = generative_model_cls(
-            model_name=config.model_id,
-            generation_config=generation_config_cls(
-                temperature=config.temperature,
-                top_p=config.top_p,
-                max_output_tokens=config.max_tokens,
-            ),
+        self.client = genai.Client(api_key=api_key)
+        self._generation_config = types.GenerateContentConfig(
+            temperature=config.temperature,
+            top_p=config.top_p,
+            max_output_tokens=config.max_tokens,
         )
 
     async def _call_api(self, prompt: str, image: Image.Image) -> str:
@@ -69,7 +63,11 @@ class GeminiVision(APIModel):
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None,
-            lambda: self.model.generate_content([image, prompt]),
+            lambda: self.client.models.generate_content(
+                model=self.config.model_id,
+                contents=[image, prompt],
+                config=self._generation_config,
+            ),
         )
 
         if response.text:
