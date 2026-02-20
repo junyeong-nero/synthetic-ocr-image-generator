@@ -31,6 +31,56 @@ class OpenAIVision(APIModel):
     def _is_gpt5_family(self) -> bool:
         return (self.config.model_id or "").lower().startswith("gpt-5")
 
+    @staticmethod
+    def _normalize_text_content(content: Any) -> str:
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts: list[str] = []
+            for item in content:
+                if isinstance(item, dict):
+                    text = item.get("text")
+                    if isinstance(text, str) and text:
+                        parts.append(text)
+            return "".join(parts)
+        return ""
+
+    def _extract_text_from_response(self, response: Any) -> str:
+        output_text = None
+        if isinstance(response, dict):
+            output_text = response.get("output_text")
+        else:
+            output_text = getattr(response, "output_text", None)
+        if isinstance(output_text, str) and output_text:
+            return output_text
+
+        choices = response.get("choices") if isinstance(response, dict) else getattr(response, "choices", None)
+        if isinstance(choices, list) and choices:
+            first_choice = choices[0]
+            message = first_choice.get("message") if isinstance(first_choice, dict) else getattr(first_choice, "message", None)
+            content = message.get("content") if isinstance(message, dict) else getattr(message, "content", None)
+            if content is not None:
+                return self._normalize_text_content(content)
+
+        output = response.get("output") if isinstance(response, dict) else getattr(response, "output", None)
+        if isinstance(output, list):
+            parts: list[str] = []
+            for item in output:
+                item_content = item.get("content") if isinstance(item, dict) else getattr(item, "content", None)
+                if isinstance(item_content, list):
+                    for content_item in item_content:
+                        text = (
+                            content_item.get("text")
+                            if isinstance(content_item, dict)
+                            else getattr(content_item, "text", None)
+                        )
+                        if isinstance(text, str) and text:
+                            parts.append(text)
+            if parts:
+                return "".join(parts)
+
+        return ""
+
     def __init__(self, config: ModelConfig):
         super().__init__(config)
 
@@ -66,40 +116,53 @@ class OpenAIVision(APIModel):
             Model response as string.
         """
         base64_image = self._encode_image(image)
-        messages: Any = [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{base64_image}",
-                        },
-                    },
-                    {
-                        "type": "text",
-                        "text": prompt,
-                    },
-                ],
-            }
-        ]
 
         if self._is_gpt5_family():
-            response = await self.client.chat.completions.create(
+            response = await self.client.responses.create(
                 model=self.config.model_id,
-                messages=messages,
-                max_completion_tokens=self.config.max_tokens,
+                input=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": prompt,
+                            },
+                            {
+                                "type": "input_image",
+                                "image_url": f"data:image/png;base64,{base64_image}",
+                            },
+                        ],
+                    }
+                ],
+                max_output_tokens=self.config.max_tokens,
             )
         else:
             response = await self.client.chat.completions.create(
                 model=self.config.model_id,
-                messages=messages,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{base64_image}",
+                                },
+                            },
+                            {
+                                "type": "text",
+                                "text": prompt,
+                            },
+                        ],
+                    }
+                ],
                 max_tokens=self.config.max_tokens,
                 temperature=self.config.temperature,
                 top_p=self.config.top_p,
             )
 
-        return response.choices[0].message.content or ""
+        return self._extract_text_from_response(response)
 
     async def run_batch_async(
         self,
@@ -274,11 +337,7 @@ class OpenAIVision(APIModel):
             data = json.loads(line)
             custom_id = data.get("custom_id")
             body = (data.get("response") or {}).get("body") or {}
-            message = ""
-            try:
-                message = body["choices"][0]["message"]["content"] or ""
-            except Exception:
-                message = ""
+            message = self._extract_text_from_response(body)
             if custom_id is not None:
                 results[str(custom_id)] = message
 
