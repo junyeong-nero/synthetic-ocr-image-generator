@@ -2,7 +2,7 @@ model_id: tencent/HunyuanOCR
 backend: transformers
 dependency_group: hunyuan-ocr
 temperature: 0.0
-max_tokens: 16384
+max_tokens: 4096
 top_p: 1.0
 batch_size: 1
 timeout: 300

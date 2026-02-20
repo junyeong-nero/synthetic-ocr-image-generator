@@ -2,7 +2,7 @@ model_id: deepseek-ai/DeepSeek-OCR-2
 backend: transformers
 dependency_group: deepseek-ocr2
 temperature: 0.0
-max_tokens: 512
+max_tokens: 4096
 top_p: 1.0
 batch_size: 4
 timeout: 300

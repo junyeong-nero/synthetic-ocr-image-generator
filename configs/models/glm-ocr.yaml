@@ -2,7 +2,7 @@ model_id: zai-org/GLM-OCR
 backend: transformers
 dependency_group: glm-ocr
 temperature: 0.0
-max_tokens: 8192
+max_tokens: 4096
 top_p: 1.0
 batch_size: 2
 timeout: 180
