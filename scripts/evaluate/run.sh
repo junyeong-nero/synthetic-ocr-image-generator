@@ -211,7 +211,11 @@ run_eval() {
     echo "Running evaluation"
     echo "Output: $output_dir"
     echo "Language: $LANGUAGE"
-    "${cmd[@]}" "${PASSTHROUGH_ARGS[@]}"
+    if [[ ${#PASSTHROUGH_ARGS[@]} -gt 0 ]]; then
+        "${cmd[@]}" "${PASSTHROUGH_ARGS[@]}"
+    else
+        "${cmd[@]}"
+    fi
 }
 
 run_eval
