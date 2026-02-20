@@ -1,7 +1,75 @@
 {
-  "generated_at_utc": "2026-02-20T08:21:41.200773Z",
-  "count": 1,
+  "generated_at_utc": "2026-02-20T09:39:34.705833Z",
+  "count": 2,
   "languages": [
+    {
+      "language": "ja",
+      "metric_key": "avg_markdown_overall_score",
+      "metric_direction": "descending",
+      "count": 2,
+      "rows": [
+        {
+          "model_id": "gpt-5-mini",
+          "backend": "openai",
+          "language": "ja",
+          "format": "markdown",
+          "dataset": "junyeong-nero/synthetic-ocr-images-ja",
+          "split": "test",
+          "total_samples": 100,
+          "successful": 100,
+          "failed": 0,
+          "avg_latency_ms": 26343.06641817093,
+          "metrics": {
+            "avg_markdown_text_score": 0.7619614272116921,
+            "std_markdown_text_score": 0.34470454567292397,
+            "avg_markdown_table_teds": 0.9981866017814963,
+            "std_markdown_table_teds": 0.009582978541107182,
+            "avg_markdown_formula_score": 0.5257434297238032,
+            "std_markdown_formula_score": 0.4956223948315067,
+            "avg_markdown_order_score": 0.7666666666666666,
+            "std_markdown_order_score": 0.269680881372369,
+            "avg_markdown_overall_score": 0.7631395313459144,
+            "std_markdown_overall_score": 0.2542721658006134,
+            "empty_count": 0.0,
+            "empty_rate": 0.0,
+            "parse_fail_count": 0.0,
+            "parse_fail_rate": 0.0
+          },
+          "timestamp": "2026-02-20T09:33:12.103731+00:00",
+          "report_path": "/Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/gpt-5-mini/ja/report.json"
+        },
+        {
+          "model_id": "document-parse-260128",
+          "backend": "upstage",
+          "language": "ja",
+          "format": "markdown",
+          "dataset": "junyeong-nero/synthetic-ocr-images-ja",
+          "split": "test",
+          "total_samples": 100,
+          "successful": 100,
+          "failed": 0,
+          "avg_latency_ms": 1523.3661437034607,
+          "metrics": {
+            "avg_markdown_text_score": 0.6507927043606837,
+            "std_markdown_text_score": 0.39555209746762204,
+            "avg_markdown_table_teds": 0.9,
+            "std_markdown_table_teds": 0.3,
+            "avg_markdown_formula_score": 0.41028420880771593,
+            "std_markdown_formula_score": 0.48695943229008165,
+            "avg_markdown_order_score": 0.6668333333333334,
+            "std_markdown_order_score": 0.2929020977884742,
+            "avg_markdown_overall_score": 0.6569775616254333,
+            "std_markdown_overall_score": 0.2867362202450463,
+            "empty_count": 0.0,
+            "empty_rate": 0.0,
+            "parse_fail_count": 0.0,
+            "parse_fail_rate": 0.0
+          },
+          "timestamp": "2026-02-20T08:52:20.256114+00:00",
+          "report_path": "/Users/junyeong-nero/workspace/synthetic-ocr-image-generator/evaluation_result/document-parse-260128/ja/report.json"
+        }
+      ]
+    },
     {
       "language": "ko",
       "metric_key": "avg_markdown_overall_score",

@@ -1,0 +1,36 @@
+[
+  {
+    "timestamp": "2026-02-20T08:52:20.256309Z",
+    "protocol_version": "1.0",
+    "model_id": "document-parse-260128",
+    "backend": "upstage",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ja",
+    "split": "test",
+    "language": "ja",
+    "seed": null,
+    "format": "markdown",
+    "metric_key": "avg_markdown_overall_score",
+    "metric_value": 0.6569775616254333,
+    "average_score": 0.6569775616254333,
+    "empty_rate": 0.0,
+    "parse_fail_rate": 0.0,
+    "total_samples": 100,
+    "prompt_source": "model_config",
+    "metrics": {
+      "avg_markdown_text_score": 0.6507927043606837,
+      "std_markdown_text_score": 0.39555209746762204,
+      "avg_markdown_table_teds": 0.9,
+      "std_markdown_table_teds": 0.3,
+      "avg_markdown_formula_score": 0.41028420880771593,
+      "std_markdown_formula_score": 0.48695943229008165,
+      "avg_markdown_order_score": 0.6668333333333334,
+      "std_markdown_order_score": 0.2929020977884742,
+      "avg_markdown_overall_score": 0.6569775616254333,
+      "std_markdown_overall_score": 0.2867362202450463,
+      "empty_count": 0.0,
+      "empty_rate": 0.0,
+      "parse_fail_count": 0.0,
+      "parse_fail_rate": 0.0
+    }
+  }
+]
