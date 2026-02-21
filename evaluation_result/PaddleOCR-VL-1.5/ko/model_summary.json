@@ -1,0 +1,36 @@
+[
+  {
+    "timestamp": "2026-02-20T19:14:21.336380Z",
+    "protocol_version": "1.0",
+    "model_id": "PaddlePaddle/PaddleOCR-VL-1.5",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ko",
+    "split": "test",
+    "language": "ko",
+    "seed": null,
+    "format": "markdown",
+    "metric_key": "avg_markdown_overall_score",
+    "metric_value": 0.5365550599893887,
+    "average_score": 0.5365550599893887,
+    "empty_rate": 0.0,
+    "parse_fail_rate": 0.0,
+    "total_samples": 100,
+    "prompt_source": "model_config",
+    "metrics": {
+      "avg_markdown_text_score": 0.5019932993428218,
+      "std_markdown_text_score": 0.43641132509720953,
+      "avg_markdown_table_teds": 0.44,
+      "std_markdown_table_teds": 0.4963869458396343,
+      "avg_markdown_formula_score": 0.6562269406147323,
+      "std_markdown_formula_score": 0.4408145621379368,
+      "avg_markdown_order_score": 0.548,
+      "std_markdown_order_score": 0.35643512733736,
+      "avg_markdown_overall_score": 0.5365550599893887,
+      "std_markdown_overall_score": 0.3457555590714571,
+      "empty_count": 0.0,
+      "empty_rate": 0.0,
+      "parse_fail_count": 0.0,
+      "parse_fail_rate": 0.0
+    }
+  }
+]

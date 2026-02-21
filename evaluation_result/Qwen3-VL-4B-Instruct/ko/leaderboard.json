@@ -1,0 +1,36 @@
+[
+  {
+    "timestamp": "2026-02-21T02:10:04.866679Z",
+    "protocol_version": "1.0",
+    "model_id": "Qwen/Qwen3-VL-4B-Instruct",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ko",
+    "split": "test",
+    "language": "ko",
+    "average_score": 0.8639441480741681,
+    "normalized_average_score": 0.8639441480741681,
+    "average_empty_rate": 0.0,
+    "average_parse_fail_rate": 0.0,
+    "markdown_text_score": 0.7140556843590552,
+    "markdown_table_teds": 1.0,
+    "markdown_formula_score": 0.8860066222233324,
+    "markdown_order_score": 0.8557142857142859
+  },
+  {
+    "timestamp": "2026-02-21T01:12:30.195352Z",
+    "protocol_version": "1.0",
+    "model_id": "Qwen/Qwen3-VL-4B-Instruct",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ko",
+    "split": "test",
+    "language": "ko",
+    "average_score": 0.760598470694161,
+    "normalized_average_score": 0.760598470694161,
+    "average_empty_rate": 0.96,
+    "average_parse_fail_rate": 0.0,
+    "markdown_text_score": 0.662010005025059,
+    "markdown_table_teds": 1.0,
+    "markdown_formula_score": 0.6720505444182514,
+    "markdown_order_score": 0.7083333333333333
+  }
+]

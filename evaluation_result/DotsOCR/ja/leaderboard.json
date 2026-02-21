@@ -1,0 +1,19 @@
+[
+  {
+    "timestamp": "2026-02-20T11:35:01.896923Z",
+    "protocol_version": "1.0",
+    "model_id": "./weights/DotsOCR",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ja",
+    "split": "test",
+    "language": "ja",
+    "average_score": 0.9287775233285896,
+    "normalized_average_score": 0.9287775233285896,
+    "average_empty_rate": 0.0,
+    "average_parse_fail_rate": 0.0,
+    "markdown_text_score": 0.8884003904423621,
+    "markdown_table_teds": 0.99227150949474,
+    "markdown_formula_score": 0.9084381933772566,
+    "markdown_order_score": 0.9259999999999999
+  }
+]

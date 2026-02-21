@@ -1,0 +1,36 @@
+[
+  {
+    "timestamp": "2026-02-21T00:57:07.956664Z",
+    "protocol_version": "1.0",
+    "model_id": "Qwen/Qwen3-VL-2B-Instruct",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ja",
+    "split": "test",
+    "language": "ja",
+    "seed": null,
+    "format": "markdown",
+    "metric_key": "avg_markdown_overall_score",
+    "metric_value": 0.7996133472192412,
+    "average_score": 0.7996133472192412,
+    "empty_rate": 0.0,
+    "parse_fail_rate": 0.0,
+    "total_samples": 100,
+    "prompt_source": "model_config",
+    "metrics": {
+      "avg_markdown_text_score": 0.6448036374251775,
+      "std_markdown_text_score": 0.28208234245850405,
+      "avg_markdown_table_teds": 0.9926923076923078,
+      "std_markdown_table_teds": 0.07271062040394531,
+      "avg_markdown_formula_score": 0.7814574437594786,
+      "std_markdown_formula_score": 0.380628829103584,
+      "avg_markdown_order_score": 0.7794999999999999,
+      "std_markdown_order_score": 0.23572412076643984,
+      "avg_markdown_overall_score": 0.7996133472192412,
+      "std_markdown_overall_score": 0.20386342528765014,
+      "empty_count": 0.0,
+      "empty_rate": 0.0,
+      "parse_fail_count": 0.0,
+      "parse_fail_rate": 0.0
+    }
+  }
+]

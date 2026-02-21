@@ -1,0 +1,36 @@
+[
+  {
+    "timestamp": "2026-02-20T14:39:10.290843Z",
+    "protocol_version": "1.0",
+    "model_id": "nanonets/Nanonets-OCR2-3B",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ja",
+    "split": "test",
+    "language": "ja",
+    "seed": null,
+    "format": "markdown",
+    "metric_key": "avg_markdown_overall_score",
+    "metric_value": 0.9605326730324513,
+    "average_score": 0.9605326730324513,
+    "empty_rate": 0.0,
+    "parse_fail_rate": 0.0,
+    "total_samples": 100,
+    "prompt_source": "model_config",
+    "metrics": {
+      "avg_markdown_text_score": 0.9700388184011014,
+      "std_markdown_text_score": 0.013977256575510503,
+      "avg_markdown_table_teds": 1.0,
+      "std_markdown_table_teds": 0.0,
+      "avg_markdown_formula_score": 0.8870918737287039,
+      "std_markdown_formula_score": 0.2067314883969244,
+      "avg_markdown_order_score": 0.985,
+      "std_markdown_order_score": 0.0852936105461599,
+      "avg_markdown_overall_score": 0.9605326730324513,
+      "std_markdown_overall_score": 0.07003477789519147,
+      "empty_count": 0.0,
+      "empty_rate": 0.0,
+      "parse_fail_count": 0.0,
+      "parse_fail_rate": 0.0
+    }
+  }
+]

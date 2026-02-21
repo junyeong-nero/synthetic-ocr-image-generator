@@ -1,0 +1,74 @@
+{
+  "protocol_version": "1.0",
+  "timestamp": "2026-02-21T02:10:04.855033Z",
+  "command": "evaluate",
+  "report_format": "all",
+  "config": {
+    "dataset_id": "junyeong-nero/synthetic-ocr-images-ko",
+    "split": "test",
+    "language": "ko",
+    "format": "markdown",
+    "batch_size": 4,
+    "max_samples": null,
+    "prompt": "qwenvl markdown",
+    "system_prompt": null,
+    "prompt_source": "model_config",
+    "seed": null,
+    "batch_api": false,
+    "batch_poll_seconds": 60,
+    "batch_timeout_seconds": 86400,
+    "batch_completion_window": "24h",
+    "execution_mode": "all",
+    "dataset_fingerprint": "56f4f274c377d96c",
+    "dataset_info": {
+      "builder_name": "parquet",
+      "version": "0.0.0",
+      "features": [
+        "image",
+        "template",
+        "GT_markdown",
+        "GT_json",
+        "similar_char_mutations"
+      ]
+    },
+    "environment": {
+      "python": "3.11.10",
+      "platform": "Linux-6.8.0-84-generic-x86_64-with-glibc2.35",
+      "machine": "x86_64",
+      "packages": {
+        "torch": "2.6.0",
+        "transformers": "5.0.0",
+        "datasets": "4.5.0",
+        "numpy": "2.2.6",
+        "pandas": "2.3.3",
+        "uv": null
+      },
+      "torch": {
+        "cuda_available": true,
+        "mps_available": false
+      }
+    },
+    "model_config_path": "/workspace/synthetic-ocr-image-generator/configs/models/qwen3-vl-4b.yaml",
+    "model": {
+      "model_id": "Qwen/Qwen3-VL-4B-Instruct",
+      "backend": "transformers",
+      "temperature": 0.0,
+      "max_tokens": 4096
+    }
+  },
+  "summary": {
+    "total_samples": 100,
+    "successful": 100,
+    "failed": 0,
+    "avg_latency_ms": 17236.436545848846,
+    "model_id": "Qwen/Qwen3-VL-4B-Instruct",
+    "backend": "transformers",
+    "empty_count": 0,
+    "empty_rate": 0.0,
+    "parse_fail_count": 0,
+    "parse_fail_rate": 0.0
+  },
+  "prompt": "qwenvl markdown",
+  "prompt_source": "model_config",
+  "system_prompt": null
+}

@@ -1,0 +1,36 @@
+[
+  {
+    "timestamp": "2026-02-20T10:52:30.545481Z",
+    "protocol_version": "1.0",
+    "model_id": "deepseek-ai/DeepSeek-OCR-2",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ko",
+    "split": "test",
+    "language": "ko",
+    "seed": null,
+    "format": "markdown",
+    "metric_key": "avg_markdown_overall_score",
+    "metric_value": 0.946144808742672,
+    "average_score": 0.946144808742672,
+    "empty_rate": 0.0,
+    "parse_fail_rate": 0.0,
+    "total_samples": 100,
+    "prompt_source": "model_config",
+    "metrics": {
+      "avg_markdown_text_score": 0.9375563777423872,
+      "std_markdown_text_score": 0.1511026774557661,
+      "avg_markdown_table_teds": 0.999090909090909,
+      "std_markdown_table_teds": 0.00904534033733291,
+      "avg_markdown_formula_score": 0.8719319481373923,
+      "std_markdown_formula_score": 0.24824652570757977,
+      "avg_markdown_order_score": 0.976,
+      "std_markdown_order_score": 0.10499523798725348,
+      "avg_markdown_overall_score": 0.946144808742672,
+      "std_markdown_overall_score": 0.11631375675239118,
+      "empty_count": 0.0,
+      "empty_rate": 0.0,
+      "parse_fail_count": 0.0,
+      "parse_fail_rate": 0.0
+    }
+  }
+]

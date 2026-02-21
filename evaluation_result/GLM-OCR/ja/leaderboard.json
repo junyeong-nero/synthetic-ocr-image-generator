@@ -1,0 +1,19 @@
+[
+  {
+    "timestamp": "2026-02-20T11:55:09.826424Z",
+    "protocol_version": "1.0",
+    "model_id": "zai-org/GLM-OCR",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ja",
+    "split": "test",
+    "language": "ja",
+    "average_score": 0.8351457946147007,
+    "normalized_average_score": 0.8351457946147007,
+    "average_empty_rate": 0.0,
+    "average_parse_fail_rate": 0.0,
+    "markdown_text_score": 0.7908206170843544,
+    "markdown_table_teds": 0.7830819838056681,
+    "markdown_formula_score": 0.9085139109021142,
+    "markdown_order_score": 0.8581666666666666
+  }
+]

@@ -1,0 +1,74 @@
+{
+  "protocol_version": "1.0",
+  "timestamp": "2026-02-20T18:58:54.678843Z",
+  "command": "evaluate",
+  "report_format": "all",
+  "config": {
+    "dataset_id": "junyeong-nero/synthetic-ocr-images-ja",
+    "split": "test",
+    "language": "ja",
+    "format": "markdown",
+    "batch_size": 3,
+    "max_samples": null,
+    "prompt": "Recognize all document elements and output a single markdown transcription that preserves structure and reading order.",
+    "system_prompt": null,
+    "prompt_source": "model_config",
+    "seed": null,
+    "batch_api": false,
+    "batch_poll_seconds": 60,
+    "batch_timeout_seconds": 86400,
+    "batch_completion_window": "24h",
+    "execution_mode": "all",
+    "dataset_fingerprint": "d1d330ead82d454f",
+    "dataset_info": {
+      "builder_name": "parquet",
+      "version": "0.0.0",
+      "features": [
+        "image",
+        "template",
+        "GT_markdown",
+        "GT_json",
+        "similar_char_mutations"
+      ]
+    },
+    "environment": {
+      "python": "3.11.10",
+      "platform": "Linux-6.8.0-84-generic-x86_64-with-glibc2.35",
+      "machine": "x86_64",
+      "packages": {
+        "torch": "2.6.0",
+        "transformers": "4.57.6",
+        "datasets": "4.5.0",
+        "numpy": "2.2.6",
+        "pandas": "2.3.3",
+        "uv": null
+      },
+      "torch": {
+        "cuda_available": true,
+        "mps_available": false
+      }
+    },
+    "model_config_path": "/workspace/synthetic-ocr-image-generator/configs/models/paddleocr-vl.yaml",
+    "model": {
+      "model_id": "PaddlePaddle/PaddleOCR-VL-1.5",
+      "backend": "transformers",
+      "temperature": 0.0,
+      "max_tokens": 4096
+    }
+  },
+  "summary": {
+    "total_samples": 100,
+    "successful": 100,
+    "failed": 0,
+    "avg_latency_ms": 152132.76364326474,
+    "model_id": "PaddlePaddle/PaddleOCR-VL-1.5",
+    "backend": "transformers",
+    "empty_count": 0,
+    "empty_rate": 0.0,
+    "parse_fail_count": 0,
+    "parse_fail_rate": 0.0
+  },
+  "prompt": "Recognize all document elements and output a single markdown transcription that preserves structure and reading order.",
+  "prompt_source": "model_config",
+  "system_prompt": null
+}

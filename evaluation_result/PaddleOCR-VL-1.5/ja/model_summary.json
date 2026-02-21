@@ -1,0 +1,36 @@
+[
+  {
+    "timestamp": "2026-02-20T18:58:54.694957Z",
+    "protocol_version": "1.0",
+    "model_id": "PaddlePaddle/PaddleOCR-VL-1.5",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ja",
+    "split": "test",
+    "language": "ja",
+    "seed": null,
+    "format": "markdown",
+    "metric_key": "avg_markdown_overall_score",
+    "metric_value": 0.5416384114772329,
+    "average_score": 0.5416384114772329,
+    "empty_rate": 0.0,
+    "parse_fail_rate": 0.0,
+    "total_samples": 100,
+    "prompt_source": "model_config",
+    "metrics": {
+      "avg_markdown_text_score": 0.5017685448273829,
+      "std_markdown_text_score": 0.4387995543363668,
+      "avg_markdown_table_teds": 0.41031697341513296,
+      "std_markdown_table_teds": 0.49157911727618697,
+      "avg_markdown_formula_score": 0.7144449209153609,
+      "std_markdown_formula_score": 0.4225827173754095,
+      "avg_markdown_order_score": 0.5400232067510548,
+      "std_markdown_order_score": 0.3613373112105838,
+      "avg_markdown_overall_score": 0.5416384114772329,
+      "std_markdown_overall_score": 0.34669149231560165,
+      "empty_count": 0.0,
+      "empty_rate": 0.0,
+      "parse_fail_count": 0.0,
+      "parse_fail_rate": 0.0
+    }
+  }
+]

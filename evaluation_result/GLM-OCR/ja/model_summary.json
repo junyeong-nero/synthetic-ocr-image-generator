@@ -1,0 +1,36 @@
+[
+  {
+    "timestamp": "2026-02-20T11:55:09.826424Z",
+    "protocol_version": "1.0",
+    "model_id": "zai-org/GLM-OCR",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ja",
+    "split": "test",
+    "language": "ja",
+    "seed": null,
+    "format": "markdown",
+    "metric_key": "avg_markdown_overall_score",
+    "metric_value": 0.8351457946147007,
+    "average_score": 0.8351457946147007,
+    "empty_rate": 0.0,
+    "parse_fail_rate": 0.0,
+    "total_samples": 100,
+    "prompt_source": "model_config",
+    "metrics": {
+      "avg_markdown_text_score": 0.7908206170843544,
+      "std_markdown_text_score": 0.3518638680581654,
+      "avg_markdown_table_teds": 0.7830819838056681,
+      "std_markdown_table_teds": 0.4018901343516759,
+      "avg_markdown_formula_score": 0.9085139109021142,
+      "std_markdown_formula_score": 0.18784886787208768,
+      "avg_markdown_order_score": 0.8581666666666666,
+      "std_markdown_order_score": 0.2839160184906015,
+      "avg_markdown_overall_score": 0.8351457946147007,
+      "std_markdown_overall_score": 0.2667365841505636,
+      "empty_count": 0.0,
+      "empty_rate": 0.0,
+      "parse_fail_count": 0.0,
+      "parse_fail_rate": 0.0
+    }
+  }
+]

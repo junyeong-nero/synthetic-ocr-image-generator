@@ -1,0 +1,19 @@
+[
+  {
+    "timestamp": "2026-02-20T19:14:21.336380Z",
+    "protocol_version": "1.0",
+    "model_id": "PaddlePaddle/PaddleOCR-VL-1.5",
+    "backend": "transformers",
+    "dataset": "junyeong-nero/synthetic-ocr-images-ko",
+    "split": "test",
+    "language": "ko",
+    "average_score": 0.5365550599893887,
+    "normalized_average_score": 0.5365550599893887,
+    "average_empty_rate": 0.0,
+    "average_parse_fail_rate": 0.0,
+    "markdown_text_score": 0.5019932993428218,
+    "markdown_table_teds": 0.44,
+    "markdown_formula_score": 0.6562269406147323,
+    "markdown_order_score": 0.548
+  }
+]
