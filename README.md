@@ -75,11 +75,25 @@ Top 5 snapshot (`avg_markdown_overall_score`, higher is better):
 
 | Rank | Model | Backend | Metric | Text | Table | Formula | Success/Total |
 |---:|---|---|---:|---:|---:|---:|---|
-| 1 | gpt-5-mini | openai | 0.9829 | 0.9315 | 1.0000 | 1.0000 | 7/10 |
-| 2 | nanonets/Nanonets-OCR2-3B | transformers | 0.9711 | 0.8916 | 0.9929 | 1.0000 | 10/10 |
-| 3 | lightonai/LightOnOCR-2-1B | transformers | 0.9602 | 0.8409 | 1.0000 | 1.0000 | 10/10 |
-| 4 | deepseek-ai/DeepSeek-OCR-2 | transformers | 0.9601 | 0.8403 | 1.0000 | 1.0000 | 10/10 |
-| 5 | ./weights/DotsOCR | transformers | 0.8847 | 0.7656 | 0.8897 | 1.0000 | 10/10 |
+| 1 | lightonai/LightOnOCR-2-1B | transformers | 0.9737 | 0.9549 | 1.0000 | 0.9437 | 100/100 |
+| 2 | ./weights/DotsOCR | transformers | 0.9464 | 0.9177 | 0.9874 | 0.9004 | 100/100 |
+| 3 | deepseek-ai/DeepSeek-OCR-2 | transformers | 0.9461 | 0.9376 | 0.9991 | 0.8719 | 100/100 |
+| 4 | nanonets/Nanonets-OCR2-3B | transformers | 0.9201 | 0.9025 | 0.9988 | 0.8341 | 100/100 |
+| 5 | Qwen/Qwen3-VL-4B-Instruct | transformers | 0.8639 | 0.7141 | 1.0000 | 0.8860 | 100/100 |
+
+## Japanese OCR Leaderboard (ja)
+
+Latest consolidated Japanese leaderboard is generated at `evaluation_result/leaderboard.md`.
+
+Top 5 snapshot (`avg_markdown_overall_score`, higher is better):
+
+| Rank | Model | Backend | Metric | Text | Table | Formula | Success/Total |
+|---:|---|---|---:|---:|---:|---:|---|
+| 1 | lightonai/LightOnOCR-2-1B | transformers | 0.9777 | 0.9682 | 0.9995 | 0.9458 | 100/100 |
+| 2 | nanonets/Nanonets-OCR2-3B | transformers | 0.9605 | 0.9700 | 1.0000 | 0.8871 | 100/100 |
+| 3 | ./weights/DotsOCR | transformers | 0.9288 | 0.8884 | 0.9923 | 0.9084 | 100/100 |
+| 4 | deepseek-ai/DeepSeek-OCR-2 | transformers | 0.9141 | 0.8252 | 0.9847 | 0.8794 | 100/100 |
+| 5 | Qwen/Qwen3-VL-4B-Instruct | transformers | 0.8641 | 0.7234 | 0.9934 | 0.8876 | 100/100 |
 
 Refresh leaderboard files:
 
