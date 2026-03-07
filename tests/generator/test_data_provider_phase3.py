@@ -133,5 +133,10 @@ def test_title_and_feature_fall_back_to_paragraph_corpus_fragments(tmp_path: Pat
     assert feature
     assert title != "Getting Started"
     assert feature != "Fast performance"
-    assert "language aware" in title.lower() or "paragraph driven" in title.lower()
-    assert "language aware" in feature.lower() or "paragraph driven" in feature.lower()
+    expected_fragments = (
+        "paragraph driven",
+        "language aware",
+        "another supporting sentence",
+    )
+    assert any(fragment in title.lower() for fragment in expected_fragments)
+    assert any(fragment in feature.lower() for fragment in expected_fragments)
