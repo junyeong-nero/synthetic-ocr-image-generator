@@ -10,9 +10,9 @@ usage() {
     echo "  --similar-char-ratio <r> Similar character replacement ratio (default: 0.08)"
     echo "  --formula-source-mode <m> Formula source mode: mixed|dataset|random|synthetic (default: mixed)"
     echo "  --formula-dataset-path <path> Formula dataset file path (.txt/.json/.jsonl/.csv/.tsv)"
-    echo "  --formula-dataset-weight <w> Formula dataset weight in mixed mode (default: 0.45)"
-    echo "  --formula-random-weight <w> Formula random weight in mixed mode (default: 0.30)"
-    echo "  --formula-synthetic-weight <w> Formula synthetic weight in mixed mode (default: 0.25)"
+    echo "  --formula-dataset-weight <w> Formula dataset weight when --formula-source-mode=mixed (default: 0.45)"
+    echo "  --formula-random-weight <w> Formula random weight when --formula-source-mode=mixed (default: 0.30)"
+    echo "  --formula-synthetic-weight <w> Formula synthetic weight when --formula-source-mode=mixed (default: 0.25)"
     echo "  --text-section-count <min,max> Text section count range (default: 3,5)"
     echo "  --table-section-count <min,max> Table section count range (default: 1,2)"
     echo "  --table-rows <min,max> Table row range (default: 2,4)"
@@ -23,9 +23,9 @@ usage() {
     echo "  --novelty-window <n>  Novelty guard window size (default: 80)"
     echo "  --novelty-threshold <r> Novelty similarity threshold (default: 0.95)"
     echo "  --novelty-max-attempts <n> Novelty retry count (default: 4)"
-    echo "  --markdown-renderer <name> Renderer: pil|html2image (default: html2image)"
-    echo "  --train-ratio <r>     Train split ratio for mixed mode (default: 0.9)"
-    echo "  --test-ratio <r>      Test split ratio for mixed mode (default: 0.1)"
+    echo "  --markdown-renderer <name> Renderer: pil|html2image|playwright (default: playwright)"
+    echo "  --train-ratio <r>     Train split ratio for dataset publishing (default: 0.9)"
+    echo "  --test-ratio <r>      Test split ratio for dataset publishing (default: 0.1)"
     echo "  --shard-size <n>      Samples per shard directory (optional)"
     echo "  --max-shards <n>      Limit generation to the first N shards (optional)"
     echo "  --resume              Resume a previous sharded run"
@@ -49,7 +49,7 @@ STYLE_PROFILE="balanced"
 NOVELTY_WINDOW=80
 NOVELTY_THRESHOLD=0.95
 NOVELTY_MAX_ATTEMPTS=4
-MARKDOWN_RENDERER="html2image"
+MARKDOWN_RENDERER="playwright"
 TEXT_SECTION_COUNT="1,2"
 TABLE_SECTION_COUNT="0,1"
 TABLE_ROWS="2,4"
@@ -241,7 +241,7 @@ echo "Generating OCR images: $LABEL"
 echo "=========================================="
 
 echo ""
-echo "[1/1] Generating and uploading mixed dataset (train/test splits)..."
+echo "[1/1] Generating and uploading split-aware dataset (train/test splits)..."
 
 CMD=(
     uv run --no-sync --group generate main.py generate
@@ -249,7 +249,6 @@ CMD=(
     --size "$SIZE"
     --lang "$LANG"
     --similar-char-ratio "$SIMILAR_CHAR_RATIO"
-    --mixed
     --train-ratio "$TRAIN_RATIO"
     --test-ratio "$TEST_RATIO"
     --upload
