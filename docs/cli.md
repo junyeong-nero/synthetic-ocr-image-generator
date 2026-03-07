@@ -54,7 +54,7 @@ uv run main.py generate [OPTIONS]
 - `--min-template-complexity`: Minimum template complexity filter (`1-5`).
 - `--max-template-complexity`: Maximum template complexity filter (`1-5`).
 - `--template-config-dir`: Template catalog directory path.
-- `--markdown-renderer`: Markdown render backend (`pil`, `html2image`) (default: `pil`).
+- `--markdown-renderer`: Markdown render backend (`pil`, `html2image`, `playwright`) (default: `playwright`).
 - `--style-profile`: Style variation profile (`legacy`, `balanced`, `aggressive`).
 - `--coverage-target`: Family target ratio (`family=ratio`), repeatable.
 - `--novelty-window`: Recent-sample window size for novelty guard.
@@ -64,13 +64,13 @@ uv run main.py generate [OPTIONS]
 - `--similarity-db-path`: Optional similarity DB JSON path.
 - `--add-noise`, `--no-add-noise`: Enable/disable noise effect.
 - `--add-blur`, `--no-add-blur`: Enable/disable blur effect.
-- `--mixed`: Generate a mixed-format dataset.
-- `--train-ratio`: Train split ratio in mixed mode (default: `0.9`).
-- `--test-ratio`: Test split ratio in mixed mode (default: `0.1`).
+- `--train-ratio`: Train split ratio for dataset publishing (default: `0.9`).
+- `--test-ratio`: Test split ratio for dataset publishing (default: `0.1`).
 
 Notes:
 
 - `generate` is local-first. It writes local artifacts and shard manifests even when `--repo-id` is omitted.
+- Generated dataset roots contain `run_manifest.json`, root `metadata.jsonl`, `realism_stats.json`, and per-shard `metadata.jsonl` plus `_SUCCESS` markers under `shards/`.
 - Use `--upload` for inline upload, or run `publish` later against the generated path.
 
 ---
@@ -85,8 +85,12 @@ uv run main.py publish --generated-path <path> [OPTIONS]
 ### Options
 - `--generated-path`: (Required) Generated dataset root containing `run_manifest.json`.
 - `--repo-id`: Override the repository ID stored in the manifest.
-- `--train-ratio`: Override the train ratio used for mixed publishing.
-- `--test-ratio`: Override the test ratio used for mixed publishing.
+- `--train-ratio`: Override the train ratio used for publishing.
+- `--test-ratio`: Override the test ratio used for publishing.
+
+Notes:
+
+- `publish` reuses generation context from `run_manifest.json` and only needs `--repo-id` when no repository ID was stored during generation.
 
 ---
 

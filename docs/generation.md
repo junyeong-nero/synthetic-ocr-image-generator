@@ -2,6 +2,8 @@
 
 The `generate` command creates synthetic markdown OCR samples and writes local artifacts. Upload is now an explicit follow-up step via `publish` or `generate --upload`.
 
+In practice, generation is shard-aware by default even for single-shard runs: the output root keeps publish/resume state in `run_manifest.json`, writes per-shard artifacts under `shards/`, and rebuilds aggregate metadata files at the dataset root.
+
 ## Quick Start
 
 ```bash
@@ -20,7 +22,7 @@ Core defaults:
 - `--lang ko`
 - `--size 100`
 - `--output-dir ./data`
-- `--markdown-renderer pil`
+- `--markdown-renderer playwright`
 - `--style-profile balanced`
 - `--novelty-window 80`
 - `--novelty-threshold 0.95`
@@ -72,22 +74,31 @@ Coverage parsing notes:
 
 ### Rendering and OCR Noise
 
-- `--markdown-renderer`: `pil` or `html2image`.
+- `--markdown-renderer`: `pil`, `html2image`, or `playwright`.
 - `--style-profile`: `legacy`, `balanced`, `aggressive`.
 - `--similar-char-ratio`: proportion of characters replaced with lookalikes.
 - `--similarity-db-path`: explicit JSON path for similarity DB lookup.
 - `--add-noise` / `--no-add-noise`: explicit noise override.
 - `--add-blur` / `--no-add-blur`: explicit blur override.
 
+Formula generation/rendering notes:
+
+- The built-in hard-coded formula pool now contains 100+ normalized expressions spanning algebra, calculus, physics, probability, and ML/LLM training objectives.
+- Formula rasterization uses a bounded in-process cache (256 entries) to avoid unbounded memory growth during long generation runs.
+
 ### Dataset Split / Upload
 
-- `--mixed`: enables train/test upload flow.
 - `--train-ratio` and `--test-ratio`: must each be in `[0, 1]` and sum to `1.0`.
 - `--seed`: global seed used for reproducibility and per-sample seed derivation.
 - `--shard-size`: number of samples per shard directory.
 - `--max-shards`: limit work to the first N shards.
 - `--resume`: continue a previous sharded run using `run_manifest.json`.
 - `--upload`: upload after generation completes.
+
+Local-first behavior:
+
+- `generate` does not require `--repo-id` unless you also pass `--upload`.
+- If you do provide `--repo-id`, it is stored in `run_manifest.json` so `publish` can reuse it later.
 
 ### Publish Command
 
@@ -136,7 +147,7 @@ Coverage parsing notes:
 
 - Style is sampled from base presets and perturbed according to `--style-profile`.
 - Noise/blur probabilities are then applied.
-- Markdown is rendered by `pil` or `html2image` backend.
+- Markdown is rendered by `pil`, `html2image`, or headless `playwright` backend.
 - Formula rasterization uses an in-process bounded cache to avoid unbounded memory growth in long runs.
 - The current markdown image path records `a4_scaled` metadata, but no hard A4 rescale is applied by `_fit_image_to_a4()` at the moment.
 
@@ -146,6 +157,7 @@ Coverage parsing notes:
 - Each shard writes its own `metadata.jsonl` and `_SUCCESS` marker under `shards/shard-XXXXXX/`.
 - A top-level `run_manifest.json` tracks shard progress and stores the publish context.
 - After shard completion, root `metadata.jsonl` and `realism_stats.json` are rebuilt from shard outputs.
+- `--resume` skips shards already marked completed in the manifest when the shard `_SUCCESS` marker is present.
 - Upload happens only when you run `publish` or pass `--upload`.
 
 ## Template Catalog Format
@@ -239,7 +251,6 @@ uv run main.py generate \
 uv run main.py generate \
   --lang "ko" \
   --size 1000 \
-  --mixed \
   --shard-size 250
 ```
 
@@ -249,7 +260,6 @@ uv run main.py generate \
 uv run main.py generate \
   --lang "ko" \
   --size 1000 \
-  --mixed \
   --shard-size 250 \
   --resume
 ```
@@ -258,21 +268,21 @@ uv run main.py generate \
 
 ```bash
 uv run main.py publish \
-  --generated-path "./data/ko/images_mixed" \
+  --generated-path "./data/ko/images_markdown" \
   --repo-id "username/my-ocr-dataset"
 ```
 
 Publish detail:
 
-- Mixed mode is markdown-focused.
+- Generation is markdown-focused.
 - Records are shuffled with a fixed seed before split, so split assignment is deterministic for identical metadata ordering.
+- `publish` requires `--repo-id` only when the manifest does not already contain one.
 
 ## Output Artifacts
 
-Local output roots:
+Local output root:
 
-- Non-mixed: `<output-dir>/<lang>/images_markdown`
-- Mixed: `<output-dir>/<lang>/images_mixed`
+- `<output-dir>/<lang>/images_markdown`
 
 Core files:
 
@@ -306,7 +316,12 @@ bash scripts/synthesize/lang/en.sh \
 
 Notes:
 
-- Wrapper default renderer is `html2image`.
+- Wrapper default renderer is `playwright`.
+
+Playwright notes:
+
+- The Playwright renderer launches Chromium in headless mode.
+- Install browser binaries once with `uv run playwright install chromium` after syncing dependencies.
 - Wrapper now runs `generate --upload` explicitly, so upload remains opt-in at the CLI level.
 - Wrapper forwards shard and resume flags to `main.py generate`.
 

@@ -4,10 +4,11 @@ Synthetic OCR Image Generator and Benchmark is an end-to-end toolkit for dataset
 
 ## Current Scope
 
-The main CLI flow covers corpus preparation plus markdown-focused generation and evaluation:
+The main CLI flow covers corpus preparation plus markdown-focused generation, publication, and evaluation:
 
 - `corpus generate` creates reusable corpus text files with LLM-backed providers.
 - `generate` creates markdown-rendered OCR images and metadata.
+- `publish` uploads a previously generated local dataset root.
 - `evaluate` computes markdown-oriented metrics and reports.
 
 Some additional evaluator/generator modules exist in the codebase, but the unified CLI pipeline is centered on markdown.
@@ -23,11 +24,12 @@ The generation pipeline follows a structured A/B/C phase model:
 - **Phase C: Quality & Diversity**: Advanced controls including novelty guards, template family coverage targets, and style profiles to ensure high-quality, diverse datasets.
 
 Core logic:
-- Orchestrates markdown image creation via a multi-stage pipeline (config -> generation -> novelty check -> rendering -> upload).
+- Orchestrates markdown image creation via a multi-stage pipeline (config -> generation -> novelty check -> rendering -> local artifacts -> optional publish).
 - Loads fonts from `fonts/<lang>/`.
-- Supports renderer selection (`pil` or `html2image`).
+- Supports renderer selection (`pil`, `html2image`, or `playwright`).
 - Applies optional noise/blur and similarity-based substitutions.
-- Uploads generated outputs to Hugging Face Hub with comprehensive metadata traces.
+- Writes shard-aware outputs with `run_manifest.json`, per-shard metadata, `_SUCCESS` markers, and rebuilt root metadata/stat files.
+- Publishes generated outputs to Hugging Face Hub only when `publish` or `generate --upload` is used.
 
 ### Evaluation (`src/evaluation/`)
 
@@ -39,9 +41,10 @@ Core logic:
 ## Typical Workflow
 
 1. Optionally prepare corpus assets with `uv run main.py corpus generate ...`, plus fonts and similarity DB assets.
-2. Run `uv run main.py generate ...` (or `scripts/synthesize/generate.sh`).
-3. Run `uv run main.py evaluate ...` (or `scripts/evaluate/run.sh`).
-4. Compare reports with `uv run main.py compare ...`.
+2. Run `uv run main.py generate ...` (or `scripts/synthesize/generate.sh`) to create a local dataset root.
+3. Optionally run `uv run main.py publish ...` to upload that generated root.
+4. Run `uv run main.py evaluate ...` (or `scripts/evaluate/run.sh`).
+5. Compare reports with `uv run main.py compare ...`.
 
 ## Key Paths
 
