@@ -2,6 +2,7 @@ import random
 import sys
 import importlib
 import re
+from collections import Counter, deque
 from datetime import datetime
 from types import ModuleType
 
@@ -108,12 +109,11 @@ sys.modules.setdefault("faker.config", stub_faker_config)
 
 generator_module = importlib.import_module("generator.generator")
 
-A4_MAX_HEIGHT_PX = generator_module.A4_MAX_HEIGHT_PX
-A4_MAX_WIDTH_PX = generator_module.A4_MAX_WIDTH_PX
 Generator = generator_module.Generator
 HARD_CODED_FORMULA_EXPRESSIONS = generator_module.HARD_CODED_FORMULA_EXPRESSIONS
 HtmlMarkdownRenderer = generator_module.HtmlMarkdownRenderer
 MarkdownDataGenerator = generator_module.MarkdownDataGenerator
+PlaywrightMarkdownRenderer = generator_module.PlaywrightMarkdownRenderer
 TextGenerator = generator_module.TextGenerator
 TemplateCatalog = generator_module.TemplateCatalog
 TemplateSpec = generator_module.TemplateSpec
@@ -521,6 +521,107 @@ def test_html_renderer_component_preprocessing_embeds_real_image_when_asset_exis
     assert "data:image/png;base64," in prepared
 
 
+def test_html_renderer_converts_markdown_hard_breaks_to_br_tags() -> None:
+    html = HtmlMarkdownRenderer._coerce_markdown_html("Alpha  \nBeta")
+
+    assert "Alpha<br" in html
+    assert "Beta" in html
+
+
+def test_playwright_renderer_uses_headless_chromium(monkeypatch) -> None:
+    renderers_module = importlib.import_module("generator.markdown_renderers")
+    real_import_module = renderers_module.importlib.import_module
+    calls = {}
+
+    class _FakeLocator:
+        def screenshot(self, path: str, animations: str) -> None:
+            calls["screenshot"] = {"path": path, "animations": animations}
+            Image.new("RGB", (64, 96), color=(255, 255, 255)).save(path)
+
+    class _FakePage:
+        def goto(self, url: str, wait_until: str) -> None:
+            calls["goto"] = {"url": url, "wait_until": wait_until}
+
+        def wait_for_function(self, script: str) -> None:
+            calls["wait_for_function"] = script
+
+        def evaluate(self, script: str):
+            calls["evaluate"] = script
+            return True
+
+        def locator(self, selector: str) -> _FakeLocator:
+            calls["selector"] = selector
+            return _FakeLocator()
+
+    class _FakeBrowser:
+        def new_page(self, viewport, device_scale_factor: int) -> _FakePage:
+            calls["new_page"] = {
+                "viewport": viewport,
+                "device_scale_factor": device_scale_factor,
+            }
+            return _FakePage()
+
+        def close(self) -> None:
+            calls["browser_closed"] = True
+
+    class _FakeChromium:
+        def launch(self, headless: bool, args):
+            calls["launch"] = {"headless": headless, "args": args}
+            return _FakeBrowser()
+
+    class _FakePlaywrightContext:
+        def __enter__(self):
+            return type("_FakePlaywright", (), {"chromium": _FakeChromium()})()
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+    def _fake_import_module(name: str):
+        if name == "playwright.sync_api":
+            return type(
+                "_FakePlaywrightModule",
+                (),
+                {"sync_playwright": staticmethod(lambda: _FakePlaywrightContext())},
+            )()
+        return real_import_module(name)
+
+    monkeypatch.setattr(renderers_module.importlib, "import_module", _fake_import_module)
+
+    renderer = PlaywrightMarkdownRenderer(font_path="/tmp/does-not-need-to-exist.ttf")
+    image = renderer.render("# Title\n\nBody text")
+
+    assert image.size == (64, 96)
+    assert calls["launch"]["headless"] is True
+    assert "--hide-scrollbars" in calls["launch"]["args"]
+    assert calls["selector"] == ".markdown-body"
+    assert calls["new_page"]["viewport"]["width"] == (
+        renderer.style.margin_left + renderer.style.content_width + renderer.style.margin_right
+    )
+    assert calls["screenshot"]["animations"] == "disabled"
+    assert calls["browser_closed"] is True
+
+
+def test_playwright_renderer_reports_missing_dependency(monkeypatch) -> None:
+    renderers_module = importlib.import_module("generator.markdown_renderers")
+    real_import_module = renderers_module.importlib.import_module
+
+    def _fake_import_module(name: str):
+        if name == "playwright.sync_api":
+            raise ImportError("missing playwright")
+        return real_import_module(name)
+
+    monkeypatch.setattr(renderers_module.importlib, "import_module", _fake_import_module)
+
+    renderer = PlaywrightMarkdownRenderer(font_path="/tmp/does-not-need-to-exist.ttf")
+
+    try:
+        renderer.render("Simple body")
+    except RuntimeError as exc:
+        assert "playwright package is required" in str(exc)
+    else:
+        raise AssertionError("Expected RuntimeError when Playwright is unavailable")
+
+
 def test_sections_generation_respects_configured_section_counts() -> None:
     random.seed(31)
     data_generator = MarkdownDataGenerator(lang="en")
@@ -543,6 +644,39 @@ def test_sections_generation_respects_configured_section_counts() -> None:
     assert merge_order.count("text") == 3
     assert merge_order.count("table") == 2
     assert merge_order.count("formula") == 1
+
+
+def test_sections_generation_respects_configured_text_wrap_width(tmp_path) -> None:
+    data_generator = MarkdownDataGenerator(lang="en")
+    corpus_lang_dir = tmp_path / "en"
+    corpus_lang_dir.mkdir(parents=True, exist_ok=True)
+    corpus_lang_dir.joinpath("paragraphs.txt").write_text(
+        "Wrapping width should come from the template blueprint so generated text sections break earlier than the default width allows.\n",
+        encoding="utf-8",
+    )
+    data_generator.data = importlib.import_module("generator.data_provider").DataProvider(
+        lang="en",
+        mix_ratio=0.0,
+        corpus_dir=tmp_path,
+        use_corpus=True,
+    )
+    spec = TemplateSpec(
+        template_id="text_wrap_width_test",
+        family="sections",
+        complexity=2,
+        mode="sections",
+        blueprint={
+            "text": {"section_count": [1, 1], "max_line_chars": 24},
+            "table": {"section_count": [0, 0]},
+            "formula": {"section_count": [0, 0]},
+        },
+    )
+
+    markdown = data_generator.generate_markdown(template_id=spec.template_id, template_spec=spec)
+
+    assert "  \n" in markdown
+    assert "Wrapping width should" in markdown
+    assert "from the template" in markdown
 
 
 def test_text_generator_uses_language_aware_sentence_content() -> None:
@@ -593,6 +727,33 @@ def test_text_generator_prefers_paragraph_corpus_sentences(tmp_path) -> None:
     assert "Corpus sentences should drive generated sections." in markdown or "Follow-up corpus sentence here." in markdown
 
 
+def test_text_generator_wraps_long_corpus_paragraphs_into_markdown_line_breaks(tmp_path) -> None:
+    data_provider_module = importlib.import_module("generator.data_provider")
+    corpus_lang_dir = tmp_path / "en"
+    corpus_lang_dir.mkdir(parents=True, exist_ok=True)
+    long_paragraph = (
+        "This corpus paragraph is intentionally long so the text generator inserts markdown line breaks "
+        "before it turns into one oversized text section line for OCR rendering fidelity."
+    )
+    (corpus_lang_dir / "paragraphs.txt").write_text(f"{long_paragraph}\n", encoding="utf-8")
+
+    data = data_provider_module.DataProvider(lang="en", mix_ratio=0.0, corpus_dir=tmp_path, use_corpus=True)
+    text_generator = TextGenerator(
+        data=data,
+        clip_text=lambda text, max_len: text if len(text) <= max_len else text[:max_len],
+        max_paragraph_chars=220,
+        max_line_chars=48,
+    )
+
+    sections = text_generator.generate_sections(section_count=1)
+    markdown = "\n\n".join(sections)
+
+    assert "  \n" in markdown
+    assert "This corpus paragraph is intentionally long" in markdown
+    assert "before it turns into one oversized text section" in markdown
+    assert "line for OCR rendering fidelity." in markdown
+
+
 def test_table_generator_prefers_paragraph_corpus_headers_and_cells(tmp_path) -> None:
     data_provider_module = importlib.import_module("generator.data_provider")
     table_module = importlib.import_module("generator.table_generator")
@@ -618,37 +779,68 @@ def test_table_generator_prefers_paragraph_corpus_headers_and_cells(tmp_path) ->
     assert "Quarterly revenue" in markdown or "Customer retention" in markdown
 
 
-def test_fit_image_to_a4_keeps_original_size_without_clipping() -> None:
+def test_generate_single_metadata_does_not_include_a4_clipping_flags(monkeypatch) -> None:
     generator = Generator.__new__(Generator)
-    generator.max_render_width = A4_MAX_WIDTH_PX
-    generator.max_render_height = A4_MAX_HEIGHT_PX
-    generator.max_render_aspect_ratio = 2.0
+    generator.template_specs = [
+        TemplateSpec(
+            template_id="test-template",
+            family="text",
+            mode="generated",
+            complexity=1,
+            source="test",
+            weight=1.0,
+            version="1",
+            blueprint={},
+        )
+    ]
+    generator.template_catalog = None
+    generator.template_counts = Counter()
+    generator.family_counts = Counter()
+    generator.novelty_window = 8
+    generator.novelty_threshold = 1.0
+    generator.novelty_max_attempts = 1
+    generator._recent_signatures = deque(maxlen=generator.novelty_window)
+    generator.base_seed = None
+    generator.noise_ratio = 0.0
+    generator.blur_ratio = 0.0
+    generator.style_profile = "balanced"
+    generator.markdown_renderer = "pil"
+    generator.similar_char_ratio = 0.0
+    generator._seed_for_sample = lambda _seed: None
+    generator._derive_sample_seed = lambda _sample_index, _attempt: None
+    generator._select_template_spec = lambda: (generator.template_specs[0], 1.0)
+    generator._mutate_text_generator_sections = lambda markdown, _ratio, merge_order: (markdown, 0)
 
-    large = Image.new("RGB", (3200, 4200), color=(255, 255, 255))
-    fitted, clipped = generator._fit_image_to_a4(large)
-    assert clipped is False
-    assert fitted.size == large.size
+    class _StubDataGenerator:
+        @staticmethod
+        def generate_markdown(template_id: str, template_spec: TemplateSpec) -> str:
+            assert template_id == "test-template"
+            assert template_spec.template_id == "test-template"
+            return "# Heading\n\nBody"
 
-    tall = Image.new("RGB", (656, 3508), color=(255, 255, 255))
-    fitted_tall, clipped_tall = generator._fit_image_to_a4(tall)
-    assert clipped_tall is False
-    assert fitted_tall.size == tall.size
+        @staticmethod
+        def pop_merge_order() -> list[str]:
+            return ["text"]
 
-    small = Image.new("RGB", (900, 1200), color=(255, 255, 255))
-    fitted_small, clipped_small = generator._fit_image_to_a4(small)
-    assert clipped_small is False
-    assert fitted_small.size == small.size
+    generator.data_generator = _StubDataGenerator()
 
+    monkeypatch.setattr(generator_module, "random_style", lambda _profile: generator_module.MarkdownStyle())
+    monkeypatch.setattr(generator_module, "markdown_to_json_ast", lambda markdown_text: [{"raw": markdown_text}])
 
-def test_fit_image_to_a4_does_not_enforce_aspect_ratio() -> None:
-    generator = Generator.__new__(Generator)
-    generator.max_render_width = A4_MAX_WIDTH_PX
-    generator.max_render_height = A4_MAX_HEIGHT_PX
-    generator.max_render_aspect_ratio = 2.0
+    class _StubRenderer:
+        def __init__(self, _font_path, style):
+            self.style = style
 
-    wide = Image.new("RGB", (1200, 300), color=(250, 250, 250))
-    fitted, clipped = generator._fit_image_to_a4(wide)
+        def render(self, markdown_text: str):
+            assert markdown_text == "# Heading\n\nBody"
+            return Image.new("RGB", (1234, 2345), color=(255, 255, 255))
 
-    assert clipped is False
-    assert fitted.width == 1200
-    assert fitted.height == 300
+    monkeypatch.setattr(generator_module, "MarkdownRenderer", _StubRenderer)
+    generator.font_paths = ["/tmp/dummy-font.ttf"]
+
+    _image, metadata = generator.generate_single(sample_index=7)
+
+    assert metadata["image_width"] == 1234
+    assert metadata["image_height"] == 2345
+    assert "a4_scaled" not in metadata
+    assert "a4_clipped" not in metadata

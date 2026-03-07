@@ -26,7 +26,6 @@ from generator.generation_config import (
     DEFAULT_NOVELTY_MAX_ATTEMPTS,
     DEFAULT_NOVELTY_THRESHOLD,
     DEFAULT_NOVELTY_WINDOW,
-    MAX_RENDER_ASPECT_RATIO,
     coerce_bool,
     coerce_optional_int,
     coerce_ratio,
@@ -38,7 +37,7 @@ from generator.markdown_content import (
     HARD_CODED_FORMULA_EXPRESSIONS,
     MarkdownDataGenerator,
 )
-from generator.markdown_renderers import HtmlMarkdownRenderer, MarkdownRenderer
+from generator.markdown_renderers import HtmlMarkdownRenderer, MarkdownRenderer, PlaywrightMarkdownRenderer
 from generator.markdown_render_utils import (
     MarkdownStyle,
     parse_markdown_formula_line,
@@ -60,6 +59,7 @@ __all__ = [
     "HtmlMarkdownRenderer",
     "MarkdownDataGenerator",
     "MarkdownRenderer",
+    "PlaywrightMarkdownRenderer",
     "TemplateCatalog",
     "TemplateSpec",
     "TextGenerator",
@@ -174,17 +174,13 @@ class Generator(BaseGenerator):
         self.noise_ratio = 0.1
         self.blur_ratio = 0.1
         self.similar_char_ratio = 0.08
-        self.markdown_renderer = "pil"
+        self.markdown_renderer = "playwright"
         self.style_profile = "balanced"
         self.novelty_window = DEFAULT_NOVELTY_WINDOW
         self.novelty_threshold = DEFAULT_NOVELTY_THRESHOLD
         self.novelty_max_attempts = DEFAULT_NOVELTY_MAX_ATTEMPTS
         self._recent_signatures: deque[str] = deque(maxlen=self.novelty_window)
         self.base_seed: Optional[int] = None
-        self.max_render_width = A4_MAX_WIDTH_PX
-        self.max_render_height = A4_MAX_HEIGHT_PX
-        self.max_render_aspect_ratio = MAX_RENDER_ASPECT_RATIO
-
     def _load_similarity_db(self, db_path: Optional[str]) -> None:
         source_key = db_path or "__auto__"
         if self._similarity_db_source == source_key:
@@ -308,7 +304,7 @@ class Generator(BaseGenerator):
 
         self.markdown_renderer = self._normalize_choice(
             kwargs.get("markdown_renderer", self.markdown_renderer),
-            {"pil", "html2image"},
+            {"pil", "html2image", "playwright"},
             "pil",
             "markdown renderer",
         )
@@ -417,9 +413,6 @@ class Generator(BaseGenerator):
                 faker.seed_instance(sample_seed)
             except Exception:
                 pass
-
-    def _fit_image_to_a4(self, image: Image.Image) -> Tuple[Image.Image, bool]:
-        return image, False
 
     @staticmethod
     def _structure_signature(markdown_text: str) -> str:
@@ -571,10 +564,11 @@ class Generator(BaseGenerator):
         font_path = random.choice(self.font_paths)
         if self.markdown_renderer == "html2image":
             renderer = HtmlMarkdownRenderer(font_path, style)
+        elif self.markdown_renderer == "playwright":
+            renderer = PlaywrightMarkdownRenderer(font_path, style)
         else:
             renderer = MarkdownRenderer(font_path, style)
         image = renderer.render(markdown_text)
-        image, a4_clipped = self._fit_image_to_a4(image)
 
         self.template_counts[selected_template.template_id] += 1
         self.family_counts[selected_template.family] += 1
@@ -604,8 +598,6 @@ class Generator(BaseGenerator):
             "novelty_score": round(novelty_score, 6),
             "family_ratio": round(family_ratio, 6),
             "merge_order": merge_order,
-            "a4_scaled": a4_clipped,
-            "a4_clipped": a4_clipped,
             "image_width": image.width,
             "image_height": image.height,
         }

@@ -121,7 +121,7 @@ def test_normalize_choice_falls_back_to_default() -> None:
     module = _load_generator_module()
     normalized = module.Generator._normalize_choice(
         "unexpected-mode",
-        {"pil", "html2image"},
+        {"pil", "html2image", "playwright"},
         "pil",
         "markdown renderer",
     )

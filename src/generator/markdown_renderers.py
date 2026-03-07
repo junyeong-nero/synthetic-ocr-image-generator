@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 from generator.markdown_render_utils import (
     MarkdownStyle,
@@ -586,7 +586,7 @@ class HtmlMarkdownRenderer:
 
         return markdown_pkg.markdown(
             markdown_text,
-            extensions=["extra", "tables", "fenced_code", "sane_lists"],
+            extensions=["extra", "tables", "fenced_code", "sane_lists", "nl2br"],
         )
 
     def _prepare_component_markdown(
@@ -734,6 +734,11 @@ html, body {{
 .markdown-body h3 {{ font-size: {self.style.h3_font_size}px; color: rgb{self.style.h3_color}; margin: 16px 0 8px 0; }}
 .markdown-body a {{ color: rgb{self.style.link_color}; text-decoration: none; }}
 .markdown-body p {{ margin: 0 0 10px 0; }}
+.markdown-body br {{
+  display: block;
+  margin: 0;
+  line-height: {self.style.line_spacing};
+}}
 .markdown-body ul, .markdown-body ol {{ margin: 0 0 12px 18px; padding: 0; }}
 .markdown-body blockquote {{
   margin: 0 0 12px 0;
@@ -831,15 +836,6 @@ html, body {{
 </body>
 </html>"""
 
-    def _trim_bottom_whitespace(self, image: Image.Image) -> Image.Image:
-        background = Image.new("RGB", image.size, self.style.background_color)
-        diff = ImageChops.difference(image, background)
-        bbox = diff.getbbox()
-        if not bbox:
-            return image
-        cropped_bottom = min(image.height, int(bbox[3] + self.style.margin_bottom))
-        return image.crop((0, 0, image.width, max(cropped_bottom, 200)))
-
     def _apply_effects(self, img: Image.Image) -> Image.Image:
         if self.style.add_noise:
             img = self._add_noise(img)
@@ -901,5 +897,69 @@ html, body {{
             image = Image.open(rendered_path).convert("RGB")
             image.load()
 
-        image = self._trim_bottom_whitespace(image)
+        return self._apply_effects(image)
+
+
+class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
+
+    @staticmethod
+    def _load_playwright_sync_api() -> Any:
+        try:
+            return importlib.import_module("playwright.sync_api")
+        except ImportError as exc:
+            raise RuntimeError(
+                "playwright package is required for headless markdown rendering. "
+                "Install with: uv sync --group generate && uv run playwright install chromium"
+            ) from exc
+
+    def render(
+        self,
+        markdown_text: str,
+        image_assets: Optional[Dict[str, Image.Image]] = None,
+    ) -> Image.Image:
+        playwright_sync_api = self._load_playwright_sync_api()
+        sync_playwright = playwright_sync_api.sync_playwright
+
+        width = self.style.margin_left + self.style.content_width + self.style.margin_right
+        viewport_height = max(720, min(1600, self._estimate_viewport_height(markdown_text)))
+        html_doc = self._build_html_document(markdown_text, image_assets=image_assets)
+
+        with tempfile.TemporaryDirectory(prefix="markdown-playwright-") as temp_dir:
+            html_path = Path(temp_dir) / "rendered.html"
+            screenshot_path = Path(temp_dir) / "rendered.png"
+            html_path.write_text(html_doc, encoding="utf-8")
+
+            try:
+                with sync_playwright() as playwright:
+                    browser = playwright.chromium.launch(
+                        headless=True,
+                        args=[
+                            "--hide-scrollbars",
+                            "--disable-gpu",
+                            "--force-device-scale-factor=1",
+                        ],
+                    )
+                    page = browser.new_page(
+                        viewport={"width": width, "height": viewport_height},
+                        device_scale_factor=1,
+                    )
+                    page.goto(html_path.as_uri(), wait_until="load")
+                    page.wait_for_function("() => Array.from(document.images).every((img) => img.complete)")
+                    page.evaluate(
+                        "() => document.fonts ? document.fonts.ready.then(() => true) : true"
+                    )
+                    page.locator(".markdown-body").screenshot(
+                        path=str(screenshot_path),
+                        animations="disabled",
+                    )
+                    browser.close()
+            except Exception as exc:
+                raise RuntimeError(
+                    "Headless Playwright markdown rendering failed. "
+                    "Ensure Chromium is installed with: uv run playwright install chromium"
+                ) from exc
+
+            image = Image.open(screenshot_path).convert("RGB")
+            image.load()
+
         return self._apply_effects(image)
