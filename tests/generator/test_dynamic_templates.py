@@ -545,11 +545,12 @@ def test_sections_generation_respects_configured_section_counts() -> None:
     assert merge_order.count("formula") == 1
 
 
-def test_text_generator_rotates_across_corpus_backed_context_fields() -> None:
+def test_text_generator_uses_language_aware_sentence_content() -> None:
     random.seed(73)
-    data_generator = MarkdownDataGenerator(lang="en")
+    data_provider_module = importlib.import_module("generator.data_provider")
+    data = data_provider_module.DataProvider(lang="en", mix_ratio=0.0, use_corpus=False)
     text_generator = TextGenerator(
-        data=data_generator.data,
+        data=data,
         clip_text=lambda text, max_len: text if len(text) <= max_len else text[:max_len],
         max_paragraph_chars=220,
     )
@@ -557,23 +558,39 @@ def test_text_generator_rotates_across_corpus_backed_context_fields() -> None:
     sections = text_generator.generate_sections(section_count=6)
     markdown = "\n\n".join(sections)
 
-    expected_markers = [
-        "- Person:",
-        "- Company:",
-        "- Position:",
-        "- Department:",
-        "- Address:",
-        "- Store:",
-        "- Product:",
-        "- Feature:",
-        "- Requirement:",
-        "- API Endpoint:",
-        "- Config:",
-        "- Install:",
-        "- Usage:",
-    ]
-    for marker in expected_markers:
-        assert marker in markdown
+    assert "- Person:" not in markdown
+    assert "- Install:" not in markdown
+    assert any(
+        sentence in markdown
+        for sentence in [
+            "This project is designed to enhance user productivity.",
+            "It provides various features with an extensible architecture.",
+            "Easy to install and well-documented for quick onboarding.",
+            "Continuously improved with community support.",
+        ]
+    )
+
+
+def test_text_generator_prefers_paragraph_corpus_sentences(tmp_path) -> None:
+    data_provider_module = importlib.import_module("generator.data_provider")
+    corpus_lang_dir = tmp_path / "en"
+    corpus_lang_dir.mkdir(parents=True, exist_ok=True)
+    (corpus_lang_dir / "paragraphs.txt").write_text(
+        "Corpus sentences should drive generated sections. Follow-up corpus sentence here.\n",
+        encoding="utf-8",
+    )
+
+    data = data_provider_module.DataProvider(lang="en", mix_ratio=0.0, corpus_dir=tmp_path, use_corpus=True)
+    text_generator = TextGenerator(
+        data=data,
+        clip_text=lambda text, max_len: text if len(text) <= max_len else text[:max_len],
+        max_paragraph_chars=220,
+    )
+
+    sections = text_generator.generate_sections(section_count=1)
+    markdown = "\n\n".join(sections)
+
+    assert "Corpus sentences should drive generated sections." in markdown or "Follow-up corpus sentence here." in markdown
 
 
 def test_fit_image_to_a4_keeps_original_size_without_clipping() -> None:
