@@ -94,7 +94,13 @@ evaluate = [
 ]
 
 nanonets-ocr2 = [
-    "transformers==4.53.1",
+    "datasets>=4.0.0",
+    "huggingface-hub",
+    "pillow",
+    "vllm>=0.15.1",
+    "tqdm",
+    "toolz",
+    "torch",
 ]
 
 typhoon-ocr = [
@@ -103,30 +109,50 @@ typhoon-ocr = [
 ]
 
 deepseek-ocr = [
+    "datasets",
+    "huggingface-hub[hf_transfer]",
+    "pillow",
+    "torch",
+    "torchvision",
     "transformers==4.46.3",
     "tokenizers==0.20.3",
-    # Note: flash-attn requires CUDA and must be installed separately:
-    # pip install flash-attn --no-build-isolation
+    "tqdm",
+    "addict",
+    "matplotlib",
+    "einops",
+    "easydict",
 ]
 
 deepseek-ocr2 = [
-    "transformers==4.46.3",
-    "tokenizers==0.20.3",
-    # Note: flash-attn requires CUDA and must be installed separately:
-    # pip install flash-attn --no-build-isolation
+    "datasets>=4.0.0",
+    "huggingface-hub",
+    "pillow",
+    "vllm",
+    "tqdm",
+    "toolz",
+    "torch",
+    "addict",
+    "matplotlib",
 ]
 
 lighton-ocr2 = [
-    # LightOnOCR requires latest transformers from git
-    "transformers @ git+https://github.com/huggingface/transformers",
-    "tokenizers>=0.21.0",
-    "pypdfium2>=4.0.0",
+    "datasets>=4.0.0",
+    "huggingface-hub",
+    "pillow",
+    "vllm>=0.15.1",
+    "tqdm",
+    "toolz",
+    "torch",
 ]
 
 hunyuan-ocr = [
-    # HunyuanOCR requires specific transformers commit
-    "transformers @ git+https://github.com/huggingface/transformers@82a06db03535c49aa987719ed0746a76093b1ec4",
-    "tokenizers>=0.21.0",
+    "datasets>=4.0.0",
+    "huggingface-hub",
+    "pillow",
+    "vllm>=0.15.1",
+    "tqdm",
+    "toolz",
+    "torch",
 ]
 
 varco-ocr = [
@@ -143,11 +169,14 @@ paddle-ocr = [
 ]
 
 paddle-ocr-vl = [
-    "transformers>=4.53.3,<5.0.0",
-    "tokenizers>=0.21.0",
-    "huggingface-hub>=0.23.2,<1.0",
-    "sentencepiece>=0.2.0",
-    "protobuf>=4.25.0",
+    "datasets",
+    "huggingface-hub",
+    "pillow",
+    "torch",
+    "torchvision",
+    "transformers>=5.0.0",
+    "accelerate",
+    "tqdm",
 ]
 
 qwen2-vl = [
@@ -183,9 +212,13 @@ got-ocr = [
 ]
 
 glm-ocr = [
-    # GLM-OCR requires latest transformers from git
-    "transformers @ git+https://github.com/huggingface/transformers",
-    "tokenizers>=0.20.3",
+    "datasets>=3.1.0",
+    "pyarrow>=17.0.0,<18.0.0",
+    "huggingface-hub",
+    "pillow",
+    "vllm",
+    "toolz",
+    "torch",
 ]
 
 kiri-ocr = [
@@ -193,9 +226,13 @@ kiri-ocr = [
 ]
 
 dots-ocr = [
-    "transformers==4.51.3",
-    "tokenizers>=0.21.0",
-    "qwen-vl-utils>=0.0.10",
+    "datasets",
+    "huggingface-hub",
+    "pillow",
+    "vllm>=0.9.1",
+    "tqdm",
+    "toolz",
+    "torch",
 ]
 
 [tool.uv]
