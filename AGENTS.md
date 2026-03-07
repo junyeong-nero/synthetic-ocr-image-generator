@@ -39,6 +39,7 @@ Python toolkit for synthetic OCR dataset generation and model evaluation, using 
 - Use `uv` dependency groups for model-specific installs; prefer `scripts/evaluate/run.sh` to resolve `dependency_group`. Core groups: `generate`, `evaluate`, `api`.
 - `configs/models/*.yaml` are source of truth for prompts and model params.
 - `main.py` injects `src` into `sys.path`; no console script entrypoint.
+- Refactor continuously to keep files from growing excessively long; extract helpers, modules, or config when a file starts accumulating unrelated responsibilities or becomes hard to scan.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 - Do not commit generated artifacts in `data/` or `evaluation_result/`.
