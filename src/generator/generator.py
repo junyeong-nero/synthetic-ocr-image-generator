@@ -497,25 +497,29 @@ class Generator(BaseGenerator):
         self,
         num_images: int,
         **kwargs
-    ) -> List[Dict[str, Any]]:
+    ) -> int:
         """Generate markdown images."""
+        metadata_handle = kwargs.pop("metadata_handle", None)
+        stats_accumulator = kwargs.pop("stats_accumulator", None)
+        sample_start_index = int(kwargs.pop("sample_start_index", 0))
+        if metadata_handle is None or stats_accumulator is None:
+            raise RuntimeError("Streaming metadata writer is required for generation")
+
         self._configure_generation(**kwargs)
         self.template_counts = Counter()
         self.family_counts = Counter()
         self._recent_signatures = deque(maxlen=self.novelty_window)
 
-        metadata = []
         for idx in tqdm(range(num_images), desc="Generating markdown images"):
-            image, meta = self.generate_single(sample_index=idx)
+            sample_index = sample_start_index + idx
+            image, meta = self.generate_single(sample_index=sample_index)
 
-            # Save image
-            filename = f"markdown_{idx:05d}.png"
+            filename = f"markdown_{sample_index:05d}.png"
             self.save_image(image, filename)
             meta["file_name"] = str(self.output_dir / filename)
+            self.append_metadata(metadata_handle, stats_accumulator, meta)
 
-            metadata.append(meta)
-
-        return metadata
+        return num_images
 
     def generate_single(self, sample_index: int = 0, **kwargs) -> Tuple[Image.Image, Dict[str, Any]]:
         if kwargs:

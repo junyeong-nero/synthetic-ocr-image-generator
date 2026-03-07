@@ -6,7 +6,7 @@ from typing import Any, Optional
 from tqdm import tqdm
 
 from generation.ground_truth import attach_unified_ground_truth
-from generator.realism_stats import write_realism_stats
+from generator.realism_stats import RealismStatsAccumulator, write_realism_stats
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ def build_generation_kwargs(
     seed: Optional[int],
     add_noise: Optional[bool],
     add_blur: Optional[bool],
+    sample_start_index: int = 0,
 ) -> dict[str, Any]:
     generation_kwargs: dict[str, Any] = {
         "template": template,
@@ -55,6 +56,7 @@ def build_generation_kwargs(
         "formula_random_weight": formula_random_weight,
         "formula_synthetic_weight": formula_synthetic_weight,
         "seed": seed,
+        "sample_start_index": sample_start_index,
     }
     if add_noise is not None:
         generation_kwargs["add_noise"] = add_noise
@@ -112,9 +114,8 @@ class MixedGenerator:
         add_noise: Optional[bool] = None,
         add_blur: Optional[bool] = None,
         seed: Optional[int] = None,
+        sample_start_index: int = 0,
     ) -> Optional[str]:
-        all_metadata: list[dict[str, Any]] = []
-
         try:
             logger.info(f"Starting markdown generation: {num_images:,} images")
 
@@ -140,26 +141,31 @@ class MixedGenerator:
                 seed=seed,
                 add_noise=add_noise,
                 add_blur=add_blur,
+                sample_start_index=sample_start_index,
             )
 
             self.markdown_generator._configure_generation(**generation_kwargs)
 
-            for idx in tqdm(range(num_images), desc="Generating markdown images"):
-                image, meta = self.markdown_generator.generate_single(sample_index=idx)
-                filename = f"markdown_{idx:05d}.png"
-                self.markdown_generator.save_image(image, filename)
-                meta["file_name"] = str(self.markdown_generator.output_dir / filename)
-                meta = attach_unified_ground_truth("markdown", meta)
-                all_metadata.append(meta)
-
             metadata_path = self.output_dir / "metadata.jsonl"
-            with open(metadata_path, "w", encoding="utf-8") as f:
-                for item in all_metadata:
-                    f.write(json.dumps(item, ensure_ascii=False) + "\n")
+            stats_accumulator = RealismStatsAccumulator(format_name="markdown")
+            generated_count = 0
+            sample_start_index = int(generation_kwargs.pop("sample_start_index", 0))
+
+            with open(metadata_path, "w", encoding="utf-8") as metadata_handle:
+                for idx in tqdm(range(num_images), desc="Generating markdown images"):
+                    sample_index = sample_start_index + idx
+                    image, meta = self.markdown_generator.generate_single(sample_index=sample_index)
+                    filename = f"markdown_{sample_index:05d}.png"
+                    self.markdown_generator.save_image(image, filename)
+                    meta["file_name"] = str(self.markdown_generator.output_dir / filename)
+                    meta = attach_unified_ground_truth("markdown", meta)
+                    metadata_handle.write(json.dumps(meta, ensure_ascii=False) + "\n")
+                    stats_accumulator.update(meta)
+                    generated_count += 1
 
             logger.info(f"Saved metadata to '{metadata_path}'")
-            write_realism_stats(self.output_dir, all_metadata, format_name="markdown")
-            logger.info(f"Successfully generated {len(all_metadata):,} markdown images")
+            write_realism_stats(self.output_dir, stats_accumulator)
+            logger.info(f"Successfully generated {generated_count:,} markdown images")
             return str(self.output_dir)
 
         except Exception as e:

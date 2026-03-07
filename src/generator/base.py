@@ -1,14 +1,13 @@
 """Base generator class for synthetic OCR image generation."""
 
-import json
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, TextIO, Tuple
 
 from PIL import Image
 
-from generator.realism_stats import write_realism_stats
+from generator.realism_stats import RealismStatsAccumulator, write_realism_stats
 
 logger = logging.getLogger(__name__)
 
@@ -45,17 +44,7 @@ class BaseGenerator(ABC):
         return [str(p) for p in self.font_dir.glob("*.ttf")]
 
     @abstractmethod
-    def generate(self, num_images: int, **kwargs) -> List[Dict[str, Any]]:
-        """
-        Generate synthetic images.
-
-        Args:
-            num_images: Number of images to generate.
-            **kwargs: Additional generator-specific parameters.
-
-        Returns:
-            List of metadata dictionaries for each generated image.
-        """
+    def generate(self, num_images: int, **kwargs) -> int:
         raise NotImplementedError
 
     @abstractmethod
@@ -71,23 +60,39 @@ class BaseGenerator(ABC):
         """
         raise NotImplementedError
 
-    def save_metadata(self, metadata: List[Dict[str, Any]]) -> Path:
-        """
-        Save metadata to JSONL file.
+    def _metadata_path(self) -> Path:
+        return self.output_dir / "metadata.jsonl"
 
-        Args:
-            metadata: List of metadata dictionaries.
+    def _create_realism_stats_accumulator(self) -> RealismStatsAccumulator:
+        return RealismStatsAccumulator()
 
-        Returns:
-            Path to the saved metadata file.
-        """
-        metadata_path = self.output_dir / "metadata.jsonl"
-        with open(metadata_path, "w", encoding="utf-8") as f:
-            for item in metadata:
-                f.write(json.dumps(item, ensure_ascii=False) + "\n")
+    def _open_metadata_writer(self) -> tuple[Path, TextIO, RealismStatsAccumulator]:
+        metadata_path = self._metadata_path()
+        handle = open(metadata_path, "w", encoding="utf-8", buffering=1)
+        accumulator = self._create_realism_stats_accumulator()
+        return metadata_path, handle, accumulator
 
+    def append_metadata(
+        self,
+        handle: TextIO,
+        accumulator: RealismStatsAccumulator,
+        item: Dict[str, Any],
+    ) -> None:
+        import json
+
+        handle.write(json.dumps(item, ensure_ascii=False) + "\n")
+        accumulator.update(item)
+
+    def finalize_metadata(
+        self,
+        metadata_path: Path,
+        handle: TextIO,
+        accumulator: RealismStatsAccumulator,
+    ) -> Path:
+        handle.flush()
+        handle.close()
         logger.info("Saved metadata to '%s'", metadata_path)
-        write_realism_stats(self.output_dir, metadata)
+        write_realism_stats(self.output_dir, accumulator)
         return metadata_path
 
     def save_image(self, image: Image.Image, filename: str) -> Path:
@@ -122,9 +127,18 @@ class BaseGenerator(ABC):
                 self.__class__.__name__,
                 f"{num_images:,}",
             )
-            metadata = self.generate(num_images, **kwargs)
-            self.save_metadata(metadata)
-            logger.info("Successfully generated %s images", f"{len(metadata):,}")
+            metadata_path, metadata_handle, stats_accumulator = self._open_metadata_writer()
+            try:
+                generated_count = self.generate(
+                    num_images,
+                    metadata_handle=metadata_handle,
+                    stats_accumulator=stats_accumulator,
+                    **kwargs,
+                )
+            finally:
+                self.finalize_metadata(metadata_path, metadata_handle, stats_accumulator)
+
+            logger.info("Successfully generated %s images", f"{generated_count:,}")
             return str(self.output_dir)
         except Exception as e:
             logger.error("Generation failed: %s", e, exc_info=True)
