@@ -4,12 +4,13 @@ Synthetic OCR dataset generation and model benchmarking toolkit with a markdown-
 
 ## Overview
 
-This repository provides two core workflows:
+This repository provides three core workflows:
 
-1. Generate synthetic OCR images and metadata, then upload datasets to Hugging Face Hub.
-2. Evaluate OCR/VLM models against those datasets and produce reproducible reports.
+1. Generate reusable corpus text data with LLM-backed providers.
+2. Generate synthetic OCR images and metadata, then upload datasets to Hugging Face Hub.
+3. Evaluate OCR/VLM models against those datasets and produce reproducible reports.
 
-The current unified CLI flow is markdown-focused for both generation and evaluation.
+The current unified CLI exposes corpus generation alongside the markdown-focused generation and evaluation flows.
 
 ## Key Features
 
@@ -40,7 +41,16 @@ Markdown formula rendering uses `latex-to-image`, which requires a working XeLaT
 
 ## Quick Start
 
-1) Generate a dataset
+1) Generate corpus data
+
+```bash
+uv run main.py corpus generate \
+  --lang "ko" \
+  --provider openai \
+  --count 1000
+```
+
+2) Generate a dataset
 
 ```bash
 uv run main.py generate \
@@ -49,7 +59,7 @@ uv run main.py generate \
   --size 100
 ```
 
-2) Evaluate a model config
+3) Evaluate a model config
 
 ```bash
 uv run main.py evaluate \
@@ -58,7 +68,7 @@ uv run main.py evaluate \
   --split train
 ```
 
-3) Compare evaluation reports
+4) Compare evaluation reports
 
 ```bash
 uv run main.py compare \
@@ -103,7 +113,7 @@ bash scripts/evaluate/update-leaderboard.sh
 
 ## Recommended Script Wrappers
 
-- Dataset generation wrapper: `scripts/dataset/generate.sh`
+- Dataset generation wrapper: `scripts/synthesize/generate.sh`
 - Evaluation wrapper with dependency-group handling: `scripts/evaluate/run.sh`
 - Batch evaluation for all configs: `scripts/evaluate/run-all.sh`
 

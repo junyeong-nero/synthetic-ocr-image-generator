@@ -13,6 +13,25 @@ uv run main.py <command> [options]
 
 ---
 
+## `corpus generate`
+Generate corpus text data using an LLM provider.
+
+```bash
+uv run main.py corpus generate [OPTIONS]
+```
+
+### Options
+- `--lang`: Language code to generate for (default: `ko`).
+- `--lang-name`: Optional language name hint for custom or unsupported codes.
+- `--category`: Specific corpus category to generate (default: all categories).
+- `--count`: Number of items to generate per category (default: `1000`).
+- `--provider`: LLM provider (`openai`, `anthropic`) (default: `openai`).
+- `--model`: Optional provider-specific model override.
+- `--output-dir`: Output directory for saved corpus files.
+- `--batch-size`: Number of items requested per API call (default: `100`).
+
+---
+
 ## `generate`
 Generate synthetic OCR datasets.
 
@@ -103,7 +122,7 @@ List all available model configurations in `configs/models/`.
 
 For common workflows, these scripts are recommended:
 
-- `scripts/dataset/generate.sh`
+- `scripts/synthesize/generate.sh`
 - `scripts/evaluate/run.sh`
 - `scripts/evaluate/run-all.sh`
 - `scripts/evaluate/update-leaderboard.sh`
@@ -141,16 +160,20 @@ Notes:
 - `-m` is still accepted for max samples as a deprecated alias.
 - `-l, --language` defaults to `ko` and is forwarded to each run.
 
-### `scripts/dataset/generate_similarity_db.sh`
+### `scripts/synthesize/generate_similarity_db.sh`
 
 Builds language-specific character similarity DB files used by `generate`.
 
 Key options:
 
 - `--lang <code>`: Target language (repeatable).
-- `--all`: Build for all language scripts in `scripts/dataset/lang/`.
+- `--all`: Build for all language scripts in `scripts/synthesize/lang/`.
 - `--font-path <path>`: Override font file.
-- `--corpus-path <path>`: Override source corpus file.
+- `--corpus-path <path>`: Override the final merged corpus file.
+- `--generate-corpus`: Run `main.py corpus generate` first, merge the generated category files, then build the DB.
+- `--corpus-provider <name>` / `--corpus-model <name>`: Control the LLM corpus generation backend.
+- `--corpus-count <n>` / `--corpus-batch-size <n>`: Control how much corpus text is generated before merging.
+- `--corpus-category <name>`: Limit LLM corpus generation to specific categories (repeatable).
 - `--auto-generate-corpus`: Auto-generate `corpus_<lang>.txt` from Wikimedia when missing.
 - `--corpus-sentences <n>`: Sentence count for auto-generated corpus (default: `100000`).
 - `--db-path <path>`: Override output DB path (single language only).

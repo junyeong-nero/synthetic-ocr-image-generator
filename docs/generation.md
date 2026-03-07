@@ -262,12 +262,12 @@ Per-sample metadata includes:
 - reproducibility trace: `sample_index`, `sample_seed`
 - path: `file_name`
 
-## Helper Script (`scripts/dataset/generate.sh`)
+## Helper Script (`scripts/synthesize/generate.sh`)
 
 Wrapper usage example:
 
 ```bash
-bash scripts/dataset/lang/en.sh \
+bash scripts/synthesize/lang/en.sh \
   --size 1000 \
   --template-family operations \
   --coverage-target operations=0.5 \
@@ -284,13 +284,27 @@ Notes:
 Build a language-specific DB:
 
 ```bash
-./scripts/dataset/generate_similarity_db.sh --lang ko
+./scripts/synthesize/generate_similarity_db.sh --lang ko
+```
+
+Generate corpus text first and then build the DB in one pass:
+
+```bash
+./scripts/synthesize/generate_similarity_db.sh \
+  --lang ko \
+  --generate-corpus \
+  --corpus-provider openai \
+  --corpus-count 1000
 ```
 
 Useful options:
 
 - `--font-path`: override font used for similarity extraction.
-- `--corpus-path`: override source corpus.
+- `--corpus-path`: override the final merged corpus file.
+- `--generate-corpus`: run `main.py corpus generate`, merge category files into one corpus text, then build the DB.
+- `--corpus-provider`, `--corpus-model`: choose the LLM backend for corpus generation.
+- `--corpus-count`, `--corpus-batch-size`: control how much corpus text is generated before merging.
+- `--corpus-category`: restrict LLM corpus generation to specific categories.
 - `--auto-generate-corpus`: generate `corpus_<lang>.txt` from Wikimedia if missing.
 - `--corpus-sentences`: number of sentences when auto-generating corpus (default: `100000`).
 - `--db-path`: output JSON path override.

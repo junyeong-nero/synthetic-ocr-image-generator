@@ -4,8 +4,9 @@ Synthetic OCR Image Generator and Benchmark is an end-to-end toolkit for dataset
 
 ## Current Scope
 
-The main CLI flow is currently markdown-focused:
+The main CLI flow covers corpus preparation plus markdown-focused generation and evaluation:
 
+- `corpus generate` creates reusable corpus text files with LLM-backed providers.
 - `generate` creates markdown-rendered OCR images and metadata.
 - `evaluate` computes markdown-oriented metrics and reports.
 
@@ -37,15 +38,15 @@ Core logic:
 
 ## Typical Workflow
 
-1. Prepare fonts and optional corpus/similarity DB assets.
-2. Run `uv run main.py generate ...` (or `scripts/dataset/generate.sh`).
+1. Optionally prepare corpus assets with `uv run main.py corpus generate ...`, plus fonts and similarity DB assets.
+2. Run `uv run main.py generate ...` (or `scripts/synthesize/generate.sh`).
 3. Run `uv run main.py evaluate ...` (or `scripts/evaluate/run.sh`).
 4. Compare reports with `uv run main.py compare ...`.
 
 ## Key Paths
 
-- `main.py`: CLI commands
+- `main.py`: CLI commands, including `corpus generate`
 - `configs/models/`: model YAML configs
-- `scripts/dataset/`: generation helpers
+- `scripts/synthesize/`: generation helpers
 - `scripts/evaluate/`: evaluation helpers
 - `docs/`: user-facing documentation
