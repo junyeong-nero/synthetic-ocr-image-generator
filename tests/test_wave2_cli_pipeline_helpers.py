@@ -127,11 +127,13 @@ def test_build_generation_kwargs_includes_optional_toggles_only_when_set() -> No
         seed=7,
         add_noise=None,
         add_blur=True,
+        sample_start_index=15,
     )
 
     assert "add_noise" not in kwargs
     assert kwargs["add_blur"] is True
     assert kwargs["seed"] == 7
+    assert kwargs["sample_start_index"] == 15
 
 
 def test_build_generate_pipeline_args_maps_expected_keys() -> None:
@@ -166,6 +168,9 @@ def test_build_generate_pipeline_args_maps_expected_keys() -> None:
         train_ratio=0.9,
         test_ratio=0.1,
         seed=123,
+        shard_size=250,
+        max_shards=3,
+        resume=True,
     )
 
     pipeline_args = main_module._build_generate_pipeline_args(args)
@@ -173,6 +178,9 @@ def test_build_generate_pipeline_args_maps_expected_keys() -> None:
     assert pipeline_args["repo_id"] == "repo"
     assert pipeline_args["coverage_targets"] == ["sections=0.5"]
     assert pipeline_args["seed"] == 123
+    assert pipeline_args["shard_size"] == 250
+    assert pipeline_args["max_shards"] == 3
+    assert pipeline_args["resume"] is True
     assert len(pipeline_args) == len(main_module.GENERATE_ARG_TO_PIPELINE_KEY)
 
 
@@ -204,6 +212,11 @@ def test_configure_generate_parser_wires_defaults_and_effect_flags() -> None:
     parsed = parser.parse_args([
         "--repo-id",
         "demo/repo",
+        "--shard-size",
+        "200",
+        "--max-shards",
+        "2",
+        "--resume",
         "--no-add-noise",
         "--add-blur",
     ])
@@ -211,5 +224,8 @@ def test_configure_generate_parser_wires_defaults_and_effect_flags() -> None:
     assert parsed.repo_id == "demo/repo"
     assert parsed.markdown_renderer == "pil"
     assert parsed.style_profile == "balanced"
+    assert parsed.shard_size == 200
+    assert parsed.max_shards == 2
+    assert parsed.resume is True
     assert parsed.add_noise is False
     assert parsed.add_blur is True

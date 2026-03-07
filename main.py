@@ -187,6 +187,9 @@ GENERATE_ARG_TO_PIPELINE_KEY: tuple[tuple[str, str], ...] = (
     ("train_ratio", "train_ratio"),
     ("test_ratio", "test_ratio"),
     ("seed", "seed"),
+    ("shard_size", "shard_size"),
+    ("max_shards", "max_shards"),
+    ("resume", "resume"),
 )
 
 
@@ -239,6 +242,24 @@ def _configure_generate_parser(gen_parser: argparse.ArgumentParser) -> None:
         type=int,
         default=100,
         help="Number of images to generate",
+    )
+    gen_parser.add_argument(
+        "--shard-size",
+        type=int,
+        default=None,
+        help="Number of samples per shard output directory",
+    )
+    gen_parser.add_argument(
+        "--max-shards",
+        type=int,
+        default=None,
+        help="Limit generation to the first N planned shards",
+    )
+    gen_parser.add_argument(
+        "--resume",
+        action="store_true",
+        default=False,
+        help="Resume a previously started sharded generation run",
     )
     gen_parser.add_argument(
         "--template",
