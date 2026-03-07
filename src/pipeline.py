@@ -87,7 +87,8 @@ def _prepare_run_manifest(
     mixed: bool,
     lang: str,
     seed: Optional[int],
-    repo_id: str,
+    repo_id: Optional[str],
+    generation_config: dict[str, Any],
 ) -> RunManifest:
     manifest_path = task_output_dir / "run_manifest.json"
     task_output_dir.mkdir(parents=True, exist_ok=True)
@@ -112,11 +113,124 @@ def _prepare_run_manifest(
         lang=lang,
         seed=seed,
         repo_id=repo_id,
+        generation_config=generation_config,
+    )
+
+
+def _build_publish_context(
+    *,
+    lang: str,
+    size: int,
+    template: Optional[str],
+    template_family: Optional[str],
+    min_template_complexity: Optional[int],
+    max_template_complexity: Optional[int],
+    template_config_dir: Optional[str],
+    markdown_renderer: str,
+    style_profile: str,
+    coverage_targets: Any,
+    novelty_window: int,
+    novelty_threshold: float,
+    novelty_max_attempts: int,
+    similar_char_ratio: float,
+    similarity_db_path: Optional[str],
+    formula_source_mode: str,
+    formula_dataset_path: Optional[str],
+    formula_dataset_weight: float,
+    formula_random_weight: float,
+    formula_synthetic_weight: float,
+    add_noise: Optional[bool],
+    add_blur: Optional[bool],
+    mixed: bool,
+    train_ratio: float,
+    test_ratio: float,
+    seed: Optional[int],
+) -> dict[str, Any]:
+    return {
+        "lang": lang,
+        "size": size,
+        "template": template,
+        "template_family": template_family,
+        "min_template_complexity": min_template_complexity,
+        "max_template_complexity": max_template_complexity,
+        "template_config_dir": template_config_dir,
+        "markdown_renderer": markdown_renderer,
+        "style_profile": style_profile,
+        "coverage_targets": coverage_targets,
+        "novelty_window": novelty_window,
+        "novelty_threshold": novelty_threshold,
+        "novelty_max_attempts": novelty_max_attempts,
+        "similar_char_ratio": similar_char_ratio,
+        "similarity_db_path": similarity_db_path,
+        "formula_source_mode": formula_source_mode,
+        "formula_dataset_path": formula_dataset_path,
+        "formula_dataset_weight": formula_dataset_weight,
+        "formula_random_weight": formula_random_weight,
+        "formula_synthetic_weight": formula_synthetic_weight,
+        "add_noise": add_noise,
+        "add_blur": add_blur,
+        "mixed": mixed,
+        "train_ratio": train_ratio,
+        "test_ratio": test_ratio,
+        "seed": seed,
+    }
+
+
+def publish_pipeline(
+    *,
+    generated_path: str,
+    repo_id: Optional[str] = None,
+    train_ratio: Optional[float] = None,
+    test_ratio: Optional[float] = None,
+) -> dict[str, int]:
+    generated_dir = Path(generated_path)
+    manifest_path = generated_dir / "run_manifest.json"
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"Run manifest not found at '{manifest_path}'")
+
+    manifest = RunManifest.load(manifest_path)
+    generation_config = dict(manifest.data.get("generation_config") or {})
+    resolved_repo_id = repo_id or manifest.data.get("repo_id")
+    if not resolved_repo_id:
+        raise ValueError("repo_id is required to publish the generated dataset")
+
+    resolved_train_ratio = train_ratio if train_ratio is not None else generation_config.get("train_ratio", 0.9)
+    resolved_test_ratio = test_ratio if test_ratio is not None else generation_config.get("test_ratio", 0.1)
+
+    return upload_generated_dataset(
+        repo_id=resolved_repo_id,
+        generated_path=generated_dir,
+        mixed=bool(manifest.data.get("mixed", generation_config.get("mixed", False))),
+        train_ratio=float(resolved_train_ratio),
+        test_ratio=float(resolved_test_ratio),
+        lang=str(manifest.data.get("lang", generation_config.get("lang", "ko"))),
+        size=int(manifest.data.get("size", generation_config.get("size", 0))),
+        template=generation_config.get("template"),
+        template_family=generation_config.get("template_family"),
+        min_template_complexity=generation_config.get("min_template_complexity"),
+        max_template_complexity=generation_config.get("max_template_complexity"),
+        template_config_dir=generation_config.get("template_config_dir"),
+        markdown_renderer=str(generation_config.get("markdown_renderer", "pil")),
+        style_profile=str(generation_config.get("style_profile", "balanced")),
+        coverage_targets=generation_config.get("coverage_targets"),
+        novelty_window=int(generation_config.get("novelty_window", 80)),
+        novelty_threshold=float(generation_config.get("novelty_threshold", 0.95)),
+        novelty_max_attempts=int(generation_config.get("novelty_max_attempts", 4)),
+        similar_char_ratio=float(generation_config.get("similar_char_ratio", 0.08)),
+        similarity_db_path=generation_config.get("similarity_db_path"),
+        formula_source_mode=str(generation_config.get("formula_source_mode", "mixed")),
+        formula_dataset_path=generation_config.get("formula_dataset_path"),
+        formula_dataset_weight=float(generation_config.get("formula_dataset_weight", 0.45)),
+        formula_random_weight=float(generation_config.get("formula_random_weight", 0.30)),
+        formula_synthetic_weight=float(generation_config.get("formula_synthetic_weight", 0.25)),
+        add_noise=generation_config.get("add_noise"),
+        add_blur=generation_config.get("add_blur"),
+        seed=manifest.data.get("seed", generation_config.get("seed")),
     )
 
 
 def pipeline(
-    repo_id: str,
+    repo_id: Optional[str],
     size: int,
     output_dir: str,
     lang: str,
@@ -147,6 +261,7 @@ def pipeline(
     shard_size: Optional[int] = None,
     max_shards: Optional[int] = None,
     resume: bool = False,
+    upload: bool = False,
 ) -> None:
     logger.info("=" * 80)
     set_global_seed(seed)
@@ -171,6 +286,34 @@ def pipeline(
     font_dir = Path(f"fonts/{lang}")
     resolved_shard_size = _resolve_shard_size(size, shard_size)
     shard_specs = plan_shards(size, resolved_shard_size, max_shards=max_shards)
+    publish_context = _build_publish_context(
+        lang=lang,
+        size=size,
+        template=template,
+        template_family=template_family,
+        min_template_complexity=min_template_complexity,
+        max_template_complexity=max_template_complexity,
+        template_config_dir=template_config_dir,
+        markdown_renderer=markdown_renderer,
+        style_profile=style_profile,
+        coverage_targets=coverage_targets,
+        novelty_window=novelty_window,
+        novelty_threshold=novelty_threshold,
+        novelty_max_attempts=novelty_max_attempts,
+        similar_char_ratio=similar_char_ratio,
+        similarity_db_path=similarity_db_path,
+        formula_source_mode=formula_source_mode,
+        formula_dataset_path=formula_dataset_path,
+        formula_dataset_weight=formula_dataset_weight,
+        formula_random_weight=formula_random_weight,
+        formula_synthetic_weight=formula_synthetic_weight,
+        add_noise=add_noise,
+        add_blur=add_blur,
+        mixed=mixed,
+        train_ratio=train_ratio,
+        test_ratio=test_ratio,
+        seed=seed,
+    )
 
     if not shard_specs:
         logger.warning("No shard work was planned, terminating.")
@@ -188,6 +331,7 @@ def pipeline(
             lang=lang,
             seed=seed,
             repo_id=repo_id,
+            generation_config=publish_context,
         )
         manifest.initialize_shards(shard_specs)
 
@@ -252,6 +396,7 @@ def pipeline(
             lang=lang,
             seed=seed,
             repo_id=repo_id,
+            generation_config=publish_context,
         )
         manifest.initialize_shards(shard_specs)
 
@@ -304,7 +449,9 @@ def pipeline(
         manifest.mark_finished()
         generated_dir = str(task_output_dir)
 
-    if generated_dir:
+    if generated_dir and upload:
+        if not repo_id:
+            raise ValueError("repo_id is required when upload is enabled")
         logger.info(f"\n--- Uploading to Hugging Face Hub: {repo_id} ---")
         upload_generated_dataset(
             repo_id=repo_id,
@@ -336,8 +483,11 @@ def pipeline(
             add_blur=add_blur,
             seed=seed,
         )
-    else:
+    elif not generated_dir:
         logger.warning("No dataset was generated, skipping upload.")
 
     logger.info("\n" + " Pipeline completed! ".center(80, "="))
-    logger.info(f"Dataset: https://huggingface.co/datasets/{repo_id}")
+    if upload and repo_id:
+        logger.info(f"Dataset: https://huggingface.co/datasets/{repo_id}")
+    else:
+        logger.info(f"Generated dataset path: {generated_dir}")

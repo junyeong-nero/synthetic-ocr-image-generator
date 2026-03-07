@@ -57,7 +57,8 @@ class RunManifest:
         mixed: bool,
         lang: str,
         seed: Optional[int],
-        repo_id: str,
+        repo_id: Optional[str],
+        generation_config: Optional[Dict[str, Any]] = None,
     ) -> "RunManifest":
         manifest = cls(
             path,
@@ -71,6 +72,7 @@ class RunManifest:
                 "lang": lang,
                 "seed": seed,
                 "repo_id": repo_id,
+                "generation_config": generation_config or {},
                 "completed_shards": [],
                 "failed_shards": [],
                 "shards": {},
@@ -99,7 +101,7 @@ class RunManifest:
         mixed: bool,
         lang: str,
         seed: Optional[int],
-        repo_id: str,
+        repo_id: Optional[str],
     ) -> None:
         expected = {
             "size": size,
@@ -110,6 +112,8 @@ class RunManifest:
             "repo_id": repo_id,
         }
         for key, value in expected.items():
+            if key == "repo_id" and value is None:
+                continue
             if self.data.get(key) != value:
                 raise ValueError(
                     f"Resume parameters do not match existing manifest for '{key}': "

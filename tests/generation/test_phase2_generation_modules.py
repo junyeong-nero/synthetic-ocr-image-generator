@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from generation.sharding import RunManifest
 from generation.git_metadata import normalize_github_url
 from generation.ground_truth import attach_unified_ground_truth
 from generation.hub_upload import upload_mixed_format_to_hub
@@ -117,3 +118,66 @@ def test_upload_mixed_format_to_hub_splits_and_uploads(monkeypatch, tmp_path: Pa
     assert {call["split"] for call in calls} == {"train", "test"}
     assert all(call["config_name"] == "default" for call in calls)
     assert all(call["reuse_existing_schema"] is True for call in calls)
+
+
+def test_publish_pipeline_uses_manifest_context(monkeypatch, tmp_path: Path) -> None:
+    from pipeline import publish_pipeline
+
+    generated_path = tmp_path / "images_markdown"
+    generated_path.mkdir()
+    manifest = RunManifest.create(
+        path=generated_path / "run_manifest.json",
+        generator_name="markdown",
+        size=12,
+        shard_size=4,
+        mixed=False,
+        lang="ko",
+        seed=7,
+        repo_id="demo/repo",
+        generation_config={
+            "lang": "ko",
+            "size": 12,
+            "template": "readme",
+            "template_family": "sections",
+            "min_template_complexity": 1,
+            "max_template_complexity": 3,
+            "template_config_dir": "configs/generator/templates",
+            "markdown_renderer": "pil",
+            "style_profile": "balanced",
+            "coverage_targets": ["sections=0.5"],
+            "novelty_window": 80,
+            "novelty_threshold": 0.95,
+            "novelty_max_attempts": 4,
+            "similar_char_ratio": 0.08,
+            "similarity_db_path": None,
+            "formula_source_mode": "mixed",
+            "formula_dataset_path": None,
+            "formula_dataset_weight": 0.45,
+            "formula_random_weight": 0.30,
+            "formula_synthetic_weight": 0.25,
+            "add_noise": True,
+            "add_blur": False,
+            "mixed": False,
+            "train_ratio": 0.9,
+            "test_ratio": 0.1,
+            "seed": 7,
+        },
+    )
+    manifest.mark_finished()
+
+    calls = []
+
+    def _stub_upload_generated_dataset(**kwargs):
+        calls.append(kwargs)
+        return {"train": 12}
+
+    monkeypatch.setattr("pipeline.upload_generated_dataset", _stub_upload_generated_dataset)
+
+    counts = publish_pipeline(generated_path=str(generated_path))
+
+    assert counts == {"train": 12}
+    assert len(calls) == 1
+    assert calls[0]["repo_id"] == "demo/repo"
+    assert calls[0]["generated_path"] == generated_path
+    assert calls[0]["template"] == "readme"
+    assert calls[0]["seed"] == 7
