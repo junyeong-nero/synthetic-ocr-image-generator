@@ -164,7 +164,6 @@ def test_build_generate_pipeline_args_maps_expected_keys() -> None:
         formula_synthetic_weight=0.25,
         add_noise=True,
         add_blur=False,
-        mixed=False,
         train_ratio=0.9,
         test_ratio=0.1,
         seed=123,
@@ -234,6 +233,8 @@ def test_configure_generate_parser_wires_defaults_and_effect_flags() -> None:
     parsed = parser.parse_args([
         "--repo-id",
         "demo/repo",
+        "--markdown-renderer",
+        "playwright",
         "--shard-size",
         "200",
         "--max-shards",
@@ -245,7 +246,7 @@ def test_configure_generate_parser_wires_defaults_and_effect_flags() -> None:
     ])
 
     assert parsed.repo_id == "demo/repo"
-    assert parsed.markdown_renderer == "pil"
+    assert parsed.markdown_renderer == "playwright"
     assert parsed.style_profile == "balanced"
     assert parsed.shard_size == 200
     assert parsed.max_shards == 2
@@ -264,6 +265,7 @@ def test_configure_generate_parser_allows_generation_without_repo_id() -> None:
     parsed = parser.parse_args([])
 
     assert parsed.repo_id is None
+    assert parsed.markdown_renderer == "playwright"
     assert parsed.upload is False
 
 

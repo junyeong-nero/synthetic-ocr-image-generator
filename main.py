@@ -183,7 +183,6 @@ GENERATE_ARG_TO_PIPELINE_KEY: tuple[tuple[str, str], ...] = (
     ("formula_synthetic_weight", "formula_synthetic_weight"),
     ("add_noise", "add_noise"),
     ("add_blur", "add_blur"),
-    ("mixed", "mixed"),
     ("train_ratio", "train_ratio"),
     ("test_ratio", "test_ratio"),
     ("seed", "seed"),
@@ -316,9 +315,9 @@ def _configure_generate_parser(gen_parser: argparse.ArgumentParser) -> None:
     gen_parser.add_argument(
         "--markdown-renderer",
         type=str,
-        default="pil",
-        choices=["pil", "html2image"],
-        help="Markdown rendering pipeline (pil or markdown->html->image via html2image)",
+        default="playwright",
+        choices=["pil", "html2image", "playwright"],
+        help="Markdown rendering pipeline (pil, html2image, or headless Playwright)",
     )
     gen_parser.add_argument(
         "--style-profile",
@@ -380,19 +379,19 @@ def _configure_generate_parser(gen_parser: argparse.ArgumentParser) -> None:
         "--formula-dataset-weight",
         type=float,
         default=0.45,
-        help="Formula source weight for dataset entries in mixed mode",
+        help="Formula source weight for dataset entries when --formula-source-mode=mixed",
     )
     gen_parser.add_argument(
         "--formula-random-weight",
         type=float,
         default=0.30,
-        help="Formula source weight for random templates in mixed mode",
+        help="Formula source weight for random templates when --formula-source-mode=mixed",
     )
     gen_parser.add_argument(
         "--formula-synthetic-weight",
         type=float,
         default=0.25,
-        help="Formula source weight for synthetic formulas in mixed mode",
+        help="Formula source weight for synthetic formulas when --formula-source-mode=mixed",
     )
     _add_optional_generation_effect_argument(
         gen_parser,
@@ -405,22 +404,16 @@ def _configure_generate_parser(gen_parser: argparse.ArgumentParser) -> None:
         "Enable or disable blur effect (default: generator setting)",
     )
     gen_parser.add_argument(
-        "--mixed",
-        action="store_true",
-        default=False,
-        help="Generate mixed format dataset",
-    )
-    gen_parser.add_argument(
         "--train-ratio",
         type=float,
         default=0.9,
-        help="Train split ratio in mixed mode (default: 0.9)",
+        help="Train split ratio for dataset publishing (default: 0.9)",
     )
     gen_parser.add_argument(
         "--test-ratio",
         type=float,
         default=0.1,
-        help="Test split ratio in mixed mode (default: 0.1)",
+        help="Test split ratio for dataset publishing (default: 0.1)",
     )
 
 
@@ -448,13 +441,13 @@ def _configure_publish_parser(publish_parser: argparse.ArgumentParser) -> None:
         "--train-ratio",
         type=float,
         default=None,
-        help="Override the train split ratio used for mixed dataset publishing",
+        help="Override the train split ratio used for dataset publishing",
     )
     publish_parser.add_argument(
         "--test-ratio",
         type=float,
         default=None,
-        help="Override the test split ratio used for mixed dataset publishing",
+        help="Override the test split ratio used for dataset publishing",
     )
 
 
