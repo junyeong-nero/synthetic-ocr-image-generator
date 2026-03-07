@@ -2,10 +2,11 @@ import base64
 import importlib
 import re
 import tempfile
+from collections import OrderedDict
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import numpy as np
 from PIL import Image
@@ -25,9 +26,33 @@ _SUBSUPSUB_PATTERN = re.compile(
     r"_\{(?P<sub>[^{}]+)\}\^\{(?P<sup>[^{}]+)\}_\{(?P<extra_sub>[^{}]+)\}"
 )
 
-_FORMULA_IMAGE_CACHE: Dict[Tuple[str, int, Tuple[int, int, int]], Optional[Image.Image]] = {}
+_FORMULA_IMAGE_CACHE_MAX_ITEMS = 256
+_FORMULA_IMAGE_CACHE: "OrderedDict[Tuple[str, int, Tuple[int, int, int]], Optional[Image.Image]]" = OrderedDict()
 _LATEX_TO_IMAGE_RENDERER: Optional[Any] = None
 _LATEX_TO_IMAGE_LOADED = False
+
+
+def _get_cached_formula_image(
+    cache_key: Tuple[str, int, Tuple[int, int, int]],
+) -> Tuple[bool, Optional[Image.Image]]:
+    if cache_key not in _FORMULA_IMAGE_CACHE:
+        return False, None
+
+    cached = _FORMULA_IMAGE_CACHE.pop(cache_key)
+    _FORMULA_IMAGE_CACHE[cache_key] = cached
+    return True, cached.copy() if cached is not None else None
+
+
+def _store_cached_formula_image(
+    cache_key: Tuple[str, int, Tuple[int, int, int]],
+    image: Optional[Image.Image],
+) -> None:
+    if cache_key in _FORMULA_IMAGE_CACHE:
+        _FORMULA_IMAGE_CACHE.pop(cache_key)
+    _FORMULA_IMAGE_CACHE[cache_key] = image.copy() if image is not None else None
+
+    while len(_FORMULA_IMAGE_CACHE) > _FORMULA_IMAGE_CACHE_MAX_ITEMS:
+        _FORMULA_IMAGE_CACHE.popitem(last=False)
 
 
 def parse_markdown_image_line(line: str) -> Optional[Tuple[str, str]]:
@@ -222,23 +247,23 @@ def render_formula_image(
         return None
 
     cache_key = (expression, int(font_size), text_color)
-    if cache_key in _FORMULA_IMAGE_CACHE:
-        cached = _FORMULA_IMAGE_CACHE[cache_key]
-        return cached.copy() if cached is not None else None
+    cache_hit, cached_image = _get_cached_formula_image(cache_key)
+    if cache_hit:
+        return cached_image
 
     renderer = _get_latex_to_image_renderer()
     if renderer is None:
-        _FORMULA_IMAGE_CACHE[cache_key] = None
+        _store_cached_formula_image(cache_key, None)
         return None
 
     rendered_array = _render_formula_array_with_latex_tools(renderer, expression)
     if rendered_array is None:
-        _FORMULA_IMAGE_CACHE[cache_key] = None
+        _store_cached_formula_image(cache_key, None)
         return None
 
     formula_image = _formula_array_to_rgba(rendered_array, text_color)
     if formula_image is None:
-        _FORMULA_IMAGE_CACHE[cache_key] = None
+        _store_cached_formula_image(cache_key, None)
         return None
 
     scale = max(0.35, min(3.0, float(max(6, int(font_size))) / 24.0))
@@ -249,7 +274,7 @@ def render_formula_image(
         )
         formula_image = formula_image.resize(target_size, Image.Resampling.LANCZOS)
 
-    _FORMULA_IMAGE_CACHE[cache_key] = formula_image
+    _store_cached_formula_image(cache_key, formula_image)
     return formula_image.copy()
 
 
