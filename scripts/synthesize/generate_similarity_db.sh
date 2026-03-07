@@ -6,17 +6,25 @@ usage() {
     echo "Usage: $0 --lang <code> [--lang <code> ...] [options]"
     echo ""
     echo "Options:"
-    echo "  --lang <code>         Language code (repeatable, required)"
-    echo "  --all                 Generate DBs for all scripts/dataset/lang/*.sh"
-    echo "  --font-path <path>    Font file path override for all languages"
-    echo "  --corpus-path <path>  Corpus file override for all languages"
-    echo "  --db-path <path>      DB output path override (single language only)"
-    echo "  --auto-generate-corpus Auto-generate corpus when missing"
-    echo "  --corpus-sentences <n> Number of wiki sentences for auto corpus (default: 100000)"
-    echo "  --threshold <float>   Similarity threshold (default: 0.6)"
-    echo "  --top-k <int>         Max similar chars per character (default: 8)"
-    echo "  --dry-run             Print resolved inputs only"
-    echo "  -h, --help            Show this help message"
+    echo "  --lang <code>              Language code (repeatable, required)"
+    echo "  --all                      Generate DBs for all scripts/synthesize/lang/*.sh"
+    echo "  --font-path <path>         Font file path override for all languages"
+    echo "  --corpus-path <path>       Final merged corpus file override for all languages"
+    echo "  --db-path <path>           DB output path override (single language only)"
+    echo "  --generate-corpus          Generate corpus with 'main.py corpus generate' before DB build"
+    echo "  --corpus-provider <name>   Corpus LLM provider (default: openai)"
+    echo "  --corpus-model <name>      Corpus LLM model override"
+    echo "  --corpus-lang-name <name>  Optional language name hint for corpus generation"
+    echo "  --corpus-count <n>         Items to generate per corpus category (default: 1000)"
+    echo "  --corpus-batch-size <n>    Items requested per corpus API call (default: 100)"
+    echo "  --corpus-output-dir <path> Corpus category output dir (default: data/corpus)"
+    echo "  --corpus-category <name>   Corpus category to generate (repeatable, default: all)"
+    echo "  --auto-generate-corpus     Auto-generate corpus from Wikimedia when missing"
+    echo "  --corpus-sentences <n>     Wiki sentence count for auto corpus (default: 100000)"
+    echo "  --threshold <float>        Similarity threshold (default: 0.6)"
+    echo "  --top-k <int>              Max similar chars per character (default: 8)"
+    echo "  --dry-run                  Print resolved actions only"
+    echo "  -h, --help                 Show this help message"
     echo ""
     echo "Default font selection priority (when --font-path is omitted):"
     echo "  1) fonts/<lang>/NotoSans*VariableFont*.ttf"
@@ -36,7 +44,15 @@ USE_ALL=false
 FONT_PATH=""
 CORPUS_PATH=""
 DB_PATH=""
+GENERATE_CORPUS=false
 AUTO_GENERATE_CORPUS=false
+CORPUS_PROVIDER="openai"
+CORPUS_MODEL=""
+CORPUS_LANG_NAME=""
+CORPUS_COUNT="1000"
+CORPUS_BATCH_SIZE="100"
+CORPUS_OUTPUT_DIR="$PROJECT_DIR/data/corpus"
+CORPUS_CATEGORIES=()
 CORPUS_SENTENCES="100000"
 THRESHOLD="0.6"
 TOP_K="8"
@@ -62,6 +78,38 @@ while [[ $# -gt 0 ]]; do
             ;;
         --db-path)
             DB_PATH="$2"
+            shift 2
+            ;;
+        --generate-corpus)
+            GENERATE_CORPUS=true
+            shift
+            ;;
+        --corpus-provider)
+            CORPUS_PROVIDER="$2"
+            shift 2
+            ;;
+        --corpus-model)
+            CORPUS_MODEL="$2"
+            shift 2
+            ;;
+        --corpus-lang-name)
+            CORPUS_LANG_NAME="$2"
+            shift 2
+            ;;
+        --corpus-count)
+            CORPUS_COUNT="$2"
+            shift 2
+            ;;
+        --corpus-batch-size)
+            CORPUS_BATCH_SIZE="$2"
+            shift 2
+            ;;
+        --corpus-output-dir)
+            CORPUS_OUTPUT_DIR="$2"
+            shift 2
+            ;;
+        --corpus-category)
+            CORPUS_CATEGORIES+=("$2")
             shift 2
             ;;
         --auto-generate-corpus)
@@ -184,11 +232,11 @@ auto_generate_corpus() {
     mkdir -p "$(dirname "$output_path")"
 
     if [[ "$DRY_RUN" == true ]]; then
-        echo "[dry-run] Would auto-generate corpus: $output_path"
+        echo "[dry-run] Would auto-generate wiki corpus: $output_path"
         return 0
     fi
 
-    echo "Auto-generating corpus for '$lang'..."
+    echo "Auto-generating wiki corpus for '$lang'..."
     PROJECT_DIR_ENV="$PROJECT_DIR" \
     LANG_ENV="$lang" \
     OUTPUT_PATH_ENV="$output_path" \
@@ -214,6 +262,96 @@ create_corpus_from_wiki(
 PY
 }
 
+merge_generated_corpus() {
+    local output_path="$1"
+    local category_dir="$2"
+
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "[dry-run] Would merge generated corpus files from: $category_dir"
+        echo "[dry-run] Would write merged corpus to: $output_path"
+        return 0
+    fi
+
+    if [[ ! -d "$category_dir" ]]; then
+        echo "Error: generated corpus directory not found: $category_dir"
+        exit 1
+    fi
+
+    mkdir -p "$(dirname "$output_path")"
+
+    CATEGORY_DIR_ENV="$category_dir" \
+    OUTPUT_PATH_ENV="$output_path" \
+    python3 - <<'PY'
+from pathlib import Path
+import os
+
+category_dir = Path(os.environ["CATEGORY_DIR_ENV"])
+output_path = Path(os.environ["OUTPUT_PATH_ENV"])
+files = sorted(category_dir.glob("*.txt"))
+if not files:
+    raise SystemExit(f"Error: no generated corpus files found in {category_dir}")
+
+seen = set()
+items = []
+for path in files:
+    with path.open("r", encoding="utf-8") as file_handle:
+        for line in file_handle:
+            value = line.strip()
+            if not value or value in seen:
+                continue
+            seen.add(value)
+            items.append(value)
+
+output_path.write_text("\n".join(items) + ("\n" if items else ""), encoding="utf-8")
+print(f"Merged {len(items)} corpus lines into {output_path}")
+PY
+}
+
+generate_corpus_with_llm() {
+    local lang="$1"
+    local output_path="$2"
+    local category_dir="$CORPUS_OUTPUT_DIR/$lang"
+    local cmd=(
+        uv run --no-sync main.py corpus generate
+        --lang "$lang"
+        --provider "$CORPUS_PROVIDER"
+        --count "$CORPUS_COUNT"
+        --batch-size "$CORPUS_BATCH_SIZE"
+        --output-dir "$CORPUS_OUTPUT_DIR"
+    )
+
+    if [[ -n "$CORPUS_MODEL" ]]; then
+        cmd+=(--model "$CORPUS_MODEL")
+    fi
+
+    if [[ -n "$CORPUS_LANG_NAME" ]]; then
+        cmd+=(--lang-name "$CORPUS_LANG_NAME")
+    fi
+
+    if [[ ${#CORPUS_CATEGORIES[@]} -gt 0 ]]; then
+        local category
+        for category in "${CORPUS_CATEGORIES[@]}"; do
+            cmd+=(--category "$category")
+        done
+    fi
+
+    if [[ "$DRY_RUN" == true ]]; then
+        printf '[dry-run] Would run corpus generation command:'
+        printf ' %q' "${cmd[@]}"
+        printf '\n'
+        merge_generated_corpus "$output_path" "$category_dir"
+        return 0
+    fi
+
+    echo "Generating corpus for '$lang' via unified CLI..."
+    (
+        cd "$PROJECT_DIR"
+        "${cmd[@]}"
+    )
+
+    merge_generated_corpus "$output_path" "$category_dir"
+}
+
 for lang in "${LANGS[@]}"; do
     lang="$(printf '%s' "$lang" | tr '[:upper:]' '[:lower:]')"
 
@@ -231,7 +369,9 @@ for lang in "${LANGS[@]}"; do
         resolved_corpus="$(preferred_corpus_path "$lang")"
     fi
 
-    if [[ ! -f "$resolved_corpus" ]]; then
+    if [[ "$GENERATE_CORPUS" == true ]]; then
+        generate_corpus_with_llm "$lang" "$resolved_corpus"
+    elif [[ ! -f "$resolved_corpus" ]]; then
         if [[ "$AUTO_GENERATE_CORPUS" == true ]]; then
             auto_generate_corpus "$lang" "$resolved_corpus"
         else
@@ -240,16 +380,16 @@ for lang in "${LANGS[@]}"; do
             echo "  $PROJECT_DIR/data/$lang/corpus.txt"
             echo "  $PROJECT_DIR/data/corpus_$lang.txt"
             echo "  $PROJECT_DIR/data/corpus.txt"
-            echo "Or pass --corpus-path explicitly, or use --auto-generate-corpus."
+            echo "Or pass --corpus-path explicitly, use --generate-corpus, or use --auto-generate-corpus."
             exit 1
         fi
     fi
 
     if [[ ! -f "$resolved_corpus" ]]; then
-        if [[ "$DRY_RUN" == true && "$AUTO_GENERATE_CORPUS" == true ]]; then
-            echo "[dry-run] Corpus would be auto-generated before DB build: $resolved_corpus"
+        if [[ "$DRY_RUN" == true && ( "$GENERATE_CORPUS" == true || "$AUTO_GENERATE_CORPUS" == true ) ]]; then
+            echo "[dry-run] Corpus would be prepared before DB build: $resolved_corpus"
         else
-            echo "Error: corpus file not found after auto-generation: $resolved_corpus"
+            echo "Error: corpus file not found after preparation: $resolved_corpus"
             exit 1
         fi
     fi
