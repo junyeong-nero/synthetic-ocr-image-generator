@@ -26,6 +26,9 @@ usage() {
     echo "  --markdown-renderer <name> Renderer: pil|html2image (default: html2image)"
     echo "  --train-ratio <r>     Train split ratio for mixed mode (default: 0.9)"
     echo "  --test-ratio <r>      Test split ratio for mixed mode (default: 0.1)"
+    echo "  --shard-size <n>      Samples per shard directory (optional)"
+    echo "  --max-shards <n>      Limit generation to the first N shards (optional)"
+    echo "  --resume              Resume a previous sharded run"
     echo "  --label <label>       Display label for logs (optional)"
     echo "  --repo-id <repo>      Hugging Face dataset repo id (required)"
     echo "  --lang <code>         Language code (required)"
@@ -57,6 +60,9 @@ FORMULA_DATASET_PATH=""
 FORMULA_DATASET_WEIGHT=0.45
 FORMULA_RANDOM_WEIGHT=0.30
 FORMULA_SYNTHETIC_WEIGHT=0.25
+SHARD_SIZE=""
+MAX_SHARDS=""
+RESUME=0
 
 parse_range() {
     local raw="$1"
@@ -171,6 +177,18 @@ while [[ $# -gt 0 ]]; do
             TEST_RATIO="$2"
             shift 2
             ;;
+        --shard-size)
+            SHARD_SIZE="$2"
+            shift 2
+            ;;
+        --max-shards)
+            MAX_SHARDS="$2"
+            shift 2
+            ;;
+        --resume)
+            RESUME=1
+            shift
+            ;;
         -h|--help)
             usage
             ;;
@@ -223,7 +241,7 @@ echo "Generating OCR images: $LABEL"
 echo "=========================================="
 
 echo ""
-echo "[1/1] Generating mixed dataset (train/test splits)..."
+echo "[1/1] Generating and uploading mixed dataset (train/test splits)..."
 
 CMD=(
     uv run --no-sync --group generate main.py generate
@@ -234,6 +252,7 @@ CMD=(
     --mixed
     --train-ratio "$TRAIN_RATIO"
     --test-ratio "$TEST_RATIO"
+    --upload
     --markdown-renderer "$MARKDOWN_RENDERER"
     --style-profile "$STYLE_PROFILE"
     --novelty-window "$NOVELTY_WINDOW"
@@ -248,6 +267,18 @@ CMD=(
 
 if [[ -n "$FORMULA_DATASET_PATH" ]]; then
     CMD+=(--formula-dataset-path "$FORMULA_DATASET_PATH")
+fi
+
+if [[ -n "$SHARD_SIZE" ]]; then
+    CMD+=(--shard-size "$SHARD_SIZE")
+fi
+
+if [[ -n "$MAX_SHARDS" ]]; then
+    CMD+=(--max-shards "$MAX_SHARDS")
+fi
+
+if [[ "$RESUME" -eq 1 ]]; then
+    CMD+=(--resume)
 fi
 
 "${CMD[@]}"

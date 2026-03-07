@@ -40,11 +40,15 @@ uv run main.py generate [OPTIONS]
 ```
 
 ### Options
-- `--repo-id`: (Required) HF Hub repository ID.
+- `--repo-id`: Optional HF Hub repository ID. Required only when `--upload` is used or when you want it stored in `run_manifest.json` for later `publish`.
 - `--output-dir`: Base directory for generated data (default: `./data`).
 - `--lang`: Language code (default: `ko`).
 - `--seed`: Random seed for reproducible generation.
 - `--size`: Number of images to generate (default: `100`).
+- `--shard-size`: Samples per shard directory.
+- `--max-shards`: Limit generation to the first N planned shards.
+- `--resume`: Resume a previous sharded generation run.
+- `--upload`: Upload to Hugging Face Hub after generation completes.
 - `--template`: Optional generation template name.
 - `--template-family`: Optional template family filter.
 - `--min-template-complexity`: Minimum template complexity filter (`1-5`).
@@ -63,6 +67,26 @@ uv run main.py generate [OPTIONS]
 - `--mixed`: Generate a mixed-format dataset.
 - `--train-ratio`: Train split ratio in mixed mode (default: `0.9`).
 - `--test-ratio`: Test split ratio in mixed mode (default: `0.1`).
+
+Notes:
+
+- `generate` is local-first. It writes local artifacts and shard manifests even when `--repo-id` is omitted.
+- Use `--upload` for inline upload, or run `publish` later against the generated path.
+
+---
+
+## `publish`
+Publish a previously generated dataset.
+
+```bash
+uv run main.py publish --generated-path <path> [OPTIONS]
+```
+
+### Options
+- `--generated-path`: (Required) Generated dataset root containing `run_manifest.json`.
+- `--repo-id`: Override the repository ID stored in the manifest.
+- `--train-ratio`: Override the train ratio used for mixed publishing.
+- `--test-ratio`: Override the test ratio used for mixed publishing.
 
 ---
 

@@ -1,19 +1,19 @@
 # Data Generation Guide
 
-The `generate` command creates synthetic markdown OCR samples, writes local artifacts, uploads splits to Hugging Face Hub, and publishes a dataset card with reproducible run metadata.
+The `generate` command creates synthetic markdown OCR samples and writes local artifacts. Upload is now an explicit follow-up step via `publish` or `generate --upload`.
 
 ## Quick Start
 
 ```bash
 uv run main.py generate \
-  --repo-id "username/my-ocr-dataset" \
   --lang "ko" \
   --size 100
 ```
 
-Required:
+Optional upload:
 
 - `--repo-id`: Hugging Face dataset repository ID.
+- `--upload`: publish to Hugging Face Hub immediately after generation.
 
 Core defaults:
 
@@ -84,6 +84,16 @@ Coverage parsing notes:
 - `--mixed`: enables train/test upload flow.
 - `--train-ratio` and `--test-ratio`: must each be in `[0, 1]` and sum to `1.0`.
 - `--seed`: global seed used for reproducibility and per-sample seed derivation.
+- `--shard-size`: number of samples per shard directory.
+- `--max-shards`: limit work to the first N shards.
+- `--resume`: continue a previous sharded run using `run_manifest.json`.
+- `--upload`: upload after generation completes.
+
+### Publish Command
+
+- `uv run main.py publish --generated-path <path>` uploads a previously generated dataset root.
+- `publish` reads generation context from `run_manifest.json`, so the dataset card and split settings do not need to be re-entered.
+- `--repo-id` is optional on `publish` when the manifest already contains one, but can still be used to override it.
 
 ## Pipeline Workflow (Detailed)
 
@@ -127,14 +137,16 @@ Coverage parsing notes:
 - Style is sampled from base presets and perturbed according to `--style-profile`.
 - Noise/blur probabilities are then applied.
 - Markdown is rendered by `pil` or `html2image` backend.
-- A final size guard rescales oversized renders to stay within A4 bounds (`2480x3508` max).
+- Formula rasterization uses an in-process bounded cache to avoid unbounded memory growth in long runs.
+- The current markdown image path records `a4_scaled` metadata, but no hard A4 rescale is applied by `_fit_image_to_a4()` at the moment.
 
-8. Metadata and upload
+8. Metadata, shards, and publish
 
 - Each sample writes rich metadata and `GT_markdown` / `GT_json`.
-- Local `metadata.jsonl` is saved.
-- Data uploads to Hugging Face splits.
-- Dataset `README.md` is generated and uploaded with generation settings and reproducible command.
+- Each shard writes its own `metadata.jsonl` and `_SUCCESS` marker under `shards/shard-XXXXXX/`.
+- A top-level `run_manifest.json` tracks shard progress and stores the publish context.
+- After shard completion, root `metadata.jsonl` and `realism_stats.json` are rebuilt from shard outputs.
+- Upload happens only when you run `publish` or pass `--upload`.
 
 ## Template Catalog Format
 
@@ -187,7 +199,6 @@ Component note:
 
 ```bash
 uv run main.py generate \
-  --repo-id "username/my-ocr-dataset" \
   --lang "en" \
   --size 500 \
   --template-family procedural \
@@ -199,7 +210,6 @@ uv run main.py generate \
 
 ```bash
 uv run main.py generate \
-  --repo-id "username/my-ocr-dataset" \
   --lang "ko" \
   --size 2000 \
   --template-family operations \
@@ -217,26 +227,42 @@ uv run main.py generate \
 
 ```bash
 uv run main.py generate \
-  --repo-id "username/my-ocr-dataset" \
   --lang "en" \
   --size 100 \
   --template dynamic_general_notes \
   --seed 42
 ```
 
-### 4) Mixed split upload
+### 4) Sharded local generation
 
 ```bash
 uv run main.py generate \
-  --repo-id "username/my-ocr-dataset" \
   --lang "ko" \
   --size 1000 \
   --mixed \
-  --train-ratio 0.9 \
-  --test-ratio 0.1
+  --shard-size 250
 ```
 
-Split detail:
+### 5) Resume a partial sharded run
+
+```bash
+uv run main.py generate \
+  --lang "ko" \
+  --size 1000 \
+  --mixed \
+  --shard-size 250 \
+  --resume
+```
+
+### 6) Publish a finished local run
+
+```bash
+uv run main.py publish \
+  --generated-path "./data/ko/images_mixed" \
+  --repo-id "username/my-ocr-dataset"
+```
+
+Publish detail:
 
 - Mixed mode is markdown-focused.
 - Records are shuffled with a fixed seed before split, so split assignment is deterministic for identical metadata ordering.
@@ -250,8 +276,12 @@ Local output roots:
 
 Core files:
 
+- `run_manifest.json`
 - `metadata.jsonl`
-- generated image files (`markdown_00000.png`, ...)
+- `realism_stats.json`
+- `shards/shard-000000/metadata.jsonl`
+- `shards/shard-000000/_SUCCESS`
+- generated image files within each shard directory (`shards/shard-000000/markdown_00000.png`, ...)
 
 Per-sample metadata includes:
 
@@ -277,7 +307,8 @@ bash scripts/synthesize/lang/en.sh \
 Notes:
 
 - Wrapper default renderer is `html2image`.
-- Wrapper forwards all new template/diversity flags to `main.py generate`.
+- Wrapper now runs `generate --upload` explicitly, so upload remains opt-in at the CLI level.
+- Wrapper forwards shard and resume flags to `main.py generate`.
 
 ## Character Similarity Database
 
