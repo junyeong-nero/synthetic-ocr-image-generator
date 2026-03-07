@@ -15,16 +15,16 @@ class TableGenerator:
 
     def _resolve_headers(self, column_count: int) -> List[str]:
         template_name = random.choice(["invoice", "schedule", "product", "contact"])
-        base_headers = list(self.data.headers(template_name))
+        base_headers = list(self.data.headers(template_name, count=column_count))
         if not base_headers:
-            base_headers = [f"Column {idx + 1}" for idx in range(column_count)]
+            base_headers = [str(idx + 1) for idx in range(column_count)]
 
         headers: List[str] = []
         for idx in range(column_count):
             if idx < len(base_headers):
                 headers.append(self.clip_text(str(base_headers[idx]), 24))
             else:
-                headers.append(f"Col {idx + 1}")
+                headers.append(str(idx + 1))
         return headers
 
     def _build_cell_value(self, column_index: int, column_count: int) -> str:

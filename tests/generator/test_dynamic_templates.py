@@ -593,6 +593,31 @@ def test_text_generator_prefers_paragraph_corpus_sentences(tmp_path) -> None:
     assert "Corpus sentences should drive generated sections." in markdown or "Follow-up corpus sentence here." in markdown
 
 
+def test_table_generator_prefers_paragraph_corpus_headers_and_cells(tmp_path) -> None:
+    data_provider_module = importlib.import_module("generator.data_provider")
+    table_module = importlib.import_module("generator.table_generator")
+
+    corpus_lang_dir = tmp_path / "en"
+    corpus_lang_dir.mkdir(parents=True, exist_ok=True)
+    (corpus_lang_dir / "paragraphs.txt").write_text(
+        "Quarterly revenue insights improve planning. Customer retention metrics guide roadmap.\n",
+        encoding="utf-8",
+    )
+
+    data = data_provider_module.DataProvider(lang="en", mix_ratio=0.0, corpus_dir=tmp_path, use_corpus=True)
+    table_generator = table_module.TableGenerator(
+        data=data,
+        clip_text=lambda text, max_len: text if len(text) <= max_len else text[:max_len],
+    )
+
+    sections = table_generator.generate_sections(section_count=1, row_range=(2, 2), column_range=(3, 3))
+    markdown = "\n\n".join(sections)
+
+    assert "| Product | Category | Price |" not in markdown
+    assert "| Column 1 |" not in markdown
+    assert "Quarterly revenue" in markdown or "Customer retention" in markdown
+
+
 def test_fit_image_to_a4_keeps_original_size_without_clipping() -> None:
     generator = Generator.__new__(Generator)
     generator.max_render_width = A4_MAX_WIDTH_PX

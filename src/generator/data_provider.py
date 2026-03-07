@@ -8,7 +8,7 @@ This module provides a unified interface for generating various types of data
 3. Curated hardcoded data (fallback)
 
 For 100k+ image generation, use external corpus to minimize duplicates.
-Generate corpus with: python scripts/generate_corpus.py
+Generate corpus with: uv run main.py corpus generate
 """
 
 import logging
@@ -37,7 +37,7 @@ class DataProvider:
     3. Curated hardcoded data (fallback for domain-specific content)
 
     For 100k+ image generation, generate corpus first with:
-        python scripts/generate_corpus.py --lang ko --count 10000
+        uv run main.py corpus generate --lang ko --count 10000
     """
 
     # Mapping from data type to corpus filename
@@ -207,6 +207,32 @@ class DataProvider:
             normalized = normalized[:max_chars].rstrip()
         return normalized.strip(" -_:,;")
 
+    def _paragraph_header_candidates(self, count: int) -> List[str]:
+        paragraphs = self._corpus_cache.get("paragraphs", [])
+        if not paragraphs:
+            return []
+
+        candidates: List[str] = []
+        seen: set[str] = set()
+
+        for paragraph in paragraphs:
+            for sentence in self._split_sentences(paragraph):
+                words = self._trim_sentence_fragment(sentence, max_words=8, max_chars=64).split()
+                if not words:
+                    continue
+
+                for start in range(0, len(words), 2):
+                    fragment = " ".join(words[start : start + 2]).strip()
+                    lowered = fragment.lower()
+                    if not fragment or lowered in seen:
+                        continue
+                    seen.add(lowered)
+                    candidates.append(fragment)
+                    if len(candidates) >= count:
+                        return candidates
+
+        return candidates
+
     def has_corpus(self, data_type: str) -> bool:
         """Check if corpus is available for a data type."""
         return data_type in self._corpus_cache and len(self._corpus_cache[data_type]) > 0
@@ -337,6 +363,10 @@ class DataProvider:
         """Get a random product name."""
         if corpus_item := self._get_from_corpus("product_names"):
             return corpus_item
+        if self.has_corpus("paragraphs"):
+            product = self._trim_sentence_fragment(self.sentence(), max_words=4, max_chars=32)
+            if product:
+                return product
         return random.choice(self._data.product_names)
 
     def product_names(self, count: int = 1) -> List[str]:
@@ -371,9 +401,18 @@ class DataProvider:
 
     # ==================== Table Headers ====================
 
-    def headers(self, template: str) -> List[str]:
+    def headers(self, template: str, count: int = 4) -> List[str]:
         """Get headers for a specific table template."""
-        return self._data.headers.get(template, ["Column 1", "Column 2", "Column 3", "Column 4"])
+        if self.has_corpus("paragraphs"):
+            candidates = self._paragraph_header_candidates(max(count, 4))
+            if len(candidates) >= count:
+                return candidates[:count]
+
+        default_headers = self._data.headers.get(template, [])
+        if default_headers:
+            return list(default_headers[:count])
+
+        return [str(index + 1) for index in range(max(0, count))]
 
     # ==================== Document Content ====================
 

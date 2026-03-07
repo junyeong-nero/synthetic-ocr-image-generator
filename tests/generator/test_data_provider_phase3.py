@@ -140,3 +140,26 @@ def test_title_and_feature_fall_back_to_paragraph_corpus_fragments(tmp_path: Pat
     )
     assert any(fragment in title.lower() for fragment in expected_fragments)
     assert any(fragment in feature.lower() for fragment in expected_fragments)
+
+
+def test_product_name_and_headers_fall_back_to_paragraph_corpus_fragments(tmp_path: Path) -> None:
+    DataProvider, _, _, _ = _load_provider_symbols()
+
+    corpus_lang_dir = tmp_path / "en"
+    corpus_lang_dir.mkdir(parents=True, exist_ok=True)
+    (corpus_lang_dir / "paragraphs.txt").write_text(
+        "Quarterly revenue insights improve planning. Customer retention metrics guide roadmap.\n",
+        encoding="utf-8",
+    )
+
+    provider = DataProvider(lang="en", seed=9, corpus_dir=tmp_path, use_corpus=True)
+
+    product_name = provider.product_name()
+    headers = provider.headers("product", count=3)
+
+    assert product_name
+    assert product_name != "Laptop"
+    assert any(fragment in product_name.lower() for fragment in ("quarterly", "revenue", "customer", "retention"))
+    assert len(headers) == 3
+    assert all(header for header in headers)
+    assert headers != ["Product", "Category", "Price"]
