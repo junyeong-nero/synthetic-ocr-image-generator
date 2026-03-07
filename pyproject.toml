@@ -26,6 +26,7 @@ dependencies = [
     "mistune>=3.0.0",
     "markdown>=3.8",
     "html2image>=2.0.5",
+    "playwright>=1.50.0",
     "addict>=2.4.0",
     "einops>=0.8.2",
     "easydict>=1.13",
@@ -76,6 +77,7 @@ generate = [
     "mistune>=3.0.0",
     "markdown>=3.8",
     "html2image>=2.0.5",
+    "playwright>=1.50.0",
     "latex-to-image",
 ]
 
