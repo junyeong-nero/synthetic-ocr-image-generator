@@ -2,13 +2,17 @@ import argparse
 import logging
 from pathlib import Path
 
-from corpus_llm.constants import CATEGORIES, CORPUS_DIR, DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
+from corpus_llm.constants import (
+    CATEGORIES,
+    CORPUS_DIR,
+    DEFAULT_ANTHROPIC_MODEL,
+    DEFAULT_OPENAI_MODEL,
+)
 from corpus_llm.pipeline import run_generation
 from corpus_llm.providers import get_provider
 
 
-def create_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generate corpus data using LLM")
+def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     parser.add_argument(
         "--lang",
         type=str,
@@ -65,10 +69,12 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-async def run_cli() -> int:
-    parser = create_parser()
-    args = parser.parse_args()
+def create_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Generate corpus data using LLM")
+    return add_arguments(parser)
 
+
+async def run_with_args(args: argparse.Namespace) -> int:
     try:
         provider = get_provider(args.provider, args.model)
     except ImportError as exc:
@@ -86,3 +92,9 @@ async def run_cli() -> int:
         output_dir=Path(args.output_dir),
         lang_name=args.lang_name,
     )
+
+
+async def run_cli() -> int:
+    parser = create_parser()
+    args = parser.parse_args()
+    return await run_with_args(args)

@@ -1,6 +1,7 @@
 """Main entry point for generation and evaluation pipelines."""
 
 import sys
+import asyncio
 import argparse
 import os
 from pathlib import Path
@@ -389,6 +390,13 @@ def cmd_generate(args: argparse.Namespace) -> None:
     pipeline(**pipeline_args)
 
 
+async def cmd_corpus_generate(args: argparse.Namespace) -> int:
+    """Run corpus generation command."""
+    from corpus_llm.cli import run_with_args
+
+    return await run_with_args(args)
+
+
 def cmd_evaluate(args: argparse.Namespace) -> None:
     """Run evaluation command."""
     from evaluation.config import EvaluationMode
@@ -548,6 +556,19 @@ def main() -> None:
     gen_parser = subparsers.add_parser("generate", help="Generate synthetic dataset")
     _configure_generate_parser(gen_parser)
 
+    # Corpus command
+    corpus_parser = subparsers.add_parser("corpus", help="Corpus generation commands")
+    corpus_subparsers = corpus_parser.add_subparsers(dest="corpus_command")
+    corpus_subparsers.required = True
+
+    corpus_generate_parser = corpus_subparsers.add_parser(
+        "generate",
+        help="Generate corpus data using LLM",
+    )
+    from corpus_llm.cli import add_arguments as add_corpus_arguments
+
+    add_corpus_arguments(corpus_generate_parser)
+
     # Evaluate command
     eval_parser = subparsers.add_parser("evaluate", help="Run model evaluation")
     eval_parser.add_argument(
@@ -685,6 +706,8 @@ def main() -> None:
 
     if args.command == "generate":
         cmd_generate(args)
+    elif args.command == "corpus" and args.corpus_command == "generate":
+        sys.exit(asyncio.run(cmd_corpus_generate(args)))
     elif args.command == "evaluate":
         cmd_evaluate(args)
     elif args.command == "compare":
