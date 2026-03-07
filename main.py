@@ -190,6 +190,14 @@ GENERATE_ARG_TO_PIPELINE_KEY: tuple[tuple[str, str], ...] = (
     ("shard_size", "shard_size"),
     ("max_shards", "max_shards"),
     ("resume", "resume"),
+    ("upload", "upload"),
+)
+
+PUBLISH_ARG_TO_PIPELINE_KEY: tuple[tuple[str, str], ...] = (
+    ("generated_path", "generated_path"),
+    ("repo_id", "repo_id"),
+    ("train_ratio", "train_ratio"),
+    ("test_ratio", "test_ratio"),
 )
 
 
@@ -197,6 +205,13 @@ def _build_generate_pipeline_args(args: argparse.Namespace) -> dict[str, Any]:
     return {
         pipeline_key: getattr(args, arg_name)
         for arg_name, pipeline_key in GENERATE_ARG_TO_PIPELINE_KEY
+    }
+
+
+def _build_publish_pipeline_args(args: argparse.Namespace) -> dict[str, Any]:
+    return {
+        pipeline_key: getattr(args, arg_name)
+        for arg_name, pipeline_key in PUBLISH_ARG_TO_PIPELINE_KEY
     }
 
 
@@ -216,8 +231,9 @@ def _add_optional_generation_effect_argument(
 def _configure_generate_parser(gen_parser: argparse.ArgumentParser) -> None:
     gen_parser.add_argument(
         "--repo-id",
-        required=True,
-        help="Hugging Face Hub repository ID for dataset upload",
+        required=False,
+        default=None,
+        help="Hugging Face Hub repository ID used only when upload is enabled",
     )
     gen_parser.add_argument(
         "--output-dir",
@@ -260,6 +276,12 @@ def _configure_generate_parser(gen_parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=False,
         help="Resume a previously started sharded generation run",
+    )
+    gen_parser.add_argument(
+        "--upload",
+        action="store_true",
+        default=False,
+        help="Upload to Hugging Face Hub after generation completes",
     )
     gen_parser.add_argument(
         "--template",
@@ -409,6 +431,38 @@ def cmd_generate(args: argparse.Namespace) -> None:
     set_global_seed(args.seed)
     pipeline_args = _build_generate_pipeline_args(args)
     pipeline(**pipeline_args)
+
+
+def _configure_publish_parser(publish_parser: argparse.ArgumentParser) -> None:
+    publish_parser.add_argument(
+        "--generated-path",
+        required=True,
+        help="Path to a generated dataset root containing run_manifest.json",
+    )
+    publish_parser.add_argument(
+        "--repo-id",
+        default=None,
+        help="Override the repository ID stored in the run manifest",
+    )
+    publish_parser.add_argument(
+        "--train-ratio",
+        type=float,
+        default=None,
+        help="Override the train split ratio used for mixed dataset publishing",
+    )
+    publish_parser.add_argument(
+        "--test-ratio",
+        type=float,
+        default=None,
+        help="Override the test split ratio used for mixed dataset publishing",
+    )
+
+
+def cmd_publish(args: argparse.Namespace) -> None:
+    from pipeline import publish_pipeline
+
+    publish_args = _build_publish_pipeline_args(args)
+    publish_pipeline(**publish_args)
 
 
 async def cmd_corpus_generate(args: argparse.Namespace) -> int:
@@ -723,6 +777,9 @@ def main() -> None:
     # List configs command
     subparsers.add_parser("list-configs", help="List available model configurations")
 
+    publish_parser = subparsers.add_parser("publish", help="Publish a generated dataset")
+    _configure_publish_parser(publish_parser)
+
     args = parser.parse_args()
 
     if args.command == "generate":
@@ -731,6 +788,8 @@ def main() -> None:
         sys.exit(asyncio.run(cmd_corpus_generate(args)))
     elif args.command == "evaluate":
         cmd_evaluate(args)
+    elif args.command == "publish":
+        cmd_publish(args)
     elif args.command == "compare":
         cmd_compare(args)
     elif args.command == "list-backends":

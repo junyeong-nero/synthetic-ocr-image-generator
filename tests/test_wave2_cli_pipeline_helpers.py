@@ -171,6 +171,7 @@ def test_build_generate_pipeline_args_maps_expected_keys() -> None:
         shard_size=250,
         max_shards=3,
         resume=True,
+        upload=True,
     )
 
     pipeline_args = main_module._build_generate_pipeline_args(args)
@@ -181,7 +182,28 @@ def test_build_generate_pipeline_args_maps_expected_keys() -> None:
     assert pipeline_args["shard_size"] == 250
     assert pipeline_args["max_shards"] == 3
     assert pipeline_args["resume"] is True
+    assert pipeline_args["upload"] is True
     assert len(pipeline_args) == len(main_module.GENERATE_ARG_TO_PIPELINE_KEY)
+
+
+def test_build_publish_pipeline_args_maps_expected_keys() -> None:
+    main_module = _load_main_module()
+
+    args = argparse.Namespace(
+        generated_path="./data/ko/images_markdown",
+        repo_id="demo/repo",
+        train_ratio=0.8,
+        test_ratio=0.2,
+    )
+
+    publish_args = main_module._build_publish_pipeline_args(args)
+
+    assert publish_args == {
+        "generated_path": "./data/ko/images_markdown",
+        "repo_id": "demo/repo",
+        "train_ratio": 0.8,
+        "test_ratio": 0.2,
+    }
 
 
 def test_add_optional_generation_effect_argument_preserves_bool_optional_behavior() -> None:
@@ -217,6 +239,7 @@ def test_configure_generate_parser_wires_defaults_and_effect_flags() -> None:
         "--max-shards",
         "2",
         "--resume",
+        "--upload",
         "--no-add-noise",
         "--add-blur",
     ])
@@ -227,5 +250,32 @@ def test_configure_generate_parser_wires_defaults_and_effect_flags() -> None:
     assert parsed.shard_size == 200
     assert parsed.max_shards == 2
     assert parsed.resume is True
+    assert parsed.upload is True
     assert parsed.add_noise is False
     assert parsed.add_blur is True
+
+
+def test_configure_generate_parser_allows_generation_without_repo_id() -> None:
+    main_module = _load_main_module()
+
+    parser = argparse.ArgumentParser()
+    main_module._configure_generate_parser(parser)
+
+    parsed = parser.parse_args([])
+
+    assert parsed.repo_id is None
+    assert parsed.upload is False
+
+
+def test_configure_publish_parser_wires_expected_defaults() -> None:
+    main_module = _load_main_module()
+
+    parser = argparse.ArgumentParser()
+    main_module._configure_publish_parser(parser)
+
+    parsed = parser.parse_args(["--generated-path", "./data/ko/images_markdown"])
+
+    assert parsed.generated_path == "./data/ko/images_markdown"
+    assert parsed.repo_id is None
+    assert parsed.train_ratio is None
+    assert parsed.test_ratio is None
