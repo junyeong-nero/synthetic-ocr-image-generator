@@ -226,7 +226,7 @@ echo ""
 echo "[1/1] Generating mixed dataset (train/test splits)..."
 
 CMD=(
-    uv run --group generate main.py generate
+    uv run --no-sync --group generate main.py generate
     --repo-id "$REPO_ID"
     --size "$SIZE"
     --lang "$LANG"
