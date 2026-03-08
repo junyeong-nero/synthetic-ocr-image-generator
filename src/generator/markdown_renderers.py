@@ -705,6 +705,9 @@ class HtmlMarkdownRenderer:
         rendered_html = self._coerce_markdown_html(prepared_markdown)
         page_width = self.style.margin_left + self.style.content_width + self.style.margin_right
         css = f"""
+@page {{
+  margin: 12mm 10mm 14mm 10mm;
+}}
 @font-face {{
   font-family: 'RenderFont';
   src: url('file://{escape(self.font_path)}') format('truetype');
@@ -712,8 +715,10 @@ class HtmlMarkdownRenderer:
 html, body {{
   margin: 0;
   padding: 0;
-  width: {page_width}px;
+  min-width: {page_width}px;
+  width: auto;
   background: rgb{self.style.background_color};
+  overflow: visible;
 }}
 *, *::before, *::after {{
   box-sizing: border-box;
@@ -728,12 +733,20 @@ html, body {{
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }}
 .markdown-body h1 {{ font-size: {self.style.h1_font_size}px; color: rgb{self.style.h1_color}; margin: 0 0 16px 0; }}
 .markdown-body h2 {{ font-size: {self.style.h2_font_size}px; color: rgb{self.style.h2_color}; margin: 18px 0 12px 0; }}
 .markdown-body h3 {{ font-size: {self.style.h3_font_size}px; color: rgb{self.style.h3_color}; margin: 16px 0 8px 0; }}
 .markdown-body a {{ color: rgb{self.style.link_color}; text-decoration: none; }}
 .markdown-body p {{ margin: 0 0 10px 0; }}
+.markdown-body p,
+.markdown-body li,
+.markdown-body td,
+.markdown-body th {{
+  line-height: {max(1.35, self.style.line_spacing)};
+}}
 .markdown-body br {{
   display: block;
   margin: 0;
@@ -766,14 +779,26 @@ html, body {{
 .markdown-body table {{
   width: 100%;
   border-collapse: collapse;
-  margin: 0 0 12px 0;
-  table-layout: fixed;
+  margin: 4px 0 16px 0;
+  table-layout: auto;
+  background: rgba(255, 255, 255, 0.92);
+  break-inside: avoid;
+  page-break-inside: avoid;
 }}
 .markdown-body th, .markdown-body td {{
   border: 1px solid rgba(0, 0, 0, 0.25);
   text-align: left;
-  padding: 6px;
-  overflow-wrap: anywhere;
+  padding: 8px 12px;
+  vertical-align: top;
+  overflow-wrap: break-word;
+  word-break: normal;
+}}
+.markdown-body th {{
+  background: rgba(0, 0, 0, 0.06);
+  font-weight: 600;
+}}
+.markdown-body tbody tr:nth-child(even) td {{
+  background: rgba(0, 0, 0, 0.025);
 }}
 .markdown-body .md-formula {{
   margin: 0 0 12px 0;
@@ -792,6 +817,8 @@ html, body {{
 }}
 .markdown-body .md-image-placeholder {{
   margin: 0 0 12px 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }}
 .markdown-body .md-image-box {{
   width: 100%;
@@ -901,6 +928,7 @@ html, body {{
 
 
 class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
+    _CAPTURE_PADDING_PX = 8
 
     @staticmethod
     def _load_playwright_sync_api() -> Any:
@@ -921,8 +949,18 @@ class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
         sync_playwright = playwright_sync_api.sync_playwright
 
         width = self.style.margin_left + self.style.content_width + self.style.margin_right
-        viewport_height = max(720, min(1600, self._estimate_viewport_height(markdown_text)))
+        capture_padding = self._CAPTURE_PADDING_PX
+        viewport_height = max(720, min(1600, self._estimate_viewport_height(markdown_text) + (capture_padding * 2)))
         html_doc = self._build_html_document(markdown_text, image_assets=image_assets)
+        html_doc = html_doc.replace(
+            '<body>\n  <div class="markdown-body">',
+            (
+                '<body>\n'
+                f'  <div class="capture-shell" style="padding: {capture_padding}px; width: {width + (capture_padding * 2)}px; overflow: visible;">\n'
+                '    <div class="markdown-body">'
+            ),
+            1,
+        ).replace("</div>\n</body>", "</div>\n  </div>\n</body>", 1)
 
         with tempfile.TemporaryDirectory(prefix="markdown-playwright-") as temp_dir:
             html_path = Path(temp_dir) / "rendered.html"
@@ -940,7 +978,7 @@ class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
                         ],
                     )
                     page = browser.new_page(
-                        viewport={"width": width, "height": viewport_height},
+                        viewport={"width": width + (capture_padding * 2), "height": viewport_height},
                         device_scale_factor=1,
                     )
                     page.goto(html_path.as_uri(), wait_until="load")
@@ -948,7 +986,7 @@ class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
                     page.evaluate(
                         "() => document.fonts ? document.fonts.ready.then(() => true) : true"
                     )
-                    page.locator(".markdown-body").screenshot(
+                    page.locator(".capture-shell").screenshot(
                         path=str(screenshot_path),
                         animations="disabled",
                     )

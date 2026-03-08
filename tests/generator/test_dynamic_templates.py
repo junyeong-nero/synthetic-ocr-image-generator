@@ -501,10 +501,24 @@ def test_html_renderer_css_prevents_horizontal_overflow_clipping() -> None:
     html_doc = renderer._build_html_document("![Wide](placeholder://wide)", image_assets={})
 
     assert "box-sizing: border-box;" in html_doc
+    assert "min-width:" in html_doc
+    assert "overflow: visible;" in html_doc
     assert ".markdown-body .md-image-rendered" in html_doc
     assert "width: auto;" in html_doc
     assert "max-width: 100%;" in html_doc
     assert "object-fit: contain;" in html_doc
+
+
+def test_html_renderer_table_css_uses_roomier_document_defaults() -> None:
+    renderer = HtmlMarkdownRenderer(font_path="/tmp/does-not-need-to-exist.ttf")
+    html_doc = renderer._build_html_document("| A | B |\n| --- | --- |\n| 1 | 2 |", image_assets={})
+
+    assert "@page {" in html_doc
+    assert "print-color-adjust: exact;" in html_doc
+    assert "table-layout: auto;" in html_doc
+    assert "padding: 8px 12px;" in html_doc
+    assert "vertical-align: top;" in html_doc
+    assert "tbody tr:nth-child(even) td" in html_doc
 
 
 def test_html_renderer_component_preprocessing_embeds_real_image_when_asset_exists() -> None:
@@ -593,9 +607,12 @@ def test_playwright_renderer_uses_headless_chromium(monkeypatch) -> None:
     assert image.size == (64, 96)
     assert calls["launch"]["headless"] is True
     assert "--hide-scrollbars" in calls["launch"]["args"]
-    assert calls["selector"] == ".markdown-body"
+    assert calls["selector"] == ".capture-shell"
     assert calls["new_page"]["viewport"]["width"] == (
-        renderer.style.margin_left + renderer.style.content_width + renderer.style.margin_right
+        renderer.style.margin_left
+        + renderer.style.content_width
+        + renderer.style.margin_right
+        + (renderer._CAPTURE_PADDING_PX * 2)
     )
     assert calls["screenshot"]["animations"] == "disabled"
     assert calls["browser_closed"] is True
