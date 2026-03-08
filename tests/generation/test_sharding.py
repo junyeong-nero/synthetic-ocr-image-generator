@@ -31,7 +31,6 @@ def test_run_manifest_tracks_started_completed_and_failed_shards(tmp_path: Path)
         generator_name="markdown",
         size=20,
         shard_size=5,
-        mixed=False,
         lang="ko",
         seed=7,
         repo_id="demo/repo",

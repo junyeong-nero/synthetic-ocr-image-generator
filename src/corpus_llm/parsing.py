@@ -1,4 +1,23 @@
+import re
 from typing import List
+
+
+_LEADING_LIST_MARKER_RE = re.compile(
+    r"^\s*(?:\*\*|\*|__|_)?\??\d{1,3}[.)](?:\*\*|\*|__|_)?\s+"
+)
+
+
+def _normalize_item_text(text: str) -> str:
+    cleaned = _LEADING_LIST_MARKER_RE.sub("", text.strip(), count=1)
+    if cleaned.startswith("- ") or cleaned.startswith("• ") or cleaned.startswith("* "):
+        cleaned = cleaned[2:]
+    return cleaned.strip()
+
+
+def normalize_corpus_item(text: str, category: str) -> str:
+    if category == "paragraphs":
+        return _normalize_item_text(text)
+    return _normalize_item_text(text)
 
 
 def parse_response(response: str, category: str) -> List[str]:
@@ -8,7 +27,7 @@ def parse_response(response: str, category: str) -> List[str]:
         paragraphs: List[str] = []
         current: List[str] = []
         for line in lines:
-            cleaned = line.strip()
+            cleaned = _normalize_item_text(line)
             if cleaned:
                 current.append(cleaned)
             elif current:
@@ -23,11 +42,7 @@ def parse_response(response: str, category: str) -> List[str]:
         cleaned = line.strip()
         if not cleaned:
             continue
-        if cleaned[0].isdigit() and (". " in cleaned[:4] or ") " in cleaned[:4]):
-            cleaned = cleaned.split(". ", 1)[-1].split(") ", 1)[-1]
-        if cleaned.startswith("- ") or cleaned.startswith("• ") or cleaned.startswith("* "):
-            cleaned = cleaned[2:]
-        cleaned = cleaned.strip()
+        cleaned = _normalize_item_text(cleaned)
         if cleaned:
             items.append(cleaned)
 

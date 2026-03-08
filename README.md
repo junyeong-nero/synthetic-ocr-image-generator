@@ -4,18 +4,22 @@ Synthetic OCR dataset generation and model benchmarking toolkit with a markdown-
 
 ## Overview
 
-This repository provides three core workflows:
+This repository provides four core workflows:
 
 1. Generate reusable corpus text data with LLM-backed providers.
-2. Generate synthetic OCR images and metadata, then upload datasets to Hugging Face Hub.
-3. Evaluate OCR/VLM models against those datasets and produce reproducible reports.
+2. Generate synthetic OCR images and metadata to a local dataset root.
+3. Publish a completed local generation run to Hugging Face Hub when needed.
+4. Evaluate OCR/VLM models against those datasets and produce reproducible reports.
 
 The current unified CLI exposes corpus generation alongside the markdown-focused generation and evaluation flows.
 
 ## Key Features
 
+- Local-first markdown OCR dataset generation with sharded outputs, resume support, and explicit publish/upload steps.
 - Markdown OCR dataset generation with configurable rendering, noise/blur, and typo-like character substitutions.
 - Character similarity database tooling for realistic substitutions.
+- Per-shard metadata output with aggregate `metadata.jsonl`, `realism_stats.json`, and `run_manifest.json` regeneration.
+- Expanded built-in formula pool for dynamic templates plus bounded formula-render caching for long runs.
 - Evaluation pipeline with model config YAMLs, backend overrides, batch API support, and checkpoint-based resume.
 - Report generation in JSON/Markdown/HTML plus protocol snapshots and leaderboard files.
 
@@ -50,16 +54,26 @@ uv run main.py corpus generate \
   --count 1000
 ```
 
-2) Generate a dataset
+2) Generate a dataset locally
 
 ```bash
 uv run main.py generate \
-  --repo-id "your-username/my-ocr-dataset" \
   --lang "ko" \
-  --size 100
+  --size 1000 \
+  --shard-size 250
 ```
 
-3) Evaluate a model config
+This writes a local run under `./data/ko/images_markdown` with shard directories, `run_manifest.json`, root `metadata.jsonl`, and `realism_stats.json`.
+
+3) Publish a completed local run
+
+```bash
+uv run main.py publish \
+  --generated-path "./data/ko/images_markdown" \
+  --repo-id "your-username/my-ocr-dataset"
+```
+
+4) Evaluate a model config
 
 ```bash
 uv run main.py evaluate \
@@ -68,7 +82,7 @@ uv run main.py evaluate \
   --split train
 ```
 
-4) Compare evaluation reports
+5) Compare evaluation reports
 
 ```bash
 uv run main.py compare \
@@ -119,8 +133,8 @@ bash scripts/evaluate/update-leaderboard.sh
 
 ## Project Structure
 
-- `main.py`: CLI entrypoint (`generate`, `evaluate`, `compare`, list commands)
-- `src/pipeline.py`: generation orchestration
+- `main.py`: CLI entrypoint (`generate`, `publish`, `evaluate`, `compare`, list commands)
+- `src/pipeline.py`: generation and publish orchestration
 - `src/generator/`: image generation and rendering utilities
 - `src/evaluation/`: evaluation orchestration, runner, reports
 - `src/metrics/`: metric implementations

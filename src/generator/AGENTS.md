@@ -19,7 +19,7 @@ src/generator/
 | Task | Location | Notes |
 |------|----------|-------|
 | Add new format | `registry.py` | Register name -> class |
-| Mixed datasets | `src/pipeline.py` | MixedGenerator orchestration |
+| Markdown datasets | `src/pipeline.py` | MarkdownDatasetGenerator orchestration |
 | Image effects | `effects.py` | Noise, blur, distortions |
 | Metadata schema | generator modules | `metadata.jsonl` for uploads |
 

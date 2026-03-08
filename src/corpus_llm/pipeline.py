@@ -4,9 +4,10 @@ from pathlib import Path
 from typing import List, Optional, Sequence
 
 from corpus_llm.constants import CATEGORIES
-from corpus_llm.parsing import parse_response
+from corpus_llm.parsing import normalize_corpus_item, parse_response
 from corpus_llm.prompting import build_prompt
 from corpus_llm.providers import LLMProvider
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -26,22 +27,29 @@ async def generate_category(
     all_items: List[str] = []
     remaining = count
 
-    while remaining > 0:
-        batch = min(batch_size, remaining)
-        prompt = build_prompt(category_info, category, lang, batch, lang_name)
+    with tqdm(
+        total=count,
+        desc=f"{lang}:{category}",
+        unit="item",
+        dynamic_ncols=True,
+    ) as progress_bar:
+        while remaining > 0:
+            batch = min(batch_size, remaining)
+            prompt = build_prompt(category_info, category, lang, batch, lang_name)
 
-        logger.info("Generating %s items for %s (%s)...", batch, category, lang)
-        try:
-            response = await provider.generate(prompt)
-            items = parse_response(response, category)
-            items = list(dict.fromkeys(items))
-            all_items.extend(items)
+            logger.info("Generating %s items for %s (%s)...", batch, category, lang)
+            try:
+                response = await provider.generate(prompt)
+                items = parse_response(response, category)
+                items = list(dict.fromkeys(items))
+                all_items.extend(items)
 
-            logger.info("  Got %s items (total: %s)", len(items), len(all_items))
-            remaining -= batch
-        except Exception as exc:
-            logger.error("Error generating %s: %s", category, exc)
-            break
+                logger.info("  Got %s items (total: %s)", len(items), len(all_items))
+                remaining -= batch
+                progress_bar.update(batch)
+            except Exception as exc:
+                logger.error("Error generating %s: %s", category, exc)
+                break
 
     all_items = list(dict.fromkeys(all_items))
     return all_items[:count]
@@ -56,9 +64,19 @@ def save_corpus(items: Sequence[str], category: str, lang: str, output_dir: Path
     existing = set()
     if output_file.exists():
         with open(output_file, "r", encoding="utf-8") as file_handle:
-            existing = {line.strip() for line in file_handle if line.strip()}
+            existing = {
+                normalized
+                for line in file_handle
+                if (normalized := normalize_corpus_item(line, category))
+            }
 
-    all_items = list(existing | set(items))
+    normalized_items = {
+        normalized
+        for item in items
+        if (normalized := normalize_corpus_item(item, category))
+    }
+
+    all_items = list(existing | normalized_items)
     random.shuffle(all_items)
 
     with open(output_file, "w", encoding="utf-8") as file_handle:
@@ -80,18 +98,26 @@ async def run_generation(
 ) -> int:
     total_saved = 0
 
-    for category in categories:
-        items = await generate_category(
-            provider=provider,
-            category=category,
-            lang=lang,
-            count=count,
-            batch_size=batch_size,
-            lang_name=lang_name,
-        )
+    with tqdm(
+        total=len(categories),
+        desc=f"{lang}:categories",
+        unit="category",
+        dynamic_ncols=True,
+    ) as category_bar:
+        for category in categories:
+            items = await generate_category(
+                provider=provider,
+                category=category,
+                lang=lang,
+                count=count,
+                batch_size=batch_size,
+                lang_name=lang_name,
+            )
 
-        if items:
-            total_saved += save_corpus(items, category, lang, output_dir)
+            if items:
+                total_saved += save_corpus(items, category, lang, output_dir)
+
+            category_bar.update(1)
 
     logger.info("Total items generated: %s", total_saved)
     return 0

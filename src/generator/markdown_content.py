@@ -21,6 +21,7 @@ DEFAULT_FORMULA_SOURCE_WEIGHTS: Dict[str, float] = {
     "synthetic": 0.25,
 }
 DEFAULT_BLUEPRINT_MAX_PARAGRAPH_CHARS = 220
+DEFAULT_BLUEPRINT_MAX_LINE_CHARS = 72
 
 _MATHTEXT_ALIAS_PATTERNS: Tuple[Tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\\ge(?![A-Za-z])"), r"\\geq"),
@@ -119,6 +120,47 @@ _RAW_HARD_CODED_FORMULA_EXPRESSIONS: Tuple[str, ...] = (
     r"\ln(1+x)=\sum_{n=1}^{\infty}\frac{(-1)^{n+1}x^n}{n},\ |x|<1",
     r"\frac{1}{1-x}=\sum_{n=0}^{\infty}x^n,\ |x|<1",
     r"\arctan x = \sum_{n=0}^{\infty}(-1)^n\frac{x^{2n+1}}{2n+1},\ |x|\le 1",
+    r"\nabla \cdot \mathbf{E} = \frac{\rho}{\varepsilon_0}",
+    r"\nabla \cdot \mathbf{B} = 0",
+    r"\nabla \times \mathbf{E} = -\frac{\partial \mathbf{B}}{\partial t}",
+    r"\nabla \times \mathbf{B} = \mu_0 \mathbf{J} + \mu_0\varepsilon_0\frac{\partial \mathbf{E}}{\partial t}",
+    r"F = G\frac{m_1m_2}{r^2}",
+    r"pV = nRT",
+    r"\Delta G = \Delta H - T\Delta S",
+    r"\lambda = \frac{h}{p}",
+    r"E_n = -\frac{13.6\,\mathrm{eV}}{n^2}",
+    r"\psi(x,t) = Ae^{i(kx-\omega t)}",
+    r"i\hbar\frac{\partial}{\partial t}\Psi = \hat{H}\Psi",
+    r"\hat{H}\psi = E\psi",
+    r"\Delta x\,\Delta p \ge \frac{\hbar}{2}",
+    r"\langle x \rangle = \int_{-\infty}^{\infty} x|\psi(x)|^2\,dx",
+    r"P(A\mid B)=\frac{P(B\mid A)P(A)}{P(B)}",
+    r"\mathbb{E}[X] = \sum_x x\,p(x)",
+    r"\mathrm{Var}(X)=\mathbb{E}[X^2]-\mathbb{E}[X]^2",
+    r"\mathrm{Cov}(X,Y)=\mathbb{E}[(X-\mu_X)(Y-\mu_Y)]",
+    r"\rho_{X,Y}=\frac{\mathrm{Cov}(X,Y)}{\sigma_X\sigma_Y}",
+    r"\mathcal{N}(x\mid \mu,\sigma^2)=\frac{1}{\sqrt{2\pi\sigma^2}}e^{-\frac{(x-\mu)^2}{2\sigma^2}}",
+    r"\operatorname{KL}(p\|q)=\sum_x p(x)\log\frac{p(x)}{q(x)}",
+    r"H(p)=-\sum_x p(x)\log p(x)",
+    r"I(X;Y)=\sum_{x,y}p(x,y)\log\frac{p(x,y)}{p(x)p(y)}",
+    r"\mathrm{MSE}=\frac{1}{n}\sum_{i=1}^{n}(y_i-\hat{y}_i)^2",
+    r"\mathrm{MAE}=\frac{1}{n}\sum_{i=1}^{n}|y_i-\hat{y}_i|",
+    r"\hat{\beta}=(X^TX)^{-1}X^Ty",
+    r"\sigma(z)=\frac{1}{1+e^{-z}}",
+    r"\mathrm{softmax}(z_i)=\frac{e^{z_i}}{\sum_j e^{z_j}}",
+    r"\mathcal{L}_{\mathrm{CE}}=-\sum_i y_i\log \hat{y}_i",
+    r"\mathcal{L}_{\mathrm{BCE}}=-(y\log p + (1-y)\log(1-p))",
+    r"\mathcal{L}_{\operatorname{SFT}}=-\sum_t \log p_\theta(y_t\mid y_{<t},x)",
+    r"\mathcal{L}_{\operatorname{DPO}}=-\log \sigma\left(\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}-\beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}\right)",
+    r"\mathcal{L}_{\operatorname{PPO}}=\mathbb{E}\left[\min\left(r_t(\theta)\hat{A}_t,\operatorname{clip}(r_t(\theta),1-\epsilon,1+\epsilon)\hat{A}_t\right)\right]",
+    r"\mathcal{L}_{\operatorname{KD}}=\tau^2\operatorname{KL}(p_t^{(\tau)}\|p_s^{(\tau)})",
+    r"\mathcal{L}_{\operatorname{InfoNCE}}=-\log\frac{\exp(q\cdot k^+/\tau)}{\sum_j \exp(q\cdot k_j/\tau)}",
+    r"\operatorname{BLEU}=\operatorname{BP}\cdot \exp\left(\sum_{n=1}^{N} w_n \log p_n\right)",
+    r"\mathrm{ROUGE\text{-}L}=\frac{(1+\beta^2)RP}{R+\beta^2P}",
+    r"\mathrm{F1}=2\cdot\frac{\mathrm{precision}\cdot\mathrm{recall}}{\mathrm{precision}+\mathrm{recall}}",
+    r"\mathrm{IoU}=\frac{|A\cap B|}{|A\cup B|}",
+    r"\operatorname{CRLB}(\hat{\theta}) \ge \frac{1}{nI(\theta)}",
+    r"\mathrm{AUC}=\int_0^1 \mathrm{TPR}(\mathrm{FPR}^{-1}(u))\,du",
 )
 
 HARD_CODED_FORMULA_EXPRESSIONS: Tuple[str, ...] = tuple(
@@ -371,6 +413,14 @@ class MarkdownDataGenerator:
 
         return default_min, default_max
 
+    @staticmethod
+    def _coerce_positive_int(value: Any, default: int) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            return default
+        return parsed if parsed > 0 else default
+
     def _generate_formula_expression(self) -> str:
         formula_source = self._select_source(
             self.formula_source_mode,
@@ -403,6 +453,10 @@ class MarkdownDataGenerator:
         text_section_range = self._coerce_int_range(text_cfg.get("section_count"), 3, 5)
         table_section_range = self._coerce_int_range(table_cfg.get("section_count"), 1, 2)
         formula_section_range = self._coerce_int_range(formula_cfg.get("section_count"), 1, 2)
+        text_max_line_chars = self._coerce_positive_int(
+            text_cfg.get("max_line_chars"),
+            DEFAULT_BLUEPRINT_MAX_LINE_CHARS,
+        )
 
         row_value = table_cfg.get("rows", table_cfg.get("row_count"))
         col_value = table_cfg.get("columns", table_cfg.get("cols", table_cfg.get("column_count")))
@@ -417,6 +471,7 @@ class MarkdownDataGenerator:
             data=self.data,
             clip_text=self._clip_text,
             max_paragraph_chars=DEFAULT_BLUEPRINT_MAX_PARAGRAPH_CHARS,
+            max_line_chars=text_max_line_chars,
         )
         table_generator = TableGenerator(data=self.data, clip_text=self._clip_text)
         formular_generator = FormularGenerator(

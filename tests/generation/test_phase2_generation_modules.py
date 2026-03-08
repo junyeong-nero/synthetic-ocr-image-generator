@@ -4,7 +4,7 @@ from pathlib import Path
 from generation.sharding import RunManifest
 from generation.git_metadata import normalize_github_url
 from generation.ground_truth import attach_unified_ground_truth
-from generation.hub_upload import upload_mixed_format_to_hub
+from generation.hub_upload import upload_split_dataset_to_hub
 from generation.readme_builder import build_dataset_readme
 
 
@@ -66,7 +66,6 @@ def test_build_dataset_readme_contains_expected_sections(monkeypatch) -> None:
         formula_synthetic_weight=0.25,
         add_noise=True,
         add_blur=False,
-        mixed=False,
         train_ratio=0.9,
         test_ratio=0.1,
         seed=7,
@@ -74,6 +73,17 @@ def test_build_dataset_readme_contains_expected_sections(monkeypatch) -> None:
     )
 
     assert "# Synthetic OCR Dataset" in readme
+    assert 'pretty_name: "Synthetic OCR Dataset (ko)"' in readme
+    assert "license: unknown" in readme
+    assert "multilinguality: monolingual" in readme
+    assert "task_categories:" in readme
+    assert "- image-to-text" in readme
+    assert "task_ids:" in readme
+    assert "- optical-character-recognition" in readme
+    assert "annotations_creators:" in readme
+    assert "- machine-generated" in readme
+    assert "size_categories:" in readme
+    assert "- n<1K" in readme
     assert "https://huggingface.co/datasets/org/dataset" in readme
     assert "https://github.com/org/repo" in readme
     assert "`abc123`" in readme
@@ -81,7 +91,7 @@ def test_build_dataset_readme_contains_expected_sections(monkeypatch) -> None:
     assert "--template readme" in readme
 
 
-def test_upload_mixed_format_to_hub_splits_and_uploads(monkeypatch, tmp_path: Path) -> None:
+def test_upload_split_dataset_to_hub_splits_and_uploads(monkeypatch, tmp_path: Path) -> None:
     records = []
     for idx in range(4):
         image_path = tmp_path / f"sample_{idx}.png"
@@ -106,7 +116,7 @@ def test_upload_mixed_format_to_hub_splits_and_uploads(monkeypatch, tmp_path: Pa
 
     monkeypatch.setattr("generation.hub_upload.upload_subset_to_hub", _stub_upload_subset_to_hub)
 
-    counts = upload_mixed_format_to_hub(
+    counts = upload_split_dataset_to_hub(
         repo_id="org/dataset",
         output_dir=tmp_path,
         train_ratio=0.75,
@@ -130,7 +140,6 @@ def test_publish_pipeline_uses_manifest_context(monkeypatch, tmp_path: Path) -> 
         generator_name="markdown",
         size=12,
         shard_size=4,
-        mixed=False,
         lang="ko",
         seed=7,
         repo_id="demo/repo",
@@ -157,7 +166,6 @@ def test_publish_pipeline_uses_manifest_context(monkeypatch, tmp_path: Path) -> 
             "formula_synthetic_weight": 0.25,
             "add_noise": True,
             "add_blur": False,
-            "mixed": False,
             "train_ratio": 0.9,
             "test_ratio": 0.1,
             "seed": 7,

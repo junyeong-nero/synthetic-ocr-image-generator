@@ -37,7 +37,7 @@ def _install_generator_stubs() -> None:
 
 _install_generator_stubs()
 
-MixedGenerator = importlib.import_module("generation.mixed").MixedGenerator
+MarkdownDatasetGenerator = importlib.import_module("generation.markdown_dataset").MarkdownDatasetGenerator
 BaseGenerator = importlib.import_module("generator.base").BaseGenerator
 realism_stats_module = importlib.import_module("generator.realism_stats")
 RealismStatsAccumulator = realism_stats_module.RealismStatsAccumulator
@@ -151,24 +151,28 @@ class FakeMarkdownGenerator:
         return destination
 
 
-def test_mixed_generator_run_streams_top_level_metadata_and_stats(tmp_path: Path, monkeypatch) -> None:
+def test_markdown_dataset_generator_run_streams_top_level_metadata_and_stats(tmp_path: Path, monkeypatch) -> None:
     font_dir = tmp_path / "fonts"
     font_dir.mkdir()
     (font_dir / "dummy.ttf").write_bytes(b"font")
 
-    mixed = MixedGenerator(output_dir=str(tmp_path / "mixed"), font_dir=str(font_dir), lang="ko")
-    mixed._markdown_generator = FakeMarkdownGenerator(mixed.output_dir / "markdown")
+    dataset_generator = MarkdownDatasetGenerator(
+        output_dir=str(tmp_path / "markdown_dataset"),
+        font_dir=str(font_dir),
+        lang="ko",
+    )
+    dataset_generator._markdown_generator = FakeMarkdownGenerator(dataset_generator.output_dir / "markdown")
     monkeypatch.setattr(
-        "generation.mixed.attach_unified_ground_truth",
+        "generation.markdown_dataset.attach_unified_ground_truth",
         lambda _fmt, meta: dict(meta, GT_json={"kind": "markdown"}),
     )
 
-    result = mixed.run(num_images=2, sample_start_index=10)
+    result = dataset_generator.run(num_images=2, sample_start_index=10)
 
-    assert result == str(mixed.output_dir)
+    assert result == str(dataset_generator.output_dir)
 
-    metadata_path = mixed.output_dir / "metadata.jsonl"
-    stats_path = mixed.output_dir / "realism_stats.json"
+    metadata_path = dataset_generator.output_dir / "metadata.jsonl"
+    stats_path = dataset_generator.output_dir / "realism_stats.json"
     assert metadata_path.exists()
     assert stats_path.exists()
 

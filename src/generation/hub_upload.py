@@ -23,7 +23,7 @@ def count_metadata_rows(output_dir: Path) -> int:
     return count
 
 
-def upload_mixed_format_to_hub(
+def upload_split_dataset_to_hub(
     repo_id: str,
     output_dir: Path,
     train_ratio: float = 0.9,
@@ -47,7 +47,7 @@ def upload_mixed_format_to_hub(
         return {}
 
     logger.info(
-        "Using mixed split ratios: train=%.3f, test=%.3f",
+        "Using dataset split ratios: train=%.3f, test=%.3f",
         train_ratio,
         test_ratio,
     )
@@ -103,7 +103,6 @@ def upload_generated_dataset(
     *,
     repo_id: str,
     generated_path: Path,
-    mixed: bool,
     train_ratio: float,
     test_ratio: float,
     lang: str,
@@ -131,26 +130,12 @@ def upload_generated_dataset(
     seed: Optional[int],
 ) -> dict[str, int]:
     generated_count = count_metadata_rows(generated_path)
-    uploaded_split_counts: dict[str, int] = {}
-
-    if mixed:
-        uploaded_split_counts = upload_mixed_format_to_hub(
-            repo_id=repo_id,
-            output_dir=generated_path,
-            train_ratio=train_ratio,
-            test_ratio=test_ratio,
-        )
-    else:
-        try:
-            upload_subset_to_hub(
-                repo_id=repo_id,
-                subset_dir=generated_path,
-                config_name="markdown",
-                reuse_existing_schema=True,
-            )
-            uploaded_split_counts["train"] = generated_count
-        except Exception as exc:
-            logger.error(f"Upload failed: {exc}", exc_info=True)
+    uploaded_split_counts = upload_split_dataset_to_hub(
+        repo_id=repo_id,
+        output_dir=generated_path,
+        train_ratio=train_ratio,
+        test_ratio=test_ratio,
+    )
 
     if uploaded_split_counts:
         readme_content = build_dataset_readme(
@@ -178,7 +163,6 @@ def upload_generated_dataset(
             formula_synthetic_weight=formula_synthetic_weight,
             add_noise=add_noise,
             add_blur=add_blur,
-            mixed=mixed,
             train_ratio=train_ratio,
             test_ratio=test_ratio,
             seed=seed,
