@@ -99,9 +99,9 @@ def random_style(style_profile: str) -> MarkdownStyle:
     if style_profile == "balanced":
         selected.margin_top += random.randint(-16, 24)
         selected.margin_bottom += random.randint(-16, 24)
-        selected.margin_left += random.randint(-10, 16)
-        selected.margin_right += random.randint(-10, 16)
-        selected.content_width += random.randint(-64, 72)
+        selected.margin_left += random.randint(-4, 18)
+        selected.margin_right += random.randint(-4, 18)
+        selected.content_width += random.randint(-36, 48)
         selected.line_spacing = max(1.2, min(1.9, selected.line_spacing + random.uniform(-0.2, 0.25)))
         selected.background_color = jitter_color(selected.background_color, 12)
         selected.h1_color = jitter_color(selected.h1_color, 16)
@@ -155,7 +155,7 @@ def random_style(style_profile: str) -> MarkdownStyle:
 
     selected.margin_top = max(16, selected.margin_top)
     selected.margin_bottom = max(16, selected.margin_bottom)
-    selected.margin_left = max(20, selected.margin_left)
-    selected.margin_right = max(20, selected.margin_right)
-    selected.content_width = max(460, min(720, selected.content_width))
+    selected.margin_left = max(28, selected.margin_left)
+    selected.margin_right = max(28, selected.margin_right)
+    selected.content_width = max(500, min(720, selected.content_width))
     return selected

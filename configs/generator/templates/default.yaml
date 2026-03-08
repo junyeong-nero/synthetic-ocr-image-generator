@@ -4,11 +4,12 @@ mode: sections
 
 text:
   section_count: [1, 2]
+  max_line_chars: 72
 
 table:
   section_count: [1, 2]
   rows: [2, 4]
-  columns: [3, 5]
+  columns: [3, 4]
 
 formula:
   section_count: [1, 2]

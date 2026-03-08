@@ -12,8 +12,8 @@ _DEFAULT_SECTION_TEMPLATE: Dict[str, Any] = {
     "complexity": 2,
     "mode": "sections",
     "blueprint": {
-        "text": {"section_count": [3, 5]},
-        "table": {"section_count": [1, 2], "rows": [2, 4], "columns": [3, 5]},
+        "text": {"section_count": [3, 5], "max_line_chars": 72},
+        "table": {"section_count": [1, 2], "rows": [2, 4], "columns": [3, 4]},
         "formula": {"section_count": [1, 2]},
     },
 }

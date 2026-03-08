@@ -796,6 +796,29 @@ def test_table_generator_prefers_paragraph_corpus_headers_and_cells(tmp_path) ->
     assert "Quarterly revenue" in markdown or "Customer retention" in markdown
 
 
+def test_template_catalog_builtin_default_limits_table_columns() -> None:
+    catalog = TemplateCatalog(config_dir="/tmp/does-not-exist")
+
+    resolved = catalog.resolve("default", None, None, None)
+
+    assert resolved
+    assert resolved[0].blueprint["table"]["columns"] == [3, 4]
+
+
+def test_balanced_style_sampler_preserves_roomier_minimum_widths(monkeypatch) -> None:
+    style_sampler_module = importlib.import_module("generator.style_sampler")
+
+    monkeypatch.setattr(style_sampler_module.random, "choice", lambda values: values[0])
+    monkeypatch.setattr(style_sampler_module.random, "randint", lambda low, _high: low)
+    monkeypatch.setattr(style_sampler_module.random, "uniform", lambda low, _high: low)
+
+    style = style_sampler_module.random_style("balanced")
+
+    assert style.margin_left >= 28
+    assert style.margin_right >= 28
+    assert style.content_width >= 500
+
+
 def test_generate_single_metadata_does_not_include_a4_clipping_flags(monkeypatch) -> None:
     generator = Generator.__new__(Generator)
     generator.template_specs = [
