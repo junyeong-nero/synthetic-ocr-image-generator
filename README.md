@@ -16,7 +16,8 @@ The current unified CLI exposes corpus generation alongside the markdown-focused
 ## Key Features
 
 - Local-first markdown OCR dataset generation with sharded outputs, resume support, and explicit publish/upload steps.
-- Markdown OCR dataset generation with configurable rendering, noise/blur, and typo-like character substitutions.
+- Markdown OCR dataset generation with a headless Playwright renderer, configurable noise/blur, and typo-like character substitutions.
+- Generated contents are driven primarily by collected corpus data, with corpus-backed text reused across local generation and publish workflows.
 - Character similarity database tooling for realistic substitutions.
 - Per-shard metadata output with aggregate `metadata.jsonl`, `realism_stats.json`, and `run_manifest.json` regeneration.
 - Expanded built-in formula pool for dynamic templates plus bounded formula-render caching for long runs.
@@ -60,10 +61,12 @@ uv run main.py corpus generate \
 uv run main.py generate \
   --lang "ko" \
   --size 1000 \
+  --markdown-renderer playwright \
   --shard-size 250
 ```
 
 This writes a local run under `./data/ko/images_markdown` with shard directories, `run_manifest.json`, root `metadata.jsonl`, and `realism_stats.json`.
+The default markdown rendering path is headless Playwright, and the generated page contents prioritize collected corpus material over purely synthetic filler text.
 
 3) Publish a completed local run
 
