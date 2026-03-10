@@ -1,4 +1,3 @@
-import json
 import logging
 import random
 from pathlib import Path
@@ -29,20 +28,13 @@ def upload_split_dataset_to_hub(
     train_ratio: float = 0.9,
     test_ratio: float = 0.1,
 ) -> dict[str, int]:
-    import shutil
-    import tempfile
-
     metadata_path = output_dir / "metadata.jsonl"
     if not metadata_path.exists():
         logger.warning(f"Metadata file not found: {metadata_path}")
         return {}
 
-    records: list[dict[str, Any]] = []
-    with open(metadata_path, "r", encoding="utf-8") as file:
-        for line in file:
-            records.append(json.loads(line))
-
-    if not records:
+    record_count = count_metadata_rows(output_dir)
+    if record_count == 0:
         logger.warning("No records found, skipping upload.")
         return {}
 
@@ -52,49 +44,42 @@ def upload_split_dataset_to_hub(
         test_ratio,
     )
 
-    random.Random(42).shuffle(records)
-    split_index = int(len(records) * train_ratio)
-    if len(records) > 1:
-        split_index = min(max(split_index, 1), len(records) - 1)
+    shuffled_indices = list(range(record_count))
+    random.Random(42).shuffle(shuffled_indices)
+    split_index = int(record_count * train_ratio)
+    if record_count > 1:
+        split_index = min(max(split_index, 1), record_count - 1)
     else:
-        split_index = len(records)
+        split_index = record_count
 
     split_to_items = {
-        "train": records[:split_index],
-        "test": records[split_index:],
+        "train": set(shuffled_indices[:split_index]),
+        "test": set(shuffled_indices[split_index:]),
     }
     uploaded_split_counts: dict[str, int] = {}
 
-    for split_name, items in split_to_items.items():
-        if not items:
+    for split_name, selected_indices in split_to_items.items():
+        if not selected_indices:
             continue
 
-        logger.info(f"  Uploading split '{split_name}': {len(items):,} samples")
+        logger.info(
+            "  Uploading split '%s': %s samples",
+            split_name,
+            f"{len(selected_indices):,}",
+        )
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            subset_metadata_path = temp_path / "metadata.jsonl"
-            with open(subset_metadata_path, "w", encoding="utf-8") as file:
-                for item in items:
-                    file.write(json.dumps(item, ensure_ascii=False) + "\n")
-
-            for item in items:
-                src = Path(item["file_name"])
-                dst = temp_path / src.name
-                if src.exists():
-                    shutil.copy(src, dst)
-
-            try:
-                upload_subset_to_hub(
-                    repo_id=repo_id,
-                    subset_dir=temp_path,
-                    config_name="default",
-                    split=split_name,
-                    reuse_existing_schema=True,
-                )
-                uploaded_split_counts[split_name] = len(items)
-            except Exception as exc:
-                logger.error(f"  Failed to upload '{split_name}' split: {exc}")
+        try:
+            upload_subset_to_hub(
+                repo_id=repo_id,
+                metadata_path=metadata_path,
+                config_name="default",
+                split=split_name,
+                reuse_existing_schema=True,
+                selected_indices=selected_indices,
+            )
+            uploaded_split_counts[split_name] = len(selected_indices)
+        except Exception as exc:
+            logger.error(f"  Failed to upload '{split_name}' split: {exc}")
 
     return uploaded_split_counts
 

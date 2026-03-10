@@ -87,19 +87,25 @@ def save_txt(file_path, text):
 
 def upload_subset_to_hub(
     repo_id: str,
-    subset_dir: Path,
     config_name: str,
+    subset_dir: Path | None = None,
+    metadata_path: Path | None = None,
     split: str = "train",
     reuse_existing_schema: bool = False,
+    selected_indices: set[int] | None = None,
+    max_shard_size: str = "256MB",
 ):
     from generation.hub_dataset import upload_subset_to_hub as _upload_subset_to_hub
 
     return _upload_subset_to_hub(
         repo_id=repo_id,
-        subset_dir=subset_dir,
         config_name=config_name,
+        subset_dir=subset_dir,
+        metadata_path=metadata_path,
         split=split,
         reuse_existing_schema=reuse_existing_schema,
+        selected_indices=selected_indices,
+        max_shard_size=max_shard_size,
     )
 
 

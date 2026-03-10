@@ -4,6 +4,7 @@ from pathlib import Path
 from generation.sharding import RunManifest
 from generation.git_metadata import normalize_github_url
 from generation.ground_truth import attach_unified_ground_truth
+from generation.hub_dataset import upload_subset_to_hub
 from generation.hub_upload import upload_split_dataset_to_hub
 from generation.readme_builder import build_dataset_readme
 
@@ -128,6 +129,119 @@ def test_upload_split_dataset_to_hub_splits_and_uploads(monkeypatch, tmp_path: P
     assert {call["split"] for call in calls} == {"train", "test"}
     assert all(call["config_name"] == "default" for call in calls)
     assert all(call["reuse_existing_schema"] is True for call in calls)
+
+
+def test_upload_split_dataset_to_hub_streams_from_original_metadata(monkeypatch, tmp_path: Path) -> None:
+    records = []
+    for idx in range(6):
+        image_path = tmp_path / f"sample_{idx}.png"
+        image_path.write_bytes(b"img")
+        records.append(
+            {
+                "file_name": str(image_path),
+                "GT_markdown": f"sample-{idx}",
+                "GT_json": {"idx": idx},
+            }
+        )
+
+    metadata_path = tmp_path / "metadata.jsonl"
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        for row in records:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    calls = []
+
+    def _stub_upload_subset_to_hub(**kwargs):
+        calls.append(kwargs)
+
+    monkeypatch.setattr("generation.hub_upload.upload_subset_to_hub", _stub_upload_subset_to_hub)
+
+    counts = upload_split_dataset_to_hub(
+        repo_id="org/dataset",
+        output_dir=tmp_path,
+        train_ratio=0.5,
+        test_ratio=0.5,
+    )
+
+    assert counts == {"train": 3, "test": 3}
+    assert len(calls) == 2
+    assert all(call["metadata_path"] == metadata_path for call in calls)
+    assert all(call.get("subset_dir") is None for call in calls)
+    assert sorted(len(call["selected_indices"]) for call in calls) == [3, 3]
+
+
+def test_upload_subset_to_hub_uses_generator_for_selected_rows(monkeypatch, tmp_path: Path) -> None:
+    records = []
+    for idx in range(3):
+        image_path = tmp_path / f"sample_{idx}.png"
+        image_path.write_bytes(b"img")
+        records.append(
+            {
+                "file_name": str(image_path),
+                "GT_markdown": f"sample-{idx}",
+                "GT_json": {"idx": idx},
+            }
+        )
+
+    metadata_path = tmp_path / "metadata.jsonl"
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        for row in records:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    monkeypatch.setattr("generation.hub_dataset._ensure_hf_login", lambda: None)
+    monkeypatch.setattr("generation.hub_dataset._get_existing_features", lambda *args, **kwargs: None)
+
+    captured = {"rows": None, "push": None}
+
+    class _FakeDataset:
+        def push_to_hub(self, repo_id, config_name="default", split=None, **kwargs):
+            captured["push"] = {
+                "repo_id": repo_id,
+                "config_name": config_name,
+                "split": split,
+                **kwargs,
+            }
+
+    def _stub_from_generator(generator, features=None, gen_kwargs=None, **kwargs):
+        captured["rows"] = list(generator(**(gen_kwargs or {})))
+        captured["features"] = features
+        captured["from_generator_kwargs"] = kwargs
+        return _FakeDataset()
+
+    class _FakeDatasetClass:
+        @staticmethod
+        def from_generator(generator, features=None, gen_kwargs=None, **kwargs):
+            return _stub_from_generator(
+                generator,
+                features=features,
+                gen_kwargs=gen_kwargs,
+                **kwargs,
+            )
+
+    monkeypatch.setattr("generation.hub_dataset._get_dataset_class", lambda: _FakeDatasetClass)
+    monkeypatch.setattr("generation.hub_dataset._build_features", lambda feature_dict: feature_dict)
+    monkeypatch.setattr("generation.hub_dataset._get_hf_image_feature", lambda: "image-feature")
+    monkeypatch.setattr("generation.hub_dataset._get_hf_value_feature", lambda dtype: type("ValueFeature", (), {"dtype": dtype})())
+
+    upload_subset_to_hub(
+        repo_id="org/dataset",
+        metadata_path=metadata_path,
+        config_name="default",
+        split="test",
+        selected_indices={1},
+    )
+
+    assert captured["rows"] == [
+        {
+            "image": str(tmp_path / "sample_1.png"),
+            "GT_markdown": "sample-1",
+            "GT_json": json.dumps({"idx": 1}, ensure_ascii=False),
+        }
+    ]
+    assert captured["push"]["repo_id"] == "org/dataset"
+    assert captured["push"]["config_name"] == "default"
+    assert captured["push"]["split"] == "test"
+    assert captured["push"]["max_shard_size"] == "256MB"
 
 
 def test_publish_pipeline_uses_manifest_context(monkeypatch, tmp_path: Path) -> None:

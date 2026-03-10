@@ -1,15 +1,16 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Iterator, Optional
 
-import pandas as pd
-from datasets import Dataset, Features, Image as HFImage, Value, load_dataset
 from huggingface_hub import HfApi, whoami
 
 from utils import markdown_to_json_ast
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from datasets import Features
 
 _FEATURE_TYPE_MAPPING = {
     bool: "bool",
@@ -24,31 +25,36 @@ _FEATURE_TYPE_MAPPING = {
 
 def upload_subset_to_hub(
     repo_id: str,
-    subset_dir: Path,
     config_name: str,
+    subset_dir: Optional[Path] = None,
+    metadata_path: Optional[Path] = None,
     split: str = "train",
     reuse_existing_schema: bool = False,
-):
+    selected_indices: Optional[set[int]] = None,
+    max_shard_size: str = "256MB",
+) -> None:
     logger.info(
         f"\n▶ Starting upload of subset '{config_name}' split '{split}' to '{repo_id}'..."
     )
 
     try:
         _ensure_hf_login()
-        metadata_path = _resolve_metadata_path(subset_dir)
-        normalized_rows = _read_normalized_metadata_rows(metadata_path)
-        if not normalized_rows:
+        resolved_metadata_path = _resolve_metadata_path(
+            subset_dir=subset_dir,
+            metadata_path=metadata_path,
+        )
+        sample_row = _read_first_normalized_metadata_row(
+            resolved_metadata_path,
+            selected_indices=selected_indices,
+        )
+        if sample_row is None:
             logger.warning("No valid data to process. Aborting upload.")
             return
 
-        feature_dict = _infer_feature_dict(normalized_rows[0])
-        all_data = _build_upload_records(normalized_rows, feature_dict)
-
-        features = Features(feature_dict)
+        features = _build_features(_infer_feature_dict(sample_row))
         if reuse_existing_schema:
             existing_features = _get_existing_features(repo_id, config_name, split)
             if existing_features is not None:
-                all_data = _align_records_to_existing_features(all_data, existing_features)
                 features = existing_features
                 logger.info(f"  Reusing existing Hub feature schema: {features}")
             else:
@@ -56,13 +62,30 @@ def upload_subset_to_hub(
         else:
             logger.info(f"  Using inferred local feature schema: {features}")
 
+        entry_count = _count_selected_rows(
+            resolved_metadata_path,
+            selected_indices=selected_indices,
+        )
         logger.info(
-            f"  '{config_name}' subset ({split}): Found {len(all_data):,} valid data entries."
+            f"  '{config_name}' subset ({split}): Found {entry_count:,} valid data entries."
         )
 
-        dataframe = pd.DataFrame(all_data)
-        dataset = Dataset.from_pandas(dataframe, features=features)
-        dataset.push_to_hub(repo_id, config_name=config_name, split=split)
+        dataset_cls = _get_dataset_class()
+        dataset = dataset_cls.from_generator(
+            _iter_upload_records,
+            features=features,
+            gen_kwargs={
+                "metadata_path": resolved_metadata_path,
+                "features": features,
+                "selected_indices": selected_indices,
+            },
+        )
+        dataset.push_to_hub(
+            repo_id,
+            config_name=config_name,
+            split=split,
+            max_shard_size=max_shard_size,
+        )
 
         logger.info(f"✔ Subset '{config_name}' uploaded successfully!")
 
@@ -211,17 +234,23 @@ def _ensure_hf_login() -> None:
         ) from exc
 
 
-def _resolve_metadata_path(subset_dir: Path) -> Path:
-    metadata_path = subset_dir / "metadata.jsonl"
+def _resolve_metadata_path(
+    *,
+    subset_dir: Optional[Path],
+    metadata_path: Optional[Path],
+) -> Path:
+    if metadata_path is None:
+        if subset_dir is None:
+            raise FileNotFoundError("Either subset_dir or metadata_path must be provided.")
+        metadata_path = subset_dir / "metadata.jsonl"
     if not metadata_path.exists():
         raise FileNotFoundError(f"'{metadata_path}' not found. Aborting upload.")
     return metadata_path
 
 
-def _read_normalized_metadata_rows(metadata_path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
+def _iter_normalized_metadata_rows(metadata_path: Path) -> Iterator[tuple[int, dict[str, Any]]]:
     with open(metadata_path, "r", encoding="utf-8") as file:
-        for line_number, line in enumerate(file, start=1):
+        for row_index, line in enumerate(file):
             payload = line.strip()
             if not payload:
                 continue
@@ -229,17 +258,28 @@ def _read_normalized_metadata_rows(metadata_path: Path) -> list[dict[str, Any]]:
                 raw = json.loads(payload)
             except json.JSONDecodeError as exc:
                 raise ValueError(
-                    f"Invalid JSON in metadata.jsonl at line {line_number}"
+                    f"Invalid JSON in metadata.jsonl at line {row_index + 1}"
                 ) from exc
-            rows.append(_normalize_gt_fields(raw))
-    return rows
+            yield row_index, _normalize_gt_fields(raw)
+
+
+def _read_first_normalized_metadata_row(
+    metadata_path: Path,
+    *,
+    selected_indices: Optional[set[int]],
+) -> Optional[dict[str, Any]]:
+    for row_index, row in _iter_normalized_metadata_rows(metadata_path):
+        if selected_indices is not None and row_index not in selected_indices:
+            continue
+        return row
+    return None
 
 
 def _infer_feature_dict(sample_data: dict[str, Any]) -> dict[str, Any]:
     if "file_name" not in sample_data:
         raise KeyError("Required key 'file_name' not found in 'metadata.jsonl'.")
 
-    feature_dict: dict[str, Any] = {"image": HFImage()}
+    feature_dict: dict[str, Any] = {"image": _get_hf_image_feature()}
     for key, value in sample_data.items():
         if key == "file_name":
             continue
@@ -252,25 +292,40 @@ def _infer_feature_dict(sample_data: dict[str, Any]) -> dict[str, Any]:
                 key,
                 value_type,
             )
-        feature_dict[key] = Value(hf_type)
+        feature_dict[key] = _get_hf_value_feature(hf_type)
     return feature_dict
 
 
-def _build_upload_records(
-    rows: list[dict[str, Any]], feature_dict: dict[str, Any]
-) -> list[dict[str, Any]]:
-    all_data: list[dict[str, Any]] = []
-    feature_keys = [key for key in feature_dict.keys() if key != "image"]
-    for index, data in enumerate(rows, start=1):
-        file_name = data.get("file_name")
-        if not file_name:
-            raise KeyError(f"Required key 'file_name' missing at metadata row {index}.")
+def _iter_upload_records(
+    metadata_path: Path,
+    features: "Features",
+    selected_indices: Optional[set[int]] = None,
+) -> Iterator[dict[str, Any]]:
+    for row_index, data in _iter_normalized_metadata_rows(metadata_path):
+        if selected_indices is not None and row_index not in selected_indices:
+            continue
+        yield _build_upload_record(data, features, row_index=row_index)
 
-        record: dict[str, Any] = {"image": str(file_name)}
-        for key in feature_keys:
-            record[key] = _serialize_feature_value(data.get(key))
-        all_data.append(record)
-    return all_data
+
+def _build_upload_record(
+    data: dict[str, Any],
+    features: "Features",
+    *,
+    row_index: int,
+) -> dict[str, Any]:
+    file_name = data.get("file_name")
+    if not file_name:
+        raise KeyError(f"Required key 'file_name' missing at metadata row {row_index + 1}.")
+
+    record: dict[str, Any] = {"image": str(file_name)}
+    for key, feature in features.items():
+        if key == "image":
+            continue
+        value = data.get(key)
+        if value is None:
+            value = _default_value_for_feature(key, feature, data)
+        record[key] = _serialize_feature_value(value)
+    return record
 
 
 def _serialize_feature_value(value: Any) -> Any:
@@ -281,12 +336,13 @@ def _serialize_feature_value(value: Any) -> Any:
     return value
 
 
-def _get_existing_features(repo_id: str, config_name: str, split: str) -> Optional[Features]:
+def _get_existing_features(repo_id: str, config_name: str, split: str) -> Optional["Features"]:
     split_candidates: list[str] = []
     for name in [split, "train", "validation", "test"]:
         if name and name not in split_candidates:
             split_candidates.append(name)
 
+    load_dataset = _get_load_dataset()
     for split_name in split_candidates:
         try:
             sample = load_dataset(repo_id, name=config_name, split=f"{split_name}[:1]")
@@ -295,6 +351,21 @@ def _get_existing_features(repo_id: str, config_name: str, split: str) -> Option
         if sample is not None and sample.features is not None:
             return sample.features
     return None
+
+
+def _count_selected_rows(
+    metadata_path: Path,
+    *,
+    selected_indices: Optional[set[int]],
+) -> int:
+    if selected_indices is None:
+        count = 0
+        with open(metadata_path, "r", encoding="utf-8") as file:
+            for line in file:
+                if line.strip():
+                    count += 1
+        return count
+    return len(selected_indices)
 
 
 def _default_value_for_feature(key: str, feature: Any, record: dict[str, Any]) -> Any:
@@ -327,21 +398,31 @@ def _default_value_for_feature(key: str, feature: Any, record: dict[str, Any]) -
     return ""
 
 
-def _align_records_to_existing_features(
-    records: list[dict[str, Any]], features: Features
-) -> list[dict[str, Any]]:
-    aligned_records: list[dict[str, Any]] = []
-    for record in records:
-        aligned: dict[str, Any] = {}
-        for key, feature in features.items():
-            if key == "image":
-                aligned[key] = str(record.get("image", ""))
-                continue
+def _get_dataset_class():
+    from datasets import Dataset
 
-            value = record.get(key)
-            if value is None:
-                value = _default_value_for_feature(key, feature, record)
+    return Dataset
 
-            aligned[key] = _serialize_feature_value(value)
-        aligned_records.append(aligned)
-    return aligned_records
+
+def _get_load_dataset():
+    from datasets import load_dataset
+
+    return load_dataset
+
+
+def _build_features(feature_dict: dict[str, Any]) -> "Features":
+    from datasets import Features
+
+    return Features(feature_dict)
+
+
+def _get_hf_image_feature():
+    from datasets import Image as HFImage
+
+    return HFImage()
+
+
+def _get_hf_value_feature(dtype: str):
+    from datasets import Value
+
+    return Value(dtype)
