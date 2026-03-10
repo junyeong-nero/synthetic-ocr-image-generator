@@ -33,9 +33,11 @@ git clone https://github.com/your-repo/synthetic-ocr-image-generator.git
 cd synthetic-ocr-image-generator
 
 uv sync
+uv run playwright install chromium
 ```
 
 Install extra dependency groups only when needed (for example, model-specific backends).
+The markdown renderer uses headless Playwright by default, so install the Chromium browser bundle once after syncing dependencies.
 
 ### Formula Rendering System Dependencies
 
