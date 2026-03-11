@@ -24,7 +24,10 @@ if TYPE_CHECKING:
     from models.transformers.deepseek_ocr2 import DeepSeekOCR2
     from models.transformers.gemma3_4b_it import Gemma3_4B_IT
     from models.transformers.got_ocr import GotOCR
+    from models.transformers.nanonets_ocr import NanonetsOCR
+    from models.transformers.nanonets_ocr2 import NanonetsOCR2
     from models.transformers.paddle_ocr import PaddleOCR
+    from models.transformers.qwen25_vl import Qwen25VL
     from models.transformers.qwen3_vl import Qwen3VL
     from models.transformers.varco_ocr import VarcoOCR
     from models.transformers.light_on_ocr2 import LightOnOCR2
@@ -45,9 +48,18 @@ def __getattr__(name: str):
     if name == "GotOCR":
         from models.transformers.got_ocr import GotOCR
         return GotOCR
+    if name == "NanonetsOCR":
+        from models.transformers.nanonets_ocr import NanonetsOCR
+        return NanonetsOCR
+    if name == "NanonetsOCR2":
+        from models.transformers.nanonets_ocr2 import NanonetsOCR2
+        return NanonetsOCR2
     if name == "PaddleOCR":
         from models.transformers.paddle_ocr import PaddleOCR
         return PaddleOCR
+    if name == "Qwen25VL":
+        from models.transformers.qwen25_vl import Qwen25VL
+        return Qwen25VL
     if name == "Qwen3VL":
         from models.transformers.qwen3_vl import Qwen3VL
         return Qwen3VL
@@ -78,7 +90,10 @@ __all__ = [
     "DeepSeekOCR2",
     "Gemma3_4B_IT",
     "GotOCR",
+    "NanonetsOCR",
+    "NanonetsOCR2",
     "PaddleOCR",
+    "Qwen25VL",
     "Qwen3VL",
     "VarcoOCR",
     "LightOnOCR2",

@@ -1,0 +1,14 @@
+model_id: numind/NuMarkdown-8B-Thinking
+backend: transformers
+dependency_group: qwen2.5-vl
+temperature: 0.0
+max_tokens: 8192
+top_p: 1.0
+batch_size: 2
+timeout: 300
+max_retries: 3
+device: cuda
+dtype: bfloat16
+tensor_parallel_size: 1
+prompt:
+  prompt: Convert the document to clean markdown. Preserve layout, tables, and formulas. Output markdown only.

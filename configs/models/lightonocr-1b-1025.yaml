@@ -1,0 +1,14 @@
+model_id: lightonai/LightOnOCR-1B-1025
+backend: transformers
+dependency_group: lighton-ocr2
+temperature: 0.0
+max_tokens: 4096
+top_p: 1.0
+batch_size: 4
+timeout: 300
+max_retries: 3
+device: cuda
+dtype: bfloat16
+tensor_parallel_size: 1
+prompt:
+  prompt: Extract all information from the document image and represent it in markdown. Preserve reading order and original wording.
