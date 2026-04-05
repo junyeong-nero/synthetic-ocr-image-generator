@@ -8,11 +8,11 @@ from typing import Any, Sequence
 from PIL import Image
 from tqdm import tqdm
 
-from evaluation.batch_api import build_batch_results, load_batch_errors, load_batch_info
-from evaluation.checkpoint import build_checkpoint_context
-from evaluation.checkpoint_store import load_or_create_state, save_checkpoint
-from evaluation.config import EvaluationConfig, InferenceBackend
-from evaluation.retry import (
+from src.evaluation.batch_api import build_batch_results, load_batch_errors, load_batch_info
+from src.evaluation.checkpoint import build_checkpoint_context
+from src.evaluation.checkpoint_store import load_or_create_state, save_checkpoint
+from src.evaluation.config import EvaluationConfig, InferenceBackend
+from src.evaluation.retry import (
     apply_retry_results,
     empty_prediction_positions,
     ensure_batch_size,
@@ -21,8 +21,8 @@ from evaluation.retry import (
     normalize_predictions,
     prepare_retry_batch,
 )
-from evaluation.types import InferenceResult, RunnerState
-from models.base import VLMModel
+from src.evaluation.types import InferenceResult, RunnerState
+from src.models.base import VLMModel
 
 
 class EvaluationRunner:

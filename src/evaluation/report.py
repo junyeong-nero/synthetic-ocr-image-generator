@@ -2,12 +2,12 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from evaluation.report_builders import (
+from src.evaluation.report_builders import (
     build_html_report,
     build_json_report,
     build_markdown_report,
 )
-from evaluation.types import EvaluationOutput
+from src.evaluation.types import EvaluationOutput
 
 
 class ReportGenerator:

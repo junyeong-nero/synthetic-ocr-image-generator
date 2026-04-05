@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from evaluation.config import EvaluationConfig
+from src.evaluation.config import EvaluationConfig
 
 
 def build_checkpoint_context(config: EvaluationConfig) -> dict[str, str]:

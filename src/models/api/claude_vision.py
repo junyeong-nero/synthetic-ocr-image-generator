@@ -5,8 +5,8 @@ from typing import Optional
 
 from PIL import Image
 
-from evaluation.config import ModelConfig
-from models.api.base import APIModel
+from src.evaluation.config import ModelConfig
+from src.models.api.base import APIModel
 
 
 class ClaudeVision(APIModel):
@@ -107,7 +107,7 @@ class ClaudeVision(APIModel):
         Returns:
             ClaudeVision instance.
         """
-        from evaluation.config import InferenceBackend
+        from src.evaluation.config import InferenceBackend
 
         config = ModelConfig(
             model_id=model_id,

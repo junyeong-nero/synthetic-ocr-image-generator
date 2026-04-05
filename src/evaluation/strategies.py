@@ -12,7 +12,7 @@ class MarkdownEvaluator:
         ]
 
     def compute_metrics(self, predictions: List[str], ground_truths: List[str]) -> Dict[str, float]:
-        from metrics.markdown_block_metrics import evaluate_markdown_blocks
+        from src.metrics.markdown_block_metrics import evaluate_markdown_blocks
 
         per_sample = [
             evaluate_markdown_blocks(pred, gt)

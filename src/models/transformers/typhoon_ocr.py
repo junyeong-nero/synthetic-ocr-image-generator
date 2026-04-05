@@ -5,7 +5,7 @@ from typing import List
 from PIL import Image
 from transformers import AutoModelForImageTextToText, AutoProcessor
 
-from models.transformers.base import BaseTransformersOCR
+from src.models.transformers.base import BaseTransformersOCR
 
 
 class TyphoonOCR(BaseTransformersOCR):

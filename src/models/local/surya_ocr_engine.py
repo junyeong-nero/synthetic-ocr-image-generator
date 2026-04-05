@@ -2,8 +2,8 @@ from typing import List, Union
 
 from PIL import Image
 
-from evaluation.config import ModelConfig
-from models.base import VLMModel
+from src.evaluation.config import ModelConfig
+from src.models.base import VLMModel
 
 
 class SuryaOCREngine(VLMModel):

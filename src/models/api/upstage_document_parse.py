@@ -5,8 +5,8 @@ from typing import Any, Optional
 
 from PIL import Image
 
-from evaluation.config import ModelConfig
-from models.api.base import APIModel
+from src.evaluation.config import ModelConfig
+from src.models.api.base import APIModel
 
 
 class UpstageDocumentParse(APIModel):
@@ -119,7 +119,7 @@ class UpstageDocumentParse(APIModel):
         api_key: Optional[str] = None,
         **kwargs,
     ) -> "UpstageDocumentParse":
-        from evaluation.config import InferenceBackend
+        from src.evaluation.config import InferenceBackend
 
         config = ModelConfig(
             model_id=model_id,

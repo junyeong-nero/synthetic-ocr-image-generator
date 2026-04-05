@@ -5,7 +5,7 @@ from typing import List
 from PIL import Image
 from transformers import Qwen3VLForConditionalGeneration
 
-from models.transformers.base import StandardTransformersOCR
+from src.models.transformers.base import StandardTransformersOCR
 
 
 class Qwen3VL(StandardTransformersOCR):

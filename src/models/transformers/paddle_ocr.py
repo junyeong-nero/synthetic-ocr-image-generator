@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from transformers import AutoModelForCausalLM, AutoProcessor
 
-from models.transformers.base import BaseTransformersOCR
+from src.models.transformers.base import BaseTransformersOCR
 
 
 class PaddleOCR(BaseTransformersOCR):

@@ -7,19 +7,14 @@ from typing import Any, Dict, List, Optional
 
 from datasets import Dataset, load_dataset
 
-from evaluation.checkpoint import build_checkpoint_context, resolve_checkpoint_path
-from evaluation.config import (
-    DEFAULT_PROMPT,
-    EvaluationConfig,
-    EvaluationMode,
-    ModelConfig,
-)
-from evaluation.model_config import ModelConfigLoader, ModelSpecificConfig
-from evaluation.runner import EvaluationRunner
-from evaluation.types import EvaluationOutput, InferenceResult, RunnerState
-from evaluation.strategies import MarkdownEvaluator
-from models.registry import create_model
-from env_utils import get_environment_metadata
+from src.evaluation.checkpoint import build_checkpoint_context, resolve_checkpoint_path
+from src.evaluation.config import DEFAULT_PROMPT, EvaluationConfig, EvaluationMode, ModelConfig
+from src.evaluation.model_config import ModelConfigLoader, ModelSpecificConfig
+from src.evaluation.runner import EvaluationRunner
+from src.evaluation.types import EvaluationOutput, InferenceResult, RunnerState
+from src.evaluation.strategies import MarkdownEvaluator
+from src.models.registry import create_model
+from src.env_utils import get_environment_metadata
 
 
 class EvaluationPipeline:
@@ -335,7 +330,7 @@ def evaluate_pipeline(
     Returns:
         EvaluationOutput with results.
     """
-    from evaluation.config import InferenceBackend
+    from src.evaluation.config import InferenceBackend
 
     # Build model config
     model_config = ModelConfig(

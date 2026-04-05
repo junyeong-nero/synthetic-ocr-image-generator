@@ -1,6 +1,6 @@
 """DeepSeek-OCR model wrapper."""
 
-from models.transformers.base import StandardTransformersOCR
+from src.models.transformers.base import StandardTransformersOCR
 
 
 class DeepSeekOCR(StandardTransformersOCR):

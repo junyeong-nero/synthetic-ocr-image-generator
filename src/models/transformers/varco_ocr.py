@@ -8,8 +8,8 @@ import torch
 from PIL import Image
 from transformers import AutoProcessor, LlavaOnevisionForConditionalGeneration
 
-from models.transformers.base import BaseTransformersOCR
-from utils import extract_tag
+from src.models.transformers.base import BaseTransformersOCR
+from src.utils import extract_tag
 
 
 class VarcoOCR(BaseTransformersOCR):

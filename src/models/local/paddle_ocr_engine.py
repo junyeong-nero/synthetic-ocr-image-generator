@@ -5,8 +5,8 @@ from typing import List, Union
 from PIL import Image
 import numpy as np
 
-from evaluation.config import ModelConfig
-from models.base import VLMModel
+from src.evaluation.config import ModelConfig
+from src.models.base import VLMModel
 
 
 class PaddleOCREngine(VLMModel):

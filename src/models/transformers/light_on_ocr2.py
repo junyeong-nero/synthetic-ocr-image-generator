@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from transformers import LightOnOcrForConditionalGeneration, LightOnOcrProcessor
 
-from models.transformers.base import BaseTransformersOCR
+from src.models.transformers.base import BaseTransformersOCR
 
 
 class LightOnOCR2(BaseTransformersOCR):

@@ -3,8 +3,8 @@
 from importlib import import_module
 from typing import Any, Dict, Optional, Type, cast
 
-from evaluation.config import InferenceBackend, ModelConfig
-from models.base import VLMModel
+from src.evaluation.config import InferenceBackend, ModelConfig
+from src.models.base import VLMModel
 
 
 # Specialized model registry: maps (model_id_pattern, backend) to (module_path, class_name)

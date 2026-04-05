@@ -5,7 +5,7 @@ from typing import List
 from PIL import Image
 from transformers import AutoModelForImageTextToText, AutoProcessor, AutoTokenizer
 
-from models.transformers.base import BaseTransformersOCR, get_attn_implementation
+from src.models.transformers.base import BaseTransformersOCR, get_attn_implementation
 
 
 class NanonetsOCR2(BaseTransformersOCR):

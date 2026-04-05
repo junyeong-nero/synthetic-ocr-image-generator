@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-from evaluation.checkpoint import build_checkpoint_context, resolve_checkpoint_path
-from evaluation.types import RunnerState
+from src.evaluation.checkpoint import build_checkpoint_context, resolve_checkpoint_path
+from src.evaluation.types import RunnerState
 
 
 def load_or_create_state(config, output_dir: Path, checkpoint_path: Path) -> RunnerState:

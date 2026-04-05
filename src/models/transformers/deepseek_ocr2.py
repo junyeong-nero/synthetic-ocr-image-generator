@@ -11,7 +11,7 @@ import torch
 from PIL import Image
 from transformers import AutoModel, AutoTokenizer
 
-from models.transformers.base import BaseTransformersOCR, get_attn_implementation
+from src.models.transformers.base import BaseTransformersOCR, get_attn_implementation
 
 
 class DeepSeekOCR2(BaseTransformersOCR):

@@ -4,7 +4,7 @@ from typing import List
 
 from PIL import Image
 
-from models.transformers.base import StandardTransformersOCR
+from src.models.transformers.base import StandardTransformersOCR
 
 
 class GotOCR(StandardTransformersOCR):

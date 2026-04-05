@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from transformers import AutoProcessor, HunYuanVLForConditionalGeneration
 
-from models.transformers.base import BaseTransformersOCR
+from src.models.transformers.base import BaseTransformersOCR
 
 
 class HunYuanOCR(BaseTransformersOCR):

@@ -1,4 +1,4 @@
-from evaluation.types import EvaluationOutput
+from src.evaluation.types import EvaluationOutput
 
 
 def build_json_report(output: EvaluationOutput) -> dict:

@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
-from evaluation.types import InferenceResult
+from src.evaluation.types import InferenceResult
 
 
 def load_batch_info(batch_info_path: Path) -> dict[str, Any]:

@@ -6,8 +6,8 @@ from typing import List
 
 from PIL import Image
 
-from evaluation.config import ModelConfig
-from models.base import VLMModel
+from src.evaluation.config import ModelConfig
+from src.models.base import VLMModel
 
 
 class TransformersVLM(VLMModel):
@@ -221,7 +221,7 @@ class TransformersVLM(VLMModel):
         Returns:
             TransformersVLM instance.
         """
-        from evaluation.config import InferenceBackend
+        from src.evaluation.config import InferenceBackend
 
         config = ModelConfig(
             model_id=model_id,

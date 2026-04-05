@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from transformers import Gemma3ForConditionalGeneration
 
-from models.transformers.base import StandardTransformersOCR
+from src.models.transformers.base import StandardTransformersOCR
 
 
 class Gemma3_4B_IT(StandardTransformersOCR):

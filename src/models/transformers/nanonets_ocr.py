@@ -1,6 +1,6 @@
 """Nanonets-OCR model wrapper."""
 
-from models.transformers.nanonets_ocr2 import NanonetsOCR2
+from src.models.transformers.nanonets_ocr2 import NanonetsOCR2
 
 
 class NanonetsOCR(NanonetsOCR2):

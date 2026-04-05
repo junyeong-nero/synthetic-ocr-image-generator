@@ -7,8 +7,8 @@ from typing import List, Optional
 
 from PIL import Image
 
-from evaluation.config import ModelConfig
-from models.base import VLMModel, encode_image_base64
+from src.evaluation.config import ModelConfig
+from src.models.base import VLMModel, encode_image_base64
 
 
 class RateLimiter:
