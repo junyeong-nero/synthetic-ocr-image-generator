@@ -3,9 +3,5 @@ backend: surya
 batch_size: 8
 timeout: 120
 max_retries: 3
-subsets:
-  korean:
-    prompt:
-      prompt: ignored
 prompt:
   prompt: ignored

@@ -26,10 +26,10 @@ Common fields loaded by `src/evaluation/model_config.py`:
 - `model_id`
 - `backend` (`openai`, `anthropic`, `google`, `upstage`, `transformers`, `paddleocr`, `surya`)
 - `dependency_group`
-- `temperature`, `max_tokens`, `top_p`, `batch_size`
-- `timeout`, `max_retries`
-- `api_base`, `rate_limit_rpm`
-- `device`, `dtype`, `tensor_parallel_size`, `max_model_len`
+- `temperature`, `max_tokens`, `batch_size`
+- `timeout`, `max_retries`, `api_base`, `rate_limit_rpm`
+- `device`, `dtype`, `tensor_parallel_size`
+
 - `prompt` (single markdown prompt config)
 
 ## Prompt Configuration

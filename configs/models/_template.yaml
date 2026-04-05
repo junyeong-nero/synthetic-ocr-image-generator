@@ -2,17 +2,8 @@ model_id: your-model-id
 backend: openai
 temperature: 0.0
 max_tokens: 4096
-top_p: 1.0
 batch_size: 1
 timeout: 120
 max_retries: 3
-subsets:
-  korean:
-    batch_size: 4
-    temperature: 0.1
-    prompt:
-      prompt: Convert the image content to clean markdown. Preserve reading order,
-        tables, and formulas. Output markdown only with no code fences or explanations.
 prompt:
-  prompt: Convert the image content to clean markdown. Preserve reading order, tables,
-    and formulas. Output markdown only with no code fences or explanations.
+  prompt: Convert the image content to clean markdown. Preserve reading order, tables, and formulas. Output markdown only with no code fences or explanations.

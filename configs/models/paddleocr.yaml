@@ -4,22 +4,5 @@ dependency_group: paddle-ocr
 batch_size: 12
 timeout: 60
 max_retries: 3
-subsets:
-  korean:
-    model_id: paddleocr/korean
-    prompt:
-      prompt: ignored
-  english:
-    model_id: paddleocr/en
-    prompt:
-      prompt: ignored
-  chinese:
-    model_id: paddleocr/ch
-    prompt:
-      prompt: ignored
-  japanese:
-    model_id: paddleocr/japan
-    prompt:
-      prompt: ignored
 prompt:
   prompt: ignored
