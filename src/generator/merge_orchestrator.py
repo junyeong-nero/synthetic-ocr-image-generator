@@ -3,7 +3,7 @@
 import random
 from typing import Callable, List, Tuple
 
-from generator.data_provider import DataProvider
+from src.generator.data_provider import DataProvider
 
 
 class MergeOrchestrator:

@@ -4,7 +4,7 @@ from typing import List
 from datasets import load_dataset
 from tqdm import tqdm
 
-from utils import save_txt
+from src.utils import save_txt
 
 logger = logging.getLogger(__name__)
 

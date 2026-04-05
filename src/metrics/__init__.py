@@ -1,6 +1,6 @@
 """OCR evaluation metrics."""
 
-from metrics.edit_distance import (
+from src.metrics.edit_distance import (
     accuracy,
     cer,
     character_accuracy,
@@ -11,14 +11,12 @@ from metrics.edit_distance import (
     word_accuracy,
 )
 
-# Optional imports for table metrics
 try:
-    from metrics.table_edit_distance import TEDS
+    from src.metrics.table_edit_distance import TEDS
 except ImportError:
     TEDS = None
 
 __all__ = [
-    # Edit distance metrics
     "levenshtein_distance",
     "cer",
     "wer",
@@ -27,6 +25,5 @@ __all__ = [
     "accuracy",
     "word_accuracy",
     "character_accuracy",
-    # Table metrics
     "TEDS",
 ]

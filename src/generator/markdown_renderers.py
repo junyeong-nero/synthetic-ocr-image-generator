@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
-from generator.markdown_render_utils import (
+from src.generator.markdown_render_utils import (
     MarkdownStyle,
     image_to_data_uri,
     parse_markdown_formula_line,

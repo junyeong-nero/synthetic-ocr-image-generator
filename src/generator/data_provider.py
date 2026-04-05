@@ -19,8 +19,8 @@ from typing import Dict, List, Optional
 
 from faker import Faker
 
-from generator.faker_locales import base_lang_code, normalize_lang_code, resolve_faker_locale
-from generator.language_data import ENGLISH_DATA, LANGUAGE_DATA
+from src.generator.faker_locales import base_lang_code, normalize_lang_code, resolve_faker_locale
+from src.generator.language_data import ENGLISH_DATA, LANGUAGE_DATA
 
 logger = logging.getLogger(__name__)
 

@@ -2,14 +2,14 @@ import argparse
 import logging
 from pathlib import Path
 
-from corpus_llm.constants import (
+from src.corpus_llm.constants import (
     CATEGORIES,
     CORPUS_DIR,
     DEFAULT_ANTHROPIC_MODEL,
     DEFAULT_OPENAI_MODEL,
 )
-from corpus_llm.pipeline import run_generation
-from corpus_llm.providers import get_provider
+from src.corpus_llm.pipeline import run_generation
+from src.corpus_llm.providers import get_provider
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:

@@ -1,6 +1,6 @@
 from typing import Dict, Type
-from generator.base import BaseGenerator
-from generator.generator import Generator
+from src.generator.base import BaseGenerator
+from src.generator.generator import Generator
 
 class GeneratorRegistry:
     _generators: Dict[str, Type[BaseGenerator]] = {

@@ -18,9 +18,9 @@ from typing import Any, Dict, List, Optional, Tuple
 from tqdm import tqdm
 from PIL import Image
 
-from character_similarity import find_similar_chars
-from generator.base import BaseGenerator
-from generator.generation_config import (
+from src.character_similarity import find_similar_chars
+from src.generator.base import BaseGenerator
+from src.generator.generation_config import (
     A4_MAX_HEIGHT_PX,
     A4_MAX_WIDTH_PX,
     DEFAULT_NOVELTY_MAX_ATTEMPTS,
@@ -32,22 +32,22 @@ from generator.generation_config import (
     normalize_choice,
     resolve_effect_settings,
 )
-from generator.markdown_content import (
+from src.generator.markdown_content import (
     DEFAULT_FORMULA_SOURCE_WEIGHTS,
     HARD_CODED_FORMULA_EXPRESSIONS,
     MarkdownDataGenerator,
 )
-from generator.markdown_renderers import HtmlMarkdownRenderer, MarkdownRenderer, PlaywrightMarkdownRenderer
-from generator.markdown_render_utils import (
+from src.generator.markdown_renderers import HtmlMarkdownRenderer, MarkdownRenderer, PlaywrightMarkdownRenderer
+from src.generator.markdown_render_utils import (
     MarkdownStyle,
     parse_markdown_formula_line,
     parse_markdown_image_line,
 )
-from generator.style_sampler import base_styles, clamp_color, jitter_color, random_style
-from generator.template_catalog import TemplateCatalog, TemplateSpec, parse_coverage_targets
-from generator.text_generator import TextGenerator
-from generator.text_mutation import mutate_similar_text, mutate_text_generator_sections
-from utils import markdown_to_json_ast, read_json
+from src.generator.style_sampler import base_styles, clamp_color, jitter_color, random_style
+from src.generator.template_catalog import TemplateCatalog, TemplateSpec, parse_coverage_targets
+from src.generator.text_generator import TextGenerator
+from src.generator.text_mutation import mutate_similar_text, mutate_text_generator_sections
+from src.utils import markdown_to_json_ast, read_json
 
 logger = logging.getLogger(__name__)
 

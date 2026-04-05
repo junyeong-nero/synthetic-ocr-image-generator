@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, TextIO, Tuple
 
 from PIL import Image
 
-from generator.realism_stats import RealismStatsAccumulator, write_realism_stats
+from src.generator.realism_stats import RealismStatsAccumulator, write_realism_stats
 
 logger = logging.getLogger(__name__)
 

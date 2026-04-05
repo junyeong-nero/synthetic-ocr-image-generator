@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional
 
-from corpus_llm.constants import LANGUAGE_LABELS
+from src.corpus_llm.constants import LANGUAGE_LABELS
 
 
 def resolve_language_label(lang: str, lang_name: Optional[str] = None) -> str:

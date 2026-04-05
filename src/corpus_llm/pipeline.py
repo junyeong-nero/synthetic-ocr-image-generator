@@ -3,10 +3,10 @@ import random
 from pathlib import Path
 from typing import List, Optional, Sequence
 
-from corpus_llm.constants import CATEGORIES
-from corpus_llm.parsing import normalize_corpus_item, parse_response
-from corpus_llm.prompting import build_prompt
-from corpus_llm.providers import LLMProvider
+from src.corpus_llm.constants import CATEGORIES
+from src.corpus_llm.parsing import normalize_corpus_item, parse_response
+from src.corpus_llm.prompting import build_prompt
+from src.corpus_llm.providers import LLMProvider
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)

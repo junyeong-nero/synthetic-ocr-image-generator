@@ -1,6 +1,6 @@
 import random
 
-from generator.markdown_render_utils import MarkdownStyle
+from src.generator.markdown_render_utils import MarkdownStyle
 
 
 def base_styles() -> list[MarkdownStyle]:

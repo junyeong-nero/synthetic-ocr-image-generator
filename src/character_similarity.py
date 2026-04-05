@@ -8,7 +8,7 @@ from typing import Dict, List, Any, Iterable, Tuple
 from tqdm import tqdm
 from skimage.metrics import structural_similarity as ssim
 
-from utils import save_json, read_txt
+from src.utils import save_json, read_txt
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ def build_similarity_database(
         threshold (float): The similarity score threshold for saving the relationship.
         top_k (int): The maximum number of similar characters to store per character.
     """
-    from generator.effects import render_text_with_effects
+    from src.generator.effects import render_text_with_effects
 
     logger.info("Starting to build the similarity database...")
     similarity_db: Dict[str, List[Tuple[str, float]]] = {}

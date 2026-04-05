@@ -95,7 +95,7 @@ def upload_subset_to_hub(
     selected_indices: set[int] | None = None,
     max_shard_size: str = "256MB",
 ):
-    from generation.hub_dataset import upload_subset_to_hub as _upload_subset_to_hub
+    from src.generation.hub_dataset import upload_subset_to_hub as _upload_subset_to_hub
 
     return _upload_subset_to_hub(
         repo_id=repo_id,
@@ -114,7 +114,7 @@ def upload_dataset_readme_to_hub(
     readme_content: str,
     commit_message: str = "docs: update dataset card",
 ) -> None:
-    from generation.hub_dataset import (
+    from src.generation.hub_dataset import (
         upload_dataset_readme_to_hub as _upload_dataset_readme_to_hub,
     )
 

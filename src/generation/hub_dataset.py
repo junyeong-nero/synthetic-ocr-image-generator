@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Iterator, Optional
 
 from huggingface_hub import HfApi, whoami
 
-from utils import markdown_to_json_ast
+from src.utils import markdown_to_json_ast
 
 logger = logging.getLogger(__name__)
 

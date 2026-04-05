@@ -6,12 +6,12 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from generator.data_provider import DataProvider
-from generator.formula_generator import FormularGenerator
-from generator.merge_orchestrator import MergeOrchestrator
-from generator.table_generator import TableGenerator
-from generator.template_catalog import TemplateSpec
-from generator.text_generator import TextGenerator
+from src.generator.data_provider import DataProvider
+from src.generator.formula_generator import FormularGenerator
+from src.generator.merge_orchestrator import MergeOrchestrator
+from src.generator.table_generator import TableGenerator
+from src.generator.template_catalog import TemplateSpec
+from src.generator.text_generator import TextGenerator
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 import os
 from typing import List, Optional, Protocol
 
-from corpus_llm.constants import DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
+from src.corpus_llm.constants import DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
 
 
 class LLMProvider(Protocol):

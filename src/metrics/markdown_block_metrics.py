@@ -14,9 +14,9 @@ try:
 except ImportError:
     LatexNodes2Text = None
 
-from evaluation.utils import extract_html_table
-from metrics import TEDS
-from metrics.edit_distance import cer
+from src.evaluation.utils import extract_html_table
+from src.metrics import TEDS
+from src.metrics.edit_distance import cer
 
 
 _TABLE_SEPARATOR_RE = re.compile(r"^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$")

@@ -4,7 +4,7 @@ import random
 import textwrap
 from typing import Callable, List
 
-from generator.data_provider import DataProvider
+from src.generator.data_provider import DataProvider
 
 
 class TextGenerator:
