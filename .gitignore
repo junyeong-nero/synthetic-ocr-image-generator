@@ -1,6 +1,7 @@
 src/synthetic_ocr_image_benchmark.egg-info
 weights/
 
+uv.lock
 
 *.ttf
 *.pyc
