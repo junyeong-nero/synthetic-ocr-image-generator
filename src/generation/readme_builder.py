@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
-from generation.git_metadata import resolve_git_metadata
+from src.generation.git_metadata import resolve_git_metadata
+from src.generation.options import GenerationTaskContext
 
 
 def format_optional_value(value: Any) -> str:
@@ -44,36 +45,14 @@ def infer_size_category(sample_count: int) -> str:
 
 def build_dataset_readme(
     repo_id: str,
-    lang: str,
-    size: int,
+    context: GenerationTaskContext,
     generated_count: int,
-    template: Optional[str],
-    template_family: Optional[str],
-    min_template_complexity: Optional[int],
-    max_template_complexity: Optional[int],
-    template_config_dir: Optional[str],
-    markdown_renderer: str,
-    style_profile: str,
-    coverage_targets: Any,
-    novelty_window: int,
-    novelty_threshold: float,
-    novelty_max_attempts: int,
-    similar_char_ratio: float,
-    similarity_db_path: Optional[str],
-    formula_source_mode: str,
-    formula_dataset_path: Optional[str],
-    formula_dataset_weight: float,
-    formula_random_weight: float,
-    formula_synthetic_weight: float,
-    add_noise: Optional[bool],
-    add_blur: Optional[bool],
-    train_ratio: float,
-    test_ratio: float,
-    seed: Optional[int],
     split_counts: dict[str, int],
 ) -> str:
     now_utc = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     git_meta = resolve_git_metadata()
+    generation = context.generation
+    publish = context.publish
 
     split_lines = []
     for split_name in ["train", "test"]:
@@ -85,59 +64,74 @@ def build_dataset_readme(
 
     split_block = "\n".join(split_lines) if split_lines else "- No split summary available"
     mode = "markdown"
-    dataset_pretty_name = f"Synthetic OCR Dataset ({lang})"
+    dataset_pretty_name = f"Synthetic OCR Dataset ({context.lang})"
     size_category = infer_size_category(generated_count)
 
     generation_command = [
         "uv run main.py generate",
         f'--repo-id "{repo_id}"',
-        f"--lang {lang}",
-        f"--size {size}",
-        f"--markdown-renderer {markdown_renderer}",
-        f"--style-profile {style_profile}",
-        f"--similar-char-ratio {similar_char_ratio}",
-        f"--novelty-window {novelty_window}",
-        f"--novelty-threshold {novelty_threshold}",
-        f"--novelty-max-attempts {novelty_max_attempts}",
-        f"--formula-source-mode {formula_source_mode}",
-        f"--formula-dataset-weight {formula_dataset_weight}",
-        f"--formula-random-weight {formula_random_weight}",
-        f"--formula-synthetic-weight {formula_synthetic_weight}",
+        f"--lang {context.lang}",
+        f"--size {context.size}",
+        f"--markdown-renderer {generation.markdown_renderer}",
+        f"--style-profile {generation.style_profile}",
+        f"--similar-char-ratio {generation.similar_char_ratio}",
+        f"--novelty-window {generation.novelty_window}",
+        f"--novelty-threshold {generation.novelty_threshold}",
+        f"--novelty-max-attempts {generation.novelty_max_attempts}",
+        f"--formula-source-mode {generation.formula_source_mode}",
+        f"--formula-dataset-weight {generation.formula_dataset_weight}",
+        f"--formula-random-weight {generation.formula_random_weight}",
+        f"--formula-synthetic-weight {generation.formula_synthetic_weight}",
     ]
-    if template:
-        generation_command.append(f"--template {template}")
-    if template_family:
-        generation_command.append(f"--template-family {template_family}")
-    if min_template_complexity is not None:
-        generation_command.append(f"--min-template-complexity {min_template_complexity}")
-    if max_template_complexity is not None:
-        generation_command.append(f"--max-template-complexity {max_template_complexity}")
-    if template_config_dir:
-        generation_command.append(f"--template-config-dir {template_config_dir}")
-    if coverage_targets:
-        if isinstance(coverage_targets, dict):
-            for family, ratio in coverage_targets.items():
+    if generation.template:
+        generation_command.append(f"--template {generation.template}")
+    if generation.template_family:
+        generation_command.append(f"--template-family {generation.template_family}")
+    if generation.min_template_complexity is not None:
+        generation_command.append(
+            f"--min-template-complexity {generation.min_template_complexity}"
+        )
+    if generation.max_template_complexity is not None:
+        generation_command.append(
+            f"--max-template-complexity {generation.max_template_complexity}"
+        )
+    if generation.template_config_dir:
+        generation_command.append(
+            f"--template-config-dir {generation.template_config_dir}"
+        )
+    if generation.coverage_targets:
+        if isinstance(generation.coverage_targets, dict):
+            for family, ratio in generation.coverage_targets.items():
                 generation_command.append(f"--coverage-target {family}={ratio}")
-        elif isinstance(coverage_targets, (list, tuple, set)):
-            for item in coverage_targets:
+        elif isinstance(generation.coverage_targets, (list, tuple, set)):
+            for item in generation.coverage_targets:
                 generation_command.append(f"--coverage-target {item}")
         else:
-            generation_command.append(f"--coverage-target {coverage_targets}")
-    if similarity_db_path:
-        generation_command.append(f"--similarity-db-path {similarity_db_path}")
-    if formula_dataset_path:
-        generation_command.append(f"--formula-dataset-path {formula_dataset_path}")
-    if add_noise is not None:
-        generation_command.append("--add-noise" if add_noise else "--no-add-noise")
-    if add_blur is not None:
-        generation_command.append("--add-blur" if add_blur else "--no-add-blur")
+            generation_command.append(f"--coverage-target {generation.coverage_targets}")
+    if generation.similarity_db_path:
+        generation_command.append(
+            f"--similarity-db-path {generation.similarity_db_path}"
+        )
+    if generation.formula_dataset_path:
+        generation_command.append(
+            f"--formula-dataset-path {generation.formula_dataset_path}"
+        )
+    if generation.add_noise is not None:
+        generation_command.append(
+            "--add-noise" if generation.add_noise else "--no-add-noise"
+        )
+    if generation.add_blur is not None:
+        generation_command.append(
+            "--add-blur" if generation.add_blur else "--no-add-blur"
+        )
     generation_command.extend([
-        f"--train-ratio {train_ratio}",
-        f"--test-ratio {test_ratio}",
+        f"--train-ratio {publish.train_ratio}",
+        f"--test-ratio {publish.test_ratio}",
     ])
-    if seed is not None:
-        generation_command.append(f"--seed {seed}")
-    command_block = " \\\n+  ".join(generation_command)
+    if generation.seed is not None:
+        generation_command.append(f"--seed {generation.seed}")
+    command_block = " \
+  ".join(generation_command)
 
     github_line = (
         f"- GitHub: [{git_meta['github_url']}]({git_meta['github_url']})"
@@ -153,7 +147,7 @@ def build_dataset_readme(
             "---",
             f'pretty_name: "{dataset_pretty_name}"',
             "language:",
-            f"- {lang}",
+            f"- {context.lang}",
             "license: unknown",
             "multilinguality: monolingual",
             "size_categories:",
@@ -183,9 +177,9 @@ def build_dataset_readme(
             "## At a Glance",
             "",
             f"- Dataset: [https://huggingface.co/datasets/{repo_id}](https://huggingface.co/datasets/{repo_id})",
-            f"- Language: `{lang}`",
+            f"- Language: `{context.lang}`",
             f"- Generated samples: `{generated_count}`",
-            f"- Requested samples: `{size}`",
+            f"- Requested samples: `{context.size}`",
             f"- Generation mode: `{mode}`",
             "",
             "## Included Splits",
@@ -197,27 +191,27 @@ def build_dataset_readme(
             "## Generation Configuration",
             "",
             f"- Generated at (UTC): `{now_utc}`",
-            f"- Template: `{template or 'random'}`",
-            f"- Template family: `{format_optional_value(template_family)}`",
-            f"- Min template complexity: `{format_optional_value(min_template_complexity)}`",
-            f"- Max template complexity: `{format_optional_value(max_template_complexity)}`",
-            f"- Template config dir: `{format_optional_value(template_config_dir)}`",
-            f"- Markdown renderer: `{markdown_renderer}`",
-            f"- Style profile: `{style_profile}`",
-            f"- Coverage targets: `{format_coverage_targets(coverage_targets)}`",
-            f"- Novelty window: `{novelty_window}`",
-            f"- Novelty threshold: `{novelty_threshold}`",
-            f"- Novelty max attempts: `{novelty_max_attempts}`",
-            f"- Similar char ratio: `{similar_char_ratio}`",
-            f"- Similarity DB path: `{format_optional_value(similarity_db_path)}`",
-            f"- Formula source mode: `{formula_source_mode}`",
-            f"- Formula dataset path: `{format_optional_value(formula_dataset_path)}`",
-            f"- Formula source weights (dataset/random/synthetic): `{formula_dataset_weight}/{formula_random_weight}/{formula_synthetic_weight}`",
-            f"- Add noise: `{format_optional_value(add_noise)}`",
-            f"- Add blur: `{format_optional_value(add_blur)}`",
-            f"- Seed: `{format_optional_value(seed)}`",
-            f"- Train ratio: `{train_ratio}`",
-            f"- Test ratio: `{test_ratio}`",
+            f"- Template: `{generation.template or 'random'}`",
+            f"- Template family: `{format_optional_value(generation.template_family)}`",
+            f"- Min template complexity: `{format_optional_value(generation.min_template_complexity)}`",
+            f"- Max template complexity: `{format_optional_value(generation.max_template_complexity)}`",
+            f"- Template config dir: `{format_optional_value(generation.template_config_dir)}`",
+            f"- Markdown renderer: `{generation.markdown_renderer}`",
+            f"- Style profile: `{generation.style_profile}`",
+            f"- Coverage targets: `{format_coverage_targets(generation.coverage_targets)}`",
+            f"- Novelty window: `{generation.novelty_window}`",
+            f"- Novelty threshold: `{generation.novelty_threshold}`",
+            f"- Novelty max attempts: `{generation.novelty_max_attempts}`",
+            f"- Similar char ratio: `{generation.similar_char_ratio}`",
+            f"- Similarity DB path: `{format_optional_value(generation.similarity_db_path)}`",
+            f"- Formula source mode: `{generation.formula_source_mode}`",
+            f"- Formula dataset path: `{format_optional_value(generation.formula_dataset_path)}`",
+            f"- Formula source weights (dataset/random/synthetic): `{generation.formula_dataset_weight}/{generation.formula_random_weight}/{generation.formula_synthetic_weight}`",
+            f"- Add noise: `{format_optional_value(generation.add_noise)}`",
+            f"- Add blur: `{format_optional_value(generation.add_blur)}`",
+            f"- Seed: `{format_optional_value(generation.seed)}`",
+            f"- Train ratio: `{publish.train_ratio}`",
+            f"- Test ratio: `{publish.test_ratio}`",
             "",
             "## Repository Provenance",
             "",

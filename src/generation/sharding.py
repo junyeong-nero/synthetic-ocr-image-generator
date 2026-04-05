@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
-from generator.realism_stats import RealismStatsAccumulator, write_realism_stats
+from src.generator.realism_stats import RealismStatsAccumulator, write_realism_stats
 
 
 @dataclass(frozen=True)
@@ -57,6 +57,7 @@ class RunManifest:
         lang: str,
         seed: Optional[int],
         repo_id: Optional[str],
+        task_context: Optional[Dict[str, Any]] = None,
         generation_config: Optional[Dict[str, Any]] = None,
     ) -> "RunManifest":
         manifest = cls(
@@ -70,6 +71,7 @@ class RunManifest:
                 "lang": lang,
                 "seed": seed,
                 "repo_id": repo_id,
+                "task_context": task_context or {},
                 "generation_config": generation_config or {},
                 "completed_shards": [],
                 "failed_shards": [],
