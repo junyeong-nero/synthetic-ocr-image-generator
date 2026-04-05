@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 class PromptConfig(BaseModel):
     prompt: str = Field(description="The prompt template to use")
@@ -26,7 +26,6 @@ class ModelSpecificConfig(BaseModel):
     # Default generation parameters
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     max_tokens: int = Field(default=4096, ge=1)
-    top_p: float = Field(default=1.0, ge=0.0, le=1.0)
     batch_size: int = Field(default=1, ge=1)
 
     # Timeout and retry
@@ -41,11 +40,10 @@ class ModelSpecificConfig(BaseModel):
     device: str = Field(default="cuda")
     dtype: str = Field(default="bfloat16")
     tensor_parallel_size: int = Field(default=1, ge=1)
-    max_model_len: Optional[int] = Field(default=None)
 
     prompt: PromptConfig = Field(description="Default markdown prompt configuration")
 
-    model_config = {"protected_namespaces": ()}
+    model_config = ConfigDict(protected_namespaces=(), extra="forbid")
 
     def get_prompt(self) -> PromptConfig:
         return self.prompt
@@ -77,6 +75,23 @@ class ModelConfigLoader:
 
     def __init__(self, config_dirs: Optional[list[Path]] = None):
         self.config_dirs = config_dirs or self.DEFAULT_CONFIG_DIRS
+
+    def _iter_config_paths(self, *, include_templates: bool = True) -> list[Path]:
+        config_paths: list[Path] = []
+        for config_dir in self.config_dirs:
+            if not config_dir.exists():
+                continue
+            for pattern in ("*.yaml", "*.yml"):
+                for path in sorted(config_dir.glob(pattern)):
+                    if not include_templates and path.stem.startswith("_"):
+                        continue
+                    config_paths.append(path)
+        return config_paths
+
+    def _load_raw_yaml(self, config_path: Path) -> dict[str, Any]:
+        with open(config_path, encoding="utf-8") as f:
+            loaded = yaml.safe_load(f)
+        return loaded if isinstance(loaded, dict) else {}
 
     def _find_config_file(self, model_id: str) -> Optional[Path]:
         """Find config file for a model."""
@@ -113,10 +128,26 @@ class ModelConfigLoader:
 
     def load_from_path(self, config_path: Path) -> ModelSpecificConfig:
         """Load model-specific config from a specific path."""
-        with open(config_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-
+        data = self._load_raw_yaml(config_path)
         return self._parse_config(data)
+
+    def resolve_config_path(self, model_ref: str) -> Optional[Path]:
+        candidate = Path(model_ref)
+        if candidate.exists():
+            return candidate
+
+        for config_dir in self.config_dirs:
+            for suffix in (".yaml", ".yml"):
+                by_name = config_dir / f"{model_ref}{suffix}"
+                if by_name.exists() and not by_name.stem.startswith("_"):
+                    return by_name
+
+        for config_path in self._iter_config_paths(include_templates=False):
+            raw_data = self._load_raw_yaml(config_path)
+            if str(raw_data.get("model_id") or "").strip() == model_ref:
+                return config_path
+
+        return None
 
     def _parse_config(self, data: dict[str, Any]) -> ModelSpecificConfig:
         """Parse raw YAML data into ModelSpecificConfig."""
@@ -132,12 +163,7 @@ class ModelConfigLoader:
 
     def list_available_configs(self) -> list[str]:
         """List all available model configs."""
-        configs = []
-        for config_dir in self.config_dirs:
-            if not config_dir.exists():
-                continue
-            for path in config_dir.glob("*.yaml"):
-                configs.append(path.stem)
-            for path in config_dir.glob("*.yml"):
-                configs.append(path.stem)
-        return sorted(set(configs))
+        return sorted({path.stem for path in self._iter_config_paths()})
+
+    def list_public_config_paths(self) -> list[Path]:
+        return self._iter_config_paths(include_templates=False)
