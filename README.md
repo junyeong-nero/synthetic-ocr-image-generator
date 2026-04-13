@@ -1,54 +1,66 @@
 # Synthetic OCR Image Generator and Benchmark
 
-Synthetic OCR dataset generation and model benchmarking toolkit with a markdown-first pipeline.
+End-to-end toolkit for generating synthetic OCR datasets and benchmarking vision-language models with a markdown-first pipeline.
 
-## Overview
+## What This Does
 
-This repository provides four core workflows:
+This repo lets you:
 
-1. Generate reusable corpus text data with LLM-backed providers.
-2. Generate synthetic OCR images and metadata to a local dataset root.
-3. Publish a completed local generation run to Hugging Face Hub when needed.
-4. Evaluate OCR/VLM models against those datasets and produce reproducible reports.
+1. **Generate corpus text** — build reusable language-specific text assets with an LLM provider (OpenAI, Anthropic, or Wikimedia auto-crawl).
+2. **Generate synthetic OCR images** — render markdown documents as images with controllable noise, blur, and visual style variation, written to a local dataset root.
+3. **Publish to Hugging Face Hub** — upload a completed local generation run as a HF dataset.
+4. **Evaluate OCR/VLM models** — run models against generated datasets, compute markdown-aware metrics, and produce reproducible reports and leaderboards.
 
-The current unified CLI exposes corpus generation alongside the markdown-focused generation and evaluation flows.
+## How It Works
 
-## Key Features
+```
+corpus text  →  generate markdown documents  →  render as images  →  evaluate OCR models
+(LLM/Wikimedia)   (templates + diversity controls)   (Playwright/PIL)   (metrics + reports)
+```
 
-- Local-first markdown OCR dataset generation with sharded outputs, resume support, and explicit publish/upload steps.
-- Markdown OCR dataset generation with a headless Playwright renderer, configurable noise/blur, and typo-like character substitutions.
-- Generated contents are driven primarily by collected corpus data, with corpus-backed text reused across local generation and publish workflows.
-- Character similarity database tooling for realistic substitutions.
-- Per-shard metadata output with aggregate `metadata.jsonl`, `realism_stats.json`, and `run_manifest.json` regeneration.
-- Expanded built-in formula pool for dynamic templates plus bounded formula-render caching for long runs.
-- Evaluation pipeline with model config YAMLs, backend overrides, batch API support, and checkpoint-based resume.
-- Report generation in JSON/Markdown/HTML plus protocol snapshots and leaderboard files.
+### Generation Pipeline (A/B/C phases)
+
+| Phase | What it does |
+|---|---|
+| **A — Legacy** | Classic template methods (`readme`, `tutorial`, …) managed via YAML catalog |
+| **B — Blueprint** | Dynamic document structures defined in `configs/generator/templates/*.yaml` |
+| **C — Quality** | Novelty guard + family coverage balancing + style profiles for diverse, high-quality outputs |
+
+Each generated image is paired with `GT_markdown` and `GT_json` ground truth, making the dataset directly usable for OCR model training and evaluation.
+
+### Evaluation Pipeline
+
+Loads a model config YAML → runs inference via the selected backend → computes markdown block metrics → writes JSON/Markdown/HTML reports + leaderboard files.
+
+---
 
 ## Installation
 
-Use `uv` for dependency management.
+Requires Python 3.11+ and [`uv`](https://github.com/astral-sh/uv).
 
 ```bash
 git clone https://github.com/your-repo/synthetic-ocr-image-generator.git
 cd synthetic-ocr-image-generator
 
 uv sync
-uv run playwright install chromium
+uv run playwright install chromium   # required for the default Playwright renderer
 ```
 
-Install extra dependency groups only when needed (for example, model-specific backends).
-The markdown renderer uses headless Playwright by default, so install the Chromium browser bundle once after syncing dependencies.
+### Optional: Formula Rendering
 
-### Formula Rendering System Dependencies
+LaTeX formula rendering requires XeLaTeX (part of [MacTeX](https://tug.org/mactex/) on macOS):
 
-Markdown formula rendering uses `latex-to-image`, which requires a working XeLaTeX runtime.
+```bash
+xelatex --help   # verify installation
+```
 
-- Verify XeLaTeX is installed: `xelatex --help`
-- On macOS, install MacTeX so `xelatex` is available on your system
+---
 
 ## Quick Start
 
-1) Generate corpus data
+### Step 1 — Generate corpus text
+
+Corpus text is fed into document templates to produce realistic content. Skip this step if you only want to use placeholder text.
 
 ```bash
 uv run main.py corpus generate \
@@ -57,20 +69,22 @@ uv run main.py corpus generate \
   --count 1000
 ```
 
-2) Generate a dataset locally
+### Step 2 — Generate a local dataset
 
 ```bash
 uv run main.py generate \
   --lang "ko" \
   --size 1000 \
-  --markdown-renderer playwright \
   --shard-size 250
 ```
 
-This writes a local run under `./data/ko/images_markdown` with shard directories, `run_manifest.json`, root `metadata.jsonl`, and `realism_stats.json`.
-The default markdown rendering path is headless Playwright, and the generated page contents prioritize collected corpus material over purely synthetic filler text.
+Output is written to `./data/ko/images_markdown/` with:
+- `run_manifest.json` — tracks shard progress and publish context
+- `metadata.jsonl` — aggregate metadata for all samples
+- `realism_stats.json` — image realism statistics
+- `shards/shard-000000/` — shard directories with images and per-shard `metadata.jsonl`
 
-3) Publish a completed local run
+### Step 3 — Publish to Hugging Face Hub
 
 ```bash
 uv run main.py publish \
@@ -78,7 +92,9 @@ uv run main.py publish \
   --repo-id "your-username/my-ocr-dataset"
 ```
 
-4) Evaluate a model config
+`publish` reads generation context from `run_manifest.json`, so you only need `--repo-id` if it was not set during generation.
+
+### Step 4 — Evaluate a model
 
 ```bash
 uv run main.py evaluate \
@@ -87,7 +103,7 @@ uv run main.py evaluate \
   --split train
 ```
 
-5) Compare evaluation reports
+### Step 5 — Compare evaluation reports
 
 ```bash
 uv run main.py compare \
@@ -96,13 +112,27 @@ uv run main.py compare \
   -o comparison_results
 ```
 
-## Korean OCR Leaderboard (ko)
+---
 
-Latest consolidated Korean leaderboard is generated at `evaluation_result/leaderboard.md`.
+## Evaluation Metrics
 
-Top 5 snapshot (`avg_markdown_overall_score`, higher is better):
+All metrics are markdown-aware and computed per-block:
 
-| Rank | Model | Backend | Metric | Text | Table | Formula | Success/Total |
+| Metric | What it measures |
+|---|---|
+| `avg_markdown_text_score` | Plain text accuracy |
+| `avg_markdown_table_teds` | Table structure accuracy (Tree Edit Distance Score) |
+| `avg_markdown_formula_score` | Formula rendering accuracy |
+| `avg_markdown_order_score` | Block ordering accuracy |
+| `avg_markdown_overall_score` | **Primary metric** used in leaderboards |
+
+---
+
+## Leaderboards
+
+### Korean OCR (ko)
+
+| Rank | Model | Backend | Overall | Text | Table | Formula | Success |
 |---:|---|---|---:|---:|---:|---:|---|
 | 1 | lightonai/LightOnOCR-2-1B | transformers | 0.9737 | 0.9549 | 1.0000 | 0.9437 | 100/100 |
 | 2 | ./weights/DotsOCR | transformers | 0.9464 | 0.9177 | 0.9874 | 0.9004 | 100/100 |
@@ -110,13 +140,9 @@ Top 5 snapshot (`avg_markdown_overall_score`, higher is better):
 | 4 | nanonets/Nanonets-OCR2-3B | transformers | 0.9201 | 0.9025 | 0.9988 | 0.8341 | 100/100 |
 | 5 | Qwen/Qwen3-VL-4B-Instruct | transformers | 0.8639 | 0.7141 | 1.0000 | 0.8860 | 100/100 |
 
-## Japanese OCR Leaderboard (ja)
+### Japanese OCR (ja)
 
-Latest consolidated Japanese leaderboard is generated at `evaluation_result/leaderboard.md`.
-
-Top 5 snapshot (`avg_markdown_overall_score`, higher is better):
-
-| Rank | Model | Backend | Metric | Text | Table | Formula | Success/Total |
+| Rank | Model | Backend | Overall | Text | Table | Formula | Success |
 |---:|---|---|---:|---:|---:|---:|---|
 | 1 | lightonai/LightOnOCR-2-1B | transformers | 0.9777 | 0.9682 | 0.9995 | 0.9458 | 100/100 |
 | 2 | nanonets/Nanonets-OCR2-3B | transformers | 0.9605 | 0.9700 | 1.0000 | 0.8871 | 100/100 |
@@ -130,32 +156,81 @@ Refresh leaderboard files:
 bash scripts/evaluate/update-leaderboard.sh
 ```
 
-## Recommended Script Wrappers
+---
 
-- Dataset generation wrapper: `scripts/synthesize/generate.sh`
-- Evaluation wrapper with dependency-group handling: `scripts/evaluate/run.sh`
-- Batch evaluation for all configs: `scripts/evaluate/run-all.sh`
+## Adding a New Model
+
+1. Copy `configs/models/_template.yaml` and fill in `model_id`, `backend`, and `prompt.prompt`.
+2. Run a quick smoke test:
+   ```bash
+   uv run main.py evaluate \
+     --model-config configs/models/your-model.yaml \
+     --dataset your-username/my-ocr-dataset \
+     --max-samples 5
+   ```
+3. Run the full evaluation via the script wrapper:
+   ```bash
+   scripts/evaluate/run.sh your-model -d your-username/my-ocr-dataset -n 100
+   ```
+
+Supported backends: `openai`, `anthropic`, `google`, `upstage`, `transformers`, `paddleocr`, `surya`.
+
+---
+
+## Script Wrappers
+
+Recommended shell wrappers for common workflows:
+
+| Script | Purpose |
+|---|---|
+| `scripts/synthesize/generate.sh` | Dataset generation with sensible defaults |
+| `scripts/evaluate/run.sh` | Single model evaluation with dependency-group handling |
+| `scripts/evaluate/run-all.sh` | Batch evaluation for all configs under `configs/models/` |
+| `scripts/evaluate/update-leaderboard.sh` | Regenerate leaderboard files from existing results |
+
+Example — evaluate all configs against a dataset:
+
+```bash
+scripts/evaluate/run-all.sh -d your-username/my-ocr-dataset --language ko -n 200
+```
+
+---
 
 ## Project Structure
 
-- `main.py`: CLI entrypoint (`generate`, `publish`, `evaluate`, `compare`, list commands)
-- `src/pipeline.py`: generation and publish orchestration
-- `src/generator/`: image generation and rendering utilities
-- `src/evaluation/`: evaluation orchestration, runner, reports
-- `src/metrics/`: metric implementations
-- `configs/models/`: model config YAML files
-- `scripts/`: automation helpers for dataset generation and evaluation
+```
+main.py                        CLI entrypoint
+src/
+  pipeline.py                  Generation and publish orchestration
+  cli/                         CLI command definitions
+  corpus_generator.py          LLM-backed corpus generation
+  generator/                   Image generation, rendering, noise/blur effects
+  evaluation/                  Evaluation orchestration, runner, checkpointing
+  metrics/                     Metric implementations
+configs/
+  models/                      Model config YAML files
+  generator/templates/         Blueprint template YAML files
+scripts/
+  synthesize/                  Dataset generation helpers
+  evaluate/                    Evaluation and leaderboard helpers
+fonts/                         Language-specific font files
+docs/                          Detailed documentation
+```
+
+---
 
 ## Documentation
 
-- `docs/overview.md`
-- `docs/generation.md`
-- `docs/evaluation.md`
-- `docs/model-configs.md`
-- `docs/metrics.md`
-- `docs/benchmark-protocol.md`
-- `docs/cli.md`
+- [`docs/overview.md`](docs/overview.md) — architecture and typical workflow
+- [`docs/generation.md`](docs/generation.md) — generation pipeline, templates, options, recipes
+- [`docs/evaluation.md`](docs/evaluation.md) — evaluation pipeline and script wrappers
+- [`docs/model-configs.md`](docs/model-configs.md) — model YAML config reference
+- [`docs/metrics.md`](docs/metrics.md) — metric definitions
+- [`docs/cli.md`](docs/cli.md) — full CLI reference
+- [`docs/benchmark-protocol.md`](docs/benchmark-protocol.md) — benchmark reproducibility protocol
+
+---
 
 ## Contributing
 
-Contributions are welcome. See `AGENTS.md` for repository conventions.
+See [`AGENTS.md`](AGENTS.md) for repository conventions.
