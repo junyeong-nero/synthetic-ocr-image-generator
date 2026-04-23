@@ -249,6 +249,34 @@ dots-ocr = [
     "torch",
 ]
 
+chandra-ocr = [
+    "torch",
+    "huggingface-hub",
+    "pillow",
+    # Chandra OCR 2 is a Qwen 3.5-based VLM with modern HF image-text APIs.
+    "transformers>=4.57.0",
+    "tokenizers>=0.21.0",
+]
+
+falcon-ocr = [
+    # Falcon-OCR upstream requires PyTorch 2.5+ for FlexAttention.
+    "torch>=2.5",
+    "pillow",
+    "einops",
+    "transformers>=4.57.0",
+    "tokenizers>=0.21.0",
+]
+
+nemotron-ocr-v2 = [
+    # Upstream runtime still requires installing NVIDIA's custom package from the model repo.
+    "torch",
+    "huggingface-hub",
+    "pillow",
+    "numpy",
+    "opencv-python",
+    "hatchling",
+]
+
 [tool.uv]
 # Resolve for current platform only (avoid cross-platform conflicts)
 environments = ["sys_platform == 'darwin'", "sys_platform == 'linux'"]
@@ -277,6 +305,9 @@ conflicts = [
         { group = "glm-ocr" },
         { group = "kiri-ocr" },
         { group = "dots-ocr" },
+        { group = "chandra-ocr" },
+        { group = "falcon-ocr" },
+        { group = "nemotron-ocr-v2" },
     ],
 ]
 
