@@ -8,6 +8,7 @@ uv.lock
 data/
 .serena/
 .claude/
+.worktrees/
 
 __pycache__/
 test_results/
