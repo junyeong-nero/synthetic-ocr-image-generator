@@ -574,6 +574,71 @@ def test_text_section_typos_apply_only_to_text_generator_sections() -> None:
     assert mutation_count == 1
 
 
+def test_text_section_typos_apply_to_rich_prose_blocks_only() -> None:
+    generator = Generator.__new__(Generator)
+
+    def fake_mutate(section_text: str, _ratio: float):
+        return section_text.replace("Alpha", "A1pha"), 1 if "Alpha" in section_text else 0
+
+    generator._mutate_similar_text = fake_mutate
+
+    markdown = (
+        "# Report\n\n"
+        "## Paragraph\n\n"
+        "Alpha paragraph content.\n\n"
+        "## Command\n\n"
+        "```bash\n"
+        "echo Alpha\n"
+        "```\n\n"
+        "## Formula\n\n"
+        "$$ Alpha = beta $$"
+    )
+
+    mutated, mutation_count = generator._mutate_text_generator_sections(
+        markdown,
+        0.2,
+        ["paragraph", "command", "formula"],
+    )
+
+    assert "A1pha paragraph content." in mutated
+    assert "echo Alpha" in mutated
+    assert "$$ Alpha = beta $$" in mutated
+    assert mutation_count == 1
+
+
+def test_text_section_typos_apply_to_multiblock_rich_sections_safely() -> None:
+    generator = Generator.__new__(Generator)
+
+    def fake_mutate(section_text: str, _ratio: float):
+        return section_text.replace("Alpha", "A1pha"), 1 if "Alpha" in section_text else 0
+
+    generator._mutate_similar_text = fake_mutate
+
+    markdown = (
+        "# Report\n\n"
+        "## Mixed Section\n\n"
+        "Alpha paragraph content.\n\n"
+        "```bash\n"
+        "echo Alpha\n"
+        "```\n\n"
+        "## Second Section\n\n"
+        "- Alpha checklist item\n\n"
+        "$$ Alpha = beta $$"
+    )
+
+    mutated, mutation_count = generator._mutate_text_generator_sections(
+        markdown,
+        0.2,
+        ["paragraph", "command", "checklist", "formula"],
+    )
+
+    assert "A1pha paragraph content." in mutated
+    assert "echo Alpha" in mutated
+    assert "- A1pha checklist item" in mutated
+    assert "$$ Alpha = beta $$" in mutated
+    assert mutation_count == 2
+
+
 def test_text_section_typos_skip_when_merge_order_is_empty() -> None:
     generator = Generator.__new__(Generator)
     called = {"value": False}
@@ -999,3 +1064,76 @@ def test_generate_single_metadata_does_not_include_a4_clipping_flags(monkeypatch
     assert metadata["image_height"] == 2345
     assert "a4_scaled" not in metadata
     assert "a4_clipped" not in metadata
+
+
+def test_generate_single_includes_document_structure_metadata(monkeypatch) -> None:
+    generator = Generator.__new__(Generator)
+    generator.template_specs = [
+        TemplateSpec(
+            template_id="rich-template",
+            family="technical",
+            mode="sections",
+            complexity=3,
+            source="test",
+            weight=1.0,
+            version="1",
+            blueprint={},
+        )
+    ]
+    generator.template_catalog = None
+    generator.template_counts = Counter()
+    generator.family_counts = Counter()
+    generator.novelty_window = 8
+    generator.novelty_threshold = 1.0
+    generator.novelty_max_attempts = 1
+    generator._recent_signatures = deque(maxlen=generator.novelty_window)
+    generator.base_seed = None
+    generator.noise_ratio = 0.0
+    generator.blur_ratio = 0.0
+    generator.style_profile = "balanced"
+    generator.markdown_renderer = "pil"
+    generator.similar_char_ratio = 0.0
+    generator._seed_for_sample = lambda _seed: None
+    generator._derive_sample_seed = lambda _sample_index, _attempt: None
+    generator._select_template_spec = lambda: (generator.template_specs[0], 1.0)
+    generator._mutate_text_generator_sections = lambda markdown, _ratio, merge_order: (markdown, 0)
+
+    class _StubDataGenerator:
+        @staticmethod
+        def generate_markdown(template_id: str, template_spec: TemplateSpec) -> str:
+            return "# Heading\n\n## Section\n\n```bash\nuv run main.py\n```"
+
+        @staticmethod
+        def pop_merge_order() -> list[str]:
+            return ["command"]
+
+        @staticmethod
+        def pop_composition_metadata() -> dict:
+            return {
+                "document_shape": "technical_manual",
+                "block_types": ["command"],
+                "block_type_counts": {"command": 1},
+                "section_count": 1,
+            }
+
+    generator.data_generator = _StubDataGenerator()
+    monkeypatch.setattr(generator_module, "random_style", lambda _profile: generator_module.MarkdownStyle())
+    monkeypatch.setattr(generator_module, "markdown_to_json_ast", lambda markdown_text: [{"raw": markdown_text}])
+
+    class _StubRenderer:
+        def __init__(self, _font_path, style):
+            self.style = style
+
+        def render(self, markdown_text: str):
+            return Image.new("RGB", (320, 480), color=(255, 255, 255))
+
+    monkeypatch.setattr(generator_module, "MarkdownRenderer", _StubRenderer)
+    generator.font_paths = ["/tmp/dummy-font.ttf"]
+
+    _image, metadata = generator.generate_single(sample_index=3)
+
+    assert metadata["document_family"] == "technical"
+    assert metadata["document_shape"] == "technical_manual"
+    assert metadata["block_types"] == ["command"]
+    assert metadata["block_type_counts"] == {"command": 1}
+    assert metadata["section_count"] == 1

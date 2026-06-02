@@ -531,6 +531,12 @@ class Generator(BaseGenerator):
         sample_seed: Optional[int] = None
         selection_attempt = 1
         merge_order: List[str] = []
+        composition_metadata: Dict[str, Any] = {
+            "document_shape": selected_template.family,
+            "block_types": list(merge_order),
+            "block_type_counts": dict(Counter(merge_order)),
+            "section_count": len(merge_order),
+        }
 
         for attempt in range(self.novelty_max_attempts):
             sample_seed = self._derive_sample_seed(sample_index, attempt)
@@ -543,6 +549,15 @@ class Generator(BaseGenerator):
                 template_spec=selected_template,
             )
             merge_order = self.data_generator.pop_merge_order()
+            if hasattr(self.data_generator, "pop_composition_metadata"):
+                composition_metadata = self.data_generator.pop_composition_metadata()
+            else:
+                composition_metadata = {
+                    "document_shape": selected_template.family,
+                    "block_types": list(merge_order),
+                    "block_type_counts": dict(Counter(merge_order)),
+                    "section_count": len(merge_order),
+                }
             markdown_text, mutation_count = self._mutate_text_generator_sections(
                 original_markdown,
                 self.similar_char_ratio,
@@ -581,6 +596,24 @@ class Generator(BaseGenerator):
             "template": selected_template.template_id,
             "template_id": selected_template.template_id,
             "template_family": selected_template.family,
+            "document_family": selected_template.family,
+            "document_shape": composition_metadata.get(
+                "document_shape",
+                selected_template.family,
+            ),
+            "block_types": list(composition_metadata.get("block_types", merge_order)),
+            "block_type_counts": dict(
+                composition_metadata.get(
+                    "block_type_counts",
+                    Counter(merge_order),
+                )
+            ),
+            "section_count": int(
+                composition_metadata.get(
+                    "section_count",
+                    len(merge_order),
+                )
+            ),
             "template_complexity": selected_template.complexity,
             "template_mode": selected_template.mode,
             "template_version": selected_template.version,
