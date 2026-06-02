@@ -335,23 +335,27 @@ Per-sample metadata includes:
 Wrapper usage example:
 
 ```bash
-bash scripts/synthesize/lang/ko.sh \
+bash scripts/synthesize/generate.sh \
+  --repo-id "username/my-ocr-dataset" \
+  --lang "ko" \
   --size 1000 \
-  --coverage-target business=0.4 \
-  --coverage-target technical=0.3 \
-  --coverage-target forms=0.3
+  --style-profile balanced \
+  --shard-size 250 \
+  --resume
 ```
 
 Notes:
 
 - Wrapper default renderer is `playwright`.
+- Language shortcut scripts such as `scripts/synthesize/lang/ko.sh` run fixed presets and do not forward additional user arguments.
+- Advanced template, family, and coverage controls such as `--template-family` or `--coverage-target` should use `uv run main.py generate` directly.
 
 Playwright notes:
 
 - The Playwright renderer launches Chromium in headless mode.
 - Install browser binaries once with `uv run playwright install chromium` after syncing dependencies.
 - Wrapper now runs `generate --upload` explicitly, so upload remains opt-in at the CLI level.
-- Wrapper forwards shard and resume flags to `main.py generate`.
+- The generic wrapper forwards its supported shard and resume flags to `main.py generate`.
 
 ## Character Similarity Database
 
