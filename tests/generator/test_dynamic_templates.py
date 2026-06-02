@@ -221,6 +221,61 @@ def test_rich_blueprint_generation_records_block_metadata() -> None:
     assert composition["block_type_counts"]["table"] == 1
 
 
+def test_shape_alias_routes_to_rich_composition() -> None:
+    random.seed(103)
+    data_generator = MarkdownDataGenerator(lang="en")
+    spec = TemplateSpec(
+        template_id="shape_alias_rich_blocks_test",
+        family="technical",
+        complexity=3,
+        mode="sections",
+        blueprint={
+            "shape": "field_report",
+            "allowed_blocks": ["image"],
+            "required_blocks": ["image"],
+        },
+    )
+
+    assert MarkdownDataGenerator._uses_rich_block_composition({"shape": "field_report"})
+
+    markdown = data_generator.generate_markdown(template_id=spec.template_id, template_spec=spec)
+    merge_order = data_generator.pop_merge_order()
+    composition = data_generator.pop_composition_metadata()
+
+    assert "![" in markdown
+    assert merge_order
+    assert merge_order == composition["block_types"]
+    assert composition["document_shape"] == "field_report"
+    assert composition["block_type_counts"]["image"] >= 1
+
+
+def test_rich_blueprint_merge_order_records_all_blocks_not_sections() -> None:
+    random.seed(104)
+    data_generator = MarkdownDataGenerator(lang="en")
+    spec = TemplateSpec(
+        template_id="rich_blocks_per_section_test",
+        family="technical",
+        complexity=3,
+        mode="sections",
+        blueprint={
+            "document_shape": "two_section_manual",
+            "section_count": [2, 2],
+            "blocks_per_section": [2, 2],
+            "allowed_blocks": ["paragraph", "code", "table", "checklist"],
+            "required_blocks": ["code", "table"],
+            "table": {"rows": [2, 2], "columns": [3, 3]},
+        },
+    )
+
+    data_generator.generate_markdown(template_id=spec.template_id, template_spec=spec)
+    merge_order = data_generator.pop_merge_order()
+    composition = data_generator.pop_composition_metadata()
+
+    assert composition["section_count"] == 2
+    assert len(composition["block_types"]) == 4
+    assert merge_order == composition["block_types"]
+
+
 def test_legacy_sections_generation_keeps_existing_merge_order() -> None:
     random.seed(102)
     data_generator = MarkdownDataGenerator(lang="en")

@@ -447,6 +447,7 @@ class MarkdownDataGenerator:
             key in blueprint
             for key in (
                 "document_shape",
+                "shape",
                 "section_count",
                 "blocks_per_section",
                 "allowed_blocks",
