@@ -1,15 +1,198 @@
-version: 2
-id: default
-mode: sections
+version: 3
+templates:
+  - id: business_report
+    family: business
+    complexity: 2
+    weight: 1.2
+    mode: sections
+    aliases: [report, business-report]
+    tags: [paragraphs, bullets, tables]
+    blueprint:
+      document_shape: business_report
+      section_count: [4, 7]
+      blocks_per_section: [1, 1]
+      allowed_blocks: [paragraph, bullet_list, table, quote, rule]
+      required_blocks: [paragraph, table]
+      text:
+        max_line_chars: 72
+      table:
+        rows: [2, 5]
+        columns: [3, 5]
 
-text:
-  section_count: [1, 2]
-  max_line_chars: 72
+  - id: meeting_minutes
+    family: operations
+    complexity: 2
+    weight: 1.1
+    mode: sections
+    aliases: [minutes, meeting]
+    tags: [checklist, numbered, table]
+    blueprint:
+      document_shape: meeting_minutes
+      section_count: [4, 6]
+      blocks_per_section: [1, 1]
+      allowed_blocks: [paragraph, checklist, numbered_list, table, quote]
+      required_blocks: [checklist, numbered_list]
+      text:
+        max_line_chars: 68
+      table:
+        rows: [2, 4]
+        columns: [3, 4]
 
-table:
-  section_count: [1, 2]
-  rows: [2, 4]
-  columns: [3, 4]
+  - id: technical_manual
+    family: technical
+    complexity: 3
+    weight: 1.1
+    mode: sections
+    aliases: [manual, technical-manual]
+    tags: [commands, code, procedures]
+    blueprint:
+      document_shape: technical_manual
+      section_count: [5, 8]
+      blocks_per_section: [1, 1]
+      allowed_blocks: [paragraph, numbered_list, command, code, table, checklist]
+      required_blocks: [numbered_list, command]
+      text:
+        max_line_chars: 76
+      table:
+        rows: [2, 5]
+        columns: [3, 5]
 
-formula:
-  section_count: [1, 2]
+  - id: api_reference
+    family: technical
+    complexity: 3
+    weight: 1.0
+    mode: sections
+    aliases: [api, api-reference]
+    tags: [api, commands, code]
+    blueprint:
+      document_shape: api_reference
+      section_count: [4, 7]
+      blocks_per_section: [1, 1]
+      allowed_blocks: [paragraph, command, code, table, bullet_list]
+      required_blocks: [command, code]
+      text:
+        max_line_chars: 78
+      table:
+        rows: [2, 4]
+        columns: [3, 5]
+
+  - id: academic_note
+    family: academic
+    complexity: 3
+    weight: 1.0
+    mode: sections
+    aliases: [academic, research-note]
+    tags: [formulas, quote, image]
+    blueprint:
+      document_shape: academic_note
+      section_count: [4, 7]
+      blocks_per_section: [1, 1]
+      allowed_blocks: [paragraph, formula, quote, image, bullet_list]
+      required_blocks: [formula]
+      text:
+        max_line_chars: 74
+
+  - id: release_note
+    family: technical
+    complexity: 2
+    weight: 0.9
+    mode: sections
+    aliases: [release, changelog]
+    tags: [bullets, checklist, code]
+    blueprint:
+      document_shape: release_note
+      section_count: [4, 6]
+      blocks_per_section: [1, 1]
+      allowed_blocks: [paragraph, bullet_list, checklist, code, rule]
+      required_blocks: [bullet_list, checklist]
+      text:
+        max_line_chars: 72
+
+  - id: policy_document
+    family: business
+    complexity: 3
+    weight: 0.9
+    mode: sections
+    aliases: [policy]
+    tags: [numbered, quote, checklist]
+    blueprint:
+      document_shape: policy_document
+      section_count: [5, 8]
+      blocks_per_section: [1, 1]
+      allowed_blocks: [paragraph, numbered_list, quote, checklist, rule]
+      required_blocks: [numbered_list]
+      text:
+        max_line_chars: 70
+
+  - id: form_like
+    family: forms
+    complexity: 2
+    weight: 1.0
+    mode: sections
+    aliases: [form, form-like]
+    tags: [tables, checklist]
+    blueprint:
+      document_shape: form_like
+      section_count: [3, 5]
+      blocks_per_section: [1, 1]
+      allowed_blocks: [table, checklist, paragraph, rule]
+      required_blocks: [table, checklist]
+      text:
+        max_line_chars: 60
+      table:
+        rows: [2, 6]
+        columns: [3, 4]
+
+  - id: table_heavy
+    family: forms
+    complexity: 4
+    weight: 0.8
+    mode: sections
+    aliases: [tables, table-heavy]
+    tags: [tables]
+    blueprint:
+      document_shape: table_heavy
+      section_count: [4, 7]
+      blocks_per_section: [1, 1]
+      allowed_blocks: [table, paragraph, rule]
+      required_blocks: [table]
+      text:
+        max_line_chars: 64
+      table:
+        rows: [3, 7]
+        columns: [4, 6]
+
+  - id: formula_heavy
+    family: academic
+    complexity: 4
+    weight: 0.8
+    mode: sections
+    aliases: [formulas, formula-heavy]
+    tags: [formulas]
+    blueprint:
+      document_shape: formula_heavy
+      section_count: [4, 7]
+      blocks_per_section: [1, 1]
+      allowed_blocks: [formula, paragraph, quote, rule]
+      required_blocks: [formula]
+      text:
+        max_line_chars: 72
+
+  - id: default
+    family: sections
+    complexity: 2
+    weight: 0.7
+    mode: sections
+    aliases: [sections]
+    tags: [legacy-compatible]
+    blueprint:
+      document_shape: sections
+      section_count: [3, 5]
+      blocks_per_section: [1, 1]
+      allowed_blocks: [paragraph, table, formula]
+      required_blocks: [paragraph]
+      text:
+        max_line_chars: 72
+      table:
+        rows: [2, 4]
+        columns: [3, 4]

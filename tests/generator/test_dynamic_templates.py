@@ -1092,6 +1092,29 @@ def test_template_catalog_builtin_default_limits_table_columns() -> None:
     assert resolved[0].blueprint["table"]["columns"] == [3, 4]
 
 
+def test_default_template_catalog_exposes_document_families() -> None:
+    catalog = TemplateCatalog()
+    specs = catalog.all_specs()
+    families = {spec.family for spec in specs}
+    template_ids = {spec.template_id for spec in specs}
+
+    assert len(specs) >= 10
+    assert {"business", "technical", "academic", "operations", "forms"}.issubset(families)
+    assert {
+        "business_report",
+        "meeting_minutes",
+        "technical_manual",
+        "api_reference",
+        "academic_note",
+        "release_note",
+        "policy_document",
+        "form_like",
+        "table_heavy",
+        "formula_heavy",
+    }.issubset(template_ids)
+    assert all(spec.mode == "sections" for spec in specs)
+
+
 def test_balanced_style_sampler_preserves_roomier_minimum_widths(monkeypatch) -> None:
     style_sampler_module = importlib.import_module("generator.style_sampler")
 
