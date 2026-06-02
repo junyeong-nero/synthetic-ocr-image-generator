@@ -347,7 +347,7 @@ bash scripts/synthesize/generate.sh \
 Notes:
 
 - Wrapper default renderer is `playwright`.
-- Language shortcut scripts such as `scripts/synthesize/lang/ko.sh` run fixed presets and do not forward additional user arguments.
+- Some language shortcut scripts, including `scripts/synthesize/lang/ko.sh`, run fixed presets and do not forward additional user arguments.
 - Advanced template, family, and coverage controls such as `--template-family` or `--coverage-target` should use `uv run main.py generate` directly.
 
 Playwright notes:
