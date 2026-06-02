@@ -1115,6 +1115,46 @@ def test_default_template_catalog_exposes_document_families() -> None:
     assert all(spec.mode == "sections" for spec in specs)
 
 
+def test_default_heavy_template_aliases_limit_allowed_blocks() -> None:
+    catalog = TemplateCatalog()
+    table_spec = catalog.get("table-heavy")
+    formula_spec = catalog.get("formula-heavy")
+
+    assert table_spec is not None
+    assert formula_spec is not None
+    assert table_spec.blueprint["allowed_blocks"] == ["table"]
+    assert formula_spec.blueprint["allowed_blocks"] == ["formula"]
+
+
+def test_default_heavy_templates_emit_only_heavy_blocks() -> None:
+    catalog = TemplateCatalog()
+    data_generator = MarkdownDataGenerator(lang="en")
+
+    table_spec = catalog.get("table-heavy")
+    assert table_spec is not None
+    random.seed(201)
+    data_generator.generate_markdown(template_id=table_spec.template_id, template_spec=table_spec)
+    table_composition = data_generator.pop_composition_metadata()
+
+    assert set(table_composition["block_types"]) == {"table"}
+    assert table_composition["block_type_counts"] == {
+        "table": len(table_composition["block_types"])
+    }
+    assert table_composition["section_count"] >= 4
+
+    formula_spec = catalog.get("formula-heavy")
+    assert formula_spec is not None
+    random.seed(202)
+    data_generator.generate_markdown(template_id=formula_spec.template_id, template_spec=formula_spec)
+    formula_composition = data_generator.pop_composition_metadata()
+
+    assert set(formula_composition["block_types"]) == {"formula"}
+    assert formula_composition["block_type_counts"] == {
+        "formula": len(formula_composition["block_types"])
+    }
+    assert formula_composition["section_count"] >= 4
+
+
 def test_balanced_style_sampler_preserves_roomier_minimum_widths(monkeypatch) -> None:
     style_sampler_module = importlib.import_module("generator.style_sampler")
 

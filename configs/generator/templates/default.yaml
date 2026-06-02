@@ -154,7 +154,7 @@ templates:
       document_shape: table_heavy
       section_count: [4, 7]
       blocks_per_section: [1, 1]
-      allowed_blocks: [table, paragraph, rule]
+      allowed_blocks: [table]
       required_blocks: [table]
       text:
         max_line_chars: 64
@@ -173,7 +173,7 @@ templates:
       document_shape: formula_heavy
       section_count: [4, 7]
       blocks_per_section: [1, 1]
-      allowed_blocks: [formula, paragraph, quote, rule]
+      allowed_blocks: [formula]
       required_blocks: [formula]
       text:
         max_line_chars: 72
