@@ -29,25 +29,25 @@ Core defaults:
 - `--novelty-max-attempts 4`
 - `--similar-char-ratio 0.08`
 
-## Mental Model (A/B/C)
+## Mental Model
 
 Generation now follows a three-layer model:
 
-- Phase A (compatibility): legacy templates still work (e.g., `readme`, `tutorial`) but are managed through the same catalog system.
-- Phase B (dynamic templates): blueprint-driven templates are loaded from YAML and sampled at runtime.
-- Phase C (quality controls): coverage balancing + novelty guard + style variation produce diverse but controllable outputs.
+- Template catalog: YAML templates define document families, shapes, sampling weights, and block composition rules.
+- Sections composition: `mode: sections` is the supported template mode. Rich block composition is enabled by blueprint keys such as `document_shape`, `section_count`, `blocks_per_section`, `allowed_blocks`, and `required_blocks`.
+- Quality controls: coverage balancing + novelty guard + style variation produce diverse but controllable outputs.
 
 Important distinction:
 
 - `--template` / `--template-family` / complexity filters control which template is used.
-- `--style-profile` controls rendering variability only; it does not force legacy or dynamic templates.
+- `--style-profile` controls rendering variability only; it does not select a document family or shape.
 
 ## Option Reference
 
 ### Template Selection
 
 - `--template`: Exact template id or alias. If resolved, it takes precedence over family/complexity filters.
-- `--template-family`: Family filter for random sampling (examples: `legacy`, `operations`, `api`, `incident`, `compliance`, `release`, `procedural`).
+- `--template-family`: Family filter for random sampling (examples: `business`, `technical`, `academic`, `operations`, `forms`, `sections`).
 - `--min-template-complexity`: Lower bound (`1-5`), default `None`.
 - `--max-template-complexity`: Upper bound (`1-5`), default `None`.
 - `--template-config-dir`: Catalog directory, default uses `configs/generator/templates`.
@@ -115,8 +115,8 @@ Local-first behavior:
 
 2. Template catalog load
 
-- Built-in legacy specs are loaded first.
 - YAML templates from `--template-config-dir` (or default directory) are merged by `id`.
+- If no catalog entries are found, a built-in `sections` fallback template is used.
 - Aliases are normalized (`-` and spaces become `_`) for robust matching.
 
 3. Candidate resolution
@@ -132,10 +132,11 @@ Local-first behavior:
 
 5. Content generation
 
-- Legacy mode: calls procedural template methods.
-- Blueprint mode: assembles sections/blocks from blueprint ranges and block rules.
-- Supported blueprint block types: `title`, `subtitle`, `contents`, `bullet_points`, `numbered_list`, `checklist`, `table`, `formula`, `image`, `code`, `quote`, `rule`, `command`.
-- Backward-compatible aliases are accepted (for example: `bullet_list -> bullet_points`, `toc -> contents`, `equation -> formula`, `figure -> image`).
+- Sections mode composes markdown from the template `blueprint`.
+- Rich block composition is used when the blueprint defines `document_shape`, `shape`, `section_count`, `blocks_per_section`, `allowed_blocks`, or `required_blocks`.
+- Compatibility section blueprints without those rich block keys combine `text`, `table`, and `formula` subconfigs.
+- Supported block types: `paragraph`, `bullet_list`, `numbered_list`, `checklist`, `table`, `formula`, `quote`, `code`, `command`, `image`, `rule`.
+- The `text` block alias is accepted and normalized to `paragraph`.
 
 6. Novelty guard
 
@@ -167,23 +168,23 @@ Catalog files live under `configs/generator/templates/*.yaml` by default.
 Minimal example:
 
 ```yaml
-version: 1
 templates:
-  - id: dynamic_ops_brief
-    family: operations
+  - id: business_report
+    family: business
     complexity: 2
     weight: 1.25
-    mode: blueprint
-    aliases: [ops-brief]
+    mode: sections
+    aliases: [report, business-report]
+    version: "3"
     blueprint:
-      title_prefix: Ops Brief
-      section_count: [2, 4]
-      paragraphs_per_section: [1, 1]
+      document_shape: business_report
+      section_count: [4, 7]
       blocks_per_section: [1, 2]
-      max_total_lines: 95
-      max_paragraph_chars: 220
-      allowed_blocks: [subtitle, contents, bullet_points, table, formula, image, quote]
-      required_blocks: [contents, table, formula, image]
+      allowed_blocks: [paragraph, bullet_list, table, quote, rule]
+      required_blocks: [paragraph, table]
+      table:
+        rows: [2, 5]
+        columns: [3, 5]
 ```
 
 Template fields:
@@ -192,13 +193,17 @@ Template fields:
 - `family`: grouping label used by `--template-family` and `--coverage-target`.
 - `complexity`: integer complexity (internally clamped to `1..5`).
 - `weight`: base sampling weight (internally floored to `0.01`).
-- `mode`: `legacy` or `blueprint` (`dynamic`/`procedural` aliases are accepted and normalized to `blueprint`).
-- `legacy_method`: method name for legacy templates (defaults to `id` if omitted).
+- `mode`: supported block-composition mode is `sections`; unsupported values are coerced to `sections` with a warning.
 - `aliases`: optional alternate names for CLI selection.
 - `version`: template-level version label stored in metadata.
-- `blueprint`: generation rules used when `mode: blueprint`.
-- `blueprint.max_total_lines`: hard cap for generated markdown line count.
-- `blueprint.max_paragraph_chars`: clipping threshold for long generated paragraphs.
+- `blueprint`: section and block composition rules used by `mode: sections`.
+- `blueprint.document_shape`: shape label stored in metadata.
+- `blueprint.section_count`: section count or `[min, max]` range.
+- `blueprint.blocks_per_section`: block count or `[min, max]` range for each section.
+- `blueprint.allowed_blocks`: block types eligible for sampling.
+- `blueprint.required_blocks`: block types that must appear when possible.
+- `blueprint.table.rows` / `blueprint.table.columns`: table size ranges.
+- Compatibility section blueprints without rich block keys can also use `blueprint.text.section_count`, `blueprint.text.max_line_chars`, `blueprint.table.section_count`, and `blueprint.formula.section_count`.
 
 Component note:
 
@@ -207,29 +212,51 @@ Component note:
 
 ## Practical Recipes
 
+### Structure-diverse documents
+
+The default template catalog now includes multiple document families such as `business`, `technical`, `academic`, `operations`, `forms`, and legacy-compatible `sections`.
+
+Use coverage targets when you want family balance:
+
+```bash
+uv run main.py generate \
+  --lang "ko" \
+  --size 1000 \
+  --style-profile aggressive \
+  --coverage-target business=0.2 \
+  --coverage-target technical=0.25 \
+  --coverage-target academic=0.2 \
+  --coverage-target operations=0.15 \
+  --coverage-target forms=0.2 \
+  --novelty-threshold 0.92 \
+  --novelty-max-attempts 6
+```
+
+Each sample records `document_family`, `document_shape`, `block_types`, `block_type_counts`, and `section_count` in metadata so generated diversity can be audited from `metadata.jsonl`.
+
 ### 1) Shorter documents
 
 ```bash
 uv run main.py generate \
-  --lang "en" \
+  --lang "ko" \
   --size 500 \
-  --template-family procedural \
-  --max-template-complexity 1 \
+  --template-family forms \
+  --max-template-complexity 2 \
   --style-profile balanced
 ```
 
-### 2) Dynamic-heavy distribution with controls
+### 2) Family-balanced distribution with controls
 
 ```bash
 uv run main.py generate \
   --lang "ko" \
   --size 2000 \
-  --template-family operations \
   --min-template-complexity 2 \
   --max-template-complexity 4 \
-  --coverage-target operations=0.6 \
-  --coverage-target legacy=0.2 \
-  --coverage-target incident=0.2 \
+  --coverage-target operations=0.3 \
+  --coverage-target technical=0.3 \
+  --coverage-target business=0.2 \
+  --coverage-target forms=0.2 \
   --novelty-window 120 \
   --novelty-threshold 0.92 \
   --novelty-max-attempts 5
@@ -239,9 +266,9 @@ uv run main.py generate \
 
 ```bash
 uv run main.py generate \
-  --lang "en" \
+  --lang "ko" \
   --size 100 \
-  --template dynamic_general_notes \
+  --template technical_manual \
   --seed 42
 ```
 
@@ -297,6 +324,7 @@ Per-sample metadata includes:
 
 - template tracing: `template`, `template_id`, `template_family`, `template_complexity`, `template_mode`, `template_version`, `template_source`, `template_weight`
 - GT fields: `GT_markdown`, `GT_json`
+- document structure: `document_family`, `document_shape`, `block_types`, `block_type_counts`, `section_count`
 - diversity trace: `selection_attempt`, `structure_signature`, `novelty_score`, `family_ratio`
 - render trace: `renderer`, `style_profile`, `similar_char_mutations`, `a4_scaled`, `image_width`, `image_height`
 - reproducibility trace: `sample_index`, `sample_seed`
@@ -307,11 +335,11 @@ Per-sample metadata includes:
 Wrapper usage example:
 
 ```bash
-bash scripts/synthesize/lang/en.sh \
+bash scripts/synthesize/lang/ko.sh \
   --size 1000 \
-  --template-family operations \
-  --coverage-target operations=0.5 \
-  --coverage-target legacy=0.5
+  --coverage-target business=0.4 \
+  --coverage-target technical=0.3 \
+  --coverage-target forms=0.3
 ```
 
 Notes:
@@ -359,8 +387,8 @@ Useful options:
 
 ## Troubleshooting
 
-- Templates look too long: reduce `--max-template-complexity` and/or select short families such as `procedural`.
-- Keep pages under A4 more aggressively: lower `max_total_lines` in blueprint templates and keep `max_paragraph_chars` around `160-220`.
+- Templates look too long: reduce `--max-template-complexity` and/or select shorter families such as `forms`.
+- Keep pages under A4 more aggressively: lower `section_count` and `blocks_per_section` in `sections` templates, and reduce table rows/columns or `text.max_line_chars` as needed.
 - Coverage targets seem ignored: ensure family names match catalog `family` values.
 - Novelty retry feels heavy: lower `--novelty-threshold` or reduce `--novelty-max-attempts`.
 - `sample_seed` is `null`: expected when `--seed` is not provided.
