@@ -622,7 +622,7 @@ def test_text_section_typos_apply_to_multiblock_rich_sections_safely() -> None:
         "echo Alpha\n"
         "```\n\n"
         "## Second Section\n\n"
-        "- Alpha checklist item\n\n"
+        "- [ ] Alpha checklist item\n\n"
         "$$ Alpha = beta $$"
     )
 
@@ -634,9 +634,91 @@ def test_text_section_typos_apply_to_multiblock_rich_sections_safely() -> None:
 
     assert "A1pha paragraph content." in mutated
     assert "echo Alpha" in mutated
-    assert "- A1pha checklist item" in mutated
+    assert "- [ ] A1pha checklist item" in mutated
     assert "$$ Alpha = beta $$" in mutated
     assert mutation_count == 2
+
+
+def test_text_section_typos_skip_fenced_block_when_merge_order_claims_paragraph() -> None:
+    generator = Generator.__new__(Generator)
+
+    def fake_mutate(section_text: str, _ratio: float):
+        return section_text.replace("Alpha", "A1pha"), 1 if "Alpha" in section_text else 0
+
+    generator._mutate_similar_text = fake_mutate
+
+    markdown = (
+        "# Report\n\n"
+        "## Paragraph\n\n"
+        "```bash\n"
+        "echo Alpha\n"
+        "```"
+    )
+
+    mutated, mutation_count = generator._mutate_text_generator_sections(
+        markdown,
+        0.2,
+        ["paragraph"],
+    )
+
+    assert mutated == markdown
+    assert mutation_count == 0
+
+
+def test_text_section_typos_keep_fenced_heading_lines_inside_command_block() -> None:
+    generator = Generator.__new__(Generator)
+    called = {"value": False}
+
+    def fake_mutate(section_text: str, _ratio: float):
+        called["value"] = True
+        return section_text.replace("Alpha", "A1pha"), 1
+
+    generator._mutate_similar_text = fake_mutate
+
+    markdown = (
+        "# Report\n\n"
+        "## Command\n\n"
+        "```bash\n"
+        "echo start\n"
+        "## Not a Section\n"
+        "echo Alpha\n"
+        "```"
+    )
+
+    mutated, mutation_count = generator._mutate_text_generator_sections(
+        markdown,
+        0.2,
+        ["command"],
+    )
+
+    assert mutated == markdown
+    assert mutation_count == 0
+    assert called["value"] is False
+
+
+def test_text_section_typos_skip_unbalanced_fenced_block() -> None:
+    generator = Generator.__new__(Generator)
+
+    def fake_mutate(section_text: str, _ratio: float):
+        return section_text.replace("Alpha", "A1pha"), 1 if "Alpha" in section_text else 0
+
+    generator._mutate_similar_text = fake_mutate
+
+    markdown = (
+        "# Report\n\n"
+        "## Paragraph\n\n"
+        "```bash\n"
+        "echo Alpha"
+    )
+
+    mutated, mutation_count = generator._mutate_text_generator_sections(
+        markdown,
+        0.2,
+        ["paragraph"],
+    )
+
+    assert mutated == markdown
+    assert mutation_count == 0
 
 
 def test_text_section_typos_skip_when_merge_order_is_empty() -> None:
