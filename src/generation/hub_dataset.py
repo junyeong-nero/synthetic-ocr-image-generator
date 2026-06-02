@@ -55,8 +55,19 @@ def upload_subset_to_hub(
         if reuse_existing_schema:
             existing_features = _get_existing_features(repo_id, config_name, split)
             if existing_features is not None:
-                features = existing_features
-                logger.info(f"  Reusing existing Hub feature schema: {features}")
+                missing_local_keys = [
+                    key for key in features.keys() if key not in existing_features
+                ]
+                if missing_local_keys:
+                    logger.info(
+                        "  Existing Hub schema is missing local columns %s; "
+                        "using inferred local schema: %s",
+                        missing_local_keys,
+                        features,
+                    )
+                else:
+                    features = existing_features
+                    logger.info(f"  Reusing existing Hub feature schema: {features}")
             else:
                 logger.info(f"  Detected columns and types: {features}")
         else:

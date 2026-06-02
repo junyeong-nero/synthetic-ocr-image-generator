@@ -244,6 +244,69 @@ def test_upload_subset_to_hub_uses_generator_for_selected_rows(monkeypatch, tmp_
     assert captured["push"]["max_shard_size"] == "256MB"
 
 
+def test_upload_subset_to_hub_keeps_local_schema_when_new_columns_exist(
+    monkeypatch, tmp_path: Path
+) -> None:
+    image_path = tmp_path / "sample.png"
+    image_path.write_bytes(b"img")
+    metadata_path = tmp_path / "metadata.jsonl"
+    metadata_path.write_text(
+        json.dumps(
+            {
+                "file_name": str(image_path),
+                "GT_markdown": "sample",
+                "GT_json": {"idx": 0},
+                "document_family": "operations",
+            },
+            ensure_ascii=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("generation.hub_dataset._ensure_hf_login", lambda: None)
+    monkeypatch.setattr(
+        "generation.hub_dataset._get_existing_features",
+        lambda *args, **kwargs: {
+            "image": "image-feature",
+            "GT_markdown": type("ValueFeature", (), {"dtype": "string"})(),
+            "GT_json": type("ValueFeature", (), {"dtype": "string"})(),
+        },
+    )
+
+    captured = {"features": None, "rows": None}
+
+    class _FakeDataset:
+        def push_to_hub(self, repo_id, config_name="default", split=None, **kwargs):
+            return None
+
+    class _FakeDatasetClass:
+        @staticmethod
+        def from_generator(generator, features=None, gen_kwargs=None, **kwargs):
+            captured["features"] = features
+            captured["rows"] = list(generator(**(gen_kwargs or {})))
+            return _FakeDataset()
+
+    monkeypatch.setattr("generation.hub_dataset._get_dataset_class", lambda: _FakeDatasetClass)
+    monkeypatch.setattr("generation.hub_dataset._build_features", lambda feature_dict: feature_dict)
+    monkeypatch.setattr("generation.hub_dataset._get_hf_image_feature", lambda: "image-feature")
+    monkeypatch.setattr(
+        "generation.hub_dataset._get_hf_value_feature",
+        lambda dtype: type("ValueFeature", (), {"dtype": dtype})(),
+    )
+
+    upload_subset_to_hub(
+        repo_id="org/dataset",
+        metadata_path=metadata_path,
+        config_name="default",
+        split="train",
+        reuse_existing_schema=True,
+    )
+
+    assert "document_family" in captured["features"]
+    assert captured["rows"][0]["document_family"] == "operations"
+
+
 def test_publish_pipeline_uses_manifest_context(monkeypatch, tmp_path: Path) -> None:
     from pipeline import publish_pipeline
 
