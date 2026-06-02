@@ -232,7 +232,7 @@ def _section_matches_expected_type(section_text: str, expected_type: str) -> boo
         return False
 
     normalized_expected = _normalize_block_type(expected_type)
-    if normalized_expected not in PROSE_SECTION_TYPES and len(chunks) != 1:
+    if normalized_expected != "text" and len(chunks) != 1:
         return False
 
     return all(

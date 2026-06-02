@@ -639,6 +639,31 @@ def test_text_section_typos_apply_to_multiblock_rich_sections_safely() -> None:
     assert mutation_count == 2
 
 
+def test_text_section_typos_skip_ambiguous_rich_paragraph_alignment() -> None:
+    generator = Generator.__new__(Generator)
+
+    def fake_mutate(section_text: str, _ratio: float):
+        return section_text.replace("Alpha", "A1pha"), 1 if "Alpha" in section_text else 0
+
+    generator._mutate_similar_text = fake_mutate
+
+    markdown = (
+        "# Report\n\n"
+        "## Ambiguous Section\n\n"
+        "Alpha first paragraph.\n\n"
+        "Alpha second paragraph."
+    )
+
+    mutated, mutation_count = generator._mutate_text_generator_sections(
+        markdown,
+        0.2,
+        ["paragraph"],
+    )
+
+    assert mutated == markdown
+    assert mutation_count == 0
+
+
 def test_text_section_typos_skip_fenced_block_when_merge_order_claims_paragraph() -> None:
     generator = Generator.__new__(Generator)
 
