@@ -14,8 +14,12 @@ PROSE_SECTION_TYPES = {
 FENCED_SECTION_TYPES = {"code", "command"}
 
 _CHECKLIST_RE = re.compile(r"^-\s+\[[ xX]\]\s+\S")
+_CHECKLIST_ITEM_RE = re.compile(r"^(?P<prefix>-\s+\[[ xX]\]\s+)(?P<body>.*)$")
 _IMAGE_RE = re.compile(r"^!\[[^\]]*\]\([^)]+\)$")
 _NUMBERED_LIST_RE = re.compile(r"^\d+\.\s+\S")
+_NUMBERED_LIST_ITEM_RE = re.compile(r"^(?P<prefix>\d+\.\s+)(?P<body>.*)$")
+_BULLET_LIST_ITEM_RE = re.compile(r"^(?P<prefix>-\s+)(?P<body>.*)$")
+_QUOTE_LINE_RE = re.compile(r"^(?P<prefix>>\s?)(?P<body>.*)$")
 
 
 def mutate_similar_text(
@@ -222,6 +226,50 @@ def _is_chunk_compatible(expected_type: str, actual_type: str | None) -> bool:
     return normalized_expected == actual_type
 
 
+def _mutate_prefixed_lines(
+    chunk: str,
+    pattern: re.Pattern[str],
+    ratio: float,
+    mutate_section: Callable[[str, float], tuple[str, int]],
+) -> tuple[str, int] | None:
+    mutated_lines: list[str] = []
+    mutation_count = 0
+
+    for line in chunk.splitlines():
+        match = pattern.match(line)
+        if match is None:
+            return None
+        body = match.group("body")
+        mutated_body, body_mutations = mutate_section(body, ratio)
+        mutated_lines.append(f"{match.group('prefix')}{mutated_body}")
+        mutation_count += body_mutations
+
+    return "\n".join(mutated_lines), mutation_count
+
+
+def _mutate_prose_chunk(
+    chunk: str,
+    block_type: str,
+    ratio: float,
+    mutate_section: Callable[[str, float], tuple[str, int]],
+) -> tuple[str, int] | None:
+    normalized = _normalize_block_type(block_type)
+    if normalized == "text":
+        normalized = "paragraph"
+
+    if normalized == "paragraph":
+        return mutate_section(chunk, ratio)
+    if normalized == "bullet_list":
+        return _mutate_prefixed_lines(chunk, _BULLET_LIST_ITEM_RE, ratio, mutate_section)
+    if normalized == "numbered_list":
+        return _mutate_prefixed_lines(chunk, _NUMBERED_LIST_ITEM_RE, ratio, mutate_section)
+    if normalized == "checklist":
+        return _mutate_prefixed_lines(chunk, _CHECKLIST_ITEM_RE, ratio, mutate_section)
+    if normalized == "quote":
+        return _mutate_prefixed_lines(chunk, _QUOTE_LINE_RE, ratio, mutate_section)
+    return None
+
+
 def _section_matches_expected_type(section_text: str, expected_type: str) -> bool:
     parsed_section = _split_section_block_chunks(section_text)
     if parsed_section is None:
@@ -277,7 +325,10 @@ def _mutate_rich_block_sections(
                 return None
 
             if _normalize_block_type(block_type) in PROSE_SECTION_TYPES:
-                mutated_chunk, chunk_mutations = mutate_section(chunk, ratio)
+                chunk_result = _mutate_prose_chunk(chunk, block_type, ratio, mutate_section)
+                if chunk_result is None:
+                    return None
+                mutated_chunk, chunk_mutations = chunk_result
                 mutated_chunks.append(mutated_chunk)
                 mutated_count += chunk_mutations
             else:
@@ -314,7 +365,26 @@ def mutate_text_generator_sections(
                 return markdown_text, 0
 
             if _normalize_block_type(section_type) in PROSE_SECTION_TYPES:
-                mutated_section, section_mutations = mutate_section(section_text, ratio)
+                normalized_type = _normalize_block_type(section_type)
+                if normalized_type == "text":
+                    mutated_section, section_mutations = mutate_section(section_text, ratio)
+                else:
+                    parsed_section = _split_section_block_chunks(section_text)
+                    if parsed_section is None:
+                        return markdown_text, 0
+                    heading, chunks = parsed_section
+                    if len(chunks) != 1:
+                        return markdown_text, 0
+                    chunk_result = _mutate_prose_chunk(
+                        chunks[0],
+                        section_type,
+                        ratio,
+                        mutate_section,
+                    )
+                    if chunk_result is None:
+                        return markdown_text, 0
+                    mutated_chunk, section_mutations = chunk_result
+                    mutated_section = f"{heading}\n\n{mutated_chunk}"
                 mutated_sections.append(mutated_section)
                 mutated_count += section_mutations
             else:

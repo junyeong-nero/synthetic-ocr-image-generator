@@ -639,6 +639,62 @@ def test_text_section_typos_apply_to_multiblock_rich_sections_safely() -> None:
     assert mutation_count == 2
 
 
+def test_text_section_typos_preserve_checklist_markers() -> None:
+    generator = Generator.__new__(Generator)
+
+    def fake_mutate(section_text: str, _ratio: float):
+        mutated = (
+            section_text.replace("- [x]", "- [y]")
+            .replace("- [ ]", "- [?]")
+            .replace("Alpha", "A1pha")
+        )
+        return mutated, 1 if mutated != section_text else 0
+
+    generator._mutate_similar_text = fake_mutate
+
+    markdown = "# Report\n\n## Checklist\n\n- [x] Alpha done\n- [ ] Alpha pending"
+
+    mutated, mutation_count = generator._mutate_text_generator_sections(
+        markdown,
+        0.2,
+        ["checklist"],
+    )
+
+    assert "- [x] A1pha done" in mutated
+    assert "- [ ] A1pha pending" in mutated
+    assert "- [y]" not in mutated
+    assert "- [?]" not in mutated
+    assert mutation_count == 2
+
+
+def test_text_section_typos_preserve_numbered_list_prefixes() -> None:
+    generator = Generator.__new__(Generator)
+
+    def fake_mutate(section_text: str, _ratio: float):
+        mutated = (
+            section_text.replace("1.", "7,")
+            .replace("2.", "8,")
+            .replace("Alpha", "A1pha")
+        )
+        return mutated, 1 if mutated != section_text else 0
+
+    generator._mutate_similar_text = fake_mutate
+
+    markdown = "# Report\n\n## Steps\n\n1. Alpha first\n2. Alpha second"
+
+    mutated, mutation_count = generator._mutate_text_generator_sections(
+        markdown,
+        0.2,
+        ["numbered_list"],
+    )
+
+    assert "1. A1pha first" in mutated
+    assert "2. A1pha second" in mutated
+    assert "7," not in mutated
+    assert "8," not in mutated
+    assert mutation_count == 2
+
+
 def test_text_section_typos_skip_ambiguous_rich_paragraph_alignment() -> None:
     generator = Generator.__new__(Generator)
 
@@ -1113,6 +1169,14 @@ def test_default_template_catalog_exposes_document_families() -> None:
         "formula_heavy",
     }.issubset(template_ids)
     assert all(spec.mode == "sections" for spec in specs)
+
+
+def test_default_template_catalog_inherits_top_level_version() -> None:
+    catalog = TemplateCatalog()
+    spec = catalog.get("business-report")
+
+    assert spec is not None
+    assert spec.version == "3"
 
 
 def test_default_heavy_template_aliases_limit_allowed_blocks() -> None:

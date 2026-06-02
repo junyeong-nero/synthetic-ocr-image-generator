@@ -67,7 +67,16 @@ class TemplateCatalog:
         if isinstance(data, dict):
             templates = data.get("templates")
             if isinstance(templates, list):
-                return [item for item in templates if isinstance(item, dict)]
+                catalog_version = data.get("version")
+                entries: List[Dict[str, Any]] = []
+                for item in templates:
+                    if not isinstance(item, dict):
+                        continue
+                    entry = dict(item)
+                    if catalog_version is not None and "version" not in entry:
+                        entry["version"] = catalog_version
+                    entries.append(entry)
+                return entries
             if any(key in data for key in ("text", "table", "formula")):
                 return [
                     {

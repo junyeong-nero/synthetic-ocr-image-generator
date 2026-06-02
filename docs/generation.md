@@ -150,7 +150,7 @@ Local-first behavior:
 - Noise/blur probabilities are then applied.
 - Markdown is rendered by `pil`, `html2image`, or headless `playwright` backend.
 - Formula rasterization uses an in-process bounded cache to avoid unbounded memory growth in long runs.
-- The current markdown image path records `a4_scaled` metadata, but no hard A4 rescale is applied by `_fit_image_to_a4()` at the moment.
+- The current markdown image path records final image dimensions, but no hard A4 rescale is applied by `_fit_image_to_a4()` at the moment.
 
 8. Metadata, shards, and publish
 
@@ -326,7 +326,7 @@ Per-sample metadata includes:
 - GT fields: `GT_markdown`, `GT_json`
 - document structure: `document_family`, `document_shape`, `block_types`, `block_type_counts`, `section_count`
 - diversity trace: `selection_attempt`, `structure_signature`, `novelty_score`, `family_ratio`
-- render trace: `renderer`, `style_profile`, `similar_char_mutations`, `a4_scaled`, `image_width`, `image_height`
+- render trace: `renderer`, `style_profile`, `similar_char_mutations`, `image_width`, `image_height`
 - reproducibility trace: `sample_index`, `sample_seed`
 - path: `file_name`
 
