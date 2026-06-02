@@ -189,6 +189,64 @@ def test_sections_generation_composes_text_table_formula_blocks() -> None:
     assert "formula" in signature_tokens
 
 
+def test_rich_blueprint_generation_records_block_metadata() -> None:
+    random.seed(101)
+    data_generator = MarkdownDataGenerator(lang="en")
+    spec = TemplateSpec(
+        template_id="rich_blocks_test",
+        family="technical",
+        complexity=3,
+        mode="sections",
+        blueprint={
+            "document_shape": "technical_manual",
+            "section_count": [4, 4],
+            "blocks_per_section": [1, 1],
+            "allowed_blocks": ["paragraph", "code", "table", "checklist"],
+            "required_blocks": ["code", "table"],
+            "table": {"rows": [2, 2], "columns": [3, 3]},
+        },
+    )
+
+    markdown = data_generator.generate_markdown(template_id=spec.template_id, template_spec=spec)
+    merge_order = data_generator.pop_merge_order()
+    composition = data_generator.pop_composition_metadata()
+
+    assert "```" in markdown
+    assert "| " in markdown
+    assert len(merge_order) == 4
+    assert "code" in merge_order
+    assert "table" in merge_order
+    assert composition["document_shape"] == "technical_manual"
+    assert composition["block_type_counts"]["code"] == 1
+    assert composition["block_type_counts"]["table"] == 1
+
+
+def test_legacy_sections_generation_keeps_existing_merge_order() -> None:
+    random.seed(102)
+    data_generator = MarkdownDataGenerator(lang="en")
+    spec = TemplateSpec(
+        template_id="legacy_sections_still_work",
+        family="sections",
+        complexity=2,
+        mode="sections",
+        blueprint={
+            "text": {"section_count": [1, 1]},
+            "table": {"section_count": [1, 1], "rows": [2, 2], "columns": [3, 3]},
+            "formula": {"section_count": [1, 1]},
+        },
+    )
+
+    markdown = data_generator.generate_markdown(template_id=spec.template_id, template_spec=spec)
+    merge_order = data_generator.pop_merge_order()
+    composition = data_generator.pop_composition_metadata()
+
+    assert "$$" in markdown
+    assert "| " in markdown
+    assert sorted(merge_order) == ["formula", "table", "text"]
+    assert composition["document_shape"] == "sections"
+    assert composition["block_type_counts"] == {"text": 1, "table": 1, "formula": 1}
+
+
 def test_hardcoded_formula_pool_has_100_plus_entries() -> None:
     assert len(HARD_CODED_FORMULA_EXPRESSIONS) >= 100
     assert any("\\int" in formula for formula in HARD_CODED_FORMULA_EXPRESSIONS)
@@ -308,29 +366,31 @@ def test_sections_generation_emits_expected_block_types() -> None:
     assert "formula" in signature_tokens
 
 
-def test_sections_mode_ignores_blueprint_only_controls() -> None:
+def test_sections_mode_honors_rich_blueprint_controls() -> None:
     random.seed(19)
     data_generator = MarkdownDataGenerator(lang="en")
     spec = TemplateSpec(
-        template_id="sections_ignore_blueprint_controls",
+        template_id="sections_honor_blueprint_controls",
         family="sections",
         complexity=2,
         mode="sections",
         blueprint={
-            "text": {"section_count": [1, 1]},
-            "table": {"section_count": [0, 0]},
-            "formula": {"section_count": [1, 1]},
-            "allowed_blocks": ["contents", "image", "checklist"],
-            "required_blocks": ["contents", "image", "checklist"],
-            "frontmatter_probability": 1.0,
+            "document_shape": "mixed_controls",
+            "section_count": [3, 3],
+            "blocks_per_section": [1, 1],
+            "allowed_blocks": ["paragraph", "image", "checklist"],
+            "required_blocks": ["image", "checklist"],
         },
     )
 
     markdown = data_generator.generate_markdown(template_id=spec.template_id, template_spec=spec)
+    composition = data_generator.pop_composition_metadata()
 
-    assert "$$" in markdown
-    assert "## Contents" not in markdown
-    assert "![" not in markdown
+    assert "![" in markdown
+    assert "- [ ]" in markdown or "- [x]" in markdown
+    assert composition["document_shape"] == "mixed_controls"
+    assert "image" in composition["block_types"]
+    assert "checklist" in composition["block_types"]
 
 
 def test_formula_dataset_mode_uses_dataset_entries(tmp_path) -> None:

@@ -3,10 +3,12 @@ import json
 import logging
 import random
 import re
+from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from src.generator.data_provider import DataProvider
+from src.generator.document_blocks import DocumentComposer
 from src.generator.formula_generator import FormularGenerator
 from src.generator.merge_orchestrator import MergeOrchestrator
 from src.generator.table_generator import TableGenerator
@@ -176,6 +178,12 @@ class MarkdownDataGenerator:
         self.lang = lang
         self.data = data_provider or DataProvider(lang=lang)
         self._last_merge_order: List[str] = []
+        self._last_composition_metadata: Dict[str, Any] = {
+            "document_shape": "sections",
+            "block_types": [],
+            "block_type_counts": {},
+            "section_count": 0,
+        }
         self.formula_source_mode = "mixed"
         self.formula_source_weights: Dict[str, float] = dict(DEFAULT_FORMULA_SOURCE_WEIGHTS)
         self.formula_dataset_path: Optional[str] = None
@@ -347,6 +355,18 @@ class MarkdownDataGenerator:
         self._last_merge_order = []
         return merge_order
 
+    def pop_composition_metadata(self) -> Dict[str, Any]:
+        metadata = dict(self._last_composition_metadata)
+        metadata["block_types"] = list(metadata.get("block_types", []))
+        metadata["block_type_counts"] = dict(metadata.get("block_type_counts", {}))
+        self._last_composition_metadata = {
+            "document_shape": "sections",
+            "block_types": [],
+            "block_type_counts": {},
+            "section_count": 0,
+        }
+        return metadata
+
     @staticmethod
     def _select_source(
         mode: str,
@@ -421,6 +441,19 @@ class MarkdownDataGenerator:
             return default
         return parsed if parsed > 0 else default
 
+    @staticmethod
+    def _uses_rich_block_composition(blueprint: Dict[str, Any]) -> bool:
+        return any(
+            key in blueprint
+            for key in (
+                "document_shape",
+                "section_count",
+                "blocks_per_section",
+                "allowed_blocks",
+                "required_blocks",
+            )
+        )
+
     def _generate_formula_expression(self) -> str:
         formula_source = self._select_source(
             self.formula_source_mode,
@@ -443,6 +476,17 @@ class MarkdownDataGenerator:
         return expression
 
     def _generate_from_sections(self, blueprint: Dict[str, Any]) -> str:
+        if self._uses_rich_block_composition(blueprint):
+            composer = DocumentComposer(
+                data=self.data,
+                clip_text=self._clip_text,
+                formula_supplier=self._generate_formula_expression,
+            )
+            markdown_text, composition_metadata = composer.compose(blueprint)
+            self._last_merge_order = list(composition_metadata.block_types)
+            self._last_composition_metadata = composition_metadata.to_dict()
+            return markdown_text
+
         text_cfg_raw = blueprint.get("text")
         table_cfg_raw = blueprint.get("table")
         formula_cfg_raw = blueprint.get("formula")
@@ -495,6 +539,13 @@ class MarkdownDataGenerator:
             formula_sections=formula_sections,
         )
         self._last_merge_order = merge_order
+        block_counts = Counter(merge_order)
+        self._last_composition_metadata = {
+            "document_shape": str(blueprint.get("document_shape") or "sections"),
+            "block_types": list(merge_order),
+            "block_type_counts": dict(block_counts),
+            "section_count": len(merge_order),
+        }
         return markdown_text
 
     def _available_formula_sources(self) -> List[str]:
