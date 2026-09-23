@@ -32,6 +32,24 @@ uv run main.py corpus generate [OPTIONS]
 
 ---
 
+## `corpus import-wikitext`
+Import a WikiText-format dump as `paragraphs.txt` / `titles.txt` corpus files.
+
+```bash
+uv run main.py corpus import-wikitext (--kowikitext-split SPLIT ... | --input FILE ...) [OPTIONS]
+```
+
+### Options
+- `--kowikitext-split`: `train`, `dev` or `test` of [Korean WikiText](https://github.com/lovit/kowikitext), downloaded from GitHub releases (repeatable). The text is CC BY-SA 3.0.
+- `--input`: Local WikiText file (repeatable).
+- `--lang`: Corpus language directory (default: `ko`).
+- `--output-dir`: Corpus root (default: `data/corpus`).
+- `--cache-dir`: Download cache (default: `data/corpus/_downloads`).
+- `--max-paragraphs`: Keep at most N paragraphs (shuffled with a fixed seed).
+- `--min-chars`, `--max-chars`: Paragraph length filter (default: `60` / `700`).
+
+---
+
 ## `generate`
 Generate synthetic OCR datasets.
 
@@ -64,6 +82,7 @@ uv run main.py generate [OPTIONS]
 - `--similarity-db-path`: Optional similarity DB JSON path.
 - `--add-noise`, `--no-add-noise`: Enable/disable noise effect.
 - `--add-blur`, `--no-add-blur`: Enable/disable blur effect.
+- `--distribution-profile`: Real-world distribution profile name (`real_world_v2`, `real_world_v1`, `ko_admin_scan_v1`) or YAML path. See [distribution.md](distribution.md).
 - `--train-ratio`: Train split ratio for dataset publishing (default: `0.9`).
 - `--test-ratio`: Test split ratio for dataset publishing (default: `0.1`).
 
@@ -87,6 +106,9 @@ uv run main.py publish --generated-path <path> [OPTIONS]
 - `--repo-id`: Override the repository ID stored in the manifest.
 - `--train-ratio`: Override the train ratio used for publishing.
 - `--test-ratio`: Override the test ratio used for publishing.
+- `--license`: Dataset card license id (e.g. `cc-by-sa-3.0`).
+- `--text-source`: Text attribution written into the dataset card.
+- `--dry-run`: Write `DATASET_CARD.md` and report split sizes without uploading.
 
 Notes:
 
@@ -133,6 +155,30 @@ uv run main.py compare [REPORT_FILES...] [OPTIONS]
 
 ### Options
 - `-o, --output`: Output file prefix (default: `comparison`).
+
+---
+
+## `distribution measure`
+Measure visual statistics of real or generated document images.
+
+```bash
+uv run main.py distribution measure (--images DIR | --metadata JSONL | --hf-dataset ID) --output STATS.json [OPTIONS]
+```
+
+### Options
+- `--images` / `--metadata` / `--hf-dataset`: Image source (directory, generated `metadata.jsonl`, or streamed HF dataset with `--hf-config`, `--hf-split`, `--hf-image-column`).
+- `--where key=value`: With `--metadata`, only rows matching the filter (repeatable), e.g. `capture_channel=scanned`.
+- `--max-images`: Limit (default: `500`; `0` = all).
+- `--suggest-yaml`: Also write directly measurable profile specs (DPI and skew histograms, grayscale, binary and coloured-background rates).
+
+## `distribution compare`
+Compare a candidate stats JSON against a reference stats JSON.
+
+```bash
+uv run main.py distribution compare --reference REAL.json --candidate SYN.json [--output GAP.md]
+```
+
+Prints a table ranked by normalised Wasserstein distance: under 0.1 is close, 0.1 to 0.3 is noticeable, above 0.3 is different.
 
 ---
 

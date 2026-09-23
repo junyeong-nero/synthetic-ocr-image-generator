@@ -6,16 +6,17 @@ End-to-end toolkit for generating synthetic OCR datasets and benchmarking vision
 
 This repo lets you:
 
-1. **Generate corpus text** — build reusable language-specific text assets with an LLM provider (OpenAI, Anthropic, or Wikimedia auto-crawl).
-2. **Generate synthetic OCR images** — render markdown documents as images with controllable noise, blur, and visual style variation, written to a local dataset root.
-3. **Publish to Hugging Face Hub** — upload a completed local generation run as a HF dataset.
-4. **Evaluate OCR/VLM models** — run models against generated datasets, compute markdown-aware metrics, and produce reproducible reports and leaderboards.
+1. **Build corpus text**: generate language-specific text with an LLM provider (OpenAI or Anthropic), or import real text such as Korean Wikipedia (`corpus import-wikitext`).
+2. **Generate synthetic OCR images**: render markdown documents as images and write them to a local dataset root. Style variation is controllable, or you can apply a **real-world distribution profile**. A profile models born-digital, scanned and photographed pages with realistic DPI, skew, blur, noise, JPEG and page density.
+3. **Calibrate against real data**: measure real and synthetic images with the same visual statistics and compare them (`distribution measure|compare`).
+4. **Publish to Hugging Face Hub**: upload a completed local generation run as an HF dataset. The dataset card includes distribution tables, license and text attribution.
+5. **Evaluate OCR/VLM models**: run models against generated datasets, compute markdown-aware metrics, and produce reproducible reports and leaderboards.
 
 ## How It Works
 
 ```
-corpus text  →  generate markdown documents  →  render as images  →  evaluate OCR models
-(LLM/Wikimedia)   (templates + diversity controls)   (Playwright/PIL)   (metrics + reports)
+corpus text  →  generate markdown documents  →  render as images  →  capture degradations  →  evaluate OCR models
+(LLM/WikiText)   (templates + diversity controls)   (Playwright/PIL)   (distribution profile)     (metrics + reports)
 ```
 
 ### Generation Pipeline (A/B/C phases)
@@ -25,6 +26,7 @@ corpus text  →  generate markdown documents  →  render as images  →  evalu
 | **A — Legacy** | Classic template methods (`readme`, `tutorial`, …) managed via YAML catalog |
 | **B — Blueprint** | Dynamic document structures defined in `configs/generator/templates/*.yaml` |
 | **C — Quality** | Novelty guard + family coverage balancing + style profiles for diverse, high-quality outputs |
+| **D — Realism** | Distribution profiles (`configs/generator/distributions/*.yaml`) set the family mix, page density, sheet size, typography, capture channel, DPI and degradations. They are calibrated against real pages |
 
 Each generated image is paired with `GT_markdown` and `GT_json` ground truth, making the dataset directly usable for OCR model training and evaluation.
 
@@ -58,11 +60,15 @@ xelatex --help   # verify installation
 
 ## Quick Start
 
-### Step 1 — Generate corpus text
+### Step 1 — Build corpus text
 
 Corpus text is fed into document templates to produce realistic content. Skip this step if you only want to use placeholder text.
 
 ```bash
+# Real text: Korean Wikipedia via Korean WikiText (CC BY-SA 3.0), ~18k clean paragraphs
+uv run main.py corpus import-wikitext --kowikitext-split dev --kowikitext-split test --lang ko
+
+# Or LLM-written domain text
 uv run main.py corpus generate \
   --lang "ko" \
   --provider openai \
@@ -84,22 +90,50 @@ Output is written to `./data/ko/images_markdown/` with:
 - `realism_stats.json` — image realism statistics
 - `shards/shard-000000/` — shard directories with images and per-shard `metadata.jsonl`
 
-To match the distribution of real OCR data (capture channel, DPI, skew, blur, noise, JPEG, document mix), add a distribution profile, and calibrate it against real images with `main.py distribution measure|compare`. See [docs/distribution.md](docs/distribution.md).
+#### Match real OCR data with a distribution profile
 
 ```bash
-uv run main.py corpus import-wikitext --kowikitext-split dev --kowikitext-split test --lang ko
 uv run main.py generate --lang "ko" --size 1000 --seed 42 --distribution-profile real_world_v2
 ```
+
+| Profile | Use for |
+|---|---|
+| `real_world_v2` | General documents. 45% born-digital, 40% scanned, 15% photographed; calibrated against real XFUND scans and OmniDocBench pages ([report](docs/calibration/real_world_v2.md)) |
+| `real_world_v1` | First version from published statistics (DocLayNet, scanner skew study) before calibration |
+| `ko_admin_scan_v1` | Scan-heavy Korean administrative documents (forms, notices), lower quality |
+
+A profile adds these metadata columns: `capture_channel`, `target_dpi`, `visual_difficulty` (easy/medium/hard), `degradation_params`, `page_trimmed`, …. Pages are always one sheet (A4/Letter). Overflowing content is cut at a block boundary, and `GT_markdown` always matches the image.
+
+#### Calibrate against your own real images
+
+```bash
+uv run main.py distribution measure --images /path/to/real/pages --output stats/real.json --suggest-yaml stats/real_suggest.yaml
+uv run main.py distribution measure --metadata ./data/ko/images_markdown/metadata.jsonl --where capture_channel=scanned --output stats/syn.json
+uv run main.py distribution compare --reference stats/real.json --candidate stats/syn.json
+```
+
+`compare` ranks each visual metric by its normalised Wasserstein gap. The metrics are DPI, skew, sharpness, noise, contrast, ink coverage, colourfulness and page shape. The report shows whether the synthetic data is higher or lower on each metric. See [docs/distribution.md](docs/distribution.md) for the profile format and the full loop.
 
 ### Step 3 — Publish to Hugging Face Hub
 
 ```bash
+# Preview: writes DATASET_CARD.md and prints split sizes, no upload
 uv run main.py publish \
   --generated-path "./data/ko/images_markdown" \
-  --repo-id "your-username/my-ocr-dataset"
+  --repo-id "your-username/my-ocr-dataset" \
+  --license cc-by-sa-3.0 \
+  --text-source "Korean WikiText (https://github.com/lovit/kowikitext), CC BY-SA 3.0" \
+  --dry-run
+
+# Upload (requires `huggingface-cli login`)
+uv run main.py publish \
+  --generated-path "./data/ko/images_markdown" \
+  --repo-id "your-username/my-ocr-dataset" \
+  --license cc-by-sa-3.0 \
+  --text-source "Korean WikiText (https://github.com/lovit/kowikitext), CC BY-SA 3.0"
 ```
 
-`publish` reads generation context from `run_manifest.json`, so you only need `--repo-id` if it was not set during generation.
+`publish` reads generation context from `run_manifest.json`, so you only need `--repo-id` if it was not set during generation. The dataset card includes a reproduce command and per-column distribution tables (family, capture channel, difficulty, DPI, block types). With a Wikipedia corpus, set `--license cc-by-sa-3.0` and `--text-source`, since CC BY-SA requires attribution.
 
 ### Step 4 — Evaluate a model
 
@@ -211,12 +245,16 @@ src/
   pipeline.py                  Generation and publish orchestration
   cli/                         CLI command definitions
   corpus_generator.py          LLM-backed corpus generation
-  generator/                   Image generation, rendering, noise/blur effects
+  corpus_wikitext.py           WikiText (e.g. Korean Wikipedia) corpus import
+  generator/                   Image generation, rendering, noise/blur effects,
+                               distribution profiles and capture degradations
+  realism/                     Visual statistics for real vs synthetic comparison
   evaluation/                  Evaluation orchestration, runner, checkpointing
   metrics/                     Metric implementations
 configs/
   models/                      Model config YAML files
   generator/templates/         Blueprint template YAML files
+  generator/distributions/     Real-world distribution profiles
 scripts/
   synthesize/                  Dataset generation helpers
   evaluate/                    Evaluation and leaderboard helpers
@@ -230,6 +268,8 @@ docs/                          Detailed documentation
 
 - [`docs/overview.md`](docs/overview.md) — architecture and typical workflow
 - [`docs/generation.md`](docs/generation.md) — generation pipeline, templates, options, recipes
+- [`docs/distribution.md`](docs/distribution.md) — real-world distribution profiles, degradations, corpus import, calibration loop
+- [`docs/calibration/real_world_v2.md`](docs/calibration/real_world_v2.md) — calibration report for `real_world_v2`
 - [`docs/evaluation.md`](docs/evaluation.md) — evaluation pipeline and script wrappers
 - [`docs/model-configs.md`](docs/model-configs.md) — model YAML config reference
 - [`docs/metrics.md`](docs/metrics.md) — metric definitions

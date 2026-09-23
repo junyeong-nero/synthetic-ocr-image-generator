@@ -7,7 +7,7 @@
 #
 # Numbers marked [sourced] come from published dataset statistics.
 # Numbers marked [prior] are engineering priors that should be re-fit with
-#   uv run main.py distribution measure --images <real images> --emit-profile ...
+#   uv run main.py distribution measure --images <real images> --suggest-yaml ...
 # once you have a reference image set (see docs/distribution.md).
 id: real_world_v2
 version: "2"
