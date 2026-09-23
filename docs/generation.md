@@ -86,6 +86,13 @@ Formula generation/rendering notes:
 - The built-in hard-coded formula pool now contains 100+ normalized expressions spanning algebra, calculus, physics, probability, and ML/LLM training objectives.
 - Formula rasterization uses a bounded in-process cache (256 entries) to avoid unbounded memory growth during long generation runs.
 
+### Real-World Distribution Profile
+
+- `--distribution-profile`: profile name under `configs/generator/distributions` (`real_world_v1`, `ko_admin_scan_v1`) or a YAML path.
+- Controls family mix, block weights, physical typography, capture channel (born-digital / scanned / photographed), target DPI and degradations (skew, perspective, blur, noise, JPEG, bleed-through, binarization, ...).
+- Adds `capture_channel`, `target_dpi`, `visual_difficulty`, `degradation_params` and related metadata columns.
+- See [distribution.md](distribution.md) for the profile format, data sources, and the `distribution measure` / `distribution compare` calibration loop.
+
 ### Dataset Split / Upload
 
 - `--train-ratio` and `--test-ratio`: must each be in `[0, 1]` and sum to `1.0`.

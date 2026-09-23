@@ -951,6 +951,7 @@ class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
         width = self.style.margin_left + self.style.content_width + self.style.margin_right
         capture_padding = self._CAPTURE_PADDING_PX
         viewport_height = max(720, min(1600, self._estimate_viewport_height(markdown_text) + (capture_padding * 2)))
+        render_scale = max(0.5, min(4.0, float(getattr(self.style, "render_scale", 1.0) or 1.0)))
         html_doc = self._build_html_document(markdown_text, image_assets=image_assets)
         html_doc = html_doc.replace(
             '<body>\n  <div class="markdown-body">',
@@ -974,12 +975,12 @@ class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
                         args=[
                             "--hide-scrollbars",
                             "--disable-gpu",
-                            "--force-device-scale-factor=1",
+                            f"--force-device-scale-factor={render_scale}",
                         ],
                     )
                     page = browser.new_page(
                         viewport={"width": width + (capture_padding * 2), "height": viewport_height},
-                        device_scale_factor=1,
+                        device_scale_factor=render_scale,
                     )
                     page.goto(html_path.as_uri(), wait_until="load")
                     page.wait_for_function("() => Array.from(document.images).every((img) => img.complete)")

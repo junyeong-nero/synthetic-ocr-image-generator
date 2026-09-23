@@ -310,10 +310,12 @@ class DocumentComposer:
         data: DataProvider,
         clip_text: Callable[[str, int], str],
         formula_supplier: Callable[[], str],
+        block_weights: Mapping[str, float] | None = None,
     ) -> None:
         self.data = data
         self.clip_text = clip_text
         self.formula_supplier = formula_supplier
+        self.block_weights = dict(block_weights or {})
 
     def compose(
         self,
@@ -329,7 +331,11 @@ class DocumentComposer:
         block_counts = [
             random.randint(*parsed.blocks_per_section) for _ in range(section_count)
         ]
-        block_plan = self._plan_block_types(parsed, total_slots=sum(block_counts))
+        block_plan = self._plan_block_types(
+            parsed,
+            total_slots=sum(block_counts),
+            block_weights=self.block_weights,
+        )
         if not block_plan:
             block_counts = [1]
             section_count = 1
@@ -390,7 +396,12 @@ class DocumentComposer:
         return "\n".join(lines).strip() + "\n", metadata
 
     @staticmethod
-    def _plan_block_types(parsed: BlockBlueprint, *, total_slots: int) -> List[str]:
+    def _plan_block_types(
+        parsed: BlockBlueprint,
+        *,
+        total_slots: int,
+        block_weights: Mapping[str, float] | None = None,
+    ) -> List[str]:
         if total_slots <= 0:
             return []
 
@@ -405,7 +416,16 @@ class DocumentComposer:
         for required_block in required[:total_slots]:
             plan.append(required_block)
 
+        weights = None
+        if block_weights:
+            weights = [max(0.0, float(block_weights.get(block, 0.0))) for block in filler_candidates]
+            if sum(weights) <= 0:
+                weights = None
+
         while len(plan) < total_slots:
-            plan.append(random.choice(filler_candidates))
+            if weights is None:
+                plan.append(random.choice(filler_candidates))
+            else:
+                plan.append(random.choices(filler_candidates, weights=weights, k=1)[0])
 
         return plan

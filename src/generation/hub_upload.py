@@ -2,6 +2,7 @@ import logging
 import random
 from pathlib import Path
 
+from src.generation.distribution_summary import summarize_metadata_distribution
 from src.generation.hub_dataset import upload_dataset_readme_to_hub, upload_subset_to_hub
 from src.generation.options import GenerationTaskContext
 from src.generation.readme_builder import build_dataset_readme
@@ -107,6 +108,7 @@ def upload_generated_dataset(
             context=context,
             generated_count=generated_count,
             split_counts=uploaded_split_counts,
+            distribution_summary=summarize_metadata_distribution(generated_path / "metadata.jsonl"),
         )
         upload_dataset_readme_to_hub(
             repo_id=repo_id,

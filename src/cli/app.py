@@ -4,7 +4,7 @@ import argparse
 import asyncio
 import sys
 
-from src.cli import compare, corpus, evaluate, generate, listing, publish
+from src.cli import compare, corpus, distribution, evaluate, generate, listing, publish
 from src.env_utils import load_env_file
 
 
@@ -60,6 +60,12 @@ def create_parser() -> argparse.ArgumentParser:
 
     corpus_parser = subparsers.add_parser("corpus", help="Corpus generation commands")
     corpus.configure_parser(corpus_parser)
+
+    distribution_parser = subparsers.add_parser(
+        "distribution",
+        help="Measure and compare real vs synthetic image distributions",
+    )
+    distribution.configure_parser(distribution_parser)
     return parser
 
 

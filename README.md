@@ -84,6 +84,12 @@ Output is written to `./data/ko/images_markdown/` with:
 - `realism_stats.json` — image realism statistics
 - `shards/shard-000000/` — shard directories with images and per-shard `metadata.jsonl`
 
+To match the distribution of real OCR data (capture channel, DPI, skew, blur, noise, JPEG, document mix), add a distribution profile, and calibrate it against real images with `main.py distribution measure|compare`. See [docs/distribution.md](docs/distribution.md).
+
+```bash
+uv run main.py generate --lang "ko" --size 1000 --seed 42 --distribution-profile real_world_v1
+```
+
 ### Step 3 — Publish to Hugging Face Hub
 
 ```bash

@@ -20,6 +20,7 @@ from PIL import Image
 
 from src.character_similarity import find_similar_chars
 from src.generator.base import BaseGenerator
+from src.generator.distribution_profile import DistributionProfile, load_distribution_profile
 from src.generator.generation_config import (
     A4_MAX_HEIGHT_PX,
     A4_MAX_WIDTH_PX,
@@ -43,6 +44,7 @@ from src.generator.markdown_render_utils import (
     parse_markdown_formula_line,
     parse_markdown_image_line,
 )
+from src.generator.profile_application import finalize_profile_image, plan_profile_render
 from src.generator.style_sampler import base_styles, clamp_color, jitter_color, random_style
 from src.generator.template_catalog import TemplateCatalog, TemplateSpec, parse_coverage_targets
 from src.generator.text_generator import TextGenerator
@@ -181,6 +183,9 @@ class Generator(BaseGenerator):
         self.novelty_max_attempts = DEFAULT_NOVELTY_MAX_ATTEMPTS
         self._recent_signatures: deque[str] = deque(maxlen=self.novelty_window)
         self.base_seed: Optional[int] = None
+        self.distribution_profile: Optional[DistributionProfile] = None
+        self.distribution_profile_name: Optional[str] = None
+
     def _load_similarity_db(self, db_path: Optional[str]) -> None:
         source_key = db_path or "__auto__"
         if self._similarity_db_source == source_key:
@@ -335,6 +340,23 @@ class Generator(BaseGenerator):
             maxlen=self.novelty_window,
         )
 
+    def _configure_distribution_profile(self, **kwargs) -> None:
+        if "distribution_profile" in kwargs:
+            requested = kwargs.get("distribution_profile") or None
+            if requested != getattr(self, "distribution_profile_name", None):
+                self.distribution_profile = (
+                    load_distribution_profile(str(requested)) if requested else None
+                )
+                self.distribution_profile_name = requested
+
+        profile = getattr(self, "distribution_profile", None)
+        block_weights = profile.block_weights if profile else {}
+        if hasattr(self.data_generator, "block_weights"):
+            self.data_generator.block_weights = dict(block_weights)
+        # Explicit --coverage-target flags win over the profile's family mix.
+        if profile and not self.coverage_targets:
+            self.coverage_targets = profile.coverage_targets()
+
     def _configure_content_sources(self, **kwargs) -> None:
         self.data_generator.configure_content_sources(
             formula_source_mode=kwargs.get(
@@ -364,6 +386,7 @@ class Generator(BaseGenerator):
         self._configure_rendering(**kwargs)
         self._configure_novelty(**kwargs)
         self._configure_content_sources(**kwargs)
+        self._configure_distribution_profile(**kwargs)
 
         self._load_similarity_db(kwargs.get("similarity_db_path"))
 
@@ -572,8 +595,14 @@ class Generator(BaseGenerator):
 
         # Create style with random variations
         style = self._random_style()
-        style.add_noise = random.random() < self.noise_ratio
-        style.add_blur = random.random() < self.blur_ratio
+        profile_plan = None
+        distribution_profile = getattr(self, "distribution_profile", None)
+        if distribution_profile is not None:
+            profile_rng = random.Random(random.getrandbits(64))
+            profile_plan = plan_profile_render(distribution_profile, style, profile_rng)
+        else:
+            style.add_noise = random.random() < self.noise_ratio
+            style.add_blur = random.random() < self.blur_ratio
 
         # Render markdown
         font_path = random.choice(self.font_paths)
@@ -584,6 +613,12 @@ class Generator(BaseGenerator):
         else:
             renderer = MarkdownRenderer(font_path, style)
         image = renderer.render(markdown_text)
+        if profile_plan is not None:
+            image = finalize_profile_image(
+                image,
+                profile_plan,
+                renderer_applied_scale=isinstance(renderer, PlaywrightMarkdownRenderer),
+            )
 
         self.template_counts[selected_template.template_id] += 1
         self.family_counts[selected_template.family] += 1
@@ -634,6 +669,8 @@ class Generator(BaseGenerator):
             "image_width": image.width,
             "image_height": image.height,
         }
+        if profile_plan is not None:
+            metadata.update(profile_plan.metadata())
         return image, metadata
 
     @staticmethod

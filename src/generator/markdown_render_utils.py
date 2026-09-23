@@ -314,3 +314,4 @@ class MarkdownStyle:
     add_noise: bool = True
     add_blur: bool = False
     add_contrast: bool = False
+    render_scale: float = 1.0

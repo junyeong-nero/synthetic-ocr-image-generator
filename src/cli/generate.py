@@ -184,6 +184,15 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         default=0.25,
         help="Formula source weight for synthetic formulas when --formula-source-mode=mixed",
     )
+    parser.add_argument(
+        "--distribution-profile",
+        type=str,
+        default=None,
+        help=(
+            "Real-world distribution profile name (configs/generator/distributions) or YAML path. "
+            "Controls family mix, block weights, typography, capture channel, DPI and degradations."
+        ),
+    )
     _add_optional_generation_effect_argument(
         parser,
         "--add-noise",
@@ -232,6 +241,7 @@ def build_context_from_args(args: argparse.Namespace) -> GenerationTaskContext:
         add_noise=args.add_noise,
         add_blur=args.add_blur,
         seed=args.seed,
+        distribution_profile=getattr(args, "distribution_profile", None),
     )
     publish = PublishOptions(
         repo_id=args.repo_id,

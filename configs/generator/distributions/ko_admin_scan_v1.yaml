@@ -1,0 +1,83 @@
+# Korean public-administration style documents: mostly scanned archives,
+# forms and reports, older and lower quality than general office PDFs.
+#
+# The AI Hub "공공행정문서 OCR" dataset (900k images, 25M words) describes its
+# source pages as older administrative records with poor scan/photo quality and
+# mixed printed / typewritten / handwritten text. Exact per-attribute ratios are
+# not public outside the AI Hub portal, so every ratio here is a [prior].
+# Re-fit it with `distribution measure` on images you are licensed to use.
+id: ko_admin_scan_v1
+version: "1"
+description: >
+  Scan-heavy Korean administrative documents (forms, notices, reports).
+  Lower DPI, stronger skew/blur/noise and more binarized pages than
+  real_world_v1.
+
+sources:
+  - name: AI Hub 공공행정문서 OCR
+    url: https://aihub.or.kr/aihubdata/data/view.do?dataSetSn=88
+    used_for: channel mix and degradation direction (qualitative)
+  - name: ADF scanner skew study
+    url: https://www.researchgate.net/publication/224341611_Estimating_the_Skew_Angle_of_Scanned_Document_through_Background_Area_Information
+    used_for: scanned.skew_deg baseline (widened for archive scans)
+
+family_mix:
+  forms: 0.35
+  business: 0.30
+  operations: 0.25
+  technical: 0.05
+  academic: 0.05
+
+block_weights:
+  paragraph: 40
+  table: 12
+  numbered_list: 4
+  bullet_list: 2
+  checklist: 2
+  quote: 1
+  rule: 1
+  image: 1
+  formula: 0.2
+  code: 0.2
+  command: 0.1
+
+typography:
+  body_font_pt: {normal: [11.0, 1.0], clip: [9.0, 14.0], round: 1}
+  line_spacing: {normal: [1.5, 0.15], clip: [1.15, 1.9], round: 2}
+  colored_background: {p: 0.05}   # [prior] share of pages with a non-white background
+
+capture_channels:
+  born_digital:
+    weight: 0.10
+    dpi: {choices: [144, 200], weights: [0.5, 0.5]}
+    degradations:
+      jpeg_quality: {choices: [null, 90], weights: [0.5, 0.5]}
+
+  scanned:
+    weight: 0.70
+    dpi: {choices: [150, 200, 300], weights: [0.35, 0.40, 0.25]}
+    degradations:
+      skew_deg: {normal: [0.0, 0.9], clip: [-4.0, 4.0], round: 2}
+      paper_tint: {p: 0.8}
+      ink_fade: {beta: [2, 4], range: [0.0, 0.5], round: 3}
+      bleed_through: {beta: [1.5, 8], range: [0.0, 0.25], round: 3}
+      blur_sigma: {lognormal: [-0.6, 0.45], clip: [0.0, 2.0], round: 2}
+      noise_sigma: {lognormal: [1.4, 0.5], clip: [0.0, 16.0], round: 2}
+      speckle_density: {beta: [1.5, 200], range: [0.0, 0.02], round: 5}
+      grayscale: {p: 0.75}
+      binarize: {p: 0.2}
+      jpeg_quality: {normal: [75, 10], clip: [40, 95], round: 0}
+
+  photographed:
+    weight: 0.20
+    dpi: {normal: [140, 35], clip: [90, 260], round: 0}
+    degradations:
+      skew_deg: {normal: [0.0, 3.0], clip: [-10.0, 10.0], round: 2}
+      perspective: {beta: [2, 8], range: [0.0, 0.1], round: 4}
+      illumination: {beta: [2, 3], range: [0.0, 0.5], round: 3}
+      shadow_strength: {beta: [1.5, 4], range: [0.0, 0.55], round: 3}
+      blur_sigma: {lognormal: [-0.3, 0.5], clip: [0.0, 2.8], round: 2}
+      motion_blur_px: {choices: [0, 0, 3, 5, 7, 9], round: 0}
+      noise_sigma: {lognormal: [1.8, 0.4], clip: [0.0, 20.0], round: 2}
+      paper_tint: {p: 0.9}
+      jpeg_quality: {normal: [70, 10], clip: [30, 92], round: 0}

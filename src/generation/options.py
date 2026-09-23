@@ -59,6 +59,7 @@ class GenerationOptions:
     add_noise: Optional[bool] = None
     add_blur: Optional[bool] = None
     seed: Optional[int] = None
+    distribution_profile: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -87,6 +88,7 @@ class GenerationOptions:
             add_noise=data.get("add_noise"),
             add_blur=data.get("add_blur"),
             seed=data.get("seed"),
+            distribution_profile=data.get("distribution_profile"),
         )
 
     def to_generator_kwargs(self, *, sample_start_index: int = 0) -> dict[str, Any]:
@@ -110,6 +112,7 @@ class GenerationOptions:
             "formula_random_weight": self.formula_random_weight,
             "formula_synthetic_weight": self.formula_synthetic_weight,
             "seed": self.seed,
+            "distribution_profile": self.distribution_profile,
             "sample_start_index": sample_start_index,
         }
         if self.add_noise is not None:
