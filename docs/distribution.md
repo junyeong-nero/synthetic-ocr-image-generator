@@ -169,10 +169,10 @@ Results are in [`calibration/real_world_v2.md`](calibration/real_world_v2.md). T
 `uv run main.py corpus import-wikitext` converts WikiText dumps into `data/corpus/<lang>/paragraphs.txt` and `titles.txt`. These are picked up automatically, and titles, list items and table cells are derived from them.
 
 - `--kowikitext-split dev|test|train` downloads [Korean WikiText](https://github.com/lovit/kowikitext) from GitHub releases:
-  - dev + test: about 20k paragraphs, enough for most runs
+  - dev + test: about 18k clean paragraphs, enough for most runs
   - train: about 1.7 GB
 - `--input FILE` imports any local WikiText-format file.
-- The cleaner strips markup debris such as empty `(, )` pairs, wiki list markers (`# item`, `: quote`), namespace titles (`분류:…`) and missing spaces after sentence ends. Leading markdown markers are also neutralised when paragraphs are built, so corpus text can never turn into a heading.
+- The cleaner strips markup debris such as empty `(, )` pairs, wiki list markers (`# item`, `: quote`), namespace titles (`분류:…`), missing spaces after sentence ends, and whole paragraphs containing table markup, URLs or talk-page signatures. Leading markdown markers are also neutralised when paragraphs are built, so corpus text can never turn into a heading.
 - **License:** Wikipedia text is CC BY-SA 3.0. Publish with `--license cc-by-sa-3.0` and credit the source with `--text-source` (written into the card's attribution section).
 
 ## Beyond Visual Realism

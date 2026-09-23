@@ -37,6 +37,10 @@ _NAMESPACE_TITLE_RE = re.compile(r"^[^\s:]{1,12}:")
 # Wiki list / indent markup ("# item", "* item", ": quote") that survived dumping.
 _LEADING_MARKUP_RE = re.compile(r"^(?:[#*:;|>\-–]+\s*)+")
 _INLINE_MARKUP_RE = re.compile(r"(?<=[\s.])[#*:;]+\s+")
+# Wiki table attributes, template/link syntax, URLs and talk-page signatures.
+_DEBRIS_RE = re.compile(
+    r"style=|colspan|rowspan|class=|\{\{|\}\}|\[\[|\]\]|https?://|\(KST\)|\(UTC\)|\(토론\)|--\s*\S+\s*\("
+)
 _MULTI_SPACE_RE = re.compile(r"\s{2,}")
 _SPACE_BEFORE_PUNCT_RE = re.compile(r"\s+([,.;:!?])")
 
@@ -93,6 +97,8 @@ def parse_wikitext(
             continue
         text = clean_text(line)
         if not (min_chars <= len(text) <= max_chars) or text in seen_paragraphs:
+            continue
+        if _DEBRIS_RE.search(text):
             continue
         # Skip list/table debris: mostly digits or symbols.
         letters = sum(ch.isalpha() for ch in text)
