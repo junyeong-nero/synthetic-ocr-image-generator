@@ -218,6 +218,7 @@ def build_dataset_readme(
             f"- Train ratio: `{publish.train_ratio}`",
             f"- Test ratio: `{publish.test_ratio}`",
             "",
+            *_text_source_section(publish.text_source),
             *_distribution_section(distribution_summary),
             "## Repository Provenance",
             "",
@@ -248,4 +249,15 @@ def _distribution_section(summary: dict[str, dict[str, int]] | None) -> list[str
         "Counts are computed from the published `metadata.jsonl`. Every column below is also available per sample for filtering.",
         "",
         *tables,
+    ]
+
+
+def _text_source_section(text_source: str | None) -> list[str]:
+    if not text_source:
+        return []
+    return [
+        "## Text Source and Attribution",
+        "",
+        f"Document text is derived from: {text_source}",
+        "",
     ]

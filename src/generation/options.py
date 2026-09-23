@@ -10,6 +10,7 @@ class PublishOptions:
     train_ratio: float = 0.9
     test_ratio: float = 0.1
     license: str = "unknown"
+    text_source: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -21,6 +22,7 @@ class PublishOptions:
             train_ratio=float(data.get("train_ratio", 0.9)),
             test_ratio=float(data.get("test_ratio", 0.1)),
             license=str(data.get("license") or "unknown"),
+            text_source=data.get("text_source"),
         )
 
     def with_overrides(
@@ -30,6 +32,7 @@ class PublishOptions:
         train_ratio: Optional[float] = None,
         test_ratio: Optional[float] = None,
         license: Optional[str] = None,
+        text_source: Optional[str] = None,
     ) -> "PublishOptions":
         return replace(
             self,
@@ -37,6 +40,7 @@ class PublishOptions:
             train_ratio=train_ratio if train_ratio is not None else self.train_ratio,
             test_ratio=test_ratio if test_ratio is not None else self.test_ratio,
             license=license if license is not None else self.license,
+            text_source=text_source if text_source is not None else self.text_source,
         )
 
 
@@ -180,6 +184,7 @@ class GenerationTaskContext:
         train_ratio: Optional[float] = None,
         test_ratio: Optional[float] = None,
         license: Optional[str] = None,
+        text_source: Optional[str] = None,
     ) -> "GenerationTaskContext":
         return replace(
             self,
@@ -188,5 +193,6 @@ class GenerationTaskContext:
                 train_ratio=train_ratio,
                 test_ratio=test_ratio,
                 license=license,
+                text_source=text_source,
             ),
         )

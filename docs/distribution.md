@@ -18,9 +18,10 @@ uv run main.py generate --lang ko --size 1000 --seed 42 \
 
 # 3) Preview the dataset card locally, then publish
 uv run main.py publish --generated-path ./data/ko/images_markdown --repo-id you/your-dataset \
-  --license cc-by-sa-3.0 --dry-run          # writes DATASET_CARD.md, no upload
+  --license cc-by-sa-3.0 --text-source "Korean WikiText (https://github.com/lovit/kowikitext), CC BY-SA 3.0" \
+  --dry-run                                   # writes DATASET_CARD.md, no upload
 uv run main.py publish --generated-path ./data/ko/images_markdown --repo-id you/your-dataset \
-  --license cc-by-sa-3.0
+  --license cc-by-sa-3.0 --text-source "Korean WikiText (https://github.com/lovit/kowikitext), CC BY-SA 3.0"
 ```
 
 `--distribution-profile` accepts a bundled name from `configs/generator/distributions/` or a path to your own YAML file. Without the flag, generation behaves exactly as before.
@@ -172,7 +173,7 @@ Results are in [`calibration/real_world_v2.md`](calibration/real_world_v2.md). T
   - train: about 1.7 GB
 - `--input FILE` imports any local WikiText-format file.
 - The cleaner strips markup debris such as empty `(, )` pairs, wiki list markers (`# item`, `: quote`), namespace titles (`분류:…`) and missing spaces after sentence ends. Leading markdown markers are also neutralised when paragraphs are built, so corpus text can never turn into a heading.
-- **License:** Wikipedia text is CC BY-SA 3.0. Publish with `--license cc-by-sa-3.0`.
+- **License:** Wikipedia text is CC BY-SA 3.0. Publish with `--license cc-by-sa-3.0` and credit the source with `--text-source` (written into the card's attribution section).
 
 ## Beyond Visual Realism
 

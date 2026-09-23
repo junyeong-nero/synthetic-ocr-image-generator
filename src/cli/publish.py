@@ -32,6 +32,11 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         help="Dataset card license id, e.g. cc-by-sa-3.0 when the corpus comes from Wikipedia",
     )
     parser.add_argument(
+        "--text-source",
+        default=None,
+        help='Attribution for the corpus text, e.g. "Korean WikiText (https://github.com/lovit/kowikitext), CC BY-SA 3.0"',
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Write DATASET_CARD.md and report split sizes locally without uploading",
@@ -49,4 +54,5 @@ def run_with_args(args: argparse.Namespace) -> None:
         test_ratio=args.test_ratio,
         dry_run=getattr(args, "dry_run", False),
         license=getattr(args, "license", None),
+        text_source=getattr(args, "text_source", None),
     )

@@ -85,3 +85,22 @@ def test_metadata_distribution_summary(tmp_path) -> None:
     tables = "\n".join(format_distribution_tables(summary))
     assert "| scanned | 2 | 100.0% |" in tables
     assert summarize_metadata_distribution(tmp_path / "missing.jsonl") == {}
+
+
+def test_dataset_card_includes_license_attribution_and_profile() -> None:
+    from src.generation.options import GenerationOptions, GenerationTaskContext, PublishOptions
+    from src.generation.readme_builder import build_dataset_readme
+
+    context = GenerationTaskContext(
+        lang="ko",
+        size=10,
+        generation=GenerationOptions(distribution_profile="real_world_v2"),
+        publish=PublishOptions(repo_id="u/x", license="cc-by-sa-3.0", text_source="Korean WikiText"),
+    )
+    card = build_dataset_readme("u/x", context, 10, {"train": 9, "test": 1}, distribution_summary={"capture_channel": {"scanned": 10}})
+    assert "license: cc-by-sa-3.0" in card
+    assert "Document text is derived from: Korean WikiText" in card
+    assert "--distribution-profile real_world_v2" in card
+    assert "| scanned | 10 | 100.0% |" in card
+    restored = PublishOptions.from_dict(context.publish.to_dict())
+    assert restored.license == "cc-by-sa-3.0" and restored.text_source == "Korean WikiText"

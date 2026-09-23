@@ -69,6 +69,7 @@ def publish_pipeline(
     test_ratio: Optional[float] = None,
     dry_run: bool = False,
     license: Optional[str] = None,
+    text_source: Optional[str] = None,
 ) -> dict[str, int]:
     generated_dir = Path(generated_path)
     manifest_path = generated_dir / "run_manifest.json"
@@ -82,6 +83,7 @@ def publish_pipeline(
         train_ratio=train_ratio,
         test_ratio=test_ratio,
         license=license,
+        text_source=text_source,
     )
     if dry_run:
         from src.generation.hub_upload import preview_generated_dataset

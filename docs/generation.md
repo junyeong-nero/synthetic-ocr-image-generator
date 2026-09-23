@@ -113,6 +113,7 @@ Local-first behavior:
 - `publish` reads generation context from `run_manifest.json`, so the dataset card and split settings do not need to be re-entered.
 - `--repo-id` is optional on `publish` when the manifest already contains one, but can still be used to override it.
 - `--license` sets the dataset card license (for example `cc-by-sa-3.0` when the corpus is Wikipedia text).
+- `--text-source` adds a text attribution section to the card (required for CC BY-SA corpora).
 - `--dry-run` writes `DATASET_CARD.md` next to the data and reports split sizes without uploading.
 
 ## Pipeline Workflow (Detailed)
