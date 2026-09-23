@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any
 
+from src.generation.distribution_summary import format_distribution_tables
 from src.generation.git_metadata import resolve_git_metadata
 from src.generation.options import GenerationTaskContext
 
@@ -48,6 +49,7 @@ def build_dataset_readme(
     context: GenerationTaskContext,
     generated_count: int,
     split_counts: dict[str, int],
+    distribution_summary: dict[str, dict[str, int]] | None = None,
 ) -> str:
     now_utc = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     git_meta = resolve_git_metadata()
@@ -128,6 +130,8 @@ def build_dataset_readme(
         f"--train-ratio {publish.train_ratio}",
         f"--test-ratio {publish.test_ratio}",
     ])
+    if generation.distribution_profile:
+        generation_command.append(f"--distribution-profile {generation.distribution_profile}")
     if generation.seed is not None:
         generation_command.append(f"--seed {generation.seed}")
     command_block = " \
@@ -148,7 +152,7 @@ def build_dataset_readme(
             f'pretty_name: "{dataset_pretty_name}"',
             "language:",
             f"- {context.lang}",
-            "license: unknown",
+            f"license: {publish.license}",
             "multilinguality: monolingual",
             "size_categories:",
             f"- {size_category}",
@@ -210,9 +214,12 @@ def build_dataset_readme(
             f"- Add noise: `{format_optional_value(generation.add_noise)}`",
             f"- Add blur: `{format_optional_value(generation.add_blur)}`",
             f"- Seed: `{format_optional_value(generation.seed)}`",
+            f"- Distribution profile: `{format_optional_value(generation.distribution_profile)}`",
             f"- Train ratio: `{publish.train_ratio}`",
             f"- Test ratio: `{publish.test_ratio}`",
             "",
+            *_text_source_section(publish.text_source),
+            *_distribution_section(distribution_summary),
             "## Repository Provenance",
             "",
             github_line,
@@ -230,3 +237,27 @@ def build_dataset_readme(
             "```",
         ]
     )
+
+
+def _distribution_section(summary: dict[str, dict[str, int]] | None) -> list[str]:
+    tables = format_distribution_tables(summary or {})
+    if not tables:
+        return []
+    return [
+        "## Sample Distribution",
+        "",
+        "Counts are computed from the published `metadata.jsonl`. Every column below is also available per sample for filtering.",
+        "",
+        *tables,
+    ]
+
+
+def _text_source_section(text_source: str | None) -> list[str]:
+    if not text_source:
+        return []
+    return [
+        "## Text Source and Attribution",
+        "",
+        f"Document text is derived from: {text_source}",
+        "",
+    ]

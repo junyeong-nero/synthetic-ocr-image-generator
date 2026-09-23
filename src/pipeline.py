@@ -67,6 +67,9 @@ def publish_pipeline(
     repo_id: Optional[str] = None,
     train_ratio: Optional[float] = None,
     test_ratio: Optional[float] = None,
+    dry_run: bool = False,
+    license: Optional[str] = None,
+    text_source: Optional[str] = None,
 ) -> dict[str, int]:
     generated_dir = Path(generated_path)
     manifest_path = generated_dir / "run_manifest.json"
@@ -79,7 +82,14 @@ def publish_pipeline(
         repo_id=repo_id,
         train_ratio=train_ratio,
         test_ratio=test_ratio,
+        license=license,
+        text_source=text_source,
     )
+    if dry_run:
+        from src.generation.hub_upload import preview_generated_dataset
+
+        return preview_generated_dataset(generated_path=generated_dir, context=context)
+
     resolved_repo_id = context.publish.repo_id
     if not resolved_repo_id:
         raise ValueError("repo_id is required to publish the generated dataset")

@@ -9,6 +9,8 @@ class PublishOptions:
     repo_id: Optional[str] = None
     train_ratio: float = 0.9
     test_ratio: float = 0.1
+    license: str = "unknown"
+    text_source: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -19,6 +21,8 @@ class PublishOptions:
             repo_id=data.get("repo_id"),
             train_ratio=float(data.get("train_ratio", 0.9)),
             test_ratio=float(data.get("test_ratio", 0.1)),
+            license=str(data.get("license") or "unknown"),
+            text_source=data.get("text_source"),
         )
 
     def with_overrides(
@@ -27,12 +31,16 @@ class PublishOptions:
         repo_id: Optional[str] = None,
         train_ratio: Optional[float] = None,
         test_ratio: Optional[float] = None,
+        license: Optional[str] = None,
+        text_source: Optional[str] = None,
     ) -> "PublishOptions":
         return replace(
             self,
             repo_id=repo_id if repo_id is not None else self.repo_id,
             train_ratio=train_ratio if train_ratio is not None else self.train_ratio,
             test_ratio=test_ratio if test_ratio is not None else self.test_ratio,
+            license=license if license is not None else self.license,
+            text_source=text_source if text_source is not None else self.text_source,
         )
 
 
@@ -59,6 +67,7 @@ class GenerationOptions:
     add_noise: Optional[bool] = None
     add_blur: Optional[bool] = None
     seed: Optional[int] = None
+    distribution_profile: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -87,6 +96,7 @@ class GenerationOptions:
             add_noise=data.get("add_noise"),
             add_blur=data.get("add_blur"),
             seed=data.get("seed"),
+            distribution_profile=data.get("distribution_profile"),
         )
 
     def to_generator_kwargs(self, *, sample_start_index: int = 0) -> dict[str, Any]:
@@ -110,6 +120,7 @@ class GenerationOptions:
             "formula_random_weight": self.formula_random_weight,
             "formula_synthetic_weight": self.formula_synthetic_weight,
             "seed": self.seed,
+            "distribution_profile": self.distribution_profile,
             "sample_start_index": sample_start_index,
         }
         if self.add_noise is not None:
@@ -172,6 +183,8 @@ class GenerationTaskContext:
         repo_id: Optional[str] = None,
         train_ratio: Optional[float] = None,
         test_ratio: Optional[float] = None,
+        license: Optional[str] = None,
+        text_source: Optional[str] = None,
     ) -> "GenerationTaskContext":
         return replace(
             self,
@@ -179,5 +192,7 @@ class GenerationTaskContext:
                 repo_id=repo_id,
                 train_ratio=train_ratio,
                 test_ratio=test_ratio,
+                license=license,
+                text_source=text_source,
             ),
         )

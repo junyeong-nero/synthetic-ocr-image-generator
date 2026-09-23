@@ -704,6 +704,7 @@ class HtmlMarkdownRenderer:
         prepared_markdown = self._prepare_component_markdown(markdown_text, image_assets=image_assets)
         rendered_html = self._coerce_markdown_html(prepared_markdown)
         page_width = self.style.margin_left + self.style.content_width + self.style.margin_right
+        spacing = max(0.2, float(getattr(self.style, "spacing_scale", 1.0) or 1.0))
         css = f"""
 @page {{
   margin: 12mm 10mm 14mm 10mm;
@@ -736,11 +737,11 @@ html, body {{
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }}
-.markdown-body h1 {{ font-size: {self.style.h1_font_size}px; color: rgb{self.style.h1_color}; margin: 0 0 16px 0; }}
-.markdown-body h2 {{ font-size: {self.style.h2_font_size}px; color: rgb{self.style.h2_color}; margin: 18px 0 12px 0; }}
-.markdown-body h3 {{ font-size: {self.style.h3_font_size}px; color: rgb{self.style.h3_color}; margin: 16px 0 8px 0; }}
+.markdown-body h1 {{ font-size: {self.style.h1_font_size}px; color: rgb{self.style.h1_color}; margin: 0 0 {round(16 * spacing)}px 0; }}
+.markdown-body h2 {{ font-size: {self.style.h2_font_size}px; color: rgb{self.style.h2_color}; margin: {round(18 * spacing)}px 0 {round(12 * spacing)}px 0; }}
+.markdown-body h3 {{ font-size: {self.style.h3_font_size}px; color: rgb{self.style.h3_color}; margin: {round(16 * spacing)}px 0 {round(8 * spacing)}px 0; }}
 .markdown-body a {{ color: rgb{self.style.link_color}; text-decoration: none; }}
-.markdown-body p {{ margin: 0 0 10px 0; }}
+.markdown-body p {{ margin: 0 0 {round(10 * spacing)}px 0; }}
 .markdown-body p,
 .markdown-body li,
 .markdown-body td,
@@ -752,9 +753,9 @@ html, body {{
   margin: 0;
   line-height: {self.style.line_spacing};
 }}
-.markdown-body ul, .markdown-body ol {{ margin: 0 0 12px 18px; padding: 0; }}
+.markdown-body ul, .markdown-body ol {{ margin: 0 0 {round(12 * spacing)}px 18px; padding: 0; }}
 .markdown-body blockquote {{
-  margin: 0 0 12px 0;
+  margin: 0 0 {round(12 * spacing)}px 0;
   padding: 0 0 0 12px;
   border-left: 3px solid rgb{self.style.blockquote_border_color};
   color: rgb{self.style.blockquote_color};
@@ -764,7 +765,7 @@ html, body {{
   font-size: {self.style.code_font_size}px;
 }}
 .markdown-body pre {{
-  margin: 0 0 12px 0;
+  margin: 0 0 {round(12 * spacing)}px 0;
   padding: 8px 10px;
   background: rgb{self.style.code_bg_color};
   color: rgb{self.style.code_text_color};
@@ -779,7 +780,7 @@ html, body {{
 .markdown-body table {{
   width: 100%;
   border-collapse: collapse;
-  margin: 4px 0 16px 0;
+  margin: {round(4 * spacing)}px 0 {round(16 * spacing)}px 0;
   table-layout: auto;
   background: rgba(255, 255, 255, 0.92);
   break-inside: avoid;
@@ -801,7 +802,7 @@ html, body {{
   background: rgba(0, 0, 0, 0.025);
 }}
 .markdown-body .md-formula {{
-  margin: 0 0 12px 0;
+  margin: 0 0 {round(12 * spacing)}px 0;
   padding: 8px 10px;
   background: rgb{self.style.code_bg_color};
   color: rgb{self.style.code_text_color};
@@ -816,7 +817,7 @@ html, body {{
   justify-content: center;
 }}
 .markdown-body .md-image-placeholder {{
-  margin: 0 0 12px 0;
+  margin: 0 0 {round(12 * spacing)}px 0;
   break-inside: avoid;
   page-break-inside: avoid;
 }}
@@ -951,6 +952,7 @@ class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
         width = self.style.margin_left + self.style.content_width + self.style.margin_right
         capture_padding = self._CAPTURE_PADDING_PX
         viewport_height = max(720, min(1600, self._estimate_viewport_height(markdown_text) + (capture_padding * 2)))
+        render_scale = max(0.5, min(4.0, float(getattr(self.style, "render_scale", 1.0) or 1.0)))
         html_doc = self._build_html_document(markdown_text, image_assets=image_assets)
         html_doc = html_doc.replace(
             '<body>\n  <div class="markdown-body">',
@@ -974,12 +976,12 @@ class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
                         args=[
                             "--hide-scrollbars",
                             "--disable-gpu",
-                            "--force-device-scale-factor=1",
+                            f"--force-device-scale-factor={render_scale}",
                         ],
                     )
                     page = browser.new_page(
                         viewport={"width": width + (capture_padding * 2), "height": viewport_height},
-                        device_scale_factor=1,
+                        device_scale_factor=render_scale,
                     )
                     page.goto(html_path.as_uri(), wait_until="load")
                     page.wait_for_function("() => Array.from(document.images).every((img) => img.complete)")

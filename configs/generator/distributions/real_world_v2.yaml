@@ -1,0 +1,145 @@
+# General-purpose "real-world document OCR" distribution profile, v2.
+#
+# v2 = real_world_v1 re-fitted with `distribution measure/compare` against a
+# real reference set of 118 pages: XFUND zh+ja validation forms (100 scanned
+# forms, 300 dpi grayscale) and the 18 OmniDocBench demo pages (9 document
+# types). Values marked [measured] come from that calibration run.
+#
+# Numbers marked [sourced] come from published dataset statistics.
+# Numbers marked [prior] are engineering priors that should be re-fit with
+#   uv run main.py distribution measure --images <real images> --suggest-yaml ...
+# once you have a reference image set (see docs/distribution.md).
+id: real_world_v2
+version: "2"
+description: >
+  Mixed born-digital / scanned / photographed pages. Document family mix and
+  block weights follow DocLayNet page and element statistics; scan skew follows
+  ADF scanner measurements; capture-channel mix and degradation ranges are
+  priors informed by OmniDocBench page attributes (fuzzy scan, watermark,
+  colorful background) and should be calibrated against your target data.
+
+sources:
+  - name: XFUND (zh, ja validation)
+    url: https://github.com/doc-analysis/XFUND
+    used_for: "[measured] scanned dpi, skew, grayscale/binary rates, noise, ink density"
+  - name: OmniDocBench demo pages
+    url: https://github.com/opendatalab/OmniDocBench/tree/main/demo_data
+    used_for: "[measured] born-digital dpi, colorful background rate (2/18), fuzzy scan rate (2/18), jpeg"
+  - name: DocLayNet
+    url: https://github.com/DS4SD/DocLayNet
+    used_for: family_mix, block_weights
+    notes: >
+      80,863 pages. Categories: Financial Reports 32%, Manuals 21%, Scientific
+      Articles 17%, Laws & Regulations 16%, Patents 8%, Government Tenders 6%.
+      Element instances: Text 510,377; List-item 185,660; Section-header
+      142,884; Page-footer 70,878; Page-header 58,022; Picture 45,976;
+      Table 34,733; Formula 25,027; Caption 22,524; Footnote 6,318; Title 5,071.
+  - name: OmniDocBench
+    url: https://github.com/opendatalab/OmniDocBench
+    used_for: capture channel taxonomy (fuzzy_scan / watermark / colorful_background attributes)
+  - name: ADF scanner skew study
+    url: https://www.researchgate.net/publication/224341611_Estimating_the_Skew_Angle_of_Scanned_Document_through_Background_Area_Information
+    used_for: scanned.skew_deg
+    notes: 300 A4 sheets through an automatic feeder; 3 sigma of skew within +-1.5 deg.
+
+# DocLayNet category -> template family mapping [sourced, then blended]:
+#   Financial Reports 32% + Laws 16%       -> business   (48%)
+#   Manuals 21% + half of Patents 4%       -> technical  (25%)
+#   Scientific 17% + half of Patents 4%    -> academic   (21%)
+#   Government Tenders 6%                  -> forms      (6%)
+# DocLayNet has no receipts / meeting notes / forms, which are common in OCR
+# workloads, so 20% of the mass is moved to forms + operations [prior].
+family_mix:
+  business: 0.38
+  technical: 0.20
+  academic: 0.17
+  forms: 0.15
+  operations: 0.10
+
+# Relative weights for filling non-required block slots [sourced from DocLayNet
+# element shares]. List-items are counted per item in DocLayNet but our list
+# blocks hold 3-5 items, so list shares are divided by ~4. Captions and
+# footnotes are folded into paragraph. Headers/titles are produced by the
+# composer structurally and are not weighted here.
+block_weights:
+  paragraph: 48.7
+  bullet_list: 2.1
+  numbered_list: 1.5
+  checklist: 0.6
+  image: 4.2
+  table: 3.1
+  formula: 2.3
+  quote: 0.8
+  code: 0.8
+  command: 0.4
+  rule: 0.4
+
+# Content density on one sheet [measured]: real pages have ~2-4x the ink
+# coverage of v1 output (ink_ratio 5-11% vs 2.5%), so documents get more
+# sections, extra blocks and longer paragraphs.
+content:
+  # [measured] v2 pilots: one `##` heading per short block left pages mostly
+  # whitespace; real pages have fewer headings and long running text.
+  section_count_scale: {uniform: [0.7, 1.2]}
+  extra_blocks_per_section: {choices: [1, 2, 2, 3]}
+  paragraph_max_chars: {normal: [900, 220], clip: [300, 1500], round: 0}
+  paragraph_parts: {choices: [2, 3, 4], weights: [0.3, 0.45, 0.25]}
+
+# Sheet geometry [measured]: real pages have aspect ~1.41 (A4); Letter 1.29.
+page:
+  aspect_ratio: {choices: [1.414, 1.294], weights: [0.85, 0.15]}
+
+# Body fonts [measured]: v1 output had ~half the ink contrast of real pages;
+# hairline / light weights, the monospace coding font, archaic-Hangul variants
+# and display weights are rare as body text in real documents.
+fonts:
+  exclude: [UltraLight, Light, SquareL, RoundL, _acL, HumanEL, Neo-aLt, YetHangul,
+            D2Coding, ExtraBold, Heavy, EB.ttf, Neo-dEb, Neo-eHv]
+
+# Physical typography on a virtual A4 page [prior: typical 9-12pt body text].
+typography:
+  body_font_pt: {normal: [10.5, 0.8], clip: [8.5, 13.0], round: 1}
+  line_spacing: {normal: [1.35, 0.1], clip: [1.1, 1.7], round: 2}
+  colored_background: {p: 0.11}   # [measured] OmniDocBench demo 2/18 pages
+  spacing_scale: {uniform: [0.45, 0.8]}   # [measured] tighter block margins than web CSS
+  ink_gray: {beta: [1.5, 6], range: [0, 60], round: 0}   # [measured] near-black print ink
+  colored_headings: {p: 0.45}   # [measured] OmniDocBench demo: ~56% of pages are not grayscale
+
+capture_channels:
+  born_digital:
+    weight: 0.45
+    # [measured] OmniDocBench demo median ~194 dpi, JPEG sources.
+    dpi: {choices: [150, 200, 300], weights: [0.25, 0.45, 0.30]}
+    degradations:
+      jpeg_quality: {choices: [null, 95, 90, 85], weights: [0.3, 0.3, 0.2, 0.2]}
+      noise_sigma: {lognormal: [0.3, 0.5], clip: [0.0, 4.0], round: 2}
+
+  scanned:
+    weight: 0.40
+    # [measured] XFUND scans are 300 dpi; keep some 200 dpi office scans.
+    dpi: {choices: [200, 300], weights: [0.3, 0.7]}
+    degradations:
+      skew_deg: {normal: [-0.1, 0.3], clip: [-1.5, 1.5], round: 2}   # [measured]
+      paper_tint: {p: 0.12}   # [measured] XFUND scans are white-balanced
+      ink_fade: {beta: [1.5, 10], range: [0.0, 0.3], round: 3}
+      bleed_through: {beta: [1.2, 14], range: [0.0, 0.15], round: 3}
+      blur_sigma: {lognormal: [-1.0, 0.4], clip: [0.0, 1.2], round: 2}
+      noise_sigma: {lognormal: [0.8, 0.4], clip: [0.0, 8.0], round: 2}   # [measured] median ~1.8
+      speckle_density: {beta: [1.2, 800], range: [0.0, 0.005], round: 5}
+      grayscale: {p: 0.9}      # [measured] XFUND 100% grayscale
+      binarize: {p: 0.05}      # [measured] XFUND 3%
+      jpeg_quality: {normal: [85, 6], clip: [60, 95], round: 0}
+
+  photographed:
+    weight: 0.15
+    dpi: {normal: [180, 40], clip: [100, 300], round: 0}
+    degradations:
+      skew_deg: {normal: [0.0, 2.0], clip: [-6.0, 6.0], round: 2}
+      perspective: {beta: [2, 12], range: [0.0, 0.07], round: 4}
+      illumination: {beta: [2, 4], range: [0.0, 0.4], round: 3}
+      shadow_strength: {beta: [1.5, 6], range: [0.0, 0.45], round: 3}
+      blur_sigma: {lognormal: [-0.5, 0.5], clip: [0.0, 2.0], round: 2}
+      motion_blur_px: {choices: [0, 0, 0, 3, 5]}
+      noise_sigma: {lognormal: [1.4, 0.4], clip: [0.0, 14.0], round: 2}
+      paper_tint: {p: 0.7}
+      jpeg_quality: {normal: [78, 8], clip: [45, 95], round: 0}

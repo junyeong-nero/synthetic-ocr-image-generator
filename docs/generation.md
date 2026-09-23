@@ -86,6 +86,13 @@ Formula generation/rendering notes:
 - The built-in hard-coded formula pool now contains 100+ normalized expressions spanning algebra, calculus, physics, probability, and ML/LLM training objectives.
 - Formula rasterization uses a bounded in-process cache (256 entries) to avoid unbounded memory growth during long generation runs.
 
+### Real-World Distribution Profile
+
+- `--distribution-profile`: profile name under `configs/generator/distributions` (`real_world_v2` (calibrated), `real_world_v1`, `ko_admin_scan_v1`) or a YAML path.
+- Controls family mix, block weights, physical typography, capture channel (born-digital / scanned / photographed), target DPI and degradations (skew, perspective, blur, noise, JPEG, bleed-through, binarization, ...).
+- Adds `capture_channel`, `target_dpi`, `visual_difficulty`, `degradation_params` and related metadata columns.
+- See [distribution.md](distribution.md) for the profile format, data sources, and the `distribution measure` / `distribution compare` calibration loop.
+
 ### Dataset Split / Upload
 
 - `--train-ratio` and `--test-ratio`: must each be in `[0, 1]` and sum to `1.0`.
@@ -105,6 +112,9 @@ Local-first behavior:
 - `uv run main.py publish --generated-path <path>` uploads a previously generated dataset root.
 - `publish` reads generation context from `run_manifest.json`, so the dataset card and split settings do not need to be re-entered.
 - `--repo-id` is optional on `publish` when the manifest already contains one, but can still be used to override it.
+- `--license` sets the dataset card license (for example `cc-by-sa-3.0` when the corpus is Wikipedia text).
+- `--text-source` adds a text attribution section to the card (required for CC BY-SA corpora).
+- `--dry-run` writes `DATASET_CARD.md` next to the data and reports split sizes without uploading.
 
 ## Pipeline Workflow (Detailed)
 
