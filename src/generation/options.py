@@ -9,6 +9,7 @@ class PublishOptions:
     repo_id: Optional[str] = None
     train_ratio: float = 0.9
     test_ratio: float = 0.1
+    license: str = "unknown"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -19,6 +20,7 @@ class PublishOptions:
             repo_id=data.get("repo_id"),
             train_ratio=float(data.get("train_ratio", 0.9)),
             test_ratio=float(data.get("test_ratio", 0.1)),
+            license=str(data.get("license") or "unknown"),
         )
 
     def with_overrides(
@@ -27,12 +29,14 @@ class PublishOptions:
         repo_id: Optional[str] = None,
         train_ratio: Optional[float] = None,
         test_ratio: Optional[float] = None,
+        license: Optional[str] = None,
     ) -> "PublishOptions":
         return replace(
             self,
             repo_id=repo_id if repo_id is not None else self.repo_id,
             train_ratio=train_ratio if train_ratio is not None else self.train_ratio,
             test_ratio=test_ratio if test_ratio is not None else self.test_ratio,
+            license=license if license is not None else self.license,
         )
 
 
@@ -175,6 +179,7 @@ class GenerationTaskContext:
         repo_id: Optional[str] = None,
         train_ratio: Optional[float] = None,
         test_ratio: Optional[float] = None,
+        license: Optional[str] = None,
     ) -> "GenerationTaskContext":
         return replace(
             self,
@@ -182,5 +187,6 @@ class GenerationTaskContext:
                 repo_id=repo_id,
                 train_ratio=train_ratio,
                 test_ratio=test_ratio,
+                license=license,
             ),
         )

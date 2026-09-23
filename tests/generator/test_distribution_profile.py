@@ -161,3 +161,42 @@ def test_generation_options_round_trip_distribution_profile() -> None:
     assert restored.distribution_profile == "real_world_v1"
     assert options.to_generator_kwargs()["distribution_profile"] == "real_world_v1"
 
+
+
+def test_fit_markdown_to_sheet_drops_trailing_blocks() -> None:
+    from src.generator.profile_application import fit_markdown_to_sheet
+
+    markdown = "# Title\n\n## A\n\npara one\n\n## B\n\npara two\n\n## C\n\n- item\n- item\n"
+    trimmed, kept = fit_markdown_to_sheet(markdown, overflow_ratio=2.0)
+    assert trimmed.startswith("# Title")
+    assert not trimmed.rstrip().splitlines()[-1].startswith("#")
+    assert kept == sum(1 for chunk in trimmed.strip().split("\n\n") if not chunk.startswith("#"))
+    assert len(trimmed) < len(markdown)
+    assert fit_markdown_to_sheet(markdown, overflow_ratio=0.9)[0] == markdown
+
+
+def test_pad_to_aspect_extends_short_pages_only() -> None:
+    from src.generator.profile_application import pad_to_aspect
+
+    short = pad_to_aspect(_page(400, 200), 1.414)
+    assert short.size == (400, 566)
+    tall = _page(400, 900)
+    assert pad_to_aspect(tall, 1.414).size == (400, 900)
+
+
+def test_fit_markdown_to_sheet_keeps_first_content_block() -> None:
+    from src.generator.profile_application import fit_markdown_to_sheet
+
+    markdown = "# Title\n\n## Section\n\n" + ("very long paragraph " * 200) + "\n\n## Next\n\nmore\n"
+    trimmed, kept = fit_markdown_to_sheet(markdown, overflow_ratio=6.0)
+    assert kept == 1
+    assert "very long paragraph" in trimmed
+    assert "## Next" not in trimmed
+
+
+def test_paragraph_builder_neutralizes_markdown_prefixes() -> None:
+    from src.generator.document_blocks import _neutralize_block_markup
+
+    assert _neutralize_block_markup("# 수행 유도하기 예") == "수행 유도하기 예"
+    assert _neutralize_block_markup("> - 1. 인용") == "인용"
+    assert _neutralize_block_markup("2009년 7월") == "2009년 7월"

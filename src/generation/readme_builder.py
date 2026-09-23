@@ -152,7 +152,7 @@ def build_dataset_readme(
             f'pretty_name: "{dataset_pretty_name}"',
             "language:",
             f"- {context.lang}",
-            "license: unknown",
+            f"license: {publish.license}",
             "multilinguality: monolingual",
             "size_categories:",
             f"- {size_category}",

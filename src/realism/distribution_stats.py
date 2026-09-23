@@ -44,13 +44,20 @@ def iter_image_paths(root: Path, limit: Optional[int] = None) -> Iterator[Path]:
                 return
 
 
-def iter_metadata_image_paths(metadata_path: Path, limit: Optional[int] = None) -> Iterator[Path]:
+def iter_metadata_image_paths(
+    metadata_path: Path,
+    limit: Optional[int] = None,
+    where: Optional[Dict[str, str]] = None,
+) -> Iterator[Path]:
     count = 0
     with open(metadata_path, "r", encoding="utf-8") as handle:
         for line in handle:
             if not line.strip():
                 continue
-            file_name = json.loads(line).get("file_name")
+            row = json.loads(line)
+            if where and any(str(row.get(key)) != value for key, value in where.items()):
+                continue
+            file_name = row.get("file_name")
             if not file_name:
                 continue
             path = Path(file_name)
@@ -175,7 +182,9 @@ def compare_summaries(reference: Dict[str, Any], candidate: Dict[str, Any]) -> L
         ref_q = np.array(ref["quantiles"], dtype=np.float64)
         cand_q = np.array(cand["quantiles"], dtype=np.float64)
         w1 = float(np.mean(np.abs(ref_q - cand_q)))
-        spread = max(float(ref["p95"] - ref["p05"]), 1e-6)
+        # Floor the spread so near-constant reference metrics (e.g. white
+        # background luma) do not blow up the normalised distance.
+        spread = max(float(ref["p95"] - ref["p05"]), 0.05 * abs(float(ref["median"])), 1e-6)
         if key.startswith("is_"):
             spread = 1.0
         w1_norm = w1 / spread

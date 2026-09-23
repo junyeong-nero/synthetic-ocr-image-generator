@@ -164,6 +164,22 @@ def parse_block_blueprint(blueprint: Mapping[str, Any] | None) -> BlockBlueprint
     )
 
 
+_BLOCK_MARKUP_PREFIX_RE = re.compile(r"^\s*(?:[#>|*+\-]+|\d+[.)])\s+")
+
+
+def _neutralize_block_markup(text: str) -> str:
+    """Keep corpus text a plain paragraph: strip leading markdown block markers.
+
+    A paragraph such as "# item ..." from a wiki dump would otherwise render
+    as a heading and corrupt both the image and the GT structure.
+    """
+    previous = None
+    while previous != text:
+        previous = text
+        text = _BLOCK_MARKUP_PREFIX_RE.sub("", text)
+    return text
+
+
 class DocumentBlockBuilder:
     """Build individual markdown blocks from normalized block types."""
 
@@ -175,12 +191,16 @@ class DocumentBlockBuilder:
         formula_supplier: Callable[[], str],
         table_rows: Tuple[int, int] = (2, 4),
         table_columns: Tuple[int, int] = (3, 5),
+        paragraph_max_chars: int = 320,
+        paragraph_parts: int = 1,
     ) -> None:
         self.data = data
         self.clip_text = clip_text
         self.formula_supplier = formula_supplier
         self.table_rows = table_rows
         self.table_columns = table_columns
+        self.paragraph_max_chars = max(40, int(paragraph_max_chars))
+        self.paragraph_parts = max(1, int(paragraph_parts))
         self.table_generator = TableGenerator(data=data, clip_text=clip_text)
 
     def build(
@@ -199,7 +219,8 @@ class DocumentBlockBuilder:
 
     def _build_paragraph(self, *, block_index: int, section_index: int) -> GeneratedBlock:
         _ = block_index, section_index
-        paragraph = self.clip_text(self.data.paragraph(), 320)
+        text = " ".join(self.data.paragraph() for _ in range(self.paragraph_parts))
+        paragraph = _neutralize_block_markup(self.clip_text(text, self.paragraph_max_chars))
         if not paragraph:
             paragraph = self.clip_text(self.data.sentence(), 160)
         return GeneratedBlock("paragraph", paragraph)
@@ -311,25 +332,47 @@ class DocumentComposer:
         clip_text: Callable[[str, int], str],
         formula_supplier: Callable[[], str],
         block_weights: Mapping[str, float] | None = None,
+        content_specs: Mapping[str, Any] | None = None,
     ) -> None:
         self.data = data
         self.clip_text = clip_text
         self.formula_supplier = formula_supplier
         self.block_weights = dict(block_weights or {})
+        self.content_specs = dict(content_specs or {})
+
+    def _sample_content(self) -> Dict[str, float]:
+        # Imported lazily to keep document_blocks free of profile dependencies.
+        from src.generator.distribution_profile import sample_value
+
+        defaults = {
+            "section_count_scale": 1.0,
+            "extra_blocks_per_section": 0,
+            "paragraph_max_chars": 320,
+            "paragraph_parts": 1,
+        }
+        sampled = dict(defaults)
+        for key, spec in self.content_specs.items():
+            if key in defaults and spec is not None:
+                sampled[key] = float(sample_value(spec, random))
+        return sampled
 
     def compose(
         self,
         blueprint: Mapping[str, Any] | None = None,
     ) -> Tuple[str, DocumentCompositionMetadata]:
         parsed = parse_block_blueprint(blueprint)
+        content = self._sample_content() if self.content_specs else {}
         section_count = random.randint(*parsed.section_count)
+        if content:
+            section_count = int(round(section_count * max(0.1, content["section_count_scale"])))
         section_count = max(section_count, len(parsed.required_blocks))
 
         if section_count <= 0:
             section_count = 1
 
+        extra_blocks = max(0, int(round(content.get("extra_blocks_per_section", 0))))
         block_counts = [
-            random.randint(*parsed.blocks_per_section) for _ in range(section_count)
+            random.randint(*parsed.blocks_per_section) + extra_blocks for _ in range(section_count)
         ]
         block_plan = self._plan_block_types(
             parsed,
@@ -347,6 +390,8 @@ class DocumentComposer:
             formula_supplier=self.formula_supplier,
             table_rows=parsed.table_rows,
             table_columns=parsed.table_columns,
+            paragraph_max_chars=int(content.get("paragraph_max_chars", 320)),
+            paragraph_parts=int(round(content.get("paragraph_parts", 1))),
         )
 
         lines: List[str] = [f"# {self.clip_text(self.data.title(), 96)}"]

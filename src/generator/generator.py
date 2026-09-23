@@ -44,7 +44,12 @@ from src.generator.markdown_render_utils import (
     parse_markdown_formula_line,
     parse_markdown_image_line,
 )
-from src.generator.profile_application import finalize_profile_image, plan_profile_render
+from src.generator.profile_application import (
+    finalize_profile_image,
+    fit_markdown_to_sheet,
+    plan_profile_render,
+    sheet_overflow_ratio,
+)
 from src.generator.style_sampler import base_styles, clamp_color, jitter_color, random_style
 from src.generator.template_catalog import TemplateCatalog, TemplateSpec, parse_coverage_targets
 from src.generator.text_generator import TextGenerator
@@ -353,6 +358,8 @@ class Generator(BaseGenerator):
         block_weights = profile.block_weights if profile else {}
         if hasattr(self.data_generator, "block_weights"):
             self.data_generator.block_weights = dict(block_weights)
+        if hasattr(self.data_generator, "content_specs"):
+            self.data_generator.content_specs = dict(profile.content) if profile else {}
         # Explicit --coverage-target flags win over the profile's family mix.
         if profile and not self.coverage_targets:
             self.coverage_targets = profile.coverage_targets()
@@ -605,7 +612,10 @@ class Generator(BaseGenerator):
             style.add_blur = random.random() < self.blur_ratio
 
         # Render markdown
-        font_path = random.choice(self.font_paths)
+        font_candidates = self.font_paths
+        if distribution_profile is not None:
+            font_candidates = distribution_profile.filter_fonts(self.font_paths)
+        font_path = random.choice(font_candidates)
         if self.markdown_renderer == "html2image":
             renderer = HtmlMarkdownRenderer(font_path, style)
         elif self.markdown_renderer == "playwright":
@@ -614,6 +624,16 @@ class Generator(BaseGenerator):
             renderer = MarkdownRenderer(font_path, style)
         image = renderer.render(markdown_text)
         if profile_plan is not None:
+            image, markdown_text, kept_blocks = self._fit_to_sheet(
+                renderer, image, markdown_text, profile_plan
+            )
+            if kept_blocks is not None:
+                profile_plan.page_trimmed = True
+                merge_order = merge_order[:kept_blocks]
+                composition_metadata = self._trim_composition_metadata(
+                    composition_metadata, markdown_text, kept_blocks
+                )
+                signature = self._structure_signature(markdown_text)
             image = finalize_profile_image(
                 image,
                 profile_plan,
@@ -671,7 +691,44 @@ class Generator(BaseGenerator):
         }
         if profile_plan is not None:
             metadata.update(profile_plan.metadata())
+            metadata["font_name"] = Path(font_path).name
         return image, metadata
+
+    @staticmethod
+    def _fit_to_sheet(
+        renderer: Any,
+        image: Image.Image,
+        markdown_text: str,
+        plan: Any,
+        max_attempts: int = 3,
+    ) -> Tuple[Image.Image, str, Optional[int]]:
+        """Re-render with trailing blocks removed until content fits one sheet."""
+        kept_blocks: Optional[int] = None
+        for _ in range(max_attempts):
+            overflow = sheet_overflow_ratio(image, plan)
+            if overflow <= 1.02:
+                break
+            trimmed, kept = fit_markdown_to_sheet(markdown_text, overflow)
+            if trimmed == markdown_text:
+                break
+            markdown_text, kept_blocks = trimmed, kept
+            image = renderer.render(markdown_text)
+        return image, markdown_text, kept_blocks
+
+    @staticmethod
+    def _trim_composition_metadata(
+        composition_metadata: Dict[str, Any],
+        markdown_text: str,
+        kept_blocks: int,
+    ) -> Dict[str, Any]:
+        block_types = list(composition_metadata.get("block_types", []))[:kept_blocks]
+        trimmed = dict(composition_metadata)
+        trimmed["block_types"] = block_types
+        trimmed["block_type_counts"] = dict(Counter(block_types))
+        trimmed["section_count"] = sum(
+            1 for line in markdown_text.splitlines() if line.startswith("## ")
+        )
+        return trimmed
 
     @staticmethod
     def _base_styles() -> List[MarkdownStyle]:

@@ -315,3 +315,4 @@ class MarkdownStyle:
     add_blur: bool = False
     add_contrast: bool = False
     render_scale: float = 1.0
+    spacing_scale: float = 1.0

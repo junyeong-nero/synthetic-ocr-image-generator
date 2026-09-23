@@ -23,6 +23,20 @@ def count_metadata_rows(output_dir: Path) -> int:
     return count
 
 
+def plan_split_indices(record_count: int, train_ratio: float) -> dict[str, set[int]]:
+    shuffled_indices = list(range(record_count))
+    random.Random(42).shuffle(shuffled_indices)
+    split_index = int(record_count * train_ratio)
+    if record_count > 1:
+        split_index = min(max(split_index, 1), record_count - 1)
+    else:
+        split_index = record_count
+    return {
+        "train": set(shuffled_indices[:split_index]),
+        "test": set(shuffled_indices[split_index:]),
+    }
+
+
 def upload_split_dataset_to_hub(
     repo_id: str,
     output_dir: Path,
@@ -45,18 +59,7 @@ def upload_split_dataset_to_hub(
         test_ratio,
     )
 
-    shuffled_indices = list(range(record_count))
-    random.Random(42).shuffle(shuffled_indices)
-    split_index = int(record_count * train_ratio)
-    if record_count > 1:
-        split_index = min(max(split_index, 1), record_count - 1)
-    else:
-        split_index = record_count
-
-    split_to_items = {
-        "train": set(shuffled_indices[:split_index]),
-        "test": set(shuffled_indices[split_index:]),
-    }
+    split_to_items = plan_split_indices(record_count, train_ratio)
     uploaded_split_counts: dict[str, int] = {}
 
     for split_name, selected_indices in split_to_items.items():
@@ -117,3 +120,29 @@ def upload_generated_dataset(
         )
 
     return uploaded_split_counts
+
+
+def preview_generated_dataset(
+    *,
+    generated_path: Path,
+    context: GenerationTaskContext,
+) -> dict[str, int]:
+    """Write the dataset card locally and report split sizes without uploading."""
+    repo_id = context.publish.repo_id or "<your-username>/<dataset-name>"
+    generated_count = count_metadata_rows(generated_path)
+    split_counts = {
+        name: len(indices)
+        for name, indices in plan_split_indices(generated_count, context.publish.train_ratio).items()
+        if indices
+    }
+    readme_content = build_dataset_readme(
+        repo_id=repo_id,
+        context=context,
+        generated_count=generated_count,
+        split_counts=split_counts,
+        distribution_summary=summarize_metadata_distribution(generated_path / "metadata.jsonl"),
+    )
+    card_path = generated_path / "DATASET_CARD.md"
+    card_path.write_text(readme_content, encoding="utf-8")
+    logger.info("Dry run: %s samples, splits %s, card written to %s", generated_count, split_counts, card_path)
+    return split_counts

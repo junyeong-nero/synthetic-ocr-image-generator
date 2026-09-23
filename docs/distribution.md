@@ -5,16 +5,22 @@ By default the generator samples styles, noise and document families from hand-t
 ## Quick Start
 
 ```bash
-# Generate with the bundled general-purpose profile
+# 1) Real-language text: import Korean Wikipedia (CC BY-SA 3.0) as corpus
+uv run main.py corpus import-wikitext --kowikitext-split dev --kowikitext-split test --lang ko
+
+# 2) Generate with the calibrated general-purpose profile
 uv run main.py generate --lang ko --size 1000 --seed 42 \
-  --distribution-profile real_world_v1
+  --distribution-profile real_world_v2
 
 # Scan-heavy Korean administrative documents
 uv run main.py generate --lang ko --size 1000 --seed 42 \
   --distribution-profile ko_admin_scan_v1
 
-# Publish; the dataset card gets a "Sample Distribution" section
-uv run main.py publish --generated-path ./data/ko/images_markdown --repo-id you/your-dataset
+# 3) Preview the dataset card locally, then publish
+uv run main.py publish --generated-path ./data/ko/images_markdown --repo-id you/your-dataset \
+  --license cc-by-sa-3.0 --dry-run          # writes DATASET_CARD.md, no upload
+uv run main.py publish --generated-path ./data/ko/images_markdown --repo-id you/your-dataset \
+  --license cc-by-sa-3.0
 ```
 
 `--distribution-profile` accepts a bundled name from `configs/generator/distributions/` or a path to your own YAML file. Without the flag, generation behaves exactly as before.
@@ -28,6 +34,13 @@ uv run main.py publish --generated-path ./data/ko/images_markdown --repo-id you/
 | `typography.body_font_pt` | Physical body font size on a virtual A4 page; heading and code sizes scale with it |
 | `typography.line_spacing` | Line spacing |
 | `typography.colored_background` | Probability of keeping a tinted page background (otherwise white paper) |
+| `typography.spacing_scale` | Multiplier for CSS block/heading margins (real pages are tighter than web CSS) |
+| `typography.ink_gray` | Body text grey level (0 = black) |
+| `typography.colored_headings` | Probability that headings keep an accent colour instead of ink colour |
+| `fonts.exclude` | File-name substrings of fonts never used as body font (e.g. hairline weights) |
+| `content.section_count_scale` / `extra_blocks_per_section` | Scale sections / add blocks per section for page density |
+| `content.paragraph_max_chars` / `paragraph_parts` | Paragraph length (number of corpus paragraphs joined, clip length) |
+| `page.aspect_ratio` | Sheet shape. Short content is padded to a full sheet; content longer than one sheet is cut at a block boundary and re-rendered, like the first page of a multi-page file (`page_trimmed` in metadata). `GT_markdown` always matches the image |
 | `capture_channels.<name>.weight` | Mix of `born_digital` / `scanned` / `photographed` pages |
 | `capture_channels.<name>.dpi` | Target resolution. Playwright renders with a matching device scale factor, so a 300 dpi page is about 2480 px wide |
 | `capture_channels.<name>.degradations` | Per-channel degradation parameters (see below) |
@@ -77,6 +90,7 @@ Profile runs add these per-sample columns, which are uploaded to the Hub and usa
 - `colored_background`
 - `visual_difficulty` (`easy` / `medium` / `hard`, derived from sampled degradation strength)
 - `degradation_params` (JSON)
+- `font_name`, `page_aspect_ratio`, `page_trimmed`
 
 ## Where the Bundled Numbers Come From
 
@@ -128,6 +142,38 @@ Measured metrics: size, `est_dpi_a4` (width / 8.27 in, which assumes full A4 por
 
 **Limitation:** the skew estimator is reliable for scans (within about 0.1° of the true value). On photographed pages, perspective and desk borders dominate and the estimate is not meaningful.
 
+## Calibration Record: `real_world_v2`
+
+`real_world_v2` was fitted with the loop above against **118 real pages** that are reachable from GitHub:
+
+- XFUND zh+ja validation: 100 scanned forms ([repo](https://github.com/doc-analysis/XFUND))
+- the 18 OmniDocBench demo pages ([repo](https://github.com/opendatalab/OmniDocBench/tree/main/demo_data)).
+
+Channels are compared to their matching source: synthetic `scanned` pages against XFUND, and `born_digital` pages against OmniDocBench (`--where capture_channel=...`).
+
+What the calibration changed relative to v1:
+
+| Finding (v1 pilot vs real) | Change in v2 |
+|---|---|
+| Page aspect 1.07 vs 1.41: pages were only as tall as their content | `page.aspect_ratio` (A4/Letter), padding, and fit-to-sheet trimming |
+| Ink coverage 2.5% vs 5–11%, contrast 57 vs 151–175 | Denser `content`, `spacing_scale` 0.45–0.8, near-black `ink_gray` |
+| Scan skew σ≈0.3° (XFUND) vs prior 0.5° | `scanned.skew_deg ~ N(-0.1, 0.3)` |
+| XFUND scans: 100% grayscale, 3% bitonal, white-balanced paper | `grayscale` 0.9, `binarize` 0.05, `paper_tint` 0.12 |
+| Born-digital median ~194 dpi, JPEG sources, 11% coloured background | DPI mix, JPEG quality mix, `colored_background` 0.11 |
+
+Results are in [`calibration/real_world_v2.md`](calibration/real_world_v2.md). The reference set is small and forms-heavy, so for your own target domain, re-run `measure` on your data (see above).
+
+## Real-Language Corpus
+
+`uv run main.py corpus import-wikitext` converts WikiText dumps into `data/corpus/<lang>/paragraphs.txt` and `titles.txt`. These are picked up automatically, and titles, list items and table cells are derived from them.
+
+- `--kowikitext-split dev|test|train` downloads [Korean WikiText](https://github.com/lovit/kowikitext) from GitHub releases:
+  - dev + test: about 20k paragraphs, enough for most runs
+  - train: about 1.7 GB
+- `--input FILE` imports any local WikiText-format file.
+- The cleaner strips markup debris such as empty `(, )` pairs, wiki list markers (`# item`, `: quote`), namespace titles (`분류:…`) and missing spaces after sentence ends. Leading markdown markers are also neutralised when paragraphs are built, so corpus text can never turn into a heading.
+- **License:** Wikipedia text is CC BY-SA 3.0. Publish with `--license cc-by-sa-3.0`.
+
 ## Beyond Visual Realism
 
-Profiles fix *how pages look* and *which structures appear*. The text itself still comes from the corpus. For realistic content, generate a language corpus first (`uv run main.py corpus generate ...`) so pages contain real-language sentences instead of placeholder text. To confirm the benchmark is realistic, check that model rankings on the synthetic set correlate (Spearman) with rankings on a real benchmark.
+Profiles fix *how pages look* and *which structures appear*; the words come from the corpus (see above, or `corpus generate` for LLM-written domain text). To confirm the benchmark is realistic, check that model rankings on the synthetic set correlate (Spearman) with rankings on a real benchmark.

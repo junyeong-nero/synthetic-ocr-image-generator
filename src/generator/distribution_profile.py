@@ -8,6 +8,8 @@ loaded from YAML under ``configs/generator/distributions``.  It controls:
 - physical page typography (body font size in points, line spacing)
 - capture channels (born-digital / scanned / photographed) with per-channel
   resolution (DPI) and degradation parameter distributions
+- content density (section count scale, extra blocks, paragraph length)
+- page geometry (sheet aspect ratio the rendered content is placed on)
 
 Every numeric field accepts a *distribution spec* (see ``sample_value``) so the
 profile can encode measured histograms instead of hand-tuned uniform ranges.
@@ -173,6 +175,9 @@ class DistributionProfile:
     typography: Dict[str, Any]
     capture_channels: List[CaptureChannel]
     source_path: str = ""
+    content: Dict[str, Any] = field(default_factory=dict)
+    page: Dict[str, Any] = field(default_factory=dict)
+    font_exclude: List[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any], *, source_path: str = "") -> "DistributionProfile":
@@ -206,6 +211,9 @@ class DistributionProfile:
             typography=dict(data.get("typography") or {}),
             capture_channels=channels,
             source_path=source_path,
+            content=dict(data.get("content") or {}),
+            page=dict(data.get("page") or {}),
+            font_exclude=[str(v) for v in ((data.get("fonts") or {}).get("exclude") or [])],
         )
 
     def coverage_targets(self) -> Dict[str, float]:
@@ -222,6 +230,17 @@ class DistributionProfile:
 
     def sample_typography(self, rng: random.Random) -> Dict[str, Any]:
         return {key: sample_value(spec, rng) for key, spec in self.typography.items()}
+
+    def filter_fonts(self, font_paths: List[str]) -> List[str]:
+        """Drop fonts whose file name contains any ``fonts.exclude`` substring."""
+        if not self.font_exclude:
+            return list(font_paths)
+        patterns = [pattern.lower() for pattern in self.font_exclude]
+        kept = [path for path in font_paths if not any(p in Path(path).name.lower() for p in patterns)]
+        return kept or list(font_paths)
+
+    def sample_page(self, rng: random.Random) -> Dict[str, Any]:
+        return {key: sample_value(spec, rng) for key, spec in self.page.items()}
 
 
 def available_profiles(config_dir: Optional[Path] = None) -> List[str]:

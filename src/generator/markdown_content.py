@@ -189,6 +189,7 @@ class MarkdownDataGenerator:
         self.formula_dataset_path: Optional[str] = None
         self._formula_dataset: List[str] = []
         self.block_weights: Dict[str, float] = {}
+        self.content_specs: Dict[str, Any] = {}
 
     @staticmethod
     def _normalize_source_mode(value: Any, fallback: str = "mixed") -> str:
@@ -484,6 +485,7 @@ class MarkdownDataGenerator:
                 clip_text=self._clip_text,
                 formula_supplier=self._generate_formula_expression,
                 block_weights=self.block_weights,
+                content_specs=self.content_specs,
             )
             markdown_text, composition_metadata = composer.compose(blueprint)
             self._last_merge_order = list(composition_metadata.block_types)

@@ -25,6 +25,12 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
     measure.add_argument("--hf-config", type=str, default=None)
     measure.add_argument("--hf-split", type=str, default="train")
     measure.add_argument("--hf-image-column", type=str, default="image")
+    measure.add_argument(
+        "--where",
+        action="append",
+        default=None,
+        help="With --metadata: only rows where key=value (repeatable), e.g. capture_channel=scanned",
+    )
     measure.add_argument("--max-images", type=int, default=500)
     measure.add_argument("--output", type=str, required=True, help="Stats JSON output path")
     measure.add_argument(
@@ -61,7 +67,10 @@ def run_measure(args: argparse.Namespace) -> int:
         images = iter_image_paths(Path(args.images), limit=limit)
     elif args.metadata:
         source = args.metadata
-        images = iter_metadata_image_paths(Path(args.metadata), limit=limit)
+        where = dict(item.split("=", 1) for item in (args.where or []) if "=" in item)
+        if where:
+            source = f"{source} [{', '.join(f'{k}={v}' for k, v in where.items())}]"
+        images = iter_metadata_image_paths(Path(args.metadata), limit=limit, where=where)
     else:
         source = f"hf://{args.hf_dataset}/{args.hf_split}"
         images = iter_hf_images(
