@@ -62,7 +62,7 @@ xelatex --help   # verify installation
 
 ### Step 1 — Build corpus text
 
-Corpus text is fed into document templates to produce realistic content. Skip this step if you only want to use placeholder text.
+Corpus text is fed into document templates to produce realistic content. Skip this step if you only want to use placeholder text. `--distribution-profile` requires a corpus, because the placeholder text is Latin lorem ipsum even for `ko`/`ja`.
 
 ```bash
 # Real text: Korean Wikipedia via Korean WikiText (CC BY-SA 3.0), ~18k clean paragraphs

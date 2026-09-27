@@ -78,7 +78,7 @@ uv run main.py generate [OPTIONS]
 - `--novelty-window`: Recent-sample window size for novelty guard.
 - `--novelty-threshold`: Similarity threshold for novelty guard.
 - `--novelty-max-attempts`: Retry count before accepting low-novelty sample.
-- `--similar-char-ratio`: Ratio of similar-character substitutions (default: `0.08`).
+- `--similar-char-ratio`: Ratio of similar-character substitutions (default: the distribution profile's `content.similar_char_ratio`, else `0.08`).
 - `--similarity-db-path`: Optional similarity DB JSON path.
 - `--add-noise`, `--no-add-noise`: Enable/disable noise effect.
 - `--add-blur`, `--no-add-blur`: Enable/disable blur effect.
