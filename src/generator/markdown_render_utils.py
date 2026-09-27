@@ -324,3 +324,14 @@ class MarkdownStyle:
     # `word-break: break-word`.
     text_align: Optional[str] = None  # "left" | "justify"
     word_break: Optional[str] = None  # "normal" | "keep-all"
+    # Table visual style (HtmlMarkdownRenderer only; the PIL renderer ignores
+    # it). None reproduces the pre-table-styles CSS exactly (same as "web").
+    # See src/generator/layout_css.py for the "grid" / "header_shaded" /
+    # "booktabs" / "borderless" variants.
+    table_style: Optional[str] = None
+    # CSS column count for the page (HtmlMarkdownRenderer only). 1 reproduces
+    # the previous single-column CSS exactly.
+    columns: int = 1
+    # Column gap in CSS px, used only when columns > 1. None falls back to a
+    # fixed default gap (src/generator/layout_css.py).
+    column_gap: Optional[int] = None

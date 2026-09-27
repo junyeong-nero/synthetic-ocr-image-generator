@@ -133,6 +133,20 @@ def _normalize_weights(raw: Any) -> Dict[str, float]:
     return {k: v / total for k, v in cleaned.items()}
 
 
+def _resolve_family_spec(spec: Mapping[str, Any], family: Optional[str]) -> Any:
+    """Pick the ``by_family`` distribution spec for ``family``, else ``default``.
+
+    ``spec`` is ``{default: <dist spec>, by_family: {<family>: <dist spec>, ...}}``.
+    A missing/unmatched family, or a spec with no ``default``, falls back to
+    ``1`` (single column / no-op), never raising, so a template family absent
+    from ``by_family`` still gets a value.
+    """
+    by_family = spec.get("by_family") or {}
+    if family and family in by_family:
+        return by_family[family]
+    return spec.get("default", 1)
+
+
 def _parse_font_groups(raw: Any) -> Dict[str, float]:
     """Parse a ``fonts.body`` / ``fonts.heading`` / ``fonts.code`` spec.
 
@@ -321,11 +335,21 @@ class DistributionProfile:
         )[0]
         return rng.choice(chosen_group)
 
-    def sample_page(self, rng: random.Random) -> Dict[str, Any]:
+    def sample_page(self, rng: random.Random, *, family: Optional[str] = None) -> Dict[str, Any]:
+        """Sample ``page`` for one render, optionally conditioned on the template family.
+
+        Most keys are plain distribution specs. A key may instead be a
+        ``{default: <spec>, by_family: {<family>: <spec>, ...}}`` mapping
+        (e.g. ``page.columns``, so academic pages can get a higher two-column
+        share than the page-wide default); ``family`` picks ``by_family``'s
+        spec when present, else ``default``.
+        """
         sampled: Dict[str, Any] = {}
         for key, spec in self.page.items():
             if key == "margins_mm" and isinstance(spec, Mapping):
                 sampled[key] = {side: sample_value(side_spec, rng) for side, side_spec in spec.items()}
+            elif isinstance(spec, Mapping) and "by_family" in spec:
+                sampled[key] = sample_value(_resolve_family_spec(spec, family), rng)
             else:
                 sampled[key] = sample_value(spec, rng)
         return sampled

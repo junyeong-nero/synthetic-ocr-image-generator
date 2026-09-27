@@ -676,7 +676,9 @@ class Generator(BaseGenerator):
         distribution_profile = getattr(self, "distribution_profile", None)
         if distribution_profile is not None:
             profile_rng = random.Random(random.getrandbits(64))
-            profile_plan = plan_profile_render(distribution_profile, style, profile_rng)
+            profile_plan = plan_profile_render(
+                distribution_profile, style, profile_rng, family=selected_template.family
+            )
         else:
             style.add_noise = random.random() < self.noise_ratio
             style.add_blur = random.random() < self.blur_ratio

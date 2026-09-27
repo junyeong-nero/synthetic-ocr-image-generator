@@ -43,7 +43,10 @@ A profile needs a real text corpus (`data/corpus/<lang>/paragraphs.txt`, see [Re
 | `typography.colored_headings` | Probability that headings keep an accent colour instead of ink colour |
 | `typography.text_align` | `left` or `justify` (CJK-friendly justification) for body text. HTML renderers only; the PIL renderer ignores it |
 | `typography.word_break` | `normal` or `keep-all` (breaks fall between words, not mid-syllable) for body text. HTML renderers only; the PIL renderer ignores it |
+| `typography.table_style` | `web` (legacy: light/ink borders, header shading, zebra rows) \| `grid` (solid ink borders, no zebra, bold centred header) \| `header_shaded` (no vertical rules, shaded header row) \| `booktabs` (thick top/bottom table rules, a header rule, no vertical lines) \| `borderless` (header underline only). Unset keeps `web`. A numeric column's markdown right-alignment (`---:`, see Realistic Table Content below) is an inline style and always wins over these class rules. HTML renderers only |
 | `page.margins_mm` | `{top, bottom, left, right}` page margins in millimetres on A4 (210mm wide), converted to CSS padding as `mm / 210 × page width`. Unset sides keep the sampled base style's margin |
+| `page.columns` | `1` or `2` CSS columns for the whole page. May be a plain distribution spec, or `{default: <spec>, by_family: {<family>: <spec>, ...}}` to give some template families (e.g. `academic`) a different two-column share than the rest. The `h1` title spans every column; tables and figures are never split across columns (`break-inside: avoid`). Content still flows in document order, so `GT_markdown` (column-major reading order) is unchanged. HTML renderers only |
+| `page.column_gap_mm` | Gap between columns in millimetres, used only when `page.columns` is `2`. The gap narrows the columns; it does not widen the page |
 | `fonts.exclude` | File-name substrings of fonts never used as body font (e.g. hairline weights) |
 | `fonts.body` / `fonts.heading` | Weighted groups of file-name substrings (e.g. `{Myeongjo: 3, batang: 2, Gothic: 2}`): a group is picked by weight, then a file uniformly among its matches. `fonts.exclude` still narrows the candidates. Falls back to the profile's default (unweighted, exclude-filtered) choice when unset or when no group matches any file. HTML renderers emit a separate `@font-face` for the heading font (h1-h3, table headers); the PIL renderer ignores it |
 | `fonts.code` | Same weighted-group syntax (or a bare list, e.g. `[D2Coding]`) for a monospace code/pre font. Not narrowed by `fonts.exclude`, so a face excluded from body text (e.g. the D2Coding monospace font) can still be used here. HTML renderers only |
@@ -109,6 +112,16 @@ grayscale: {p: 0.5}
 dpi: {histogram: {bins: [100, 150, 200, 300], weights: [10, 30, 60]}, round: 0}
 ```
 
+`page.columns` (and any future per-family key) may also be `{default: <spec>, by_family: {<family>: <spec>, ...}}`, where `<family>` matches a `family_mix` key (e.g. `academic`, `technical`). The selected template's family picks its `by_family` spec; a family absent from `by_family`, or no family mix at all, falls back to `default`:
+
+```yaml
+page:
+  columns:
+    default: {choices: [1, 2], weights: [0.95, 0.05]}
+    by_family:
+      academic: {choices: [1, 2], weights: [0.6, 0.4]}
+```
+
 ## Added Metadata Columns
 
 Profile runs add these per-sample columns, which are uploaded to the Hub and usable for filtering or per-bucket evaluation:
@@ -123,6 +136,8 @@ Profile runs add these per-sample columns, which are uploaded to the Hub and usa
 - `degradation_params` (JSON)
 - `font_name`, `page_aspect_ratio`, `page_trimmed`
 - `heading_font_name`, `code_font_name` (only when `fonts.heading` / `fonts.code` matched a file)
+- `table_style` (only when `typography.table_style` is set)
+- `page_columns` (only when `page.columns` samples to `2`)
 
 ## Where the Bundled Numbers Come From
 
@@ -136,6 +151,7 @@ Each YAML file marks values as `[sourced]` or `[prior]`.
 - **ADF scanner skew study** ([paper](https://www.researchgate.net/publication/224341611_Estimating_the_Skew_Angle_of_Scanned_Document_through_Background_Area_Information)): on 300 A4 sheets fed through a scanner, 3 sigma of skew fell within ±1.5°. This gives `scanned.skew_deg ~ N(0, 0.5)`.
 - **AI Hub 공공행정문서 OCR** ([page](https://aihub.or.kr/aihubdata/data/view.do?dataSetSn=88)): older administrative records with poor scan and photo quality. This informed the direction of `ko_admin_scan_v1`. All of its ratios are priors.
 - **Korean HWP / Word page-setup defaults**: `page.margins_mm` mixes the 한글(HWP) default page margins (top 20mm + a 15mm header zone = 35mm effective top margin, bottom 15mm, left/right 30mm) with Word's 1-inch (25.4mm) "Normal" margins on all sides. The split between the two conventions is a prior.
+- **Table style and page columns**: no source gives a census of table border/shading styles or two-column page share, so `typography.table_style` and `page.columns` are engineering priors: `web`/`grid`/`header_shaded` cover common office-suite/print looks, `booktabs` fits academic/technical writing (the LaTeX `booktabs` package default), and `page.columns.by_family` gives `academic` (conference/journal layout) and `technical` families a higher two-column share than the page-wide default.
 
 Treat every `[prior]` as a starting point. The next section shows how to replace priors with measurements.
 
