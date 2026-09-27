@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from PIL import Image
 
@@ -12,10 +12,16 @@ from src.generator.degradation import apply_capture_degradation
 from src.generator.distribution_profile import (
     CaptureSample,
     DistributionProfile,
+    mm_to_css_px,
     points_to_css_px,
     render_scale_for_dpi,
 )
 from src.generator.markdown_render_utils import MarkdownStyle
+
+_VERTICAL_MARGIN_SIDES = ("top", "bottom")
+# Keep at least this much content width when margins_mm is set absurdly
+# large, rather than letting content_width go to zero or negative.
+_MIN_CONTENT_WIDTH_PX = 40
 
 
 @dataclass
@@ -75,6 +81,14 @@ def plan_profile_render(
     if line_spacing:
         style.line_spacing = float(line_spacing)
 
+    text_align = typography.get("text_align")
+    if text_align:
+        style.text_align = str(text_align)
+
+    word_break = typography.get("word_break")
+    if word_break:
+        style.word_break = str(word_break)
+
     spacing_scale = typography.get("spacing_scale")
     if spacing_scale:
         style.spacing_scale = float(spacing_scale)
@@ -109,6 +123,11 @@ def plan_profile_render(
     style.add_contrast = False
     style.render_scale = render_scale_for_dpi(capture.dpi, width_css)
 
+    page = profile.sample_page(rng)
+    # Margins are converted with the same pre-margin page width used for the
+    # DPI scale above, not the post-margin width, so both stay consistent.
+    _apply_margins_mm(style, page.get("margins_mm"), width_css)
+
     return ProfileRenderPlan(
         profile_id=profile.profile_id,
         capture=capture,
@@ -116,8 +135,82 @@ def plan_profile_render(
         rng=rng,
         body_font_pt=float(body_pt) if body_pt else None,
         typography=typography,
-        page=profile.sample_page(rng),
+        page=page,
     )
+
+
+def _apply_margins_mm(
+    style: MarkdownStyle,
+    margins_mm: Optional[Dict[str, Any]],
+    width_css: int,
+) -> None:
+    """Mutate ``style``'s CSS-px margins from a sampled ``page.margins_mm`` dict.
+
+    ``width_css`` is the page width ``render_scale_for_dpi`` and the
+    body-font-size conversion were already computed from, and it must stay
+    the page width (``margin_left + content_width + margin_right``) after
+    this call, or the DPI scale and font size no longer match the actual
+    rendered page. Top/bottom margins don't affect page width and are set
+    directly; left/right margins shrink ``content_width`` by the same amount
+    they grow, clamped so content_width never goes below
+    ``_MIN_CONTENT_WIDTH_PX`` even for an absurdly large margins_mm value.
+    """
+    if not margins_mm:
+        return
+    for side in _VERTICAL_MARGIN_SIDES:
+        value = margins_mm.get(side)
+        if value is None:
+            continue
+        setattr(style, f"margin_{side}", mm_to_css_px(float(value), width_css))
+
+    left = margins_mm.get("left")
+    right = margins_mm.get("right")
+    if left is None and right is None:
+        return
+    new_left = mm_to_css_px(float(left), width_css) if left is not None else style.margin_left
+    new_right = mm_to_css_px(float(right), width_css) if right is not None else style.margin_right
+
+    max_total_margin = max(0, width_css - _MIN_CONTENT_WIDTH_PX)
+    total_margin = new_left + new_right
+    if total_margin > max_total_margin and total_margin > 0:
+        scale = max_total_margin / total_margin
+        new_left = int(round(new_left * scale))
+        new_right = int(round(new_right * scale))
+
+    style.margin_left = new_left
+    style.margin_right = new_right
+    style.content_width = width_css - new_left - new_right
+
+
+def select_render_fonts(
+    distribution_profile: Optional[DistributionProfile],
+    font_paths: List[str],
+    rng: Any,
+) -> Tuple[str, Optional[str], Optional[str]]:
+    """Pick the body/heading/code font files for one render.
+
+    Without a profile, or when the profile sets no ``fonts.body`` /
+    ``fonts.heading`` / ``fonts.code`` groups, this reproduces the legacy
+    behaviour: a single font uniformly chosen from ``font_paths`` (profile
+    ``fonts.exclude`` still narrows the candidates), reused for headings and
+    code (heading/code paths are ``None``, so the renderer falls back to the
+    body font).
+    """
+    if distribution_profile is None:
+        return rng.choice(font_paths), None, None
+
+    candidates = distribution_profile.filter_fonts(font_paths)
+    body_font = (
+        distribution_profile.choose_font(font_paths, distribution_profile.font_body_groups, rng)
+        or rng.choice(candidates)
+    )
+    heading_font = distribution_profile.choose_font(
+        font_paths, distribution_profile.font_heading_groups, rng
+    )
+    code_font = distribution_profile.choose_font(
+        font_paths, distribution_profile.font_code_groups, rng, apply_exclude=False
+    )
+    return body_font, heading_font, code_font
 
 
 def finalize_profile_image(

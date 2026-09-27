@@ -55,6 +55,31 @@ typography:
   body_font_pt: {normal: [11.0, 1.0], clip: [9.0, 14.0], round: 1}
   line_spacing: {normal: [1.5, 0.15], clip: [1.15, 1.9], round: 2}
   colored_background: {p: 0.05}   # [prior] share of pages with a non-white background
+  # [prior] Administrative documents are almost always authored in Korean
+  # HWP, whose default paragraph style is justified ("양쪽정렬") body text
+  # with word-break: keep-all (breaks fall between words, not mid-syllable).
+  text_align: {choices: [justify, left], weights: [0.8, 0.2]}
+  word_break: {choices: [keep-all, normal], weights: [0.85, 0.15]}
+
+# Page margins on A4 (210mm wide) as CSS padding [prior]: HWP page-setup
+# defaults (top 20mm + 15mm header zone = 35mm effective top margin, bottom
+# 15mm, left/right 30mm) dominate since these are administrative archives;
+# Word's 1-inch (25.4mm) "Normal" margins get a smaller share.
+page:
+  margins_mm:
+    top: {choices: [35, 25.4], weights: [0.75, 0.25]}
+    bottom: {choices: [15, 25.4], weights: [0.75, 0.25]}
+    left: {choices: [30, 25.4], weights: [0.75, 0.25]}
+    right: {choices: [30, 25.4], weights: [0.75, 0.25]}
+
+# [prior] Same Nanum-heavy font pool as real_world_v3 (see that file's
+# comment): bias body text away from NanumSquare display faces and give the
+# excluded D2Coding face to code blocks instead of leaving code in the body
+# font.
+fonts:
+  body: {Myeongjo: 3, batang: 2, Gothic: 2}
+  heading: {Gothic: 3, Myeongjo: 2, NanumSquare: 1}
+  code: [D2Coding]
 
 capture_channels:
   born_digital:

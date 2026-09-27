@@ -102,15 +102,34 @@ content:
   similar_char_ratio: 0.0
 
 # Sheet geometry [measured]: real pages have aspect ~1.41 (A4); Letter 1.29.
+# Margins [prior]: mixes Korean HWP page-setup defaults (top 20mm + 15mm
+# header zone = 35mm effective top margin, bottom 15mm, left/right 30mm) with
+# Word's 1-inch (25.4mm) "Normal" margins on all four sides. v1 output used
+# 4-7% margins; real A4 pages run 8-14%, which these values land in.
+# Re-fit the split once you have a labeled reference set.
 page:
   aspect_ratio: {choices: [1.414, 1.294], weights: [0.85, 0.15]}
+  margins_mm:
+    top: {choices: [35, 25.4], weights: [0.55, 0.45]}
+    bottom: {choices: [15, 25.4], weights: [0.55, 0.45]}
+    left: {choices: [30, 25.4], weights: [0.55, 0.45]}
+    right: {choices: [30, 25.4], weights: [0.55, 0.45]}
 
 # Body fonts [measured]: v1 output had ~half the ink contrast of real pages;
 # hairline / light weights, the monospace coding font, archaic-Hangul variants
 # and display weights are rare as body text in real documents.
+# [prior] fonts.body/heading/code bias font choice by role instead of a flat
+# random pick over every remaining file: after `exclude`, 20 of 25 fonts are
+# Nanum and 8 are NanumSquare display faces, so an unweighted pick over-uses
+# the square/display family as body text. Headings get the square/display
+# faces (fitting for a heading, wrong for body); code keeps the excluded
+# monospace face, since fonts.code is not narrowed by `exclude`.
 fonts:
   exclude: [UltraLight, Light, SquareL, RoundL, _acL, HumanEL, Neo-aLt, YetHangul,
             D2Coding, ExtraBold, Heavy, EB.ttf, Neo-dEb, Neo-eHv]
+  body: {Myeongjo: 3, batang: 2, Gothic: 2}
+  heading: {Gothic: 3, Myeongjo: 2, NanumSquare: 1}
+  code: [D2Coding]
 
 # Physical typography on a virtual A4 page [prior: typical 9-12pt body text].
 typography:
@@ -120,6 +139,10 @@ typography:
   spacing_scale: {uniform: [0.45, 0.8]}   # [measured] tighter block margins than web CSS
   ink_gray: {beta: [1.5, 6], range: [0, 60], round: 0}   # [measured] near-black print ink
   colored_headings: {p: 0.45}   # [measured] OmniDocBench demo: ~56% of pages are not grayscale
+  # [prior] Korean word processors default to justified ("양쪽정렬") body text
+  # and word-break: keep-all (line breaks fall between words, not mid-syllable).
+  text_align: {choices: [justify, left], weights: [0.65, 0.35]}
+  word_break: {choices: [keep-all, normal], weights: [0.75, 0.25]}
 
 capture_channels:
   born_digital:

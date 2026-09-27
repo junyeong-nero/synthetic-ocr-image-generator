@@ -10,14 +10,21 @@ from src.generator.distribution_profile import (
     DistributionProfile,
     available_profiles,
     load_distribution_profile,
+    mm_to_css_px,
     points_to_css_px,
     render_scale_for_dpi,
     sample_value,
 )
 from src.generator.document_blocks import DocumentComposer, parse_block_blueprint
 from src.generator.markdown_render_utils import MarkdownStyle
-from src.generator.profile_application import finalize_profile_image, plan_profile_render
+from src.generator.profile_application import (
+    finalize_profile_image,
+    plan_profile_render,
+    select_render_fonts,
+)
 from src.generation.options import GenerationOptions
+
+_CHANNELS = {"capture_channels": {"born_digital": {"weight": 1.0, "dpi": 150}}}
 
 
 def _page(width: int = 400, height: int = 520) -> Image.Image:
@@ -192,6 +199,218 @@ def test_fit_markdown_to_sheet_keeps_first_content_block() -> None:
     assert kept == 1
     assert "very long paragraph" in trimmed
     assert "## Next" not in trimmed
+
+
+def test_mm_to_css_px_scales_with_page_width() -> None:
+    # Half of A4's 210mm width maps to half the CSS page width.
+    assert mm_to_css_px(105, 210) == 105
+    assert mm_to_css_px(210, 210) == 210
+    # 30mm HWP left/right margin on a 680px virtual page.
+    assert mm_to_css_px(30, 680) == round(30 / 210 * 680)
+    assert mm_to_css_px(0, 680) == 0
+
+
+def test_plan_profile_render_converts_margins_mm_to_css_px() -> None:
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "page": {
+                "margins_mm": {"top": 35, "bottom": 15, "left": 30, "right": 30},
+            },
+            **_CHANNELS,
+        }
+    )
+    style = MarkdownStyle(margin_top=40, margin_bottom=40, margin_left=40, margin_right=40, content_width=600)
+    width_css = 40 + 600 + 40  # page width captured before margins mutate it
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert style.margin_top == mm_to_css_px(35, width_css)
+    assert style.margin_bottom == mm_to_css_px(15, width_css)
+    assert style.margin_left == mm_to_css_px(30, width_css)
+    assert style.margin_right == mm_to_css_px(30, width_css)
+
+
+def test_plan_profile_render_keeps_page_width_constant_after_margins_mm() -> None:
+    # render_scale_for_dpi and the body-font-size conversion are both derived
+    # from the page width captured *before* margins_mm is applied; left/right
+    # margins must shrink content_width by the same amount they grow, or the
+    # page comes out wider than the DPI scale assumes (and body text ends up
+    # physically smaller than body_font_pt).
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "page": {"margins_mm": {"top": 35, "bottom": 15, "left": 30, "right": 30}},
+            **_CHANNELS,
+        }
+    )
+    style = MarkdownStyle(margin_top=40, margin_bottom=40, margin_left=34, margin_right=34, content_width=620)
+    width_before = style.margin_left + style.content_width + style.margin_right
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert style.margin_left + style.content_width + style.margin_right == width_before
+    assert style.margin_left == mm_to_css_px(30, width_before)
+    assert style.margin_right == mm_to_css_px(30, width_before)
+
+
+def test_plan_profile_render_clamps_absurd_margins_without_negative_content_width() -> None:
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "page": {"margins_mm": {"left": 500, "right": 500}},
+            **_CHANNELS,
+        }
+    )
+    style = MarkdownStyle(margin_left=34, margin_right=34, content_width=620)
+    width_before = style.margin_left + style.content_width + style.margin_right
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert style.content_width > 0
+    assert style.margin_left + style.content_width + style.margin_right == width_before
+
+
+def test_plan_profile_render_final_pixel_width_matches_target_dpi() -> None:
+    # With the page-width invariant held, the rendered device-pixel width is
+    # target_dpi * A4_WIDTH_INCH regardless of the base style's page width in
+    # CSS px (e.g. 300 dpi -> ~2481px), matching what a real A4 sheet at that
+    # DPI would produce.
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "page": {"margins_mm": {"left": 30, "right": 30}},
+            "capture_channels": {"born_digital": {"weight": 1.0, "dpi": 300}},
+        }
+    )
+    style = MarkdownStyle(margin_left=34, margin_right=34, content_width=620)
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    page_width_css = style.margin_left + style.content_width + style.margin_right
+    device_px_width = page_width_css * style.render_scale
+    assert device_px_width == pytest.approx(300 * 8.27, abs=2)
+
+
+def test_plan_profile_render_leaves_margins_unchanged_without_margins_mm() -> None:
+    profile = load_distribution_profile("real_world_v1")
+    style = MarkdownStyle(margin_top=40, margin_bottom=40, margin_left=34, margin_right=34, content_width=620)
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert (style.margin_top, style.margin_bottom, style.margin_left, style.margin_right) == (40, 40, 34, 34)
+
+
+def test_plan_profile_render_sets_text_align_and_word_break_from_typography() -> None:
+    profile = DistributionProfile.from_dict(
+        {"id": "t", "typography": {"text_align": "justify", "word_break": "keep-all"}, **_CHANNELS}
+    )
+    style = MarkdownStyle()
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert style.text_align == "justify"
+    assert style.word_break == "keep-all"
+
+
+def test_plan_profile_render_leaves_text_align_and_word_break_unset_without_keys() -> None:
+    profile = load_distribution_profile("real_world_v1")
+    style = MarkdownStyle()
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert style.text_align is None
+    assert style.word_break is None
+
+
+def test_choose_font_picks_group_by_weight_then_file_uniformly() -> None:
+    profile = DistributionProfile.from_dict({"id": "t", **_CHANNELS})
+    paths = [
+        "/fonts/NanumMyeongjo.ttf",
+        "/fonts/NanumMyeongjoBold.ttf",
+        "/fonts/batang-Regular.ttf",
+        "/fonts/NanumGothic.ttf",
+        "/fonts/NanumSquareB.ttf",
+    ]
+    groups = {"Myeongjo": 3, "batang": 1}
+    rng = random.Random(7)
+
+    picks = [profile.choose_font(paths, groups, rng) for _ in range(2000)]
+
+    assert all(pick is not None for pick in picks)
+    assert set(picks) <= {
+        "/fonts/NanumMyeongjo.ttf",
+        "/fonts/NanumMyeongjoBold.ttf",
+        "/fonts/batang-Regular.ttf",
+    }
+    myeongjo_share = sum(1 for p in picks if "Myeongjo" in p) / len(picks)
+    assert 0.68 < myeongjo_share < 0.82  # weight 3 of (3 + 1)
+
+
+def test_choose_font_returns_none_when_no_group_matches() -> None:
+    profile = DistributionProfile.from_dict({"id": "t", **_CHANNELS})
+    paths = ["/fonts/NanumGothic.ttf", "/fonts/NanumSquareB.ttf"]
+
+    assert profile.choose_font(paths, {"Ipsum": 1}, random.Random(0)) is None
+    assert profile.choose_font(paths, {}, random.Random(0)) is None
+
+
+def test_choose_font_apply_exclude_flag_controls_fonts_exclude() -> None:
+    profile = DistributionProfile.from_dict(
+        {"id": "t", "fonts": {"exclude": ["D2Coding"]}, **_CHANNELS}
+    )
+    paths = ["/fonts/D2Coding-Regular.ttf", "/fonts/NanumGothic.ttf"]
+    groups = {"D2Coding": 1}
+
+    assert profile.choose_font(paths, groups, random.Random(0), apply_exclude=True) is None
+    picked = profile.choose_font(paths, groups, random.Random(0), apply_exclude=False)
+    assert picked == "/fonts/D2Coding-Regular.ttf"
+
+
+def test_select_render_fonts_legacy_choice_without_profile() -> None:
+    paths = ["/fonts/A.ttf", "/fonts/B.ttf"]
+
+    body, heading, code = select_render_fonts(None, paths, random.Random(0))
+
+    assert body in paths
+    assert heading is None
+    assert code is None
+
+
+def test_select_render_fonts_legacy_choice_without_font_groups() -> None:
+    profile = DistributionProfile.from_dict({"id": "t", **_CHANNELS})
+    paths = ["/fonts/A.ttf", "/fonts/B.ttf"]
+
+    body, heading, code = select_render_fonts(profile, paths, random.Random(0))
+
+    assert body in paths
+    assert heading is None
+    assert code is None
+
+
+def test_select_render_fonts_uses_body_heading_code_groups() -> None:
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "fonts": {
+                "body": {"Myeongjo": 1},
+                "heading": {"Gothic": 1},
+                "code": ["D2Coding"],
+            },
+            **_CHANNELS,
+        }
+    )
+    paths = [
+        "/fonts/NanumMyeongjo.ttf",
+        "/fonts/NanumGothic.ttf",
+        "/fonts/D2Coding-Regular.ttf",
+    ]
+
+    body, heading, code = select_render_fonts(profile, paths, random.Random(0))
+
+    assert body == "/fonts/NanumMyeongjo.ttf"
+    assert heading == "/fonts/NanumGothic.ttf"
+    assert code == "/fonts/D2Coding-Regular.ttf"
 
 
 def test_paragraph_builder_neutralizes_markdown_prefixes() -> None:
