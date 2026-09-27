@@ -27,6 +27,7 @@ from src.generator.generation_config import (
     DEFAULT_NOVELTY_MAX_ATTEMPTS,
     DEFAULT_NOVELTY_THRESHOLD,
     DEFAULT_NOVELTY_WINDOW,
+    DEFAULT_SIMILAR_CHAR_RATIO,
     coerce_bool,
     coerce_optional_int,
     coerce_ratio,
@@ -180,7 +181,7 @@ class Generator(BaseGenerator):
         self.add_blur = False
         self.noise_ratio = 0.1
         self.blur_ratio = 0.1
-        self.similar_char_ratio = 0.08
+        self.similar_char_ratio = DEFAULT_SIMILAR_CHAR_RATIO
         self.markdown_renderer = "playwright"
         self.style_profile = "balanced"
         self.novelty_window = DEFAULT_NOVELTY_WINDOW
@@ -310,7 +311,6 @@ class Generator(BaseGenerator):
             ratio_default=0.1,
             kwargs=kwargs,
         )
-        self.similar_char_ratio = float(kwargs.get("similar_char_ratio", 0.08))
 
         self.markdown_renderer = self._normalize_choice(
             kwargs.get("markdown_renderer", self.markdown_renderer),
@@ -360,9 +360,38 @@ class Generator(BaseGenerator):
             self.data_generator.block_weights = dict(block_weights)
         if hasattr(self.data_generator, "content_specs"):
             self.data_generator.content_specs = dict(profile.content) if profile else {}
-        # Explicit --coverage-target flags win over the profile's family mix.
-        if profile and not self.coverage_targets:
-            self.coverage_targets = profile.coverage_targets()
+        if profile is not None:
+            self._require_text_corpus(profile)
+        self.similar_char_ratio = self._resolve_similar_char_ratio(
+            kwargs.get("similar_char_ratio"), profile
+        )
+
+    def _require_text_corpus(self, profile: DistributionProfile) -> None:
+        # Without a corpus, DataProvider falls back to Faker's lorem ipsum,
+        # which is Latin text even for the ko/ja locales.
+        data = getattr(self.data_generator, "data", None)
+        if data is None or data.has_corpus("paragraphs"):
+            return
+        raise RuntimeError(
+            f"Distribution profile '{profile.profile_id}' needs a text corpus for lang "
+            f"'{self.lang}', but no paragraphs.txt was found under '{data.corpus_dir}'. "
+            "Without it, paragraphs fall back to Faker placeholder text (Latin lorem ipsum). "
+            "Build one first, e.g. `uv run main.py corpus import-wikitext "
+            "--kowikitext-split dev --lang ko` or "
+            f"`uv run main.py corpus generate --lang {self.lang}`."
+        )
+
+    @staticmethod
+    def _resolve_similar_char_ratio(
+        requested: Any,
+        profile: Optional[DistributionProfile],
+    ) -> float:
+        """CLI value > profile ``content.similar_char_ratio`` > legacy default."""
+        if requested is not None:
+            return float(requested)
+        if profile is not None and profile.similar_char_ratio is not None:
+            return profile.similar_char_ratio
+        return DEFAULT_SIMILAR_CHAR_RATIO
 
     def _configure_content_sources(self, **kwargs) -> None:
         self.data_generator.configure_content_sources(
@@ -491,9 +520,19 @@ class Generator(BaseGenerator):
         if not self.template_specs:
             self.template_specs = self.template_catalog.all_specs()
 
+        profile = getattr(self, "distribution_profile", None)
+        candidates = list(self.template_specs)
+        if profile is not None:
+            # An explicit --template request is kept even if the profile drops it.
+            candidates = [
+                spec for spec in candidates if profile.template_weight(spec.template_id) > 0
+            ] or candidates
+            if profile.family_mix and not self.coverage_targets:
+                return self._select_from_family_mix(profile, candidates)
+
         total_generated = sum(self.family_counts.values())
         weights: List[float] = []
-        for spec in self.template_specs:
+        for spec in candidates:
             template_seen = self.template_counts.get(spec.template_id, 0)
             family_seen = self.family_counts.get(spec.family, 0)
 
@@ -511,10 +550,40 @@ class Generator(BaseGenerator):
                         deficit = target_ratio - observed_ratio
                         coverage_factor = max(0.25, 1.0 + deficit * 5.0)
 
-            weights.append(max(0.01, spec.weight * diversity_factor * family_balance_factor * coverage_factor))
+            template_weight = profile.template_weight(spec.template_id) if profile else 1.0
+            weights.append(
+                max(
+                    0.01,
+                    spec.weight * template_weight * diversity_factor * family_balance_factor * coverage_factor,
+                )
+            )
 
-        selected_index = random.choices(range(len(self.template_specs)), weights=weights, k=1)[0]
-        return self.template_specs[selected_index], weights[selected_index]
+        selected_index = random.choices(range(len(candidates)), weights=weights, k=1)[0]
+        return candidates[selected_index], weights[selected_index]
+
+    @staticmethod
+    def _select_from_family_mix(
+        profile: DistributionProfile,
+        candidates: List[TemplateSpec],
+    ) -> Tuple[TemplateSpec, float]:
+        """Draw the family from ``family_mix``, then a template by its weight.
+
+        The count-based balancing above cannot express a mix: after a few
+        hundred samples every weight hits its 0.01 floor and all templates end
+        up with the same share. Sampling here depends only on the sample seed,
+        so shares follow the profile regardless of shard size.
+        """
+        families = [
+            family for family in profile.family_mix if any(spec.family == family for spec in candidates)
+        ]
+        if families:
+            family = random.choices(families, weights=[profile.family_mix[f] for f in families], k=1)[0]
+            candidates = [spec for spec in candidates if spec.family == family]
+        weights = [spec.weight * profile.template_weight(spec.template_id) for spec in candidates]
+        if sum(weights) <= 0:
+            weights = [1.0] * len(candidates)
+        selected_index = random.choices(range(len(candidates)), weights=weights, k=1)[0]
+        return candidates[selected_index], weights[selected_index]
 
     def generate(
         self,

@@ -57,7 +57,8 @@ class GenerationOptions:
     novelty_window: int = 80
     novelty_threshold: float = 0.95
     novelty_max_attempts: int = 4
-    similar_char_ratio: float = 0.08
+    # None defers to the distribution profile, then the generator default.
+    similar_char_ratio: Optional[float] = None
     similarity_db_path: Optional[str] = None
     formula_source_mode: str = "mixed"
     formula_dataset_path: Optional[str] = None
@@ -86,7 +87,11 @@ class GenerationOptions:
             novelty_window=int(data.get("novelty_window", 80)),
             novelty_threshold=float(data.get("novelty_threshold", 0.95)),
             novelty_max_attempts=int(data.get("novelty_max_attempts", 4)),
-            similar_char_ratio=float(data.get("similar_char_ratio", 0.08)),
+            similar_char_ratio=(
+                None
+                if data.get("similar_char_ratio") is None
+                else float(data["similar_char_ratio"])
+            ),
             similarity_db_path=data.get("similarity_db_path"),
             formula_source_mode=str(data.get("formula_source_mode", "mixed")),
             formula_dataset_path=data.get("formula_dataset_path"),

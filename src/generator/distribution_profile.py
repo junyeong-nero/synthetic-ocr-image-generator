@@ -3,7 +3,8 @@
 A distribution profile describes *what the real target data looks like* and is
 loaded from YAML under ``configs/generator/distributions``.  It controls:
 
-- document family mix (fed into coverage targets)
+- document family mix (each sample's family is drawn from it)
+- per-template weights (``0`` drops a template, e.g. formula-only pages)
 - block type weights used when filling non-required block slots
 - physical page typography (body font size in points, line spacing)
 - capture channels (born-digital / scanned / photographed) with per-channel
@@ -178,6 +179,7 @@ class DistributionProfile:
     content: Dict[str, Any] = field(default_factory=dict)
     page: Dict[str, Any] = field(default_factory=dict)
     font_exclude: List[str] = field(default_factory=list)
+    template_weights: Dict[str, float] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any], *, source_path: str = "") -> "DistributionProfile":
@@ -214,10 +216,21 @@ class DistributionProfile:
             content=dict(data.get("content") or {}),
             page=dict(data.get("page") or {}),
             font_exclude=[str(v) for v in ((data.get("fonts") or {}).get("exclude") or [])],
+            template_weights={
+                str(k): max(0.0, float(v))
+                for k, v in (data.get("template_weights") or {}).items()
+            },
         )
 
-    def coverage_targets(self) -> Dict[str, float]:
-        return dict(self.family_mix)
+    def template_weight(self, template_id: str) -> float:
+        """Selection weight multiplier for a template (unlisted: 1.0, 0 excludes)."""
+        return self.template_weights.get(template_id, 1.0)
+
+    @property
+    def similar_char_ratio(self) -> Optional[float]:
+        """Look-alike character substitution rate, or ``None`` if the profile is silent."""
+        value = self.content.get("similar_char_ratio")
+        return None if value is None else float(value)
 
     def sample_capture(self, rng: random.Random) -> CaptureSample:
         weights = [channel.weight for channel in self.capture_channels]

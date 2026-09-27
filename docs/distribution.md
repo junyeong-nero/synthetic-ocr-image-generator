@@ -26,21 +26,25 @@ uv run main.py publish --generated-path ./data/ko/images_markdown --repo-id you/
 
 `--distribution-profile` accepts a bundled name from `configs/generator/distributions/` or a path to your own YAML file. Without the flag, generation behaves exactly as before.
 
+A profile needs a real text corpus (`data/corpus/<lang>/paragraphs.txt`, see [Real-Language Corpus](#real-language-corpus)). Without one, paragraphs would fall back to Faker placeholder text, which is Latin lorem ipsum even for `ko`/`ja`, so generation stops with an error instead.
+
 ## What a Profile Controls
 
 | Section | Effect |
 |---|---|
-| `family_mix` | Target share per template family. Used as coverage targets unless you pass `--coverage-target` explicitly |
+| `family_mix` | Share of pages per template family. Each sample draws its family from this mix, so the shares hold for any run or shard size. Passing `--coverage-target` explicitly switches back to the legacy balancing |
+| `template_weights` | Multiplier on a template's catalog weight (unlisted: 1.0, `0` excludes it). Within a family, templates are drawn in proportion to catalog weight × multiplier. An explicit `--template` is kept even if the profile excludes it |
 | `block_weights` | Relative weights for filling non-required block slots (paragraph vs table vs list ...) |
 | `typography.body_font_pt` | Physical body font size on a virtual A4 page; heading and code sizes scale with it |
 | `typography.line_spacing` | Line spacing |
 | `typography.colored_background` | Probability of keeping a tinted page background (otherwise white paper) |
 | `typography.spacing_scale` | Multiplier for CSS block/heading margins (real pages are tighter than web CSS) |
-| `typography.ink_gray` | Body text grey level (0 = black) |
+| `typography.ink_gray` | Body text grey level (0 = black). Table borders and horizontal rules always use the text ink colour under a profile, so they stay solid after binarization |
 | `typography.colored_headings` | Probability that headings keep an accent colour instead of ink colour |
 | `fonts.exclude` | File-name substrings of fonts never used as body font (e.g. hairline weights) |
 | `content.section_count_scale` / `extra_blocks_per_section` | Scale sections / add blocks per section for page density |
 | `content.paragraph_max_chars` / `paragraph_parts` | Paragraph length (number of corpus paragraphs joined, clip length) |
+| `content.similar_char_ratio` | Share of prose characters swapped for look-alikes in both image and GT. The bundled `real_world_v2` and `ko_admin_scan_v1` set `0.0`, since real pages have almost no such typos. `--similar-char-ratio` overrides it; without either, the default is `0.08` |
 | `page.aspect_ratio` | Sheet shape. Short content is padded to a full sheet; content longer than one sheet is cut at a block boundary and re-rendered, like the first page of a multi-page file (`page_trimmed` in metadata). `GT_markdown` always matches the image |
 | `capture_channels.<name>.weight` | Mix of `born_digital` / `scanned` / `photographed` pages |
 | `capture_channels.<name>.dpi` | Target resolution. Playwright renders with a matching device scale factor, so a 300 dpi page is about 2480 px wide |

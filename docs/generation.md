@@ -27,7 +27,7 @@ Core defaults:
 - `--novelty-window 80`
 - `--novelty-threshold 0.95`
 - `--novelty-max-attempts 4`
-- `--similar-char-ratio 0.08`
+- `--similar-char-ratio 0.08` (unless a `--distribution-profile` sets `content.similar_char_ratio`)
 
 ## Mental Model
 
@@ -76,7 +76,7 @@ Coverage parsing notes:
 
 - `--markdown-renderer`: `pil`, `html2image`, or `playwright`.
 - `--style-profile`: `legacy`, `balanced`, `aggressive`.
-- `--similar-char-ratio`: proportion of characters replaced with lookalikes.
+- `--similar-char-ratio`: proportion of characters replaced with lookalikes (overrides the profile's `content.similar_char_ratio`).
 - `--similarity-db-path`: explicit JSON path for similarity DB lookup.
 - `--add-noise` / `--no-add-noise`: explicit noise override.
 - `--add-blur` / `--no-add-blur`: explicit blur override.

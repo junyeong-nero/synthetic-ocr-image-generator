@@ -316,3 +316,5 @@ class MarkdownStyle:
     add_contrast: bool = False
     render_scale: float = 1.0
     spacing_scale: float = 1.0
+    # Table borders and horizontal rules; None keeps the light web defaults.
+    rule_color: Optional[Tuple[int, int, int]] = None

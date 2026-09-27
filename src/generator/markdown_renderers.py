@@ -418,7 +418,7 @@ class MarkdownRenderer:
     def _draw_horizontal_rule(self, draw: ImageDraw.ImageDraw, y: int, style: MarkdownStyle) -> int:
         draw.line(
             [(style.margin_left, y + 10), (style.margin_left + style.content_width, y + 10)],
-            fill=(200, 200, 200),
+            fill=style.rule_color or (200, 200, 200),
             width=1,
         )
         return y + 20
@@ -705,6 +705,15 @@ class HtmlMarkdownRenderer:
         rendered_html = self._coerce_markdown_html(prepared_markdown)
         page_width = self.style.margin_left + self.style.content_width + self.style.margin_right
         spacing = max(0.2, float(getattr(self.style, "spacing_scale", 1.0) or 1.0))
+        # Printed rules share the ink colour; the light default breaks up into
+        # dotted lines once a scan is binarized.
+        rule_color = getattr(self.style, "rule_color", None)
+        rule_css = f"rgb{tuple(rule_color)}" if rule_color else "rgba(0, 0, 0, 0.25)"
+        hr_css = (
+            f".markdown-body hr {{ border: 0; border-top: 1px solid {rule_css}; }}"
+            if rule_color
+            else ""
+        )
         css = f"""
 @page {{
   margin: 12mm 10mm 14mm 10mm;
@@ -787,13 +796,14 @@ html, body {{
   page-break-inside: avoid;
 }}
 .markdown-body th, .markdown-body td {{
-  border: 1px solid rgba(0, 0, 0, 0.25);
+  border: 1px solid {rule_css};
   text-align: left;
   padding: 8px 12px;
   vertical-align: top;
   overflow-wrap: break-word;
   word-break: normal;
 }}
+{hr_css}
 .markdown-body th {{
   background: rgba(0, 0, 0, 0.06);
   font-weight: 600;

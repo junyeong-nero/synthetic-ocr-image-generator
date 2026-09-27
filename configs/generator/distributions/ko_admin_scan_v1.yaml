@@ -28,6 +28,16 @@ family_mix:
   technical: 0.05
   academic: 0.05
 
+# [prior] Pages of nothing but display formulas do not occur in administrative
+# documents. Table-only pages (budget and status tables) are common, so
+# table_heavy keeps its default weight.
+template_weights:
+  formula_heavy: 0.0
+
+# [prior] Real scans carry no look-alike typos; keep image and GT text natural.
+content:
+  similar_char_ratio: 0.0
+
 block_weights:
   paragraph: 40
   table: 12
