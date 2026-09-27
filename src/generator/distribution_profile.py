@@ -158,6 +158,10 @@ class CaptureSample:
         score += max(0.0, (150 - self.dpi) / 75.0)
         score += 1.0 if self.params.get("binarize") else 0.0
         score += float(self.params.get("shadow_strength", 0.0)) * 2.0
+        # Book curvature and cropped framing both hide/warp characters near
+        # the affected edge, so they push the page towards a harder bucket.
+        score += float(self.params.get("page_curl", 0.0)) * 30.0
+        score += float(self.params.get("edge_crop", 0.0)) * 15.0
         if score < 1.0:
             return "easy"
         if score < 2.5:
