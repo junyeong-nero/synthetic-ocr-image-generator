@@ -18,7 +18,10 @@ from src.generator.distribution_profile import (
 )
 from src.generator.markdown_render_utils import MarkdownStyle
 
-_MARGIN_SIDES = ("top", "bottom", "left", "right")
+_VERTICAL_MARGIN_SIDES = ("top", "bottom")
+# Keep at least this much content width when margins_mm is set absurdly
+# large, rather than letting content_width go to zero or negative.
+_MIN_CONTENT_WIDTH_PX = 40
 
 
 @dataclass
@@ -141,14 +144,42 @@ def _apply_margins_mm(
     margins_mm: Optional[Dict[str, Any]],
     width_css: int,
 ) -> None:
-    """Mutate ``style``'s CSS-px margins from a sampled ``page.margins_mm`` dict."""
+    """Mutate ``style``'s CSS-px margins from a sampled ``page.margins_mm`` dict.
+
+    ``width_css`` is the page width ``render_scale_for_dpi`` and the
+    body-font-size conversion were already computed from, and it must stay
+    the page width (``margin_left + content_width + margin_right``) after
+    this call, or the DPI scale and font size no longer match the actual
+    rendered page. Top/bottom margins don't affect page width and are set
+    directly; left/right margins shrink ``content_width`` by the same amount
+    they grow, clamped so content_width never goes below
+    ``_MIN_CONTENT_WIDTH_PX`` even for an absurdly large margins_mm value.
+    """
     if not margins_mm:
         return
-    for side in _MARGIN_SIDES:
+    for side in _VERTICAL_MARGIN_SIDES:
         value = margins_mm.get(side)
         if value is None:
             continue
         setattr(style, f"margin_{side}", mm_to_css_px(float(value), width_css))
+
+    left = margins_mm.get("left")
+    right = margins_mm.get("right")
+    if left is None and right is None:
+        return
+    new_left = mm_to_css_px(float(left), width_css) if left is not None else style.margin_left
+    new_right = mm_to_css_px(float(right), width_css) if right is not None else style.margin_right
+
+    max_total_margin = max(0, width_css - _MIN_CONTENT_WIDTH_PX)
+    total_margin = new_left + new_right
+    if total_margin > max_total_margin and total_margin > 0:
+        scale = max_total_margin / total_margin
+        new_left = int(round(new_left * scale))
+        new_right = int(round(new_right * scale))
+
+    style.margin_left = new_left
+    style.margin_right = new_right
+    style.content_width = width_css - new_left - new_right
 
 
 def select_render_fonts(

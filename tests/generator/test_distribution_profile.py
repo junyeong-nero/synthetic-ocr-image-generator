@@ -231,6 +231,67 @@ def test_plan_profile_render_converts_margins_mm_to_css_px() -> None:
     assert style.margin_right == mm_to_css_px(30, width_css)
 
 
+def test_plan_profile_render_keeps_page_width_constant_after_margins_mm() -> None:
+    # render_scale_for_dpi and the body-font-size conversion are both derived
+    # from the page width captured *before* margins_mm is applied; left/right
+    # margins must shrink content_width by the same amount they grow, or the
+    # page comes out wider than the DPI scale assumes (and body text ends up
+    # physically smaller than body_font_pt).
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "page": {"margins_mm": {"top": 35, "bottom": 15, "left": 30, "right": 30}},
+            **_CHANNELS,
+        }
+    )
+    style = MarkdownStyle(margin_top=40, margin_bottom=40, margin_left=34, margin_right=34, content_width=620)
+    width_before = style.margin_left + style.content_width + style.margin_right
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert style.margin_left + style.content_width + style.margin_right == width_before
+    assert style.margin_left == mm_to_css_px(30, width_before)
+    assert style.margin_right == mm_to_css_px(30, width_before)
+
+
+def test_plan_profile_render_clamps_absurd_margins_without_negative_content_width() -> None:
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "page": {"margins_mm": {"left": 500, "right": 500}},
+            **_CHANNELS,
+        }
+    )
+    style = MarkdownStyle(margin_left=34, margin_right=34, content_width=620)
+    width_before = style.margin_left + style.content_width + style.margin_right
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert style.content_width > 0
+    assert style.margin_left + style.content_width + style.margin_right == width_before
+
+
+def test_plan_profile_render_final_pixel_width_matches_target_dpi() -> None:
+    # With the page-width invariant held, the rendered device-pixel width is
+    # target_dpi * A4_WIDTH_INCH regardless of the base style's page width in
+    # CSS px (e.g. 300 dpi -> ~2481px), matching what a real A4 sheet at that
+    # DPI would produce.
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "page": {"margins_mm": {"left": 30, "right": 30}},
+            "capture_channels": {"born_digital": {"weight": 1.0, "dpi": 300}},
+        }
+    )
+    style = MarkdownStyle(margin_left=34, margin_right=34, content_width=620)
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    page_width_css = style.margin_left + style.content_width + style.margin_right
+    device_px_width = page_width_css * style.render_scale
+    assert device_px_width == pytest.approx(300 * 8.27, abs=2)
+
+
 def test_plan_profile_render_leaves_margins_unchanged_without_margins_mm() -> None:
     profile = load_distribution_profile("real_world_v1")
     style = MarkdownStyle(margin_top=40, margin_bottom=40, margin_left=34, margin_right=34, content_width=620)
