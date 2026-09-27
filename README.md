@@ -98,6 +98,7 @@ uv run main.py generate --lang "ko" --size 1000 --seed 42 --distribution-profile
 
 | Profile | Use for |
 |---|---|
+| `real_world_v3` | `real_world_v2` plus structure, content and layout realism features (work in progress, see [plan](docs/superpowers/plans/2026-09-27-real-distribution-gaps.md)) |
 | `real_world_v2` | General documents. 45% born-digital, 40% scanned, 15% photographed; calibrated against real XFUND scans and OmniDocBench pages ([report](docs/calibration/real_world_v2.md)) |
 | `real_world_v1` | First version from published statistics (DocLayNet, scanner skew study) before calibration |
 | `ko_admin_scan_v1` | Scan-heavy Korean administrative documents (forms, notices), lower quality |
