@@ -109,6 +109,17 @@ content:
   # pages. Table-schema selection is independent of family_mix, so weights
   # are set for the overall page mix rather than per family.
   table_schemas: {financial: 4, order: 2, budget: 1, schedule: 1, roster: 1, statistics: 1}
+  # [prior] Korean document conventions (see src/generator/document_conventions.py):
+  # `korean_admin` / law articles only apply when lang is ko (other languages
+  # fall back to arabic headings / plain markdown lists), so this is safe to
+  # set for the shared multi-language profile. No public ratio of "documents
+  # that number headings" exists; weights are an engineering prior that a
+  # numbered-heading style (arabic or 개조식) is at least as common as plain
+  # markdown headings in real reports.
+  heading_numbering: {choices: [none, arabic, korean_admin, roman], weights: [0.35, 0.30, 0.25, 0.10]}
+  list_style: {choices: [markdown, korean_admin], weights: [0.55, 0.45]}
+  # Only affects numbered_list blocks on policy_document-shaped pages.
+  law_articles: {p: 0.5}
 
 # Sheet geometry [measured]: real pages have aspect ~1.41 (A4); Letter 1.29.
 # Margins [prior]: mixes Korean HWP page-setup defaults (top 20mm + 15mm

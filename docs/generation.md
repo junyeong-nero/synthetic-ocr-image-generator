@@ -242,7 +242,7 @@ uv run main.py generate \
   --novelty-max-attempts 6
 ```
 
-Each sample records `document_family`, `document_shape`, `block_types`, `block_type_counts`, and `section_count` in metadata so generated diversity can be audited from `metadata.jsonl`.
+Each sample records `document_family`, `document_shape`, `block_types`, `block_type_counts`, and `section_count` in metadata so generated diversity can be audited from `metadata.jsonl`. It also records `heading_numbering`, `list_style` and `law_articles_used` (Korean document surface conventions: `## ` heading numbering, 개조식 list markers, 제N조 law articles; see `docs/distribution.md`'s `content.heading_numbering` / `content.list_style` / `content.law_articles` rows). Without a distribution profile these are always `"none"` / `"markdown"` / `False`.
 
 ### 1) Shorter documents
 
@@ -335,6 +335,7 @@ Per-sample metadata includes:
 - template tracing: `template`, `template_id`, `template_family`, `template_complexity`, `template_mode`, `template_version`, `template_source`, `template_weight`
 - GT fields: `GT_markdown`, `GT_json`
 - document structure: `document_family`, `document_shape`, `block_types`, `block_type_counts`, `section_count`
+- Korean document conventions: `heading_numbering`, `list_style`, `law_articles_used` (see `docs/distribution.md`)
 - diversity trace: `selection_attempt`, `structure_signature`, `novelty_score`, `family_ratio`
 - render trace: `renderer`, `style_profile`, `similar_char_mutations`, `image_width`, `image_height`
 - reproducibility trace: `sample_index`, `sample_seed`

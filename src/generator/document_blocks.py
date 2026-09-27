@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Tuple
 
 from src.generator.data_provider import DataProvider
+from src.generator.document_conventions import DocumentConventions
 from src.generator.table_generator import TableGenerator
 
 DEFAULT_BLOCK_TYPES = (
@@ -47,6 +48,9 @@ class DocumentCompositionMetadata:
     block_types: List[str]
     block_type_counts: Dict[str, int]
     section_count: int
+    heading_numbering: str = "none"
+    list_style: str = "markdown"
+    law_articles_used: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -54,6 +58,9 @@ class DocumentCompositionMetadata:
             "block_types": list(self.block_types),
             "block_type_counts": dict(self.block_type_counts),
             "section_count": self.section_count,
+            "heading_numbering": self.heading_numbering,
+            "list_style": self.list_style,
+            "law_articles_used": self.law_articles_used,
         }
 
 
@@ -405,13 +412,25 @@ class DocumentComposer:
             table_schemas=self._table_schema_weights(),
         )
 
+        # Heading numbering / 개조식 list markers / law-article formatting for
+        # this document; sampled once here so the whole document keeps one
+        # numbering convention (see document_conventions.py).
+        conventions = DocumentConventions(
+            lang=self.data.lang,
+            document_shape=parsed.document_shape,
+            content_specs=self.content_specs,
+            data=self.data,
+            clip_text=self.clip_text,
+        )
+
         lines: List[str] = [f"# {self.clip_text(self.data.title(), 96)}"]
         blocks: List[GeneratedBlock] = []
         cursor = 0
 
         for section_index, block_count in enumerate(block_counts):
             lines.append("")
-            lines.append(f"## {self.clip_text(self.data.title(), 96)}")
+            heading_text = conventions.style_heading(self.clip_text(self.data.title(), 96))
+            lines.append(f"## {heading_text}")
 
             for _ in range(block_count):
                 if cursor >= len(block_plan):
@@ -423,6 +442,9 @@ class DocumentComposer:
                     section_index=section_index,
                 )
                 cursor += 1
+                styled_markdown = conventions.style_block(block.block_type, block.markdown)
+                if styled_markdown is not None:
+                    block = GeneratedBlock(block.block_type, styled_markdown)
                 markdown = block.markdown.strip()
                 if not markdown:
                     continue
@@ -435,7 +457,7 @@ class DocumentComposer:
             lines = [
                 f"# {self.clip_text(self.data.title(), 96)}",
                 "",
-                f"## {self.clip_text(self.data.title(), 96)}",
+                f"## {conventions.style_heading(self.clip_text(self.data.title(), 96))}",
                 "",
                 fallback.markdown.strip(),
             ]
@@ -448,6 +470,9 @@ class DocumentComposer:
             block_types=block_types,
             block_type_counts=dict(Counter(block_types)),
             section_count=section_count,
+            heading_numbering=conventions.plan.heading_numbering,
+            list_style=conventions.plan.list_style,
+            law_articles_used=conventions.plan.law_articles_used,
         )
         return "\n".join(lines).strip() + "\n", metadata
 
