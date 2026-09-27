@@ -11,6 +11,17 @@ Character-class shares are computed against `len(text)` (including
 whitespace), so they need not sum to 1.0 exactly: characters outside the
 tracked scripts (Cyrillic, Arabic, control characters, ...) are simply left
 uncounted.
+
+**`mean_line_length` is not comparable across sources with different line
+conventions.** `GT_markdown` paragraphs are one long logical line each (line
+breaks only at explicit markdown boundaries such as list items or paragraph
+ends), while OCR transcripts and most real reference `.txt` files keep the
+document's *visual* line breaks (one line per printed line, wrapped at the
+page margin). Comparing the two directly with `distribution compare` will
+show a large, meaningless gap driven by this convention difference rather
+than by real content statistics; either reformat one side to match the
+other's line convention first, or exclude `mean_line_length` from the
+comparison.
 """
 
 from __future__ import annotations

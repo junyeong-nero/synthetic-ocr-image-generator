@@ -169,7 +169,7 @@ uv run main.py distribution measure (--images DIR | --metadata JSONL | --hf-data
 - `--images` / `--metadata` / `--hf-dataset`: Image source (directory, generated `metadata.jsonl`, or streamed HF dataset with `--hf-config`, `--hf-split`, `--hf-image-column`).
 - `--where key=value`: With `--metadata`, only rows matching the filter (repeatable), e.g. `capture_channel=scanned`.
 - `--max-images`: Limit (default: `500`; `0` = all).
-- `--suggest-yaml`: Also write directly measurable profile specs (DPI and skew histograms, grayscale, binary and coloured-background rates, plus `margins_mm` / `body_font_pt` histograms derived from layout stats).
+- `--suggest-yaml`: Also write directly measurable profile specs (DPI and skew histograms, grayscale, binary and coloured-background rates, plus a `margins_mm` histogram derived from layout stats).
 
 Every row also carries the layout metrics from `src/realism/layout_stats.py` (`text_line_count`, `text_line_height_frac`/`_pt`, `margin_*_frac`, `column_count`, `text_area_frac`, `rule_count`) merged in automatically — see [distribution.md](distribution.md#layout-and-text-statistics).
 

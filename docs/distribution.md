@@ -159,15 +159,15 @@ A pixel-texture match (blur, noise, contrast) can still hide a page whose *struc
 |---|---|
 | `text_line_count` | Number of detected text-line bands (row-projection profile over an Otsu ink/no-ink binarisation) |
 | `text_line_height_frac` | Median text-line height as a fraction of page **width** |
-| `text_line_height_pt` | Median text-line height in points, assuming the page width is A4 (8.27 in) |
+| `text_line_height_pt` | Median text-line height in points, assuming the page width is A4 (8.27 in). This is the *ink* height of a line band, not the font's em size — it runs smaller than the configured body font size and is not offered as a `body_font_pt` suggestion (see below) |
 | `margin_top_frac` / `margin_bottom_frac` / `margin_left_frac` / `margin_right_frac` | Ink-bounding-box margins as a fraction of page height / width |
-| `column_count` | 1 plus the number of persistent vertical white gutters spanning the full height of the ink bounding box |
+| `column_count` | 1 plus the number of persistent vertical white gutters. A gutter only needs to be white in ~65% of the page's *text* rows, not all of them, so a full-width running title or a centred page number crossing the gutter (as they usually do on real two-column pages) does not defeat detection as long as the two-column body dominates the row count |
 | `text_area_frac` | Ink-bounding-box area as a fraction of total page area |
 | `rule_count` | Long horizontal rules (table borders, `<hr>`s) found by morphological opening with a wide horizontal kernel, thin enough not to be a text line |
 
-**Limitation:** like the skew estimator, these are unreliable on photographed pages — perspective distortion and desk background break the row/column projection profiles.
+**Limitations:** like the skew estimator, these are unreliable on photographed pages — perspective distortion and desk background break the row/column projection profiles. A table with solid vertical borders (a ruled column separator running the table's full height) can put ink in every row of the table, merging the whole table into a single `text_line_count` band and inflating its measured height.
 
-When layout stats are present, `distribution measure --suggest-yaml` also proposes `margins_mm` (paste under `page.margins_mm.{top,bottom,left,right}`, millimetres on an assumed A4 sheet) and `body_font_pt` (paste under `typography.body_font_pt`) histograms, in addition to the existing `dpi` / `skew_deg` / `grayscale` / `binarize` / `colored_background` specs.
+When layout stats are present, `distribution measure --suggest-yaml` also proposes `margins_mm` (paste under `page.margins_mm.{top,bottom,left,right}`, millimetres on an assumed A4 sheet), in addition to the existing `dpi` / `skew_deg` / `grayscale` / `binarize` / `colored_background` specs. There is no `body_font_pt` suggestion: `text_line_height_pt` is ink-band height, not the font's em size (Hangul ink is roughly 0.8-0.9 em, Latin depends on ascenders/descenders, headings and merged bands shift it further), so it would be a systematically biased proposal. Use `text_line_height_pt` in `distribution compare` to check line height directly instead of deriving a font-size suggestion from it.
 
 ### Text metrics (`src/realism/text_stats.py`, `distribution text-stats`)
 
@@ -188,6 +188,8 @@ uv run main.py distribution compare --reference stats/real_text.json --candidate
 ```
 
 Per-page metrics: `chars_per_page`, `line_count`, `mean_line_length`, and a `_share` (of `len(text)`, including whitespace) for each of `hangul`, `hanja`, `kana`, `latin`, `digit`, `punctuation`, `symbol` (reference/list marks such as `□○※①`), `whitespace`. Shares need not sum to 1.0: characters outside these scripts (Cyrillic, Arabic, control characters, ...) are left uncounted. The summary also carries a `top_symbols` list: the most frequent punctuation/symbol characters across the whole corpus, useful for spotting missing 개조식 markers (`□`, `○`, `※`) in synthetic Korean text.
+
+**Limitation:** `mean_line_length` is not comparable across sources with different line conventions. `GT_markdown` paragraphs are one long logical line each (breaks only at explicit markdown boundaries), while OCR transcripts and most real reference `.txt` files keep the document's visual line breaks. `distribution compare` will show a large gap on this metric that reflects the convention mismatch, not real content — reformat one side to match, or ignore `mean_line_length` in the comparison.
 
 ## Calibration Record: `real_world_v2`
 

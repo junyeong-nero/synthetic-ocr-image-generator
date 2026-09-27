@@ -79,19 +79,22 @@ def test_measure_images_merges_layout_stats_into_rows() -> None:
     assert row["text_line_count"] > 0
 
 
-def test_suggest_profile_specs_adds_margins_and_body_font_pt_when_layout_present() -> None:
+def test_suggest_profile_specs_adds_margins_when_layout_present() -> None:
     from src.generator.distribution_profile import sample_value
 
     rows = measure_images([_text_page(), _text_page()])
     specs = summarize_stats(rows)["suggested_profile_specs"]
     assert "margins_mm" in specs
     assert set(specs["margins_mm"].keys()) == {"top", "bottom", "left", "right"}
-    assert "body_font_pt" in specs
+    # `text_line_height_pt` is ink-band height, not font em-size (Hangul ink
+    # is ~0.8-0.9 em, Latin ascenders/descenders shift it further, headings
+    # and merged bands shift it more) -- systematically biased, so it is not
+    # offered as a `body_font_pt` suggestion.
+    assert "body_font_pt" not in specs
 
     rng = random.Random(0)
     for side_spec in specs["margins_mm"].values():
         sample_value(side_spec, rng)
-    sample_value(specs["body_font_pt"], rng)
 
 
 def test_suggest_profile_specs_omits_margins_without_layout_stats() -> None:

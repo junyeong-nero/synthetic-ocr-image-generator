@@ -99,6 +99,25 @@ def test_two_column_page_reports_two_columns() -> None:
     assert stats["column_count"] == 2
 
 
+def test_two_column_page_with_spanning_title_and_footer_reports_two_columns() -> None:
+    """A full-width title and a centred page number both cross the gutter,
+    as they typically do on real two-column pages (running head, page
+    number). The gutter must still be detected from the much larger body."""
+    width, height = 1000, 1600
+    image, draw = _page(width, height)
+    # Full-width title band, crossing the future gutter column range.
+    draw.rectangle((80, 60, 920, 90), fill=(10, 10, 10))
+    # Two-column body: 38 lines per column, gutter always empty.
+    for y in range(140, 1420, 34):
+        draw.rectangle((80, y, 440, y + 14), fill=(10, 10, 10))
+        draw.rectangle((560, y, 920, y + 14), fill=(10, 10, 10))
+    # Centred page-number band near the bottom, crossing the gutter too.
+    draw.rectangle((460, 1460, 540, 1480), fill=(10, 10, 10))
+
+    stats = compute_layout_stats(image)
+    assert stats["column_count"] == 2
+
+
 def test_blank_page_reports_zero_lines_and_full_margins() -> None:
     image, _ = _page()
     stats = compute_layout_stats(image)

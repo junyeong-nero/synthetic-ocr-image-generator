@@ -13,7 +13,11 @@ for born-digital and scanned pages. **On photographed pages, perspective
 distortion, uneven illumination and desk background make these metrics
 unreliable** (line bands blur together, margins are contaminated by the
 photographed border) — the same caveat `image_stats.estimate_skew` documents
-for the skew estimator.
+for the skew estimator. **A table with solid vertical borders (a ruled
+column separator running the table's full height) can also put ink in every
+row of the table**, merging the whole table into one `text_line_count` band
+and widening its measured height — `text_line_count` / `text_line_height_*`
+are therefore an undercount / overcount on table-heavy pages.
 """
 
 from __future__ import annotations
@@ -31,10 +35,16 @@ from src.realism.image_stats import resize_to_analysis_width
 # are ink. Low, because a single line of small text can be sparse.
 _ROW_INK_THRESHOLD = 0.01
 
-# A run of columns with (near) zero ink, spanning the full ink-bbox height,
-# counts as a column gutter when it is at least this wide (as a fraction of
-# page width) and does not touch the ink bounding box's own edges.
-_COLUMN_GAP_INK_THRESHOLD = 0.005
+# A column counts towards a gutter when it has ink in at most this share of
+# the page's *text* rows (not all of them): a full-width running title or a
+# centred page number crossing the gutter must not disqualify it, since real
+# two-column pages almost always have exactly that kind of full-width
+# furniture. As long as the two-column body dominates the text-row count,
+# tolerating a systematic contribution from a few furniture rows still
+# leaves a wide margin against a genuine single-column page (which has no
+# empty column at all). A gutter run must also be at least this wide (as a
+# fraction of page width) and must not touch the ink bounding box's edges.
+_COLUMN_GAP_ROW_COVERAGE = 0.65
 _COLUMN_GAP_MIN_WIDTH_FRAC = 0.015
 _COLUMN_GAP_EDGE_MARGIN_FRAC = 0.02
 
@@ -128,12 +138,27 @@ def _ink_bbox(binary: np.ndarray) -> Tuple[int, int, int, int] | Tuple[None, Non
 def _estimate_column_count(
     binary: np.ndarray, top: int, bottom: int, left: int, right: int, width: int
 ) -> int:
-    """Count persistent vertical white gaps across the full text-area height."""
+    """Count persistent vertical white gaps across the page's text rows.
+
+    Evaluated over *text* rows only (rows that are part of a `_text_line_bands`
+    band): blank inter-line rows are white in every column regardless of
+    layout and would only dilute the signal. A column needs to be white in
+    just `_COLUMN_GAP_ROW_COVERAGE` of the text rows, not all of them, so
+    full-width furniture that crosses the gutter (running title, centred
+    page number) does not defeat detection as long as the two-column body
+    dominates the text-row count.
+    """
     if bottom <= top or right <= left:
         return 1
-    region = binary[top : bottom + 1, left : right + 1]
-    col_frac = region.mean(axis=0) / 255.0
-    gap_mask = col_frac < _COLUMN_GAP_INK_THRESHOLD
+
+    row_frac = binary.mean(axis=1) / 255.0
+    text_row_mask = row_frac[top : bottom + 1] > _ROW_INK_THRESHOLD
+    if not text_row_mask.any():
+        return 1
+
+    region = binary[top : bottom + 1, left : right + 1][text_row_mask]
+    ink_share = (region > 0).mean(axis=0)
+    gap_mask = ink_share <= (1.0 - _COLUMN_GAP_ROW_COVERAGE)
 
     region_width = right - left + 1
     min_gap_px = max(1, int(round(_COLUMN_GAP_MIN_WIDTH_FRAC * width)))

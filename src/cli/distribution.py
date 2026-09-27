@@ -116,8 +116,8 @@ def run_measure(args: argparse.Namespace) -> int:
         suggest_path.write_text(
             "# Directly measured specs. Paste into a profile under capture_channels.<channel>\n"
             "# (dpi, skew_deg, grayscale, binarize) or typography (colored_background).\n"
-            "# margins_mm -> page.margins_mm.{top,bottom,left,right}; body_font_pt ->\n"
-            "# typography.body_font_pt (present only when layout stats could be measured).\n"
+            "# margins_mm -> page.margins_mm.{top,bottom,left,right} (present only when\n"
+            "# layout stats could be measured; no body_font_pt suggestion, see docs).\n"
             + yaml.safe_dump(summary["suggested_profile_specs"], sort_keys=False, allow_unicode=True),
             encoding="utf-8",
         )

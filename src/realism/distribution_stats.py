@@ -198,8 +198,7 @@ def suggest_profile_specs(rows: List[Dict[str, float]]) -> Dict[str, Any]:
 
     # Layout stats (src/realism/layout_stats.py) are only present when rows
     # came from `measure_images`; guard so this still works on plain
-    # `compute_image_stats` rows. Paste under `page.margins_mm` /
-    # `typography.body_font_pt` (keys introduced by the page-typography task).
+    # `compute_image_stats` rows. Paste under `page.margins_mm`.
     margin_sides = ("top", "bottom", "left", "right")
     if all(f"margin_{side}_frac" in rows[0] for side in margin_sides):
         specs["margins_mm"] = {
@@ -213,11 +212,14 @@ def suggest_profile_specs(rows: List[Dict[str, float]]) -> Dict[str, Any]:
             }
             for side in margin_sides
         }
-    if "text_line_height_pt" in rows[0]:
-        specs["body_font_pt"] = {
-            **_histogram_spec(column("text_line_height_pt"), bins=8, clip=(6, 24)),
-            "round": 1,
-        }
+
+    # No `typography.body_font_pt` suggestion: `text_line_height_pt` (see
+    # layout_stats.py) is the ink height of a text-line band, not the font's
+    # em size (Hangul ink is roughly 0.8-0.9 em; Latin depends on
+    # ascenders/descenders; headings and merged bands shift it further), so
+    # it is systematically biased relative to the actual body font size. Use
+    # `text_line_height_pt` in `distribution compare` to check line height
+    # directly instead.
 
     return specs
 
