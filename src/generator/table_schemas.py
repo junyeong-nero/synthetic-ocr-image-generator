@@ -96,29 +96,53 @@ def select_schema_columns(schema: TableSchema, column_count: int) -> List[TableC
 # language_data.py, which holds general-purpose prose data.
 # ---------------------------------------------------------------------------
 
-FINANCIAL_ACCOUNT_ITEMS: Dict[str, List[str]] = {
+# Financial statement accounts are listed top-to-bottom the way a real
+# financial statement lists them (income statement: revenue down to net
+# income; balance sheet: assets, then liabilities, then equity, each with
+# its subtotal). `table_generator._build_financial_rows` picks one of these
+# two statements and a contiguous run from it, rather than shuffling, so
+# emitted rows keep their canonical relative order (e.g. 매출액 always comes
+# before 매출총이익, never after 당기순이익).
+FINANCIAL_INCOME_STATEMENT_ITEMS: Dict[str, List[str]] = {
     "ko": [
         "매출액", "매출원가", "매출총이익", "판매비와관리비", "영업이익",
         "영업외수익", "영업외비용", "법인세비용차감전순이익", "법인세비용",
-        "당기순이익", "자산총계", "부채총계", "자본총계", "유동자산",
-        "비유동자산", "유동부채", "비유동부채",
+        "당기순이익",
     ],
     "en": [
         "Revenue", "Cost of Goods Sold", "Gross Profit",
         "Selling & Administrative Expenses", "Operating Income",
         "Non-operating Income", "Non-operating Expenses",
         "Income Before Tax", "Income Tax Expense", "Net Income",
-        "Total Assets", "Total Liabilities", "Total Equity",
-        "Current Assets", "Non-current Assets", "Current Liabilities",
-        "Non-current Liabilities",
     ],
     "ja": [
         "売上高", "売上原価", "売上総利益", "販売費及び一般管理費", "営業利益",
         "営業外収益", "営業外費用", "税引前当期純利益", "法人税等",
-        "当期純利益", "資産合計", "負債合計", "純資産合計", "流動資産",
-        "固定資産", "流動負債", "固定負債",
+        "当期純利益",
     ],
 }
+
+FINANCIAL_BALANCE_SHEET_ITEMS: Dict[str, List[str]] = {
+    "ko": [
+        "유동자산", "비유동자산", "자산총계", "유동부채", "비유동부채",
+        "부채총계", "자본총계",
+    ],
+    "en": [
+        "Current Assets", "Non-current Assets", "Total Assets",
+        "Current Liabilities", "Non-current Liabilities",
+        "Total Liabilities", "Total Equity",
+    ],
+    "ja": [
+        "流動資産", "固定資産", "資産合計", "流動負債", "固定負債",
+        "負債合計", "純資産合計",
+    ],
+}
+
+# The two statements `_build_financial_rows` chooses between.
+FINANCIAL_STATEMENTS: Tuple[Dict[str, List[str]], ...] = (
+    FINANCIAL_INCOME_STATEMENT_ITEMS,
+    FINANCIAL_BALANCE_SHEET_ITEMS,
+)
 
 BUDGET_CATEGORIES: Dict[str, List[str]] = {
     "ko": [
@@ -168,13 +192,17 @@ ORDER_SPECS: Dict[str, List[str]] = {
 
 # `DataProvider.name()`/`.phone_number()`/`.date()`/`.time()` fall back to
 # Faker when no corpus is loaded, and Faker's own RNG is independent of the
-# per-sample `random.seed()` the rest of the generator uses (it only becomes
-# deterministic if something calls `Faker.seed(...)`, which the pipeline
-# never does). Table rows must stay reproducible for the same sample seed
-# regardless of corpus availability, so the `roster`/`schedule` schemas use
-# `PERSON_NAMES` here instead of `DataProvider.name()`'s Faker fallback, and
-# `table_generator` formats phone/date/time from `random` directly rather
-# than calling the Faker-backed DataProvider helpers.
+# per-sample `random.seed()` the rest of the generator uses. `Generator.
+# _seed_for_sample` (src/generator/generator.py) does call `faker.
+# seed_instance(sample_seed)` on every sample, which keeps Faker output
+# reproducible when going through `Generator.generate_single()` -- but
+# `TableGenerator`/`DataProvider` are also used directly (unit tests, other
+# callers) without going through `Generator` at all, and there `random.
+# seed()` alone would not make Faker calls reproducible. So the `roster`/
+# `schedule` schemas use `PERSON_NAMES` here instead of `DataProvider.
+# name()`'s Faker fallback, and `table_generator` formats phone/date/time
+# from `random` directly, to stay reproducible from `random.seed()` alone
+# regardless of caller.
 PERSON_NAMES: Dict[str, List[str]] = {
     "ko": [
         "김민준", "이서연", "박도윤", "최지우", "정하은", "강시우", "조유나",

@@ -6,6 +6,10 @@ import pytest
 
 from src.generator.data_provider import DataProvider
 from src.generator.table_generator import TableGenerator
+from src.generator.table_schemas import (
+    FINANCIAL_BALANCE_SHEET_ITEMS,
+    FINANCIAL_INCOME_STATEMENT_ITEMS,
+)
 
 
 def _clip(text: str, max_chars: int) -> str:
@@ -104,6 +108,32 @@ def test_financial_schema_change_and_change_rate_are_consistent() -> None:
             rate_v = _parse_signed_percent(change_rate)
             assert change_v == current_v - prior_v
             assert rate_v == pytest.approx(round(change_v / prior_v * 100, 1), abs=0.05)
+
+
+def test_financial_schema_keeps_canonical_account_order() -> None:
+    # Financial statement accounts have a real, top-to-bottom canonical
+    # order (e.g. 매출액 before 매출총이익 before 당기순이익 on an income
+    # statement); rows must be a contiguous, order-preserving run of one
+    # statement, never a shuffle that could print 당기순이익 above 매출액.
+    generator = _table_generator(table_schemas={"financial": 1.0})
+    income_order = FINANCIAL_INCOME_STATEMENT_ITEMS["ko"]
+    balance_order = FINANCIAL_BALANCE_SHEET_ITEMS["ko"]
+
+    for seed in range(20):
+        random.seed(seed)
+        sections = generator.generate_sections(section_count=1, row_range=(3, 6), column_range=(3, 3))
+        header, _sep, rows = _parse_table(sections[0])
+        items = [row[0] for row in rows]
+
+        reference = income_order if items[0] in income_order else balance_order
+        indices = [reference.index(item) for item in items]
+
+        # every item belongs to the same statement as the first row...
+        assert all(item in reference for item in items)
+        # ...appears in ascending canonical order...
+        assert indices == sorted(indices)
+        # ...and is one contiguous run (no skipped-then-revisited accounts).
+        assert indices == list(range(indices[0], indices[0] + len(indices)))
 
 
 def test_financial_schema_drops_optional_columns_to_fit_narrow_range() -> None:

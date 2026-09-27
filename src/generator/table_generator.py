@@ -14,7 +14,7 @@ from src.generator.table_schemas import (
     select_schema_columns,
     summary_row_label,
     BUDGET_CATEGORIES,
-    FINANCIAL_ACCOUNT_ITEMS,
+    FINANCIAL_STATEMENTS,
     ORDER_SPECS,
     PERSON_NAMES,
     PLACE_NAMES,
@@ -184,7 +184,8 @@ class TableGenerator:
     # -- per-schema row builders (values in schema-declared, unfiltered order) --
 
     def _build_financial_rows(self, row_count: int, lang: str) -> List[dict]:
-        items = _sample_unique_cycle(FINANCIAL_ACCOUNT_ITEMS[lang], row_count)
+        statement = random.choice(FINANCIAL_STATEMENTS)
+        items = _pick_contiguous_run(statement[lang], row_count)
         rows: List[dict] = []
         for item in items:
             prior = random.randint(100, 50000)
@@ -254,10 +255,14 @@ class TableGenerator:
 
     def _person_names(self, lang: str, count: int) -> List[str]:
         # `DataProvider.name()` falls back to Faker when no `person_names`
-        # corpus is loaded, and Faker isn't tied to the per-sample
-        # `random.seed()` (see the note above `PERSON_NAMES`), so only use it
-        # when a corpus is actually present; otherwise cycle the curated
-        # names so a small roster doesn't repeat a name unnecessarily.
+        # corpus is loaded. Faker is seeded per sample by
+        # `Generator._seed_for_sample`, but `TableGenerator` is also used
+        # without going through `Generator` (tests, direct use), so tables
+        # draw names/dates/phones from `random` to stay reproducible from
+        # `random.seed()` alone (see the note above `PERSON_NAMES`); only
+        # use `DataProvider.name()` when a corpus is actually present,
+        # otherwise cycle the curated names so a small roster doesn't
+        # repeat a name unnecessarily.
         if self.data.has_corpus("person_names"):
             return [self.data.name() for _ in range(count)]
         return _sample_unique_cycle(PERSON_NAMES[lang], count)
@@ -353,6 +358,23 @@ def _sample_unique_cycle(pool: List[str], count: int) -> List[str]:
         else:
             result.extend(shuffled[:needed])
     return result[:count]
+
+
+def _pick_contiguous_run(items: List[str], count: int) -> List[str]:
+    """``count`` consecutive items from ``items``, keeping their order.
+
+    Financial statement accounts have a canonical top-to-bottom order (e.g.
+    매출액 before 매출총이익 before 당기순이익), so rows are a contiguous
+    slice of one statement rather than a shuffled sample: 당기순이익 never
+    ends up printed above 매출액.
+    """
+
+    if not items:
+        return [""] * count
+    if count >= len(items):
+        return list(items)
+    start = random.randint(0, len(items) - count)
+    return items[start : start + count]
 
 
 def _random_phone(lang: str) -> str:
