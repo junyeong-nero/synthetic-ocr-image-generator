@@ -96,6 +96,36 @@ Output directory contains:
 - `leaderboard.json`
 - `leaderboard.md`
 
+## Synthetic vs Real Rank Correlation
+
+To validate that the benchmark's model rankings agree with a real (non-synthetic)
+reference benchmark, use `rank-correlation`:
+
+```bash
+uv run main.py rank-correlation \
+  --synthetic evaluation_result/leaderboard.json \
+  --real real_scores.csv \
+  --language ko \
+  --output rank_correlation_report.md
+```
+
+- Synthetic scores are read straight from this repo's evaluation outputs
+  (`evaluation_result/leaderboard.json`, a single `report.json`, or a
+  directory scanned recursively for `report.json` files) for a chosen
+  metric (default `avg_markdown_overall_score`).
+- Real scores come from a CSV (`model,score` columns) or JSON file supplied
+  by the caller.
+- Models are matched by a normalized id (org/path prefix stripped, folded to
+  lowercase alphanumerics); an optional `--aliases` file covers names that
+  do not normalize to the same id on both sides.
+- Output is Spearman rho and Kendall tau with a bootstrap 95% CI over the
+  matched models, plus a per-model rank table and any unmatched models on
+  either side.
+
+See `docs/cli.md` (`rank-correlation`) for the full flag reference. Implementation:
+`src/evaluation/rank_correlation.py` (scoring, matching, correlation) and
+`src/cli/rank_correlation.py` (CLI wiring).
+
 ## Script Wrappers
 
 Recommended wrappers:

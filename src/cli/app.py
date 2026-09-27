@@ -4,7 +4,7 @@ import argparse
 import asyncio
 import sys
 
-from src.cli import compare, corpus, distribution, evaluate, generate, listing, publish
+from src.cli import compare, corpus, distribution, evaluate, generate, listing, publish, rank_correlation
 from src.env_utils import load_env_file
 
 
@@ -51,6 +51,13 @@ def create_parser() -> argparse.ArgumentParser:
     compare_parser = subparsers.add_parser("compare", help="Compare evaluation results")
     compare.add_arguments(compare_parser)
     compare_parser.set_defaults(handler=compare.run_with_args)
+
+    rank_correlation_parser = subparsers.add_parser(
+        "rank-correlation",
+        help="Correlate synthetic and real model rankings (Spearman/Kendall)",
+    )
+    rank_correlation.add_arguments(rank_correlation_parser)
+    rank_correlation_parser.set_defaults(handler=rank_correlation.run_with_args)
 
     backends_parser = subparsers.add_parser("list-backends", help="List available backends")
     backends_parser.set_defaults(handler=listing.run_list_backends)
