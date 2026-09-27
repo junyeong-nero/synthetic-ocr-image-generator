@@ -23,7 +23,7 @@ import math
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 import yaml
 
@@ -35,6 +35,8 @@ DEFAULT_DISTRIBUTION_DIR = (
 
 # A4 paper width in inches; used to translate target DPI into render scale.
 A4_WIDTH_INCH = 8.27
+# A4 paper width in millimetres; used to translate physical margins into CSS px.
+A4_WIDTH_MM = 210.0
 
 
 def sample_value(spec: Any, rng: random.Random) -> Any:
@@ -131,6 +133,23 @@ def _normalize_weights(raw: Any) -> Dict[str, float]:
     return {k: v / total for k, v in cleaned.items()}
 
 
+def _parse_font_groups(raw: Any) -> Dict[str, float]:
+    """Parse a ``fonts.body`` / ``fonts.heading`` / ``fonts.code`` spec.
+
+    Accepts a mapping of file-name substring -> weight (``{Myeongjo: 3,
+    batang: 2}``) or a bare list of substrings (``[D2Coding]``, weight 1
+    each). Unset or empty specs return ``{}``, which signals "no groups" to
+    ``DistributionProfile.choose_font``.
+    """
+    if not raw:
+        return {}
+    if isinstance(raw, Mapping):
+        return {str(k): max(0.0, float(v)) for k, v in raw.items()}
+    if isinstance(raw, (list, tuple)):
+        return {str(v): 1.0 for v in raw}
+    raise ValueError(f"Unsupported font group spec: {raw!r}")
+
+
 @dataclass(frozen=True)
 class CaptureChannel:
     name: str
@@ -179,6 +198,9 @@ class DistributionProfile:
     content: Dict[str, Any] = field(default_factory=dict)
     page: Dict[str, Any] = field(default_factory=dict)
     font_exclude: List[str] = field(default_factory=list)
+    font_body_groups: Dict[str, float] = field(default_factory=dict)
+    font_heading_groups: Dict[str, float] = field(default_factory=dict)
+    font_code_groups: Dict[str, float] = field(default_factory=dict)
     template_weights: Dict[str, float] = field(default_factory=dict)
 
     @classmethod
@@ -200,6 +222,7 @@ class DistributionProfile:
         if sum(channel.weight for channel in channels) <= 0:
             raise ValueError("capture channel weights must sum to a positive value")
 
+        fonts_raw = data.get("fonts") or {}
         return cls(
             profile_id=str(data.get("id") or Path(source_path).stem or "custom"),
             version=str(data.get("version", "1")),
@@ -215,7 +238,10 @@ class DistributionProfile:
             source_path=source_path,
             content=dict(data.get("content") or {}),
             page=dict(data.get("page") or {}),
-            font_exclude=[str(v) for v in ((data.get("fonts") or {}).get("exclude") or [])],
+            font_exclude=[str(v) for v in (fonts_raw.get("exclude") or [])],
+            font_body_groups=_parse_font_groups(fonts_raw.get("body")),
+            font_heading_groups=_parse_font_groups(fonts_raw.get("heading")),
+            font_code_groups=_parse_font_groups(fonts_raw.get("code")),
             template_weights={
                 str(k): max(0.0, float(v))
                 for k, v in (data.get("template_weights") or {}).items()
@@ -252,8 +278,53 @@ class DistributionProfile:
         kept = [path for path in font_paths if not any(p in Path(path).name.lower() for p in patterns)]
         return kept or list(font_paths)
 
+    def choose_font(
+        self,
+        font_paths: List[str],
+        groups: Dict[str, float],
+        rng: random.Random,
+        *,
+        apply_exclude: bool = True,
+    ) -> Optional[str]:
+        """Pick a font from a weighted group of file-name substrings.
+
+        A group is chosen by weight, then a file is chosen uniformly among
+        the candidates whose file name contains that group's substring
+        (case-insensitive). ``fonts.exclude`` narrows the candidates first
+        unless ``apply_exclude`` is ``False`` (used for ``fonts.code``, whose
+        monospace face is often deliberately excluded from body-text use).
+        Returns ``None`` when ``groups`` is empty or none of its substrings
+        match any candidate, so the caller can fall back to its own default
+        font choice.
+        """
+        if not groups:
+            return None
+        candidates = self.filter_fonts(font_paths) if apply_exclude else list(font_paths)
+        weighted_matches: List[Tuple[List[str], float]] = []
+        for pattern, weight in groups.items():
+            if weight <= 0:
+                continue
+            pattern_lower = pattern.lower()
+            matches = [path for path in candidates if pattern_lower in Path(path).name.lower()]
+            if matches:
+                weighted_matches.append((matches, weight))
+        if not weighted_matches:
+            return None
+        chosen_group = rng.choices(
+            [matches for matches, _ in weighted_matches],
+            weights=[weight for _, weight in weighted_matches],
+            k=1,
+        )[0]
+        return rng.choice(chosen_group)
+
     def sample_page(self, rng: random.Random) -> Dict[str, Any]:
-        return {key: sample_value(spec, rng) for key, spec in self.page.items()}
+        sampled: Dict[str, Any] = {}
+        for key, spec in self.page.items():
+            if key == "margins_mm" and isinstance(spec, Mapping):
+                sampled[key] = {side: sample_value(side_spec, rng) for side, side_spec in spec.items()}
+            else:
+                sampled[key] = sample_value(spec, rng)
+        return sampled
 
 
 def available_profiles(config_dir: Optional[Path] = None) -> List[str]:
@@ -297,3 +368,13 @@ def points_to_css_px(points: float, page_width_css_px: int) -> int:
     """Convert a physical font size (pt) to CSS px on the virtual A4 page."""
     nominal_dpi = page_width_css_px / A4_WIDTH_INCH
     return max(8, int(round(points / 72.0 * nominal_dpi)))
+
+
+def mm_to_css_px(millimeters: float, page_width_css_px: int) -> int:
+    """Convert a physical length (mm on A4's 210mm width) to CSS px.
+
+    Uses the same virtual page width as ``render_scale_for_dpi`` so a
+    ``page.margins_mm`` value and the capture channel's target DPI agree on
+    what one CSS pixel represents.
+    """
+    return max(0, int(round(float(millimeters) / A4_WIDTH_MM * page_width_css_px)))

@@ -234,3 +234,49 @@ def test_pil_renderer_draws_hr_in_rule_colour() -> None:
     image = MarkdownRenderer("missing-font.ttf", style).render("---")
 
     assert int(np.asarray(image.convert("L")).min()) == 0
+
+
+def test_heading_and_code_font_faces_emitted_when_distinct_paths_given() -> None:
+    renderer = HtmlMarkdownRenderer(
+        "body.ttf",
+        MarkdownStyle(),
+        heading_font_path="heading.ttf",
+        code_font_path="code.ttf",
+    )
+
+    css = renderer._build_html_document("# Title\n\n```\ncode\n```\n")
+
+    assert css.count("@font-face") == 3
+    assert "font-family: 'RenderFontHeading';" in css
+    assert "font-family: 'RenderFontCode';" in css
+    heading_rule = _css_block(css, ".markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body th")
+    assert "'RenderFontHeading'" in heading_rule
+    code_rule = _css_block(css, ".markdown-body pre, .markdown-body code")
+    assert "'RenderFontCode'" in code_rule
+
+
+def test_default_font_faces_reuse_render_font_without_new_keys() -> None:
+    renderer = HtmlMarkdownRenderer("body.ttf", MarkdownStyle())
+
+    css = renderer._build_html_document("# Title\n")
+
+    assert css.count("@font-face") == 1
+    assert "RenderFontHeading" not in css
+    assert "RenderFontCode" not in css
+
+
+def test_text_align_and_word_break_css_from_style() -> None:
+    style = MarkdownStyle(text_align="justify", word_break="keep-all")
+    css = HtmlMarkdownRenderer("font.ttf", style)._build_html_document("para\n")
+
+    body_rule = _css_block(css, ".markdown-body")
+    assert "text-align: justify;" in body_rule
+    assert "word-break: keep-all;" in body_rule
+
+
+def test_default_style_keeps_legacy_word_break_and_no_text_align() -> None:
+    css = HtmlMarkdownRenderer("font.ttf", MarkdownStyle())._build_html_document("para\n")
+
+    body_rule = _css_block(css, ".markdown-body")
+    assert "word-break: break-word;" in body_rule
+    assert "text-align:" not in body_rule

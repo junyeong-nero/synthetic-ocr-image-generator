@@ -567,12 +567,33 @@ class MarkdownRenderer:
         return Image.blend(img, noise_img, 0.03)
 
 
+def _font_face_css(family: str, font_path: str) -> str:
+    escaped_path = escape(font_path)
+    return (
+        "@font-face {\n"
+        f"  font-family: '{family}';\n"
+        f"  src: url('file://{escaped_path}') format('truetype');\n"
+        "}"
+    )
+
+
 class HtmlMarkdownRenderer:
     """Renders markdown through HTML and captures it as an image."""
 
-    def __init__(self, font_path: str, style: Optional[MarkdownStyle] = None):
+    def __init__(
+        self,
+        font_path: str,
+        style: Optional[MarkdownStyle] = None,
+        *,
+        heading_font_path: Optional[str] = None,
+        code_font_path: Optional[str] = None,
+    ):
         self.style = style or MarkdownStyle()
         self.font_path = str(Path(font_path).resolve())
+        # Distinct heading (h1-h3, th) / code (pre, code) faces; None reuses
+        # the body face, matching rendering before per-role fonts existed.
+        self.heading_font_path = str(Path(heading_font_path).resolve()) if heading_font_path else None
+        self.code_font_path = str(Path(code_font_path).resolve()) if code_font_path else None
 
     @staticmethod
     def _coerce_markdown_html(markdown_text: str) -> str:
@@ -696,6 +717,36 @@ class HtmlMarkdownRenderer:
         )
         return max(300, min(9000, int(estimated)))
 
+    def _font_face_declarations(self) -> Tuple[str, str, str]:
+        """CSS ``@font-face`` rules plus the body/heading/code font-family names.
+
+        Returns ``(css, heading_family, code_family)``. Heading and code
+        fall back to the body face ('RenderFont') when the renderer was not
+        given a distinct one, which reproduces the CSS from before per-role
+        fonts existed byte-for-byte.
+        """
+        faces = [_font_face_css("RenderFont", self.font_path)]
+        heading_family = "RenderFont"
+        if self.heading_font_path:
+            heading_family = "RenderFontHeading"
+            faces.append(_font_face_css(heading_family, self.heading_font_path))
+        code_family = "RenderFont"
+        if self.code_font_path:
+            code_family = "RenderFontCode"
+            faces.append(_font_face_css(code_family, self.code_font_path))
+        return "\n".join(faces), heading_family, code_family
+
+    def _body_text_css(self) -> Tuple[str, str]:
+        """``text-align`` / `word-break` rules for ``.markdown-body``.
+
+        ``None`` on the style reproduces the pre-typography-task CSS exactly:
+        no `text-align` line, `word-break: break-word`.
+        """
+        text_align = getattr(self.style, "text_align", None)
+        text_align_css = f"  text-align: {text_align};\n" if text_align else ""
+        word_break = getattr(self.style, "word_break", None) or "break-word"
+        return text_align_css, word_break
+
     def _build_html_document(
         self,
         markdown_text: str,
@@ -714,14 +765,13 @@ class HtmlMarkdownRenderer:
             if rule_color
             else ""
         )
+        font_face_css, heading_family, code_family = self._font_face_declarations()
+        text_align_css, word_break_css = self._body_text_css()
         css = f"""
 @page {{
   margin: 12mm 10mm 14mm 10mm;
 }}
-@font-face {{
-  font-family: 'RenderFont';
-  src: url('file://{escape(self.font_path)}') format('truetype');
-}}
+{font_face_css}
 html, body {{
   margin: 0;
   padding: 0;
@@ -742,10 +792,11 @@ html, body {{
   line-height: {self.style.line_spacing};
   white-space: normal;
   overflow-wrap: anywhere;
-  word-break: break-word;
+{text_align_css}  word-break: {word_break_css};
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }}
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body th {{ font-family: '{heading_family}', sans-serif; }}
 .markdown-body h1 {{ font-size: {self.style.h1_font_size}px; color: rgb{self.style.h1_color}; margin: 0 0 {round(16 * spacing)}px 0; }}
 .markdown-body h2 {{ font-size: {self.style.h2_font_size}px; color: rgb{self.style.h2_color}; margin: {round(18 * spacing)}px 0 {round(12 * spacing)}px 0; }}
 .markdown-body h3 {{ font-size: {self.style.h3_font_size}px; color: rgb{self.style.h3_color}; margin: {round(16 * spacing)}px 0 {round(8 * spacing)}px 0; }}
@@ -770,7 +821,7 @@ html, body {{
   color: rgb{self.style.blockquote_color};
 }}
 .markdown-body pre, .markdown-body code {{
-  font-family: 'RenderFont', monospace;
+  font-family: '{code_family}', monospace;
   font-size: {self.style.code_font_size}px;
 }}
 .markdown-body pre {{
@@ -817,7 +868,7 @@ html, body {{
   background: rgb{self.style.code_bg_color};
   color: rgb{self.style.code_text_color};
   border: 1px solid rgba(0, 0, 0, 0.2);
-  font-family: 'RenderFont', monospace;
+  font-family: '{code_family}', monospace;
   font-size: {self.style.code_font_size}px;
   overflow-wrap: anywhere;
   text-align: center;

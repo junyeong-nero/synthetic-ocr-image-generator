@@ -49,6 +49,7 @@ from src.generator.profile_application import (
     finalize_profile_image,
     fit_markdown_to_sheet,
     plan_profile_render,
+    select_render_fonts,
     sheet_overflow_ratio,
 )
 from src.generator.style_sampler import base_styles, clamp_color, jitter_color, random_style
@@ -680,16 +681,23 @@ class Generator(BaseGenerator):
             style.add_noise = random.random() < self.noise_ratio
             style.add_blur = random.random() < self.blur_ratio
 
-        # Render markdown
-        font_candidates = self.font_paths
-        if distribution_profile is not None:
-            font_candidates = distribution_profile.filter_fonts(self.font_paths)
-        font_path = random.choice(font_candidates)
+        # Render markdown. Heading/code fonts are None unless the profile
+        # sets fonts.heading / fonts.code groups; the HTML renderers then
+        # reuse the body font for those roles (see select_render_fonts).
+        font_path, heading_font_path, code_font_path = select_render_fonts(
+            distribution_profile, self.font_paths, random
+        )
         if self.markdown_renderer == "html2image":
-            renderer = HtmlMarkdownRenderer(font_path, style)
+            renderer = HtmlMarkdownRenderer(
+                font_path, style, heading_font_path=heading_font_path, code_font_path=code_font_path
+            )
         elif self.markdown_renderer == "playwright":
-            renderer = PlaywrightMarkdownRenderer(font_path, style)
+            renderer = PlaywrightMarkdownRenderer(
+                font_path, style, heading_font_path=heading_font_path, code_font_path=code_font_path
+            )
         else:
+            # The PIL renderer draws every role with one face; per-role
+            # fonts are HTML-renderer only.
             renderer = MarkdownRenderer(font_path, style)
         image = renderer.render(markdown_text)
         if profile_plan is not None:
@@ -761,6 +769,10 @@ class Generator(BaseGenerator):
         if profile_plan is not None:
             metadata.update(profile_plan.metadata())
             metadata["font_name"] = Path(font_path).name
+            if heading_font_path:
+                metadata["heading_font_name"] = Path(heading_font_path).name
+            if code_font_path:
+                metadata["code_font_name"] = Path(code_font_path).name
         return image, metadata
 
     @staticmethod

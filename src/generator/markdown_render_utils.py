@@ -318,3 +318,9 @@ class MarkdownStyle:
     spacing_scale: float = 1.0
     # Table borders and horizontal rules; None keeps the light web defaults.
     rule_color: Optional[Tuple[int, int, int]] = None
+    # CJK-friendly typography (HtmlMarkdownRenderer only; the PIL renderer
+    # ignores both). None reproduces the previous hard-coded CSS exactly:
+    # no `text-align` rule (browser default, ragged-right) and
+    # `word-break: break-word`.
+    text_align: Optional[str] = None  # "left" | "justify"
+    word_break: Optional[str] = None  # "normal" | "keep-all"
