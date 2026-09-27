@@ -22,15 +22,25 @@ ANALYSIS_WIDTH = 1000
 _IMMERKAER_KERNEL = np.array([[1, -2, 1], [-2, 4, -2], [1, -2, 1]], dtype=np.float64)
 
 
+def resize_to_analysis_width(rgb: np.ndarray, width: int = ANALYSIS_WIDTH) -> np.ndarray:
+    """Downscale an RGB array to `width` px wide, preserving aspect ratio.
+
+    A no-op when the image is already narrower. Shared by every module under
+    `src/realism/` so metrics stay comparable across sources with different
+    native resolution.
+    """
+    src_height, src_width = rgb.shape[:2]
+    scale = width / max(1, src_width)
+    if scale >= 1.0:
+        return rgb
+    return cv2.resize(rgb, (width, max(1, int(round(src_height * scale)))), interpolation=cv2.INTER_AREA)
+
+
 def compute_image_stats(image: Image.Image) -> Dict[str, float]:
     rgb = np.asarray(image.convert("RGB"))
     height, width = rgb.shape[:2]
 
-    scale = ANALYSIS_WIDTH / max(1, width)
-    if scale < 1.0:
-        rgb_small = cv2.resize(rgb, (ANALYSIS_WIDTH, max(1, int(round(height * scale)))), interpolation=cv2.INTER_AREA)
-    else:
-        rgb_small = rgb
+    rgb_small = resize_to_analysis_width(rgb)
     gray = cv2.cvtColor(rgb_small, cv2.COLOR_RGB2GRAY)
 
     background = float(np.percentile(gray, 90))

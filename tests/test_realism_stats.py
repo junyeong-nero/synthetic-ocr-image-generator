@@ -9,8 +9,14 @@ from src.generation.distribution_summary import (
     summarize_metadata_distribution,
 )
 from src.generator.degradation import apply_capture_degradation
-from src.realism.distribution_stats import compare_summaries, format_comparison_markdown, summarize_stats
+from src.realism.distribution_stats import (
+    compare_summaries,
+    format_comparison_markdown,
+    measure_images,
+    summarize_stats,
+)
 from src.realism.image_stats import compute_image_stats, estimate_noise_sigma
+from src.realism.text_stats import compute_text_stats, summarize_text_stats
 
 
 def _text_page() -> Image.Image:
@@ -60,6 +66,61 @@ def test_compare_summaries_flags_distribution_shift() -> None:
     assert rows["noise_sigma"]["verdict"] != "close"
     report = format_comparison_markdown(list(rows.values()), "real", "synthetic")
     assert "| abs_skew_deg |" in report
+
+
+def test_measure_images_merges_layout_stats_into_rows() -> None:
+    rows = measure_images([_text_page()])
+    assert len(rows) == 1
+    row = rows[0]
+    # Image stats and layout stats share one row.
+    assert "est_dpi_a4" in row
+    assert "text_line_count" in row
+    assert "margin_top_frac" in row
+    assert row["text_line_count"] > 0
+
+
+def test_suggest_profile_specs_adds_margins_and_body_font_pt_when_layout_present() -> None:
+    from src.generator.distribution_profile import sample_value
+
+    rows = measure_images([_text_page(), _text_page()])
+    specs = summarize_stats(rows)["suggested_profile_specs"]
+    assert "margins_mm" in specs
+    assert set(specs["margins_mm"].keys()) == {"top", "bottom", "left", "right"}
+    assert "body_font_pt" in specs
+
+    rng = random.Random(0)
+    for side_spec in specs["margins_mm"].values():
+        sample_value(side_spec, rng)
+    sample_value(specs["body_font_pt"], rng)
+
+
+def test_suggest_profile_specs_omits_margins_without_layout_stats() -> None:
+    rows = [compute_image_stats(_text_page())]
+    specs = summarize_stats(rows)["suggested_profile_specs"]
+    assert "margins_mm" not in specs
+    assert "body_font_pt" not in specs
+
+
+def test_compare_summaries_includes_layout_metrics_for_image_rows() -> None:
+    reference = summarize_stats(measure_images([_text_page()]), source="real")
+    candidate = summarize_stats(measure_images([_text_page()]), source="synthetic")
+    rows = {row["metric"]: row for row in compare_summaries(reference, candidate)}
+    assert "text_line_count" in rows
+    assert "margin_top_frac" in rows
+    assert "rule_count" in rows
+
+
+def test_compare_summaries_works_on_text_stat_summaries() -> None:
+    reference_rows = [compute_text_stats("가나다라 abc123"), compute_text_stats("마바사아 def456")]
+    candidate_rows = [compute_text_stats("hello world only"), compute_text_stats("plain latin text")]
+    reference = summarize_text_stats(reference_rows, source="real-text")
+    candidate = summarize_text_stats(candidate_rows, source="synthetic-text")
+    rows = {row["metric"]: row for row in compare_summaries(reference, candidate)}
+    assert "hangul_share" in rows
+    # Reference has hangul, candidate has none: gap should be flagged, not "close".
+    assert rows["hangul_share"]["verdict"] != "close"
+    report = format_comparison_markdown(list(rows.values()), "real-text", "synthetic-text")
+    assert "| hangul_share |" in report
 
 
 def test_suggested_specs_are_valid_distribution_specs() -> None:

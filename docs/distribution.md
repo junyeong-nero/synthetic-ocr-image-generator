@@ -143,9 +143,51 @@ Treat every `[prior]` as a starting point. The next section shows how to replace
    - Tune channel weights and `perspective` using `aspect_ratio` / `abs_skew_deg`.
    - Repeat until the gaps are small.
 
-Measured metrics: size, `est_dpi_a4` (width / 8.27 in, which assumes full A4 portrait pages), skew (projection profile), Laplacian variance, Immerkaer noise sigma, background/ink luminance and contrast, ink ratio, Hasler–Süsstrunk colourfulness, and grayscale / binary / coloured-background flags. Blur and noise are measured at a fixed 1000 px width, so they are comparable across resolutions.
+Measured metrics: size, `est_dpi_a4` (width / 8.27 in, which assumes full A4 portrait pages), skew (projection profile), Laplacian variance, Immerkaer noise sigma, background/ink luminance and contrast, ink ratio, Hasler–Süsstrunk colourfulness, grayscale / binary / coloured-background flags, and the layout metrics below. Blur, noise and layout are measured at a fixed 1000 px width, so they are comparable across resolutions.
 
 **Limitation:** the skew estimator is reliable for scans (within about 0.1° of the true value). On photographed pages, perspective and desk borders dominate and the estimate is not meaningful.
+
+## Layout and Text Statistics
+
+A pixel-texture match (blur, noise, contrast) can still hide a page whose *structure* and *content* are unrealistic — a synthetic page can look "close" on the 12 metrics above while having lorem-ipsum text and web-CSS-wide margins. Two more measurement layers close that gap.
+
+### Layout metrics (`src/realism/layout_stats.py`)
+
+`distribution measure` / `distribution compare` automatically include these keys on every row, merged with the pixel-texture metrics above (no extra flag needed):
+
+| Metric | Meaning |
+|---|---|
+| `text_line_count` | Number of detected text-line bands (row-projection profile over an Otsu ink/no-ink binarisation) |
+| `text_line_height_frac` | Median text-line height as a fraction of page **width** |
+| `text_line_height_pt` | Median text-line height in points, assuming the page width is A4 (8.27 in) |
+| `margin_top_frac` / `margin_bottom_frac` / `margin_left_frac` / `margin_right_frac` | Ink-bounding-box margins as a fraction of page height / width |
+| `column_count` | 1 plus the number of persistent vertical white gutters spanning the full height of the ink bounding box |
+| `text_area_frac` | Ink-bounding-box area as a fraction of total page area |
+| `rule_count` | Long horizontal rules (table borders, `<hr>`s) found by morphological opening with a wide horizontal kernel, thin enough not to be a text line |
+
+**Limitation:** like the skew estimator, these are unreliable on photographed pages — perspective distortion and desk background break the row/column projection profiles.
+
+When layout stats are present, `distribution measure --suggest-yaml` also proposes `margins_mm` (paste under `page.margins_mm.{top,bottom,left,right}`, millimetres on an assumed A4 sheet) and `body_font_pt` (paste under `typography.body_font_pt`) histograms, in addition to the existing `dpi` / `skew_deg` / `grayscale` / `binarize` / `colored_background` specs.
+
+### Text metrics (`src/realism/text_stats.py`, `distribution text-stats`)
+
+Character-class shares and symbol usage from plain text, so lorem-ipsum or Latin-only content shows up as a gap even when the image looks right:
+
+```bash
+# Real reference text, one file per page
+uv run main.py distribution text-stats --text-dir /path/to/real_txt --output stats/real_text.json
+
+# Or a JSONL file with one text field per line
+uv run main.py distribution text-stats --texts real.jsonl --field text --output stats/real_text.json
+
+# Synthetic: reads GT_markdown and strips markdown syntax (#, *, |, list markers, links, HTML tags) first
+uv run main.py distribution text-stats --metadata ./pilot/ko/images_markdown/metadata.jsonl --output stats/pilot_text.json
+
+# Same `compare` command works on text-stat summaries
+uv run main.py distribution compare --reference stats/real_text.json --candidate stats/pilot_text.json
+```
+
+Per-page metrics: `chars_per_page`, `line_count`, `mean_line_length`, and a `_share` (of `len(text)`, including whitespace) for each of `hangul`, `hanja`, `kana`, `latin`, `digit`, `punctuation`, `symbol` (reference/list marks such as `□○※①`), `whitespace`. Shares need not sum to 1.0: characters outside these scripts (Cyrillic, Arabic, control characters, ...) are left uncounted. The summary also carries a `top_symbols` list: the most frequent punctuation/symbol characters across the whole corpus, useful for spotting missing 개조식 markers (`□`, `○`, `※`) in synthetic Korean text.
 
 ## Calibration Record: `real_world_v2`
 

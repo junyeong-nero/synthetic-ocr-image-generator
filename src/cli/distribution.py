@@ -49,6 +49,24 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
     compare.add_argument("--candidate", type=str, required=True)
     compare.add_argument("--output", type=str, default=None, help="Optional markdown report path")
     compare.set_defaults(handler=run_compare)
+
+    text_stats = subparsers.add_parser(
+        "text-stats",
+        help="Measure per-page text statistics (character-class shares, symbols) of real or generated text",
+    )
+    text_source = text_stats.add_mutually_exclusive_group(required=True)
+    text_source.add_argument(
+        "--metadata", type=str, help="Generated metadata.jsonl (uses GT_markdown, markdown syntax stripped)"
+    )
+    text_source.add_argument("--texts", type=str, help="JSONL file with one text field per line")
+    text_source.add_argument("--text-dir", type=str, help="Directory of .txt files (searched recursively)")
+    text_stats.add_argument("--field", type=str, default="text", help="With --texts: JSON field holding the text")
+    text_stats.add_argument("--max-texts", type=int, default=500)
+    text_stats.add_argument(
+        "--top-k", type=int, default=20, help="Number of most frequent non-alphanumeric symbols to record"
+    )
+    text_stats.add_argument("--output", type=str, required=True, help="Stats JSON output path")
+    text_stats.set_defaults(handler=run_text_stats)
     return parser
 
 
@@ -98,10 +116,46 @@ def run_measure(args: argparse.Namespace) -> int:
         suggest_path.write_text(
             "# Directly measured specs. Paste into a profile under capture_channels.<channel>\n"
             "# (dpi, skew_deg, grayscale, binarize) or typography (colored_background).\n"
+            "# margins_mm -> page.margins_mm.{top,bottom,left,right}; body_font_pt ->\n"
+            "# typography.body_font_pt (present only when layout stats could be measured).\n"
             + yaml.safe_dump(summary["suggested_profile_specs"], sort_keys=False, allow_unicode=True),
             encoding="utf-8",
         )
         logger.info("Suggested profile specs -> %s", suggest_path)
+    return 0
+
+
+def run_text_stats(args: argparse.Namespace) -> int:
+    from src.realism.text_stats import (
+        compute_text_stats,
+        iter_jsonl_texts,
+        iter_metadata_texts,
+        iter_text_dir,
+        summarize_text_stats,
+        top_symbols,
+    )
+
+    limit = args.max_texts if args.max_texts and args.max_texts > 0 else None
+    if args.metadata:
+        source = args.metadata
+        texts = list(iter_metadata_texts(Path(args.metadata), limit=limit))
+    elif args.texts:
+        source = args.texts
+        texts = list(iter_jsonl_texts(Path(args.texts), field=args.field, limit=limit))
+    else:
+        source = args.text_dir
+        texts = list(iter_text_dir(Path(args.text_dir), limit=limit))
+
+    if not texts:
+        logger.error("No texts could be read from %s", source)
+        return 1
+
+    rows = [compute_text_stats(text) for text in texts]
+    summary = summarize_text_stats(rows, source=source, top_symbols=top_symbols(texts, top_k=args.top_k))
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info("Measured text stats for %d pages from %s -> %s", len(rows), source, output)
     return 0
 
 
