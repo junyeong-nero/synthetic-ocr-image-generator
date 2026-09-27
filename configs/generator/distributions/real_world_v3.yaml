@@ -100,6 +100,15 @@ content:
   # Real pages have almost no look-alike typos, so do not inject them into the
   # image and GT (the CLI's --similar-char-ratio still overrides this).
   similar_char_ratio: 0.0
+  # [prior] Table content now uses coherent schemas (semantic columns,
+  # internally-consistent numbers) instead of the legacy unrelated columns.
+  # The 32% Financial Reports + 16% Laws share of DocLayNet that feeds this
+  # profile's family_mix (see the mapping above) reads as financial
+  # statements and order/budget tables, so financial and order tables
+  # dominate; schedule/roster/statistics round out forms and operations
+  # pages. Table-schema selection is independent of family_mix, so weights
+  # are set for the overall page mix rather than per family.
+  table_schemas: {financial: 4, order: 2, budget: 1, schedule: 1, roster: 1, statistics: 1}
 
 # Sheet geometry [measured]: real pages have aspect ~1.41 (A4); Letter 1.29.
 page:

@@ -107,6 +107,71 @@ def test_composer_emits_each_supported_block_type() -> None:
     assert "$$ x^2 + y^2 = z^2 $$" in markdown
 
 
+def test_content_specs_table_schemas_plumb_into_table_blocks() -> None:
+    random.seed(4)
+    composer = DocumentComposer(
+        data=DataProvider(lang="ko", mix_ratio=0.0, use_corpus=False),
+        clip_text=_clip,
+        formula_supplier=lambda: "x=y",
+        content_specs={"table_schemas": {"roster": 1.0}},
+    )
+    markdown, metadata = composer.compose(
+        {
+            "document_shape": "table_only",
+            "section_count": [1, 1],
+            "blocks_per_section": [1, 1],
+            "allowed_blocks": ["table"],
+            "required_blocks": ["table"],
+            "table": {"rows": [2, 2], "columns": [4, 4]},
+        }
+    )
+
+    assert metadata.block_types == ["table"]
+    assert "성명" in markdown
+    assert "소속" in markdown
+    assert "직위" in markdown
+    assert "연락처" in markdown
+
+
+def test_content_specs_without_table_schemas_keeps_legacy_table_output() -> None:
+    random.seed(4)
+    baseline_composer = DocumentComposer(
+        data=DataProvider(lang="ko", mix_ratio=0.0, use_corpus=False),
+        clip_text=_clip,
+        formula_supplier=lambda: "x=y",
+    )
+    baseline_markdown, _ = baseline_composer.compose(
+        {
+            "document_shape": "table_only",
+            "section_count": [1, 1],
+            "blocks_per_section": [1, 1],
+            "allowed_blocks": ["table"],
+            "required_blocks": ["table"],
+            "table": {"rows": [2, 2], "columns": [4, 4]},
+        }
+    )
+
+    random.seed(4)
+    scaled_composer = DocumentComposer(
+        data=DataProvider(lang="ko", mix_ratio=0.0, use_corpus=False),
+        clip_text=_clip,
+        formula_supplier=lambda: "x=y",
+        content_specs={"section_count_scale": 1.0},
+    )
+    scaled_markdown, _ = scaled_composer.compose(
+        {
+            "document_shape": "table_only",
+            "section_count": [1, 1],
+            "blocks_per_section": [1, 1],
+            "allowed_blocks": ["table"],
+            "required_blocks": ["table"],
+            "table": {"rows": [2, 2], "columns": [4, 4]},
+        }
+    )
+
+    assert baseline_markdown == scaled_markdown
+
+
 def test_composer_output_is_deterministic_with_seed() -> None:
     blueprint = {
         "document_shape": "release_note",
