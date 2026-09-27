@@ -178,6 +178,15 @@ def _model_id_from_report(payload: dict[str, Any], source_path: Path) -> str:
     return model_id or source_path.parent.name
 
 
+def _require_language_when_ambiguous(available: list[str], language: str | None, what: str) -> None:
+    """Raise a ValueError if `language` is needed to disambiguate `available`
+    but was not given. Mirrors this across every synthetic score source so a
+    caller never gets a silently-merged, cross-language result."""
+    if language is not None or len(available) <= 1:
+        return
+    raise ValueError(f"{what} has multiple languages ({available}); pass --language to select one.")
+
+
 def _scores_from_leaderboard_payload(
     payload: dict[str, Any], metric: str, language: str | None
 ) -> dict[str, float]:
@@ -194,12 +203,9 @@ def _scores_from_leaderboard_payload(
         ]
         if not blocks:
             raise ValueError(f"Language {language!r} not found in leaderboard; available: {available}")
-    elif len(available) == 1:
-        blocks = languages_block
     else:
-        raise ValueError(
-            f"Leaderboard has multiple languages ({available}); pass --language to select one."
-        )
+        _require_language_when_ambiguous(available, language, "Leaderboard")
+        blocks = languages_block
 
     scores: dict[str, float] = {}
     for block in blocks:
@@ -227,8 +233,11 @@ def load_synthetic_scores(
 
     if source.is_dir():
         rows = _collect_latest_rows(source)
+        available = sorted({str(row.get("language")) for row in rows})
         if language is not None:
             rows = [row for row in rows if str(row.get("language")) == language]
+        else:
+            _require_language_when_ambiguous(available, language, f"Synthetic scores under {source}")
         scores = {}
         for row in rows:
             model_id = row.get("model_id")

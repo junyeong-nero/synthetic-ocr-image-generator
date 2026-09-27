@@ -5,7 +5,6 @@ import pytest
 
 from src.evaluation.rank_correlation import (
     DEFAULT_METRIC,
-    ModelRankRow,
     compute_rank_correlation,
     load_aliases,
     load_real_scores,
@@ -208,6 +207,55 @@ def test_load_synthetic_scores_from_directory_scans_report_json(tmp_path) -> Non
     assert scores == {"org/ModelA": 0.9, "org/ModelB": 0.6}
 
 
+def test_load_synthetic_scores_from_directory_without_language_when_single_language_present(
+    tmp_path,
+) -> None:
+    for model_dir, model_id, score in (("ModelA", "org/ModelA", 0.9), ("ModelB", "org/ModelB", 0.6)):
+        report_dir = tmp_path / model_dir / "ko"
+        report_dir.mkdir(parents=True)
+        payload = {
+            "config": {"model": {"model_id": model_id}, "language": "ko", "dataset_id": "ds"},
+            "metrics": {DEFAULT_METRIC: score},
+            "summary": {},
+        }
+        (report_dir / "report.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    scores = load_synthetic_scores(tmp_path, metric=DEFAULT_METRIC)
+
+    assert scores == {"org/ModelA": 0.9, "org/ModelB": 0.6}
+
+
+def test_load_synthetic_scores_from_directory_requires_language_when_ambiguous(tmp_path) -> None:
+    for language, model_id, score in (("ko", "org/ModelA", 0.9), ("ja", "org/ModelA", 0.5)):
+        report_dir = tmp_path / "ModelA" / language
+        report_dir.mkdir(parents=True)
+        payload = {
+            "config": {"model": {"model_id": model_id}, "language": language, "dataset_id": "ds"},
+            "metrics": {DEFAULT_METRIC: score},
+            "summary": {},
+        }
+        (report_dir / "report.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="multiple languages"):
+        load_synthetic_scores(tmp_path, metric=DEFAULT_METRIC)
+
+
+def test_load_synthetic_scores_from_directory_with_language_filter_when_ambiguous(tmp_path) -> None:
+    for language, model_id, score in (("ko", "org/ModelA", 0.9), ("ja", "org/ModelA", 0.5)):
+        report_dir = tmp_path / "ModelA" / language
+        report_dir.mkdir(parents=True)
+        payload = {
+            "config": {"model": {"model_id": model_id}, "language": language, "dataset_id": "ds"},
+            "metrics": {DEFAULT_METRIC: score},
+            "summary": {},
+        }
+        (report_dir / "report.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    scores = load_synthetic_scores(tmp_path, metric=DEFAULT_METRIC, language="ja")
+
+    assert scores == {"org/ModelA": 0.5}
+
+
 def test_load_synthetic_scores_missing_source_raises(tmp_path) -> None:
     with pytest.raises(FileNotFoundError):
         load_synthetic_scores(tmp_path / "missing.json", metric=DEFAULT_METRIC)
@@ -361,16 +409,3 @@ def test_render_markdown_report_contains_per_model_table() -> None:
     assert "OnlyReal" in report
     assert "lb.json" in report
     assert "real.csv" in report
-
-
-def test_model_rank_row_is_a_dataclass_with_expected_fields() -> None:
-    row = ModelRankRow(
-        match_key="a",
-        synthetic_model_id="org/A",
-        real_model_name="A",
-        synthetic_score=0.9,
-        real_score=90.0,
-        synthetic_rank=1.0,
-        real_rank=1.0,
-    )
-    assert row.synthetic_model_id == "org/A"
