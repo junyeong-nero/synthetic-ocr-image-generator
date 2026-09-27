@@ -106,7 +106,17 @@ capture_channels:
       speckle_density: {beta: [1.5, 200], range: [0.0, 0.02], round: 5}
       grayscale: {p: 0.75}
       binarize: {p: 0.2}
+      binarize_method: {choices: [otsu, adaptive, sauvola], weights: [0.5, 0.3, 0.2]}   # [prior]
       jpeg_quality: {normal: [75, 10], clip: [40, 95], round: 0}
+      # [prior] Administrative archives are the classic home of official
+      # seals, hole-punched binders and repeated photocopier wear; every
+      # ratio here is a prior until re-fit against licensed AI Hub images.
+      stamp: {p: 0.30}
+      highlighter: {p: 0.08}
+      fold_lines: {choices: [0, 1, 2], weights: [0.75, 0.18, 0.07]}
+      punch_holes: {p: 0.35}
+      scanner_border: {beta: [1.5, 10], range: [0.0, 0.6], round: 3}
+      toner_streaks: {choices: [0, 0, 1, 2, 3], weights: [0.55, 0.15, 0.15, 0.1, 0.05]}
 
   photographed:
     weight: 0.20
@@ -121,3 +131,8 @@ capture_channels:
       noise_sigma: {lognormal: [1.8, 0.4], clip: [0.0, 20.0], round: 2}
       paper_tint: {p: 0.9}
       jpeg_quality: {normal: [70, 10], clip: [30, 92], round: 0}
+      # [prior] A phone photo of a bound administrative file/report.
+      page_curl: {beta: [1.5, 15], range: [0.0, 0.05], round: 4}
+      edge_crop: {beta: [1.5, 15], range: [0.0, 0.09], round: 4}
+      stamp: {p: 0.20}
+      punch_holes: {p: 0.15}

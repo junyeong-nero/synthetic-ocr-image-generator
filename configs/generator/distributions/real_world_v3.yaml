@@ -176,7 +176,17 @@ capture_channels:
       speckle_density: {beta: [1.2, 800], range: [0.0, 0.005], round: 5}
       grayscale: {p: 0.9}      # [measured] XFUND 100% grayscale
       binarize: {p: 0.05}      # [measured] XFUND 3%
+      binarize_method: {choices: [otsu, adaptive], weights: [0.7, 0.3]}   # [prior] used only when binarize is true
       jpeg_quality: {normal: [85, 6], clip: [60, 95], round: 0}
+      # [prior] Capture artifacts (Task 2): office scans occasionally carry a
+      # seal, a highlighter mark-up, a binder crease/holes, a flatbed edge
+      # shadow or faint toner streaks. Re-fit with `distribution measure`.
+      stamp: {p: 0.06}
+      highlighter: {p: 0.05}
+      fold_lines: {choices: [0, 1], weights: [0.92, 0.08]}
+      punch_holes: {p: 0.10}
+      scanner_border: {beta: [1.2, 20], range: [0.0, 0.5], round: 3}
+      toner_streaks: {choices: [0, 0, 0, 1, 2], weights: [0.7, 0.1, 0.1, 0.06, 0.04]}
 
   photographed:
     weight: 0.15
@@ -191,3 +201,11 @@ capture_channels:
       noise_sigma: {lognormal: [1.4, 0.4], clip: [0.0, 14.0], round: 2}
       paper_tint: {p: 0.7}
       jpeg_quality: {normal: [78, 8], clip: [45, 95], round: 0}
+      # [prior] Capture artifacts (Task 2): a phone photo of a bound/creased
+      # page shows book curvature and often misses part of the border; stamps
+      # and punch holes carry over from the physical page. Re-fit with
+      # `distribution measure`.
+      page_curl: {beta: [1.5, 25], range: [0.0, 0.05], round: 4}
+      edge_crop: {beta: [1.5, 20], range: [0.0, 0.08], round: 4}
+      stamp: {p: 0.04}
+      punch_holes: {p: 0.05}

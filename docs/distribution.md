@@ -58,22 +58,42 @@ A profile needs a real text corpus (`data/corpus/<lang>/paragraphs.txt`, see [Re
 
 When a profile is active, the legacy `--add-noise` / `--add-blur` toggles are ignored and the profile's degradations apply instead.
 
-### Degradations (`src/generator/degradation.py`)
+### Degradations (`src/generator/degradation.py`, effects in `src/generator/capture_artifacts.py`)
+
+Applied in this order: paper colour (tint, ink fade, bleed-through) → marks
+that need the clean, axis-aligned page and are not GT content (highlighter,
+stamp, fold lines, punch holes) — `edge_crop`'s real-text ink bounding box is
+snapshotted as a mask before these are drawn, so a stamp or punch hole is
+never mistaken for protected ink → page-shape geometry (page curl,
+perspective, skew), which carries that ink mask through the same warps →
+`edge_crop` crops the final, post-geometry image against the warped mask
+(never past it) → scan/photo lighting (scanner border, illumination, shadow)
+→ optics/sensor (blur, motion blur, toner streaks, noise, speckle) →
+grayscale/binarize + JPEG.
 
 | Key | Meaning |
 |---|---|
 | `paper_tint` | Warm or grey paper tint |
 | `ink_fade` | Pull ink towards the paper colour (0 to 1) |
-| `bleed_through` | Mirrored ghost of the reverse side (0 to 1) |
+| `bleed_through` | Ghost of the reverse side (0 to 1): the page mirrored, cut into horizontal bands that are shuffled and shifted, then blurred more strongly, so ghost text does not line up with the page's own lines |
+| `highlighter` | Translucent yellow bar over 1-3 text lines, found by a horizontal ink projection profile |
+| `stamp` | Red organisation seal (circle or rounded square, double ring, short Korean text), slightly rotated, uneven ink, multiply-blended near the lower right or over the last text lines |
+| `fold_lines` | Paper crease count (0-2): dark line, light edge, slight brightness step on one side |
+| `punch_holes` | 2-3 dark round holes confined to the left margin, left of the page's ink bounding box (never over ink) |
+| `edge_crop` | Crop part of the page border (0 to ~0.1), never past the ink bounding box, so GT stays complete; for photographed pages |
+| `page_curl` | Smooth vertical warp (0 to ~0.05, `cv2.remap`) simulating book curvature; for photographed pages |
 | `skew_deg` | In-plane rotation in degrees |
 | `perspective` | Corner jitter as a fraction of page size; photographed pages also get a desk-coloured border |
+| `scanner_border` | Dark shadow band along one or two page edges (0 to 1) |
 | `illumination` | Linear lighting gradient strength |
 | `shadow_strength` | Soft shadow over one side |
 | `blur_sigma` | Gaussian blur in output pixels |
 | `motion_blur_px` | Motion blur kernel length |
+| `toner_streaks` | Count of faint vertical streaks |
 | `noise_sigma` | Additive gaussian sensor noise (0 to 255 scale) |
 | `speckle_density` | Salt-and-pepper dust (fraction of pixels) |
-| `grayscale` / `binarize` | Single-channel output / Otsu bitonal output |
+| `grayscale` / `binarize` | Single-channel output / bitonal output |
+| `binarize_method` | Thresholding used when `binarize` is true: `otsu` (default, global), `adaptive` (local mean), or `sauvola` |
 | `jpeg_quality` | JPEG re-encode quality (`null` means none) |
 
 ### Distribution spec syntax

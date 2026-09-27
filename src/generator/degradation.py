@@ -2,24 +2,56 @@
 
 Parameters are sampled by ``DistributionProfile.sample_capture`` and applied
 here deterministically from a seeded ``random.Random``. Unknown or missing keys
-are ignored, so a profile only needs to list the effects it wants.
+are ignored, so a profile only needs to list the effects it wants. This module
+is a thin pipeline: the individual physical-artifact effects (stamp,
+highlighter, fold lines, punch holes, scanner border, toner streaks, page
+curl, edge crop, the bleed-through reverse side, binarize methods) live in
+``src/generator/capture_artifacts.py`` as self-contained functions so a later
+"scenario" step can group several of them behind one correlated knob.
 
 Supported parameter keys (all optional):
 
 - ``paper_tint`` (bool): warm/grey paper background tint
 - ``ink_fade`` (0..1): pull dark ink towards the paper colour
-- ``bleed_through`` (0..1): faint mirrored copy of the page (reverse side)
-- ``skew_deg`` (float): in-plane rotation
+- ``bleed_through`` (0..1): mirrored, band-shuffled copy of the page (reverse
+  side), so ghosts do not line up with the page's own lines
+- ``highlighter`` (bool): translucent yellow bar over 1-3 text lines found by
+  a horizontal ink projection profile
+- ``stamp`` (bool): red organisation seal, multiply-blended onto the page
+- ``fold_lines`` (int 0-2): paper crease (dark line + light edge)
+- ``punch_holes`` (bool): 2-3 dark holes confined to the left margin
+- ``edge_crop`` (0..~0.1): crop part of the border, never past the ink
+  bounding box (GT stays complete)
+- ``page_curl`` (0..~0.05): smooth vertical warp (book curvature), for
+  photographed pages
 - ``perspective`` (0..~0.1): corner jitter as a fraction of page size
+- ``skew_deg`` (float): in-plane rotation
+- ``scanner_border`` (0..1): dark shadow band along one or two page edges
 - ``illumination`` (0..1): linear lighting gradient strength
 - ``shadow_strength`` (0..1): soft cast shadow over one side of the page
 - ``blur_sigma`` (px): gaussian blur at output resolution
 - ``motion_blur_px`` (int): horizontal-ish motion blur kernel length
+- ``toner_streaks`` (int): faint vertical streaks
 - ``noise_sigma`` (0..255 scale): additive gaussian sensor noise
 - ``speckle_density`` (fraction of pixels): salt-and-pepper dust
 - ``grayscale`` (bool): convert to single channel (kept as RGB)
 - ``binarize`` (bool): fax/bitonal style thresholding
+- ``binarize_method`` (``otsu`` default | ``adaptive`` | ``sauvola``): used
+  when ``binarize`` is true
 - ``jpeg_quality`` (int | None): JPEG re-encode quality
+
+Application order (see ``apply_capture_degradation``): paper colour effects
+(tint, ink fade, bleed-through) are applied first; then, on the still-clean,
+axis-aligned page, decorative marks that are not GT content (highlighter,
+stamp, fold lines, punch holes) — ``edge_crop``'s real-text ink bounding box
+is also snapshotted here, as a mask, *before* those marks are drawn, so a
+stamp or punch hole is never mistaken for protected ink; then page-shape/
+geometry effects (page curl, perspective, skew), which carry that ink mask
+through the same warps; then ``edge_crop`` itself crops the final,
+post-geometry image against the warped mask (never past it); then scan/photo
+lighting (scanner border, illumination, shadow); then optics/sensor effects
+(blur, motion blur, toner streaks, noise, speckle); then the final
+grayscale/binarize + JPEG pass.
 """
 
 from __future__ import annotations
@@ -32,6 +64,8 @@ from typing import Any, Mapping, Tuple
 import cv2
 import numpy as np
 from PIL import Image
+
+from src.generator import capture_artifacts
 
 _PHOTO_BACKGROUNDS: Tuple[Tuple[int, int, int], ...] = (
     (58, 52, 46),
@@ -58,6 +92,8 @@ def apply_capture_degradation(
         arr = _apply_paper_tint(arr, rng)
         paper = _paper_color(arr)
 
+    fill = rng.choice(_PHOTO_BACKGROUNDS) if photographed else tuple(int(v) for v in paper)
+
     ink_fade = float(params.get("ink_fade") or 0.0)
     if ink_fade > 0:
         arr = arr + (paper - arr) * min(ink_fade, 0.9)
@@ -66,15 +102,89 @@ def apply_capture_degradation(
     if bleed > 0:
         arr = _apply_bleed_through(arr, paper, bleed, rng)
 
-    fill = rng.choice(_PHOTO_BACKGROUNDS) if photographed else tuple(int(v) for v in paper)
+    # Snapshot the real text ink bounding box now, before any decorative
+    # marks (highlighter/stamp/fold_lines/punch_holes, none of which are GT
+    # content) or geometry are applied, as a 0/255 mask. edge_crop carries
+    # this mask through page_curl/perspective/skew below so it can crop the
+    # *final* geometry (see apply_edge_crop's docstring) without ever
+    # cropping into real text ink.
+    edge_crop = float(params.get("edge_crop") or 0.0)
+    ink_mask: np.ndarray | None = None
+    if edge_crop > 0:
+        ink_box = capture_artifacts.ink_bounding_box(arr.mean(axis=2))
+        if ink_box is not None:
+            x0, y0, x1, y1 = ink_box
+            ink_mask = np.zeros(arr.shape[:2], dtype=np.float32)
+            ink_mask[y0:y1, x0:x1] = 255.0
+
+    # Marks that need the page in its clean, axis-aligned state: text-line
+    # detection (highlighter) and the left margin (punch holes) would be
+    # thrown off by a later skew, perspective warp or photographed-background
+    # padding.
+    if params.get("highlighter"):
+        arr = capture_artifacts.apply_highlighter(arr, rng)
+
+    if params.get("stamp"):
+        arr = capture_artifacts.apply_stamp(arr, rng)
+
+    fold_lines = int(params.get("fold_lines") or 0)
+    if fold_lines > 0:
+        arr = capture_artifacts.apply_fold_lines(arr, fold_lines, rng)
+
+    if params.get("punch_holes"):
+        arr = capture_artifacts.apply_punch_holes(arr, rng)
+
+    page_curl = float(params.get("page_curl") or 0.0)
+    if page_curl > 0:
+        height, width = arr.shape[:2]
+        map_x, map_y, _ = capture_artifacts.page_curl_maps(height, width, page_curl, rng)
+        arr = cv2.remap(
+            arr, map_x, map_y,
+            interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT,
+            borderValue=tuple(float(v) for v in fill),
+        )
+        if ink_mask is not None:
+            ink_mask = cv2.remap(
+                ink_mask, map_x, map_y,
+                interpolation=cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT,
+                borderValue=0.0,
+            )
 
     perspective = float(params.get("perspective") or 0.0)
     if perspective > 0:
-        arr = _apply_perspective(arr, perspective, fill, rng, pad=photographed)
+        matrix, margin, w2, h2 = _perspective_matrix(arr.shape, perspective, rng, pad=photographed)
+        if margin:
+            arr = cv2.copyMakeBorder(
+                arr, margin, margin, margin, margin,
+                cv2.BORDER_CONSTANT, value=tuple(float(v) for v in fill),
+            )
+            if ink_mask is not None:
+                ink_mask = cv2.copyMakeBorder(
+                    ink_mask, margin, margin, margin, margin,
+                    cv2.BORDER_CONSTANT, value=0.0,
+                )
+        arr = _warp_perspective(arr, matrix, (w2, h2), tuple(float(v) for v in fill))
+        if ink_mask is not None:
+            ink_mask = _warp_perspective(
+                ink_mask, matrix, (w2, h2), 0.0, interpolation=cv2.INTER_NEAREST
+            )
 
     skew = float(params.get("skew_deg") or 0.0)
     if abs(skew) > 1e-3:
-        arr = _apply_rotation(arr, skew, fill)
+        matrix, new_w, new_h = _rotation_matrix(arr.shape, skew)
+        arr = _warp_affine(arr, matrix, (new_w, new_h), tuple(float(v) for v in fill))
+        if ink_mask is not None:
+            ink_mask = _warp_affine(
+                ink_mask, matrix, (new_w, new_h), 0.0, interpolation=cv2.INTER_NEAREST
+            )
+
+    if edge_crop > 0:
+        ink_box = capture_artifacts.mask_bounding_box(ink_mask) if ink_mask is not None else None
+        arr = capture_artifacts.apply_edge_crop(arr, edge_crop, rng, ink_box=ink_box)
+
+    scanner_border = float(params.get("scanner_border") or 0.0)
+    if scanner_border > 0:
+        arr = capture_artifacts.apply_scanner_border(arr, scanner_border, rng)
 
     illumination = float(params.get("illumination") or 0.0)
     if illumination > 0:
@@ -92,6 +202,10 @@ def apply_capture_degradation(
     if motion >= 2:
         arr = _apply_motion_blur(arr, motion, rng)
 
+    toner_streaks = int(params.get("toner_streaks") or 0)
+    if toner_streaks > 0:
+        arr = capture_artifacts.apply_toner_streaks(arr, toner_streaks, rng)
+
     noise_sigma = float(params.get("noise_sigma") or 0.0)
     if noise_sigma > 0:
         arr = arr + np_rng.normal(0.0, noise_sigma, size=arr.shape[:2])[..., None]
@@ -105,7 +219,7 @@ def apply_capture_degradation(
     if params.get("grayscale") or params.get("binarize"):
         gray = cv2.cvtColor(arr.astype(np.uint8), cv2.COLOR_RGB2GRAY)
         if params.get("binarize"):
-            _, gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            gray = capture_artifacts.binarize_image(gray, params.get("binarize_method", "otsu"))
         arr = np.repeat(gray[..., None], 3, axis=2).astype(np.float32)
 
     result = Image.fromarray(arr.astype(np.uint8), mode="RGB")
@@ -137,16 +251,20 @@ def _apply_paper_tint(arr: np.ndarray, rng: random.Random) -> np.ndarray:
 
 
 def _apply_bleed_through(arr: np.ndarray, paper: np.ndarray, strength: float, rng: random.Random) -> np.ndarray:
-    mirrored = arr[:, ::-1, :]
-    shift_y = rng.randint(-arr.shape[0] // 20, arr.shape[0] // 20)
-    mirrored = np.roll(mirrored, shift_y, axis=0)
-    mirrored = cv2.GaussianBlur(mirrored, (0, 0), sigmaX=1.5)
-    ink = np.clip((paper - mirrored) / 255.0, 0.0, 1.0)
+    reverse = capture_artifacts.build_mirrored_reverse_side(arr, rng)
+    ink = np.clip((paper - reverse) / 255.0, 0.0, 1.0)
     return arr - ink * 255.0 * strength
 
 
-def _apply_rotation(arr: np.ndarray, angle: float, fill: Tuple[int, ...]) -> np.ndarray:
-    height, width = arr.shape[:2]
+def _rotation_matrix(shape: Tuple[int, ...], angle: float) -> Tuple[np.ndarray, int, int]:
+    """Build the ``warpAffine`` matrix + expanded output size for an in-plane rotation.
+
+    Split from applying the matrix so a caller (``apply_capture_degradation``)
+    can warp an ink mask through the *same* matrix as the colour image (kept
+    symmetric with ``_perspective_matrix``, whose split matters more since
+    that one also draws random jitter).
+    """
+    height, width = shape[:2]
     center = (width / 2.0, height / 2.0)
     matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
     cos, sin = abs(matrix[0, 0]), abs(matrix[0, 1])
@@ -154,32 +272,42 @@ def _apply_rotation(arr: np.ndarray, angle: float, fill: Tuple[int, ...]) -> np.
     new_h = int(math.ceil(height * cos + width * sin))
     matrix[0, 2] += new_w / 2.0 - center[0]
     matrix[1, 2] += new_h / 2.0 - center[1]
+    return matrix, new_w, new_h
+
+
+def _warp_affine(
+    arr: np.ndarray,
+    matrix: np.ndarray,
+    size: Tuple[int, int],
+    border_value: Any,
+    *,
+    interpolation: int = cv2.INTER_LINEAR,
+) -> np.ndarray:
     return cv2.warpAffine(
-        arr,
-        matrix,
-        (new_w, new_h),
-        flags=cv2.INTER_LINEAR,
-        borderMode=cv2.BORDER_CONSTANT,
-        borderValue=tuple(float(v) for v in fill),
+        arr, matrix, size,
+        flags=interpolation, borderMode=cv2.BORDER_CONSTANT, borderValue=border_value,
     )
 
 
-def _apply_perspective(
-    arr: np.ndarray,
+def _perspective_matrix(
+    shape: Tuple[int, ...],
     amount: float,
-    fill: Tuple[int, ...],
     rng: random.Random,
     *,
     pad: bool,
-) -> np.ndarray:
-    height, width = arr.shape[:2]
+) -> Tuple[np.ndarray, int, int, int]:
+    """Build the ``warpPerspective`` matrix + padded output size for corner jitter.
+
+    Split from applying the matrix (and from ``copyMakeBorder``, which the
+    caller still does separately for the colour image vs. the 0-filled ink
+    mask) so the *same* random jitter and matrix can be reused to warp an ink
+    mask alongside the colour image — computing it twice would consume the
+    rng differently each time and warp the mask with different jitter than
+    the image.
+    """
+    height, width = shape[:2]
     margin = int(round(max(width, height) * amount)) if pad else 0
-    if margin:
-        arr = cv2.copyMakeBorder(
-            arr, margin, margin, margin, margin,
-            cv2.BORDER_CONSTANT, value=tuple(float(v) for v in fill),
-        )
-    h2, w2 = arr.shape[:2]
+    w2, h2 = width + 2 * margin, height + 2 * margin
     src = np.float32([
         [margin, margin],
         [w2 - margin, margin],
@@ -194,13 +322,20 @@ def _apply_perspective(
         [rng.uniform(0, jitter_x), -rng.uniform(0, jitter_y)],
     ])
     matrix = cv2.getPerspectiveTransform(src, dst)
+    return matrix, margin, w2, h2
+
+
+def _warp_perspective(
+    arr: np.ndarray,
+    matrix: np.ndarray,
+    size: Tuple[int, int],
+    border_value: Any,
+    *,
+    interpolation: int = cv2.INTER_LINEAR,
+) -> np.ndarray:
     return cv2.warpPerspective(
-        arr,
-        matrix,
-        (w2, h2),
-        flags=cv2.INTER_LINEAR,
-        borderMode=cv2.BORDER_CONSTANT,
-        borderValue=tuple(float(v) for v in fill),
+        arr, matrix, size,
+        flags=interpolation, borderMode=cv2.BORDER_CONSTANT, borderValue=border_value,
     )
 
 
