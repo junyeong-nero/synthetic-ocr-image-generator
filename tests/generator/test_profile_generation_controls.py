@@ -13,7 +13,7 @@ from src.cli import generate as generate_cli
 from src.generation.options import GenerationOptions, GenerationTaskContext, PublishOptions
 from src.generation.readme_builder import build_dataset_readme
 from src.generator.data_provider import DataProvider
-from src.generator.distribution_profile import DistributionProfile
+from src.generator.distribution_profile import DistributionProfile, mm_to_css_px
 from src.generator.generator import Generator
 from src.generator.markdown_content import MarkdownDataGenerator
 from src.generator.markdown_render_utils import MarkdownStyle
@@ -280,3 +280,103 @@ def test_default_style_keeps_legacy_word_break_and_no_text_align() -> None:
     body_rule = _css_block(css, ".markdown-body")
     assert "word-break: break-word;" in body_rule
     assert "text-align:" not in body_rule
+
+
+def test_profile_table_style_applied_to_style() -> None:
+    profile = DistributionProfile.from_dict(
+        {"id": "t", "typography": {"table_style": "grid"}, **_CHANNELS}
+    )
+    style = MarkdownStyle()
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert style.table_style == "grid"
+
+
+def test_profile_without_table_style_key_leaves_legacy_default() -> None:
+    profile = DistributionProfile.from_dict({"id": "t", "typography": {}, **_CHANNELS})
+    style = MarkdownStyle()
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert style.table_style is None
+
+
+def test_profile_columns_and_gap_applied_to_style() -> None:
+    profile = DistributionProfile.from_dict(
+        {"id": "t", "page": {"columns": 2, "column_gap_mm": 10.5}, **_CHANNELS}
+    )
+    style = MarkdownStyle()
+    width_css = style.margin_left + style.content_width + style.margin_right
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert style.columns == 2
+    assert style.column_gap == mm_to_css_px(10.5, width_css)
+
+
+def test_profile_without_columns_key_leaves_single_column() -> None:
+    profile = DistributionProfile.from_dict({"id": "t", "page": {}, **_CHANNELS})
+    style = MarkdownStyle()
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert style.columns == 1
+    assert style.column_gap is None
+
+
+def test_profile_page_width_unchanged_when_columns_set() -> None:
+    profile = DistributionProfile.from_dict(
+        {"id": "t", "page": {"columns": 2, "column_gap_mm": 8}, **_CHANNELS}
+    )
+    style = MarkdownStyle()
+    width_before = style.margin_left + style.content_width + style.margin_right
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    width_after = style.margin_left + style.content_width + style.margin_right
+    assert width_after == width_before
+
+
+def test_profile_columns_family_conditioning_overrides_default_share() -> None:
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "page": {
+                "columns": {
+                    "default": {"choices": [1, 2], "weights": [1.0, 0.0]},
+                    "by_family": {"academic": {"choices": [1, 2], "weights": [0.0, 1.0]}},
+                }
+            },
+            **_CHANNELS,
+        }
+    )
+
+    academic_columns = set()
+    other_columns = set()
+    for seed in range(50):
+        style = MarkdownStyle()
+        plan_profile_render(profile, style, random.Random(seed), family="academic")
+        academic_columns.add(style.columns)
+
+        style = MarkdownStyle()
+        plan_profile_render(profile, style, random.Random(seed), family="forms")
+        other_columns.add(style.columns)
+
+    assert academic_columns == {2}
+    assert other_columns == {1}
+
+
+def test_family_kwarg_is_optional_and_uses_default_share() -> None:
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "page": {"columns": {"default": {"choices": [1, 2], "weights": [0.0, 1.0]}, "by_family": {}}},
+            **_CHANNELS,
+        }
+    )
+    style = MarkdownStyle()
+
+    plan_profile_render(profile, style, random.Random(0))
+
+    assert style.columns == 2

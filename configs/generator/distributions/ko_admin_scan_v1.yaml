@@ -65,6 +65,13 @@ typography:
   # with word-break: keep-all (breaks fall between words, not mid-syllable).
   text_align: {choices: [justify, left], weights: [0.8, 0.2]}
   word_break: {choices: [keep-all, normal], weights: [0.85, 0.15]}
+  # [prior] Korean administrative forms/reports overwhelmingly use fully
+  # gridded tables (HWP's default table style); shaded-header and web looks
+  # are less common, and the borderless/booktabs academic-writing look does
+  # not fit this family, so it is left out.
+  table_style:
+    choices: [grid, header_shaded, web]
+    weights: [0.6, 0.25, 0.15]
 
 # Page margins on A4 (210mm wide) as CSS padding [prior]: HWP page-setup
 # defaults (top 20mm + 15mm header zone = 35mm effective top margin, bottom

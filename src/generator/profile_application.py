@@ -51,6 +51,12 @@ class ProfileRenderPlan:
         # Hub schemas are inferred from the first row, so never emit None-typed values.
         if self.body_font_pt is not None:
             metadata["body_font_pt"] = float(self.body_font_pt)
+        table_style = self.typography.get("table_style")
+        if table_style:
+            metadata["table_style"] = str(table_style)
+        columns = self.page.get("columns")
+        if columns:
+            metadata["page_columns"] = int(columns)
         return metadata
 
 
@@ -62,8 +68,17 @@ def plan_profile_render(
     profile: DistributionProfile,
     style: MarkdownStyle,
     rng: random.Random,
+    *,
+    family: Optional[str] = None,
 ) -> ProfileRenderPlan:
-    """Mutate ``style`` in place according to the profile and return the plan."""
+    """Mutate ``style`` in place according to the profile and return the plan.
+
+    ``family`` is the selected template's family (``selected_template.family``
+    in ``Generator.generate_single``); it only affects keys that opt into
+    per-family conditioning (currently ``page.columns``, see
+    ``DistributionProfile.sample_page``). ``None`` uses each such key's
+    ``default`` spec, matching a profile that does not condition on family.
+    """
     typography = profile.sample_typography(rng)
     width_css = page_width_css(style)
 
@@ -88,6 +103,10 @@ def plan_profile_render(
     word_break = typography.get("word_break")
     if word_break:
         style.word_break = str(word_break)
+
+    table_style = typography.get("table_style")
+    if table_style:
+        style.table_style = str(table_style)
 
     spacing_scale = typography.get("spacing_scale")
     if spacing_scale:
@@ -123,10 +142,20 @@ def plan_profile_render(
     style.add_contrast = False
     style.render_scale = render_scale_for_dpi(capture.dpi, width_css)
 
-    page = profile.sample_page(rng)
+    page = profile.sample_page(rng, family=family)
     # Margins are converted with the same pre-margin page width used for the
     # DPI scale above, not the post-margin width, so both stay consistent.
     _apply_margins_mm(style, page.get("margins_mm"), width_css)
+
+    columns = page.get("columns")
+    if columns:
+        style.columns = int(columns)
+    # column-gap is subtracted from content_width by the browser's CSS column
+    # layout, not added to the page, so this must not touch margins/content_width
+    # (page_width_css(style) stays margin_left + content_width + margin_right).
+    column_gap_mm = page.get("column_gap_mm")
+    if column_gap_mm is not None:
+        style.column_gap = mm_to_css_px(float(column_gap_mm), width_css)
 
     return ProfileRenderPlan(
         profile_id=profile.profile_id,

@@ -123,6 +123,16 @@ page:
     bottom: {choices: [15, 25.4], weights: [0.55, 0.45]}
     left: {choices: [30, 25.4], weights: [0.55, 0.45]}
     right: {choices: [30, 25.4], weights: [0.55, 0.45]}
+  # [prior] No source gives a two-column-page census. Academic (conference
+  # paper / journal) layout is the classic two-column case, technical manuals
+  # occasionally use it (reference tables, glossaries); every other family
+  # keeps `default`'s small global share.
+  columns:
+    default: {choices: [1, 2], weights: [0.95, 0.05]}
+    by_family:
+      academic: {choices: [1, 2], weights: [0.6, 0.4]}
+      technical: {choices: [1, 2], weights: [0.85, 0.15]}
+  column_gap_mm: {uniform: [5, 10]}   # [prior] typical two-column gutter
 
 # Body fonts [measured]: v1 output had ~half the ink contrast of real pages;
 # hairline / light weights, the monospace coding font, archaic-Hangul variants
@@ -152,6 +162,14 @@ typography:
   # and word-break: keep-all (line breaks fall between words, not mid-syllable).
   text_align: {choices: [justify, left], weights: [0.65, 0.35]}
   word_break: {choices: [keep-all, normal], weights: [0.75, 0.25]}
+  # [prior] No source gives a table-style census; "web" (light borders,
+  # header shading, zebra rows) is the common office-suite default, "grid"
+  # and "header_shaded" are the next most common printed/office looks,
+  # "booktabs" is common in academic/technical writing (LaTeX default),
+  # "borderless" is rare outside minimalist design documents.
+  table_style:
+    choices: [web, grid, header_shaded, booktabs, borderless]
+    weights: [0.35, 0.25, 0.15, 0.15, 0.10]
 
 capture_channels:
   born_digital:

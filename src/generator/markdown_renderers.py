@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
+from src.generator.layout_css import columns_css, table_style_css
 from src.generator.markdown_render_utils import (
     MarkdownStyle,
     image_to_data_uri,
@@ -767,6 +768,8 @@ class HtmlMarkdownRenderer:
         )
         font_face_css, heading_family, code_family = self._font_face_declarations()
         text_align_css, word_break_css = self._body_text_css()
+        table_css = table_style_css(self.style, rule_css)
+        columns_layout_css = columns_css(self.style)
         css = f"""
 @page {{
   margin: 12mm 10mm 14mm 10mm;
@@ -796,6 +799,7 @@ html, body {{
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }}
+{columns_layout_css}
 .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body th {{ font-family: '{heading_family}', sans-serif; }}
 .markdown-body h1 {{ font-size: {self.style.h1_font_size}px; color: rgb{self.style.h1_color}; margin: 0 0 {round(16 * spacing)}px 0; }}
 .markdown-body h2 {{ font-size: {self.style.h2_font_size}px; color: rgb{self.style.h2_color}; margin: {round(18 * spacing)}px 0 {round(12 * spacing)}px 0; }}
@@ -846,22 +850,8 @@ html, body {{
   break-inside: avoid;
   page-break-inside: avoid;
 }}
-.markdown-body th, .markdown-body td {{
-  border: 1px solid {rule_css};
-  text-align: left;
-  padding: 8px 12px;
-  vertical-align: top;
-  overflow-wrap: break-word;
-  word-break: normal;
-}}
+{table_css}
 {hr_css}
-.markdown-body th {{
-  background: rgba(0, 0, 0, 0.06);
-  font-weight: 600;
-}}
-.markdown-body tbody tr:nth-child(even) td {{
-  background: rgba(0, 0, 0, 0.025);
-}}
 .markdown-body .md-formula {{
   margin: 0 0 {round(12 * spacing)}px 0;
   padding: 8px 10px;
