@@ -55,10 +55,15 @@ When a profile is active, the legacy `--add-noise` / `--add-blur` toggles are ig
 ### Degradations (`src/generator/degradation.py`, effects in `src/generator/capture_artifacts.py`)
 
 Applied in this order: paper colour (tint, ink fade, bleed-through) → marks
-that need the clean, axis-aligned page (highlighter, stamp, fold lines, punch
-holes, edge crop) → page-shape geometry (page curl, perspective, skew) →
-scan/photo lighting (scanner border, illumination, shadow) → optics/sensor
-(blur, motion blur, toner streaks, noise, speckle) → grayscale/binarize + JPEG.
+that need the clean, axis-aligned page and are not GT content (highlighter,
+stamp, fold lines, punch holes) — `edge_crop`'s real-text ink bounding box is
+snapshotted as a mask before these are drawn, so a stamp or punch hole is
+never mistaken for protected ink → page-shape geometry (page curl,
+perspective, skew), which carries that ink mask through the same warps →
+`edge_crop` crops the final, post-geometry image against the warped mask
+(never past it) → scan/photo lighting (scanner border, illumination, shadow)
+→ optics/sensor (blur, motion blur, toner streaks, noise, speckle) →
+grayscale/binarize + JPEG.
 
 | Key | Meaning |
 |---|---|

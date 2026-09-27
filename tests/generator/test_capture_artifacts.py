@@ -3,10 +3,11 @@ src/generator/degradation.py::apply_capture_degradation.
 """
 
 import random
+from pathlib import Path
 
 import numpy as np
 import pytest
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 from src.generator import capture_artifacts
 from src.generator.degradation import apply_capture_degradation
@@ -68,6 +69,40 @@ def test_apply_capture_degradation_dispatches_stamp_before_grayscale():
     assert red_dominant.any()
 
 
+def test_load_stamp_font_returns_none_when_no_candidate_font_exists(monkeypatch):
+    monkeypatch.setattr(capture_artifacts, "_FONT_DIR", Path("/nonexistent/path/does-not-exist"))
+    assert capture_artifacts._load_stamp_font(20) is None
+
+
+def test_draw_stamp_text_skips_drawing_when_font_is_none():
+    stamp = Image.new("RGBA", (120, 120), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(stamp)
+    before = np.asarray(stamp).copy()
+    capture_artifacts._draw_stamp_text(draw, 120, None, (200, 20, 20, 255), random.Random(1))
+    after = np.asarray(stamp)
+    assert np.array_equal(before, after), "no glyphs (not even tofu/blank ones) should be drawn without a font"
+
+
+def test_draw_stamp_text_draws_when_font_is_available():
+    stamp = Image.new("RGBA", (120, 120), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(stamp)
+    before = np.asarray(stamp).copy()
+    font = ImageFont.load_default()
+    capture_artifacts._draw_stamp_text(draw, 120, font, (200, 20, 20, 255), random.Random(1))
+    after = np.asarray(stamp)
+    assert not np.array_equal(before, after)
+
+
+def test_apply_stamp_does_not_crash_and_still_draws_the_ring_without_a_font(monkeypatch):
+    monkeypatch.setattr(capture_artifacts, "_load_stamp_font", lambda size: None)
+    arr = np.asarray(_striped_page(), dtype=np.float32)
+    result = capture_artifacts.apply_stamp(arr.copy(), random.Random(2))
+    diff_mask = np.any(np.abs(result - arr) > 1.0, axis=2)
+    assert diff_mask.any()
+    red_dominant = (result[..., 0] > result[..., 1] + 15) & (result[..., 0] > result[..., 2] + 15)
+    assert (red_dominant & diff_mask).any()
+
+
 # --------------------------------------------------------------------------
 # highlighter
 # --------------------------------------------------------------------------
@@ -92,6 +127,22 @@ def test_apply_highlighter_no_text_rows_is_identity():
     blank = np.full((200, 200, 3), 255.0, dtype=np.float32)
     result = capture_artifacts.apply_highlighter(blank.copy(), random.Random(1))
     assert np.array_equal(result, blank)
+
+
+def test_apply_highlighter_does_not_paint_the_margins_outside_ink_extent():
+    # Real highlighter strokes cover the text, not the full page width: the
+    # fixture's ink rows only span [MARGIN, width-MARGIN], so a strip well
+    # inside each margin must stay untouched by the highlighter.
+    arr = np.asarray(_striped_page(), dtype=np.float32)
+    result = capture_artifacts.apply_highlighter(arr.copy(), random.Random(5))
+    diff_rows = np.where(np.any(np.abs(result - arr) > 1.0, axis=(1, 2)))[0]
+    assert diff_rows.size > 0
+    band = result[diff_rows.min(): diff_rows.max() + 1]
+    orig_band = arr[diff_rows.min(): diff_rows.max() + 1]
+    assert np.array_equal(band[:, :20], orig_band[:, :20]), "left margin painted"
+    assert np.array_equal(band[:, -20:], orig_band[:, -20:]), "right margin painted"
+    # but the band does change some pixels within the ink extent
+    assert not np.array_equal(band[:, MARGIN:-MARGIN], orig_band[:, MARGIN:-MARGIN])
 
 
 # --------------------------------------------------------------------------
@@ -191,13 +242,35 @@ def test_apply_page_curl_warps_geometry_and_is_deterministic():
     b = capture_artifacts.apply_page_curl(arr.copy(), 0.03, random.Random(9), fill)
     assert np.array_equal(a, b)
     assert not np.array_equal(a, arr)
-    assert a.shape == arr.shape
+    # the canvas grows taller (by up to amount * height) to make room for
+    # content shifted down by the curl, so it never loses bottom-edge ink
+    assert a.shape[1] == arr.shape[1]
+    assert a.shape[0] >= arr.shape[0]
+    assert a.shape[0] <= arr.shape[0] + int(np.ceil(0.03 * arr.shape[0])) + 1
 
 
 def test_apply_page_curl_zero_amount_is_identity():
     arr = np.asarray(_striped_page(), dtype=np.float32)
     result = capture_artifacts.apply_page_curl(arr.copy(), 0.0, random.Random(9), (255.0, 255.0, 255.0))
     assert np.array_equal(result, arr)
+
+
+def test_apply_page_curl_does_not_lose_ink_reaching_the_bottom_edge():
+    # A page whose text runs all the way to the last rows (fit-to-sheet
+    # trimming fills pages up to the paper edge). page_curl shifts content
+    # down by up to `amount * height`; without extra canvas, the bottom rows
+    # get pushed past the image bounds and are lost even though GT_markdown
+    # still describes them (Global Constraint 5). Use a several-pixel-thick
+    # band (like a real text line, not a 1px line) so ordinary bilinear
+    # resampling of the warp doesn't itself dilute the darkest pixel.
+    width, height = 300, 200
+    arr = np.full((height, width, 3), 255.0, dtype=np.float32)
+    arr[height - 6:, :, :] = 0.0  # ink band reaching the very bottom edge
+    fill = (255.0, 255.0, 255.0)
+    result = capture_artifacts.apply_page_curl(arr.copy(), 0.05, random.Random(3), fill)
+    gray = result.mean(axis=2)
+    darkest_per_column = gray.min(axis=0)
+    assert np.all(darkest_per_column < 100.0), "some columns lost their bottom-edge ink"
 
 
 # --------------------------------------------------------------------------
@@ -220,6 +293,49 @@ def test_apply_edge_crop_zero_amount_is_identity():
     arr = np.asarray(_striped_page(), dtype=np.float32)
     result = capture_artifacts.apply_edge_crop(arr.copy(), 0.0, random.Random(3))
     assert np.array_equal(result, arr)
+
+
+def _black_ink_page(width: int = 400, height: int = 520) -> Image.Image:
+    # Pure-black ink (rather than the shared fixture's (20, 20, 20)) so a
+    # strict darkness threshold isolates real text ink from the `photographed`
+    # channel's desk-background fill colours, which are all measurably
+    # lighter (luminance ~43-137, see degradation._PHOTO_BACKGROUNDS) than
+    # true ink but well under a loose 200 threshold -- so a loose threshold
+    # would wrongly count "cropped off some background" as "lost ink".
+    image = Image.new("RGB", (width, height), (255, 255, 255))
+    draw = ImageDraw.Draw(image)
+    for row in range(MARGIN, height - MARGIN, ROW_PERIOD):
+        draw.rectangle((MARGIN, row, width - MARGIN, row + ROW_THICKNESS), fill=(0, 0, 0))
+    return image
+
+
+def test_edge_crop_after_perspective_and_skew_can_reach_the_page_edge():
+    # edge_crop must run against the FINAL (post-perspective/skew) geometry,
+    # not the pre-geometry paper margin, or it can never produce the "photo
+    # frame cuts off the page border" look: the desk background would always
+    # stay fully visible around the page.
+    page = _black_ink_page()
+    geometry_params = {"perspective": 0.06, "skew_deg": 4.0}
+    crop_params = {**geometry_params, "edge_crop": 0.2}
+    seed = 4
+
+    baseline = apply_capture_degradation(page, geometry_params, random.Random(seed), channel="photographed")
+    cropped = apply_capture_degradation(page, crop_params, random.Random(seed), channel="photographed")
+
+    ink_threshold = 30.0
+    base_ink = int((np.asarray(baseline, dtype=np.float32).mean(axis=2) < ink_threshold).sum())
+    crop_arr = np.asarray(cropped, dtype=np.float32)
+    crop_ink = int((crop_arr.mean(axis=2) < ink_threshold).sum())
+    assert crop_ink >= base_ink * 0.97, (
+        f"cropping must not remove the page's real ink: {crop_ink} < {base_ink}"
+    )
+
+    gray = crop_arr.mean(axis=2)
+    edge_means = [gray[0, :].mean(), gray[-1, :].mean(), gray[:, 0].mean(), gray[:, -1].mean()]
+    assert any(mean > 200.0 for mean in edge_means), (
+        "expected at least one image border to be paper-coloured (page cut off "
+        f"by the crop), got edge means {edge_means}"
+    )
 
 
 # --------------------------------------------------------------------------

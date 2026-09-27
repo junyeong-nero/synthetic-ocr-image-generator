@@ -32,6 +32,7 @@ Effects:
 
 from __future__ import annotations
 
+import math
 import random
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -63,7 +64,39 @@ def ink_bounding_box(gray: np.ndarray, threshold: float = 200.0) -> Optional[Tup
     return int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1
 
 
-def _load_stamp_font(size: int) -> ImageFont.ImageFont:
+def mask_bounding_box(
+    mask: np.ndarray, threshold: float = 127.0, pad: int = 2
+) -> Optional[Tuple[int, int, int, int]]:
+    """Bounding box ``(x0, y0, x1, y1)`` of pixels in ``mask`` brighter than
+    ``threshold``, expanded by ``pad`` pixels on each side (clipped to the
+    mask bounds).
+
+    Used to recover a ground-truth ink region after it has been carried
+    through a geometric warp (``cv2.remap``/``warpPerspective``/``warpAffine``)
+    as a 0/255 mask: the small ``pad`` is a safety margin against
+    interpolation softening the mask's edges during the warp, so callers like
+    ``apply_edge_crop`` never crop into resampled ink.
+    """
+    rows = np.where((mask > threshold).any(axis=1))[0]
+    cols = np.where((mask > threshold).any(axis=0))[0]
+    if rows.size == 0 or cols.size == 0:
+        return None
+    height, width = mask.shape[:2]
+    y0 = max(0, int(rows.min()) - pad)
+    y1 = min(height, int(rows.max()) + 1 + pad)
+    x0 = max(0, int(cols.min()) - pad)
+    x1 = min(width, int(cols.max()) + 1 + pad)
+    return x0, y0, x1, y1
+
+
+def _load_stamp_font(size: int) -> Optional[ImageFont.FreeTypeFont]:
+    """Load a Korean-capable stamp font, or ``None`` if none is installed.
+
+    ``None`` (rather than ``ImageFont.load_default()``) lets ``apply_stamp``
+    skip drawing the seal's text entirely when no CJK-capable font is
+    available: Pillow's built-in default font cannot render Hangul, so
+    drawing with it would leave tofu/blank glyphs instead of legible text.
+    """
     for name in _STAMP_FONT_CANDIDATES:
         path = _FONT_DIR / name
         if path.exists():
@@ -71,7 +104,26 @@ def _load_stamp_font(size: int) -> ImageFont.ImageFont:
                 return ImageFont.truetype(str(path), size)
             except OSError:
                 continue
-    return ImageFont.load_default()
+    return None
+
+
+def _draw_stamp_text(
+    draw: ImageDraw.ImageDraw,
+    size: int,
+    font: Optional[ImageFont.ImageFont],
+    color: Tuple[int, int, int, int],
+    rng: random.Random,
+) -> None:
+    """Draw the seal's short Korean text, or do nothing without a font."""
+    if font is None:
+        return
+    org = rng.choice(_STAMP_ORG_NAMES)
+    seal = rng.choice(_STAMP_SEALS)
+    for i, line in enumerate((org, seal)):
+        bbox = draw.textbbox((0, 0), line, font=font)
+        text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        y = size * (0.34 if i == 0 else 0.58)
+        draw.text(((size - text_w) / 2, y), line, font=font, fill=color)
 
 
 def apply_stamp(arr: np.ndarray, rng: random.Random) -> np.ndarray:
@@ -103,13 +155,7 @@ def apply_stamp(arr: np.ndarray, rng: random.Random) -> np.ndarray:
         )
 
     font = _load_stamp_font(max(8, size // 6))
-    org = rng.choice(_STAMP_ORG_NAMES)
-    seal = rng.choice(_STAMP_SEALS)
-    for i, line in enumerate((org, seal)):
-        bbox = draw.textbbox((0, 0), line, font=font)
-        text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        y = size * (0.34 if i == 0 else 0.58)
-        draw.text(((size - text_w) / 2, y), line, font=font, fill=color)
+    _draw_stamp_text(draw, size, font, color, rng)
 
     # Uneven ink: knock out random speckles from the alpha channel.
     np_rng = np.random.default_rng(rng.getrandbits(63))
@@ -169,7 +215,12 @@ def _group_consecutive(indices: np.ndarray) -> List[Tuple[int, int]]:
 
 
 def apply_highlighter(arr: np.ndarray, rng: random.Random) -> np.ndarray:
-    """Translucent yellow bar over 1-3 text lines (horizontal projection profile)."""
+    """Translucent yellow bar over 1-3 text lines (horizontal projection profile).
+
+    The bar is confined to the ink extent of the chosen line(s) (with a
+    small random inset from each end), like a real highlighter stroke, not
+    the full page width.
+    """
     height, width = arr.shape[:2]
     gray = arr.mean(axis=2)
     ink_per_row = (gray < 200.0).sum(axis=1)
@@ -186,11 +237,19 @@ def apply_highlighter(arr: np.ndarray, rng: random.Random) -> np.ndarray:
     y0 = max(0, y0 - pad)
     y1 = min(height, y1 + pad)
 
+    ink_cols = np.where((gray[chosen[0][0]: chosen[-1][1], :] < 200.0).any(axis=0))[0]
+    if ink_cols.size == 0:
+        return arr
+    x_min, x_max = int(ink_cols.min()), int(ink_cols.max()) + 1
+    extent = max(1, x_max - x_min)
+    x0 = x_min + int(rng.uniform(0.0, 0.05) * extent)
+    x1 = max(x0 + 1, x_max - int(rng.uniform(0.0, 0.05) * extent))
+
     result = arr.copy()
     color = np.array([255.0, 232.0, 60.0], dtype=np.float32)
     alpha = rng.uniform(0.35, 0.55)
-    region = result[y0:y1, :]
-    result[y0:y1, :] = region * (1.0 - alpha) + color * alpha
+    region = result[y0:y1, x0:x1]
+    result[y0:y1, x0:x1] = region * (1.0 - alpha) + color * alpha
     return result
 
 
@@ -294,6 +353,38 @@ def apply_toner_streaks(arr: np.ndarray, count: int, rng: random.Random) -> np.n
     return result
 
 
+def page_curl_maps(
+    height: int, width: int, amount: float, rng: random.Random
+) -> Tuple[np.ndarray, np.ndarray, int]:
+    """Build the ``cv2.remap`` maps for ``apply_page_curl``.
+
+    Returns ``(map_x, map_y, out_height)``. Exposed separately (not just
+    inside ``apply_page_curl``) so a caller that also needs to track an ink
+    mask through the same warp (``degradation.py``'s ``edge_crop``) can remap
+    both the page and the mask with the *same* random draw and maps, instead
+    of calling this twice and getting two different curls.
+
+    The output is taller than the input by the maximum shift: content moves
+    down by up to ``amount * height`` (towards the curled edge), so without
+    the extra canvas, ink already reaching the bottom edge of the input (a
+    page filled by fit-to-sheet trimming) would be warped past the image
+    bounds and lost even though GT_markdown still describes it.
+    """
+    max_shift = amount * height
+    pad = int(math.ceil(max_shift))
+    out_height = height + pad
+    side = rng.choice((-1.0, 1.0))
+    xs = np.arange(width, dtype=np.float32)
+    t = xs / max(1, width - 1)
+    if side < 0:
+        t = 1.0 - t
+    curve = (t ** 2) * max_shift
+
+    map_x, map_y = np.meshgrid(xs, np.arange(out_height, dtype=np.float32))
+    map_y = map_y - curve[np.newaxis, :]
+    return map_x.astype(np.float32), map_y.astype(np.float32), out_height
+
+
 def apply_page_curl(
     arr: np.ndarray,
     amount: float,
@@ -305,37 +396,50 @@ def apply_page_curl(
     if amount <= 0:
         return arr
     height, width = arr.shape[:2]
-    max_shift = amount * height
-    side = rng.choice((-1.0, 1.0))
-    xs = np.arange(width, dtype=np.float32)
-    t = xs / max(1, width - 1)
-    if side < 0:
-        t = 1.0 - t
-    curve = (t ** 2) * max_shift
-
-    map_x, map_y = np.meshgrid(xs, np.arange(height, dtype=np.float32))
-    map_y = map_y - curve[np.newaxis, :]
+    map_x, map_y, _ = page_curl_maps(height, width, amount, rng)
     return cv2.remap(
         arr,
-        map_x.astype(np.float32),
-        map_y.astype(np.float32),
+        map_x,
+        map_y,
         interpolation=cv2.INTER_LINEAR,
         borderMode=cv2.BORDER_CONSTANT,
         borderValue=tuple(float(v) for v in fill),
     )
 
 
-def apply_edge_crop(arr: np.ndarray, amount: float, rng: random.Random, ink_threshold: float = 200.0) -> np.ndarray:
-    """Crop the page border, never past the ink bounding box."""
+def apply_edge_crop(
+    arr: np.ndarray,
+    amount: float,
+    rng: random.Random,
+    ink_box: Optional[Tuple[int, int, int, int]] = None,
+    ink_threshold: float = 200.0,
+) -> np.ndarray:
+    """Crop the page border, never past the ink bounding box.
+
+    ``ink_box`` lets a caller pass in a bounding box already known in
+    ``arr``'s current coordinate frame (e.g. one carried through a
+    perspective/rotation warp via ``mask_bounding_box``), which is required
+    once the page has been through any geometry: detecting ink by pixel
+    threshold on the *final* image is unreliable there (a photographed page's
+    dark desk background reads as "ink" too). Without ``ink_box``, the ink
+    bounding box is detected directly on ``arr`` by pixel threshold, as
+    before (only valid pre-geometry, on the clean page).
+    """
     amount = max(0.0, float(amount))
     if amount <= 0:
         return arr
     height, width = arr.shape[:2]
-    gray = arr.mean(axis=2)
-    box = ink_bounding_box(gray, ink_threshold)
+    box = ink_box
+    if box is None:
+        gray = arr.mean(axis=2)
+        box = ink_bounding_box(gray, ink_threshold)
     if box is None:
         return arr
     ink_x0, ink_y0, ink_x1, ink_y1 = box
+    ink_x0 = max(0, min(width, ink_x0))
+    ink_x1 = max(0, min(width, ink_x1))
+    ink_y0 = max(0, min(height, ink_y0))
+    ink_y1 = max(0, min(height, ink_y1))
 
     max_left = ink_x0
     max_top = ink_y0
