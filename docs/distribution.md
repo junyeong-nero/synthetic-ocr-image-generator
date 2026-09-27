@@ -50,6 +50,7 @@ A profile needs a real text corpus (`data/corpus/<lang>/paragraphs.txt`, see [Re
 | `content.section_count_scale` / `extra_blocks_per_section` | Scale sections / add blocks per section for page density |
 | `content.paragraph_max_chars` / `paragraph_parts` | Paragraph length (number of corpus paragraphs joined, clip length) |
 | `content.similar_char_ratio` | Share of prose characters swapped for look-alikes in both image and GT. The bundled `real_world_v2` and `ko_admin_scan_v1` set `0.0`, since real pages have almost no such typos. `--similar-char-ratio` overrides it; without either, the default is `0.08` |
+| `content.table_schemas` | Mapping of table schema name -> selection weight (`financial`, `budget`, `schedule`, `roster`, `order`, `statistics`; see `src/generator/table_schemas.py`). Each schema has semantic, internally-consistent columns (e.g. `order`'s 금액 = 수량 x 단가, with a 합계 row) and ko/en/ja headers, instead of the legacy unrelated columns. Without this key (or without a profile), table generation is unchanged |
 | `page.aspect_ratio` | Sheet shape. Short content is padded to a full sheet; content longer than one sheet is cut at a block boundary and re-rendered, like the first page of a multi-page file (`page_trimmed` in metadata). `GT_markdown` always matches the image |
 | `capture_channels.<name>.weight` | Mix of `born_digital` / `scanned` / `photographed` pages |
 | `capture_channels.<name>.dpi` | Target resolution. Playwright renders with a matching device scale factor, so a 300 dpi page is about 2480 px wide |

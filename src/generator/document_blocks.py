@@ -193,6 +193,7 @@ class DocumentBlockBuilder:
         table_columns: Tuple[int, int] = (3, 5),
         paragraph_max_chars: int = 320,
         paragraph_parts: int = 1,
+        table_schemas: Mapping[str, float] | None = None,
     ) -> None:
         self.data = data
         self.clip_text = clip_text
@@ -201,7 +202,7 @@ class DocumentBlockBuilder:
         self.table_columns = table_columns
         self.paragraph_max_chars = max(40, int(paragraph_max_chars))
         self.paragraph_parts = max(1, int(paragraph_parts))
-        self.table_generator = TableGenerator(data=data, clip_text=clip_text)
+        self.table_generator = TableGenerator(data=data, clip_text=clip_text, table_schemas=table_schemas)
 
     def build(
         self,
@@ -356,6 +357,15 @@ class DocumentComposer:
                 sampled[key] = float(sample_value(spec, random))
         return sampled
 
+    def _table_schema_weights(self) -> Mapping[str, float] | None:
+        # `table_schemas` is a schema-name -> weight mapping, not a scalar
+        # distribution spec, so it is read directly rather than through
+        # `_sample_content()`.
+        weights = self.content_specs.get("table_schemas")
+        if not isinstance(weights, Mapping):
+            return None
+        return weights
+
     def compose(
         self,
         blueprint: Mapping[str, Any] | None = None,
@@ -392,6 +402,7 @@ class DocumentComposer:
             table_columns=parsed.table_columns,
             paragraph_max_chars=int(content.get("paragraph_max_chars", 320)),
             paragraph_parts=int(round(content.get("paragraph_parts", 1))),
+            table_schemas=self._table_schema_weights(),
         )
 
         lines: List[str] = [f"# {self.clip_text(self.data.title(), 96)}"]
