@@ -99,6 +99,45 @@ def test_two_column_page_reports_two_columns() -> None:
     assert stats["column_count"] == 2
 
 
+def test_one_column_page_with_justified_bullets_and_table_reports_one_column() -> None:
+    """A single-column page whose internal whitespace looks like a gutter in
+    several ordinary ways, none of which should trigger `column_count == 2`:
+    justified-text word gaps, a bullet-to-text indent (wide, but hugs the
+    left margin), and a small table's cell gaps (wide and bounded, but only
+    a minority of the page's lines)."""
+    width, height = 1000, 1100
+    image, draw = _page(width, height)
+
+    # 15 "justified" prose lines: words of fixed width separated by 10px
+    # gaps -- well under the ~2-3% page-width gutter threshold (25px here).
+    word_widths = [70, 70, 70, 70, 70, 70, 70, 70, 70, 110]
+    gap = 10
+    for row, y in enumerate(range(100, 100 + 15 * 34, 34)):
+        x = 80
+        for word_width in word_widths:
+            draw.rectangle((x, y, x + word_width - 1, y + 15), fill=(10, 10, 10))
+            x += word_width + gap
+
+    # 5 bullet-list lines: a marker, a wide indent hugging the left margin
+    # (bounded by ink on both sides, but nowhere near the page's middle),
+    # then text of varying length (short lines leave unbounded whitespace
+    # on the right, which must never read as an internal gutter run).
+    bullet_text_ends = [400, 700, 550, 350, 850]
+    for row, (y, text_end) in enumerate(zip(range(650, 650 + 5 * 34, 34), bullet_text_ends)):
+        draw.rectangle((80, y, 99, y + 15), fill=(10, 10, 10))  # marker
+        draw.rectangle((150, y, text_end, y + 15), fill=(10, 10, 10))  # text
+
+    # A small 4-column table: cell gaps are wide and bounded, but only 4 of
+    # the page's 24 lines, far short of the ~60% band-coverage threshold.
+    columns = [(80, 260), (300, 480), (520, 700), (740, 920)]
+    for y in range(860, 860 + 4 * 40, 40):
+        for col_start, col_end in columns:
+            draw.rectangle((col_start, y, col_end, y + 19), fill=(10, 10, 10))
+
+    stats = compute_layout_stats(image)
+    assert stats["column_count"] == 1
+
+
 def test_two_column_page_with_spanning_title_and_footer_reports_two_columns() -> None:
     """A full-width title and a centred page number both cross the gutter,
     as they typically do on real two-column pages (running head, page

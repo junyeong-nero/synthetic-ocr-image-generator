@@ -35,18 +35,20 @@ from src.realism.image_stats import resize_to_analysis_width
 # are ink. Low, because a single line of small text can be sparse.
 _ROW_INK_THRESHOLD = 0.01
 
-# A column counts towards a gutter when it has ink in at most this share of
-# the page's *text* rows (not all of them): a full-width running title or a
-# centred page number crossing the gutter must not disqualify it, since real
-# two-column pages almost always have exactly that kind of full-width
-# furniture. As long as the two-column body dominates the text-row count,
-# tolerating a systematic contribution from a few furniture rows still
-# leaves a wide margin against a genuine single-column page (which has no
-# empty column at all). A gutter run must also be at least this wide (as a
-# fraction of page width) and must not touch the ink bounding box's edges.
-_COLUMN_GAP_ROW_COVERAGE = 0.65
-_COLUMN_GAP_MIN_WIDTH_FRAC = 0.015
-_COLUMN_GAP_EDGE_MARGIN_FRAC = 0.02
+# Column-gutter detection works per text-line band, not per pixel row: for
+# each band, an "internal gap" is a white run bounded by ink on both sides
+# (so trailing whitespace after a short line -- unbounded on the right --
+# never counts) and wider than this fraction of page width (well above an
+# inter-word gap in justified text, or a bullet-to-text indent). A gutter is
+# an x-range covered by such an internal gap in a large share of bands
+# (`_COLUMN_GAP_BAND_COVERAGE`), centred in the middle part of the text area
+# (`_COLUMN_GUTTER_CENTER_*_FRAC`, as a fraction of the ink bbox width) --
+# that excludes left-hugging bullet/list indents, which are wide and
+# consistent but never near the middle of the page.
+_COLUMN_GAP_MIN_WIDTH_FRAC = 0.025
+_COLUMN_GAP_BAND_COVERAGE = 0.6
+_COLUMN_GUTTER_CENTER_MIN_FRAC = 0.25
+_COLUMN_GUTTER_CENTER_MAX_FRAC = 0.75
 
 # A long horizontal rule survives a morphological opening with a kernel this
 # wide (fraction of page width) and is thinner than this many rows; ordinary
@@ -88,7 +90,7 @@ def compute_layout_stats(image: Image.Image) -> Dict[str, float]:
             "left": left / width,
             "right": (width - 1 - right) / width,
         }
-        column_count = _estimate_column_count(binary, top, bottom, left, right, width)
+        column_count = _estimate_column_count(binary, bands, left, right, width)
         text_area_frac = ((bottom - top + 1) * (right - left + 1)) / (height * width)
 
     rule_count = _count_horizontal_rules(binary, width)
@@ -135,45 +137,67 @@ def _ink_bbox(binary: np.ndarray) -> Tuple[int, int, int, int] | Tuple[None, Non
     return int(row_idx[0]), int(row_idx[-1]), int(col_idx[0]), int(col_idx[-1])
 
 
-def _estimate_column_count(
-    binary: np.ndarray, top: int, bottom: int, left: int, right: int, width: int
-) -> int:
-    """Count persistent vertical white gaps across the page's text rows.
-
-    Evaluated over *text* rows only (rows that are part of a `_text_line_bands`
-    band): blank inter-line rows are white in every column regardless of
-    layout and would only dilute the signal. A column needs to be white in
-    just `_COLUMN_GAP_ROW_COVERAGE` of the text rows, not all of them, so
-    full-width furniture that crosses the gutter (running title, centred
-    page number) does not defeat detection as long as the two-column body
-    dominates the text-row count.
-    """
-    if bottom <= top or right <= left:
-        return 1
-
-    row_frac = binary.mean(axis=1) / 255.0
-    text_row_mask = row_frac[top : bottom + 1] > _ROW_INK_THRESHOLD
-    if not text_row_mask.any():
-        return 1
-
-    region = binary[top : bottom + 1, left : right + 1][text_row_mask]
-    ink_share = (region > 0).mean(axis=0)
-    gap_mask = ink_share <= (1.0 - _COLUMN_GAP_ROW_COVERAGE)
-
-    region_width = right - left + 1
-    min_gap_px = max(1, int(round(_COLUMN_GAP_MIN_WIDTH_FRAC * width)))
-    edge_margin_px = max(1, int(round(_COLUMN_GAP_EDGE_MARGIN_FRAC * width)))
-
-    padded = np.concatenate(([False], gap_mask, [False]))
+def _false_runs(mask: np.ndarray) -> List[Tuple[int, int]]:
+    """Contiguous (start, end) [end exclusive] index ranges where `mask` is False."""
+    inverted = ~mask
+    padded = np.concatenate(([False], inverted, [False]))
     diff = np.diff(padded.astype(np.int8))
     starts = np.flatnonzero(diff == 1)
     ends = np.flatnonzero(diff == -1)  # exclusive
+    return list(zip(starts.tolist(), ends.tolist()))
+
+
+def _estimate_column_count(
+    binary: np.ndarray, bands: List[Tuple[int, int]], left: int, right: int, width: int
+) -> int:
+    """Count persistent column gutters from per-band internal white runs.
+
+    For each text-line band, finds "internal" white runs: bounded by ink on
+    both sides *within that band*, so trailing whitespace after a short
+    line (unbounded on the right) is never one, and wider than
+    `_COLUMN_GAP_MIN_WIDTH_FRAC` of the page -- much wider than an
+    inter-word gap in justified text, so ordinary prose does not vote. A
+    gutter is an x-range covered by such a run in a large share of bands,
+    centred in the middle part of the text area -- a wide, consistent
+    bullet-to-text indent still does not qualify, since it hugs the left
+    margin rather than sitting mid-page.
+
+    A table with vertically bordered/padded cells produces the same kind of
+    wide, bounded, band-internal gap between columns. On a page dominated by
+    such a table (most bands come from table rows), this can still be
+    mistaken for a document column gutter -- not corrected for here.
+    """
+    if right <= left or not bands:
+        return 1
+
+    region_width = right - left + 1
+    min_run_px = max(1, int(round(_COLUMN_GAP_MIN_WIDTH_FRAC * width)))
+
+    votes = np.zeros(region_width, dtype=np.int32)
+    counted_bands = 0
+    for row_start, row_end in bands:
+        band_ink = binary[row_start : row_end + 1, left : right + 1].any(axis=0)
+        if not band_ink.any():
+            continue
+        counted_bands += 1
+        for start, end in _false_runs(band_ink):
+            if start == 0 or end == region_width:
+                continue  # touches this band's own edge: not bounded on both sides
+            if end - start >= min_run_px:
+                votes[start:end] += 1
+
+    if counted_bands == 0:
+        return 1
+
+    gap_mask = votes >= (_COLUMN_GAP_BAND_COVERAGE * counted_bands)
+    center_lo = _COLUMN_GUTTER_CENTER_MIN_FRAC * region_width
+    center_hi = _COLUMN_GUTTER_CENTER_MAX_FRAC * region_width
 
     gutters = 0
-    for start, end in zip(starts, ends):
+    for start, end in _false_runs(~gap_mask):
         run_width = end - start
         center = (start + end) / 2.0
-        if run_width >= min_gap_px and edge_margin_px <= center <= (region_width - edge_margin_px):
+        if run_width >= min_run_px and center_lo <= center <= center_hi:
             gutters += 1
     return gutters + 1
 
