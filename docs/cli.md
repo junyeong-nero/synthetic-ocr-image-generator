@@ -158,6 +158,27 @@ uv run main.py compare [REPORT_FILES...] [OPTIONS]
 
 ---
 
+## `rank-correlation`
+Correlate model rankings from this repo's synthetic evaluation outputs against an external "real" benchmark ranking (Spearman rho and Kendall tau, with a bootstrap 95% CI).
+
+```bash
+uv run main.py rank-correlation --synthetic evaluation_result/leaderboard.json --real real_scores.csv [OPTIONS]
+```
+
+### Options
+- `--synthetic`: Synthetic score source — an `evaluation_result/leaderboard.json`, a single `report.json`, or a directory scanned recursively for `report.json` files (e.g. `evaluation_result/`).
+- `--real`: Real benchmark scores — CSV with `model,score` columns (or any two columns, matched by name or position), or JSON (an object of `name: score`, or a list of `{"model": ..., "score": ...}` objects). YAML is also accepted for the equivalent structure.
+- `--metric`: Synthetic metric key to correlate (default: `avg_markdown_overall_score`).
+- `--aliases`: Optional JSON/YAML file mapping an alternate name (from either side) to the name it should be treated as equal to, for models whose synthetic and real names do not normalize to the same id.
+- `--language`: Language to select when `--synthetic` covers multiple languages (e.g. `ko`, `ja`); required when the source has more than one language.
+- `--output`: Also write the markdown report (summary + per-model rank table) to this path; the report is always printed to stdout.
+- `--bootstrap-iterations`: Bootstrap resamples for the 95% CI (default: `2000`).
+- `--seed`: Bootstrap RNG seed, for reproducible CIs (default: `12345`).
+
+Models are matched by a normalized id: any org/path prefix is stripped (text before the final `/`), then the remainder is lowercased with punctuation removed, e.g. `lightonai/LightOnOCR-2-1B` and `LightOnOCR 2.1B` both normalize to `lightonocr21b`.
+
+---
+
 ## `distribution measure`
 Measure visual statistics of real or generated document images.
 
