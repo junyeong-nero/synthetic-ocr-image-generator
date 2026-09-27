@@ -9,8 +9,12 @@
 # Numbers marked [prior] are engineering priors that should be re-fit with
 #   uv run main.py distribution measure --images <real images> --suggest-yaml ...
 # once you have a reference image set (see docs/distribution.md).
+#
+# v2.1: family_mix is now actually honoured (it used to come out close to one
+# equal share per template), single-block-type templates are down-weighted via
+# template_weights, and look-alike character substitution is off.
 id: real_world_v2
-version: "2"
+version: "2.1"
 description: >
   Mixed born-digital / scanned / photographed pages. Document family mix and
   block weights follow DocLayNet page and element statistics; scan skew follows
@@ -56,6 +60,16 @@ family_mix:
   forms: 0.15
   operations: 0.10
 
+# Template weight multipliers on the catalog weight (unlisted templates keep
+# 1.0, 0 excludes) [prior]. Within a family, templates are drawn in proportion
+# to catalog weight x multiplier. Pages of nothing but display formulas do not
+# occur in real documents. Pages of only tables (financial statements,
+# annexes) do, but less often than mixed pages: 0.6 gives table_heavy
+# (catalog weight 0.8) about a third of the forms family.
+template_weights:
+  formula_heavy: 0.0
+  table_heavy: 0.6
+
 # Relative weights for filling non-required block slots [sourced from DocLayNet
 # element shares]. List-items are counted per item in DocLayNet but our list
 # blocks hold 3-5 items, so list shares are divided by ~4. Captions and
@@ -84,6 +98,9 @@ content:
   extra_blocks_per_section: {choices: [1, 2, 2, 3]}
   paragraph_max_chars: {normal: [900, 220], clip: [300, 1500], round: 0}
   paragraph_parts: {choices: [2, 3, 4], weights: [0.3, 0.45, 0.25]}
+  # Real pages have almost no look-alike typos, so do not inject them into the
+  # image and GT (the CLI's --similar-char-ratio still overrides this).
+  similar_char_ratio: 0.0
 
 # Sheet geometry [measured]: real pages have aspect ~1.41 (A4); Letter 1.29.
 page:

@@ -76,7 +76,6 @@ def build_dataset_readme(
         f"--size {context.size}",
         f"--markdown-renderer {generation.markdown_renderer}",
         f"--style-profile {generation.style_profile}",
-        f"--similar-char-ratio {generation.similar_char_ratio}",
         f"--novelty-window {generation.novelty_window}",
         f"--novelty-threshold {generation.novelty_threshold}",
         f"--novelty-max-attempts {generation.novelty_max_attempts}",
@@ -85,6 +84,8 @@ def build_dataset_readme(
         f"--formula-random-weight {generation.formula_random_weight}",
         f"--formula-synthetic-weight {generation.formula_synthetic_weight}",
     ]
+    if generation.similar_char_ratio is not None:
+        generation_command.append(f"--similar-char-ratio {generation.similar_char_ratio}")
     if generation.template:
         generation_command.append(f"--template {generation.template}")
     if generation.template_family:
@@ -206,7 +207,7 @@ def build_dataset_readme(
             f"- Novelty window: `{generation.novelty_window}`",
             f"- Novelty threshold: `{generation.novelty_threshold}`",
             f"- Novelty max attempts: `{generation.novelty_max_attempts}`",
-            f"- Similar char ratio: `{generation.similar_char_ratio}`",
+            f"- Similar char ratio: `{format_optional_value(generation.similar_char_ratio)}`",
             f"- Similarity DB path: `{format_optional_value(generation.similarity_db_path)}`",
             f"- Formula source mode: `{generation.formula_source_mode}`",
             f"- Formula dataset path: `{format_optional_value(generation.formula_dataset_path)}`",

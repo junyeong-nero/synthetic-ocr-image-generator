@@ -144,8 +144,11 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     parser.add_argument(
         "--similar-char-ratio",
         type=float,
-        default=0.08,
-        help="Ratio of characters to replace with similar-looking characters",
+        default=None,
+        help=(
+            "Ratio of characters to replace with similar-looking characters "
+            "(default: the distribution profile's content.similar_char_ratio, else 0.08)"
+        ),
     )
     parser.add_argument(
         "--similarity-db-path",

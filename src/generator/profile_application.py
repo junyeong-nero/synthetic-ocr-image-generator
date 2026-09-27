@@ -99,6 +99,9 @@ def plan_profile_render(
         if not keep_heading_color:
             style.h1_color = style.h2_color = style.h3_color = (gray, gray, gray)
 
+    # Printed table borders and rules are the same ink as the text.
+    style.rule_color = style.text_color
+
     capture = profile.sample_capture(rng)
     # Profile degradations replace the renderer's legacy noise/blur/contrast.
     style.add_noise = False
