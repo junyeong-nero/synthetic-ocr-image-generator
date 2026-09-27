@@ -151,9 +151,53 @@ Treat every `[prior]` as a starting point. The next section shows how to replace
    - Tune channel weights and `perspective` using `aspect_ratio` / `abs_skew_deg`.
    - Repeat until the gaps are small.
 
-Measured metrics: size, `est_dpi_a4` (width / 8.27 in, which assumes full A4 portrait pages), skew (projection profile), Laplacian variance, Immerkaer noise sigma, background/ink luminance and contrast, ink ratio, Hasler–Süsstrunk colourfulness, and grayscale / binary / coloured-background flags. Blur and noise are measured at a fixed 1000 px width, so they are comparable across resolutions.
+Measured metrics: size, `est_dpi_a4` (width / 8.27 in, which assumes full A4 portrait pages), skew (projection profile), Laplacian variance, Immerkaer noise sigma, background/ink luminance and contrast, ink ratio, Hasler–Süsstrunk colourfulness, grayscale / binary / coloured-background flags, and the layout metrics below. Blur, noise and layout are measured at a fixed 1000 px width, so they are comparable across resolutions.
 
 **Limitation:** the skew estimator is reliable for scans (within about 0.1° of the true value). On photographed pages, perspective and desk borders dominate and the estimate is not meaningful.
+
+## Layout and Text Statistics
+
+A pixel-texture match (blur, noise, contrast) can still hide a page whose *structure* and *content* are unrealistic — a synthetic page can look "close" on the 12 metrics above while having lorem-ipsum text and web-CSS-wide margins. Two more measurement layers close that gap.
+
+### Layout metrics (`src/realism/layout_stats.py`)
+
+`distribution measure` / `distribution compare` automatically include these keys on every row, merged with the pixel-texture metrics above (no extra flag needed):
+
+| Metric | Meaning |
+|---|---|
+| `text_line_count` | Number of detected text-line bands (row-projection profile over an Otsu ink/no-ink binarisation) |
+| `text_line_height_frac` | Median text-line height as a fraction of page **width** |
+| `text_line_height_pt` | Median text-line height in points, assuming the page width is A4 (8.27 in). This is the *ink* height of a line band, not the font's em size — it runs smaller than the configured body font size and is not offered as a `body_font_pt` suggestion (see below) |
+| `margin_top_frac` / `margin_bottom_frac` / `margin_left_frac` / `margin_right_frac` | Ink-bounding-box margins as a fraction of page height / width |
+| `column_count` | 1 plus the number of persistent column gutters. Evaluated per text-line band: an "internal gap" is a white run bounded by ink on both sides of that band (so empty space after a short line is never one) and wider than ~2.5% of page width (well above an inter-word gap). A gutter is an x-range covered by such a gap in ≥60% of bands, centred in the middle 25-75% of the text area — so a full-width running title or centred page number crossing the gutter, or a wide-but-left-hugging bullet/list indent, do not defeat or fake detection |
+| `text_area_frac` | Ink-bounding-box area as a fraction of total page area |
+| `rule_count` | Long horizontal rules (table borders, `<hr>`s) found by morphological opening with a wide horizontal kernel, thin enough not to be a text line |
+
+**Limitations:** like the skew estimator, these are unreliable on photographed pages — perspective distortion and desk background break the row/column projection profiles. A table with solid vertical borders (a ruled column separator running the table's full height) can put ink in every row of the table, merging the whole table into a single `text_line_count` band and inflating its measured height. A page whose bands are *dominated* by a well-aligned multi-column table (most lines are table rows, e.g. several stacked tables with little prose) can likewise read as multiple `column_count` — the table's bounded, consistently positioned cell gaps look exactly like a document column gutter from this metric's point of view; this is a known limitation, not corrected for.
+
+When layout stats are present, `distribution measure --suggest-yaml` also proposes `margins_mm` (paste under `page.margins_mm.{top,bottom,left,right}`, millimetres on an assumed A4 sheet), in addition to the existing `dpi` / `skew_deg` / `grayscale` / `binarize` / `colored_background` specs. There is no `body_font_pt` suggestion: `text_line_height_pt` is ink-band height, not the font's em size (Hangul ink is roughly 0.8-0.9 em, Latin depends on ascenders/descenders, headings and merged bands shift it further), so it would be a systematically biased proposal. Use `text_line_height_pt` in `distribution compare` to check line height directly instead of deriving a font-size suggestion from it.
+
+### Text metrics (`src/realism/text_stats.py`, `distribution text-stats`)
+
+Character-class shares and symbol usage from plain text, so lorem-ipsum or Latin-only content shows up as a gap even when the image looks right:
+
+```bash
+# Real reference text, one file per page
+uv run main.py distribution text-stats --text-dir /path/to/real_txt --output stats/real_text.json
+
+# Or a JSONL file with one text field per line
+uv run main.py distribution text-stats --texts real.jsonl --field text --output stats/real_text.json
+
+# Synthetic: reads GT_markdown and strips markdown syntax (#, *, |, list markers, links, HTML tags) first
+uv run main.py distribution text-stats --metadata ./pilot/ko/images_markdown/metadata.jsonl --output stats/pilot_text.json
+
+# Same `compare` command works on text-stat summaries
+uv run main.py distribution compare --reference stats/real_text.json --candidate stats/pilot_text.json
+```
+
+Per-page metrics: `chars_per_page`, `line_count`, `mean_line_length`, and a `_share` (of `len(text)`, including whitespace) for each of `hangul`, `hanja`, `kana`, `latin`, `digit`, `punctuation`, `symbol` (reference/list marks such as `□○※①`), `whitespace`. Shares need not sum to 1.0: characters outside these scripts (Cyrillic, Arabic, control characters, ...) are left uncounted. The summary also carries a `top_symbols` list: the most frequent punctuation/symbol characters across the whole corpus, useful for spotting missing 개조식 markers (`□`, `○`, `※`) in synthetic Korean text.
+
+**Limitation:** `mean_line_length` is not comparable across sources with different line conventions. `GT_markdown` paragraphs are one long logical line each (breaks only at explicit markdown boundaries), while OCR transcripts and most real reference `.txt` files keep the document's visual line breaks. `distribution compare` will show a large gap on this metric that reflects the convention mismatch, not real content — reformat one side to match, or ignore `mean_line_length` in the comparison.
 
 ## Calibration Record: `real_world_v2`
 

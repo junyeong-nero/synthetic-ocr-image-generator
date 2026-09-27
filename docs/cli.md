@@ -190,7 +190,9 @@ uv run main.py distribution measure (--images DIR | --metadata JSONL | --hf-data
 - `--images` / `--metadata` / `--hf-dataset`: Image source (directory, generated `metadata.jsonl`, or streamed HF dataset with `--hf-config`, `--hf-split`, `--hf-image-column`).
 - `--where key=value`: With `--metadata`, only rows matching the filter (repeatable), e.g. `capture_channel=scanned`.
 - `--max-images`: Limit (default: `500`; `0` = all).
-- `--suggest-yaml`: Also write directly measurable profile specs (DPI and skew histograms, grayscale, binary and coloured-background rates).
+- `--suggest-yaml`: Also write directly measurable profile specs (DPI and skew histograms, grayscale, binary and coloured-background rates, plus a `margins_mm` histogram derived from layout stats).
+
+Every row also carries the layout metrics from `src/realism/layout_stats.py` (`text_line_count`, `text_line_height_frac`/`_pt`, `margin_*_frac`, `column_count`, `text_area_frac`, `rule_count`) merged in automatically — see [distribution.md](distribution.md#layout-and-text-statistics).
 
 ## `distribution compare`
 Compare a candidate stats JSON against a reference stats JSON.
@@ -199,7 +201,23 @@ Compare a candidate stats JSON against a reference stats JSON.
 uv run main.py distribution compare --reference REAL.json --candidate SYN.json [--output GAP.md]
 ```
 
-Prints a table ranked by normalised Wasserstein distance: under 0.1 is close, 0.1 to 0.3 is noticeable, above 0.3 is different.
+Prints a table ranked by normalised Wasserstein distance: under 0.1 is close, 0.1 to 0.3 is noticeable, above 0.3 is different. Works on `distribution measure` output or on `distribution text-stats` output (any two summaries with the same metric keys).
+
+## `distribution text-stats`
+Measure per-page text statistics (character-class shares, symbol usage) of real or generated text.
+
+```bash
+uv run main.py distribution text-stats (--metadata JSONL | --texts JSONL | --text-dir DIR) --output STATS.json [OPTIONS]
+```
+
+### Options
+- `--metadata`: Generated `metadata.jsonl`; reads `GT_markdown` with markdown syntax (`#`, `*`, `|`, list markers, links, HTML tags) stripped first.
+- `--texts` / `--field`: JSONL file with one text per line, and the field name holding it (default `text`).
+- `--text-dir`: Directory of `.txt` files (searched recursively, no stripping).
+- `--max-texts`: Limit (default: `500`; `0` = all).
+- `--top-k`: Number of most frequent non-alphanumeric symbols to record (default: `20`).
+
+See [distribution.md](distribution.md#layout-and-text-statistics) for the metric list.
 
 ---
 

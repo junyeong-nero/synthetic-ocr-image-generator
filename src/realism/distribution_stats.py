@@ -11,6 +11,13 @@ import numpy as np
 from PIL import Image
 
 from src.realism.image_stats import compute_image_stats
+from src.realism.layout_stats import compute_layout_stats
+
+# Standard A4 sheet size in mm, used to turn measured ink-bbox margin
+# fractions into millimetre suggestions for the `page.margins_mm` profile
+# key. Only an approximation when the reference set is not itself A4-shaped.
+_A4_WIDTH_MM = 210.0
+_A4_HEIGHT_MM = 297.0
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +38,17 @@ KEY_METRICS = (
     "is_grayscale",
     "is_binary",
     "is_colored_background",
+    # Layout metrics (src/realism/layout_stats.py); present when rows came
+    # from `measure_images` rather than bare `compute_image_stats`.
+    "text_line_count",
+    "text_line_height_frac",
+    "margin_top_frac",
+    "margin_bottom_frac",
+    "margin_left_frac",
+    "margin_right_frac",
+    "column_count",
+    "text_area_frac",
+    "rule_count",
 )
 
 
@@ -88,21 +106,33 @@ def iter_hf_images(
             yield image
 
 
+def _compute_image_and_layout_stats(image: Image.Image) -> Dict[str, float]:
+    """Per-image pixel-texture stats merged with layout stats (one row)."""
+    stats = compute_image_stats(image)
+    stats.update(compute_layout_stats(image))
+    return stats
+
+
 def measure_images(images: Iterable[Image.Image | Path]) -> List[Dict[str, float]]:
     rows: List[Dict[str, float]] = []
     for item in images:
         try:
             if isinstance(item, Path):
                 with Image.open(item) as handle:
-                    rows.append(compute_image_stats(handle))
+                    rows.append(_compute_image_and_layout_stats(handle))
             else:
-                rows.append(compute_image_stats(item))
+                rows.append(_compute_image_and_layout_stats(item))
         except Exception as exc:  # pragma: no cover - defensive for bad files
             logger.warning("Skipping unreadable image %s: %s", item, exc)
     return rows
 
 
-def summarize_stats(rows: List[Dict[str, float]], *, source: str = "") -> Dict[str, Any]:
+def summarize_metric_rows(rows: List[Dict[str, float]]) -> Dict[str, Any]:
+    """Per-key {mean, std, median, p05, p95, quantiles} over `rows`.
+
+    Shared by image-stat and text-stat summaries so both produce the same
+    shape and can be diffed with `compare_summaries`.
+    """
     metrics: Dict[str, Any] = {}
     if rows:
         for key in rows[0].keys():
@@ -117,10 +147,14 @@ def summarize_stats(rows: List[Dict[str, float]], *, source: str = "") -> Dict[s
                 "p95": float(np.quantile(values, 0.95)),
                 "quantiles": [round(float(v), 6) for v in np.quantile(values, QUANTILE_POINTS)],
             }
+    return metrics
+
+
+def summarize_stats(rows: List[Dict[str, float]], *, source: str = "") -> Dict[str, Any]:
     return {
         "source": source,
         "count": len(rows),
-        "metrics": metrics,
+        "metrics": summarize_metric_rows(rows),
         "suggested_profile_specs": suggest_profile_specs(rows),
     }
 
@@ -154,13 +188,40 @@ def suggest_profile_specs(rows: List[Dict[str, float]]) -> Dict[str, Any]:
         return np.array([row[key] for row in rows], dtype=np.float64)
 
     skew = column("skew_deg")
-    return {
+    specs: Dict[str, Any] = {
         "dpi": {**_histogram_spec(column("est_dpi_a4"), bins=8, clip=(60, 400)), "round": 0},
         "skew_deg": {**_histogram_spec(skew, bins=12, clip=(-10, 10)), "round": 2},
         "grayscale": {"p": round(float(column("is_grayscale").mean()), 3)},
         "binarize": {"p": round(float(column("is_binary").mean()), 3)},
         "colored_background": {"p": round(float(column("is_colored_background").mean()), 3)},
     }
+
+    # Layout stats (src/realism/layout_stats.py) are only present when rows
+    # came from `measure_images`; guard so this still works on plain
+    # `compute_image_stats` rows. Paste under `page.margins_mm`.
+    margin_sides = ("top", "bottom", "left", "right")
+    if all(f"margin_{side}_frac" in rows[0] for side in margin_sides):
+        specs["margins_mm"] = {
+            side: {
+                **_histogram_spec(
+                    column(f"margin_{side}_frac") * (_A4_WIDTH_MM if side in ("left", "right") else _A4_HEIGHT_MM),
+                    bins=8,
+                    clip=(0, _A4_HEIGHT_MM),
+                ),
+                "round": 1,
+            }
+            for side in margin_sides
+        }
+
+    # No `typography.body_font_pt` suggestion: `text_line_height_pt` (see
+    # layout_stats.py) is the ink height of a text-line band, not the font's
+    # em size (Hangul ink is roughly 0.8-0.9 em; Latin depends on
+    # ascenders/descenders; headings and merged bands shift it further), so
+    # it is systematically biased relative to the actual body font size. Use
+    # `text_line_height_pt` in `distribution compare` to check line height
+    # directly instead.
+
+    return specs
 
 
 def compare_summaries(reference: Dict[str, Any], candidate: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -174,7 +235,14 @@ def compare_summaries(reference: Dict[str, Any], candidate: Dict[str, Any]) -> L
     results: List[Dict[str, Any]] = []
     ref_metrics = reference.get("metrics", {})
     cand_metrics = candidate.get("metrics", {})
-    for key in KEY_METRICS:
+    # Image-stat summaries compare on the curated KEY_METRICS list as before.
+    # Any other summary shape (e.g. text-stats: hangul_share, chars_per_page,
+    # ...) falls back to every metric both sides share, so `distribution
+    # compare` also works on `distribution text-stats` output.
+    keys = [key for key in KEY_METRICS if key in ref_metrics and key in cand_metrics]
+    if not keys:
+        keys = sorted(set(ref_metrics) & set(cand_metrics))
+    for key in keys:
         ref = ref_metrics.get(key)
         cand = cand_metrics.get(key)
         if not ref or not cand:
