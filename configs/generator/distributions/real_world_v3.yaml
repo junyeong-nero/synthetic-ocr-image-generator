@@ -109,6 +109,13 @@ content:
   # pages. Table-schema selection is independent of family_mix, so weights
   # are set for the overall page mix rather than per family.
   table_schemas: {financial: 4, order: 2, budget: 1, schedule: 1, roster: 1, statistics: 1}
+  # [sourced] SciTSR (Chi et al. 2019, https://arxiv.org/abs/1908.04729):
+  # 2,885 of 12,000 train and 716 of 3,000 test tables (~24%) have at least
+  # one spanning cell. Share of schema tables written as a merged-cell HTML
+  # <table> (multi-level headers, row groups; src/generator/html_table.py).
+  # SciTSR is scientific papers; financial and administrative tables likely
+  # merge more often, so treat 0.25 as a floor to re-fit on target data.
+  merged_table_ratio: 0.25
 
 # Sheet geometry [measured]: real pages have aspect ~1.41 (A4); Letter 1.29.
 # Margins [prior]: mixes Korean HWP page-setup defaults (top 20mm + 15mm

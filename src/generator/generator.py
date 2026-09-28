@@ -360,7 +360,12 @@ class Generator(BaseGenerator):
         if hasattr(self.data_generator, "block_weights"):
             self.data_generator.block_weights = dict(block_weights)
         if hasattr(self.data_generator, "content_specs"):
-            self.data_generator.content_specs = dict(profile.content) if profile else {}
+            content_specs = dict(profile.content) if profile else {}
+            if self.markdown_renderer == "pil":
+                # The PIL renderer would draw a merged-cell HTML table's tags
+                # as text, so the image would not match GT; keep pipe tables.
+                content_specs.pop("merged_table_ratio", None)
+            self.data_generator.content_specs = content_specs
         if profile is not None:
             self._require_text_corpus(profile)
         self.similar_char_ratio = self._resolve_similar_char_ratio(

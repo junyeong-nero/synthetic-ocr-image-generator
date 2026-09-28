@@ -139,3 +139,41 @@ def test_python_markdown_renders_html_table_verbatim() -> None:
         assert table in rendered
     assert "<p><table" not in rendered
     assert rendered.count("<table>") == len(_html_tables(markdown))
+
+
+def test_profiles_switch_merged_tables_on_only_where_intended() -> None:
+    from src.generator.distribution_profile import load_distribution_profile
+
+    for name in ("real_world_v3", "ko_admin_scan_v1"):
+        content = load_distribution_profile(name).content
+        assert 0.0 < float(content["merged_table_ratio"]) <= 1.0, name
+        assert content.get("table_schemas"), name  # merged layouts need schema tables
+    for name in ("real_world_v1", "real_world_v2"):
+        assert "merged_table_ratio" not in load_distribution_profile(name).content, name
+
+
+def _profile_generator(tmp_path) -> Generator:
+    from src.generator.markdown_content import MarkdownDataGenerator
+
+    font_dir = tmp_path / "fonts"
+    font_dir.mkdir()
+    (font_dir / "Body.ttf").write_bytes(b"")
+    corpus_dir = tmp_path / "corpus"
+    (corpus_dir / "ko").mkdir(parents=True)
+    (corpus_dir / "ko" / "paragraphs.txt").write_text("첫 번째 문단입니다.\n", encoding="utf-8")
+    generator = Generator(output_dir=str(tmp_path / "out"), font_dir=str(font_dir), lang="ko")
+    generator.data_generator = MarkdownDataGenerator(
+        "ko", data_provider=DataProvider(lang="ko", corpus_dir=corpus_dir)
+    )
+    return generator
+
+
+def test_pil_renderer_keeps_pipe_tables_because_it_cannot_draw_html(tmp_path) -> None:
+    generator = _profile_generator(tmp_path)
+
+    generator._configure_generation(distribution_profile="real_world_v3", markdown_renderer="playwright")
+    assert generator.data_generator.content_specs["merged_table_ratio"] == 0.25
+
+    generator._configure_generation(distribution_profile="real_world_v3", markdown_renderer="pil")
+    assert "merged_table_ratio" not in generator.data_generator.content_specs
+    assert generator.data_generator.content_specs["table_schemas"]
