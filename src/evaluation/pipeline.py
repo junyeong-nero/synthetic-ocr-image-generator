@@ -124,6 +124,8 @@ class EvaluationPipeline:
 
     def _extract_ground_truths(self, dataset: Dataset) -> List[Any]:
         self._page_furniture = {i: dataset[i].get("page_furniture") for i in range(len(dataset))}
+        # Same extraction as MarkdownEvaluator (which ignores target_column),
+        # but duck-typed so it also works on plain row lists in tests.
         return [dataset[i].get("GT_markdown", dataset[i].get("markdown", "")) for i in range(len(dataset))]
 
     def _compute_metrics(
