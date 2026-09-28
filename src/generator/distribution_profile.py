@@ -8,7 +8,10 @@ loaded from YAML under ``configs/generator/distributions``.  It controls:
 - block type weights used when filling non-required block slots
 - physical page typography (body font size in points, line spacing)
 - capture channels (born-digital / scanned / photographed) with per-channel
-  resolution (DPI) and degradation parameter distributions
+  resolution (DPI) and degradation parameter distributions, optionally split
+  into named scenarios (correlated degradation bundles, e.g. "archive scan"
+  or "phone photo of a bound page") so parameters that move together in
+  reality are sampled together
 - content density (section count scale, extra blocks, paragraph length)
 - page geometry (sheet aspect ratio the rendered content is placed on)
 
@@ -165,11 +168,31 @@ def _parse_font_groups(raw: Any) -> Dict[str, float]:
 
 
 @dataclass(frozen=True)
+class CaptureScenario:
+    """A named, correlated bundle of degradations within a capture channel.
+
+    In reality degradation parameters move together (an old archive scan is
+    tinted *and* faded *and* bleeds through *and* is low-dpi; a fax is
+    bitonal *and* low-dpi *and* speckled), rather than each being sampled
+    independently. A scenario is picked by ``weight`` within its channel,
+    then its ``degradations`` override the channel's own ``degradations`` by
+    key (unset keys keep the channel-level spec) and its ``dpi`` overrides
+    the channel's ``dpi`` when set (``None`` inherits it).
+    """
+
+    name: str
+    weight: float
+    dpi: Any = None
+    degradations: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class CaptureChannel:
     name: str
     weight: float
     dpi: Any
     degradations: Dict[str, Any] = field(default_factory=dict)
+    scenarios: List[CaptureScenario] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -177,6 +200,10 @@ class CaptureSample:
     channel: str
     dpi: int
     params: Dict[str, Any]
+    # Name of the sampled scenario, or "" for a channel with no `scenarios`
+    # (never `None`: Hub schema inference needs every row's metadata typed
+    # the same way, see `ProfileRenderPlan.metadata`).
+    scenario: str = ""
 
     def difficulty(self) -> str:
         """Coarse visual difficulty bucket derived from sampled parameters."""
@@ -229,12 +256,29 @@ class DistributionProfile:
         channels: List[CaptureChannel] = []
         for name, cfg in channels_raw.items():
             cfg = cfg or {}
+            scenarios_raw = cfg.get("scenarios") or {}
+            scenarios: List[CaptureScenario] = []
+            for scenario_name, scenario_cfg in scenarios_raw.items():
+                scenario_cfg = scenario_cfg or {}
+                scenarios.append(
+                    CaptureScenario(
+                        name=str(scenario_name),
+                        weight=max(0.0, float(scenario_cfg.get("weight", 1.0))),
+                        dpi=scenario_cfg.get("dpi"),
+                        degradations=dict(scenario_cfg.get("degradations") or {}),
+                    )
+                )
+            if scenarios and sum(scenario.weight for scenario in scenarios) <= 0:
+                raise ValueError(
+                    f"capture channel '{name}' scenario weights must sum to a positive value"
+                )
             channels.append(
                 CaptureChannel(
                     name=str(name),
                     weight=max(0.0, float(cfg.get("weight", 1.0))),
                     dpi=cfg.get("dpi", 150),
                     degradations=dict(cfg.get("degradations") or {}),
+                    scenarios=scenarios,
                 )
             )
         if sum(channel.weight for channel in channels) <= 0:
@@ -279,11 +323,25 @@ class DistributionProfile:
     def sample_capture(self, rng: random.Random) -> CaptureSample:
         weights = [channel.weight for channel in self.capture_channels]
         channel = rng.choices(self.capture_channels, weights=weights, k=1)[0]
-        dpi = int(round(float(sample_value(channel.dpi, rng))))
-        params: Dict[str, Any] = {}
-        for key, spec in channel.degradations.items():
-            params[key] = sample_value(spec, rng)
-        return CaptureSample(channel=channel.name, dpi=max(50, dpi), params=params)
+
+        scenario_name = ""
+        dpi_spec = channel.dpi
+        degradation_specs = channel.degradations
+        if channel.scenarios:
+            scenario = rng.choices(
+                channel.scenarios,
+                weights=[scenario.weight for scenario in channel.scenarios],
+                k=1,
+            )[0]
+            scenario_name = scenario.name
+            dpi_spec = channel.dpi if scenario.dpi is None else scenario.dpi
+            # Scenario degradations override the channel's by key; keys the
+            # scenario doesn't mention keep the channel-level spec.
+            degradation_specs = {**channel.degradations, **scenario.degradations}
+
+        dpi = int(round(float(sample_value(dpi_spec, rng))))
+        params: Dict[str, Any] = {key: sample_value(spec, rng) for key, spec in degradation_specs.items()}
+        return CaptureSample(channel=channel.name, dpi=max(50, dpi), params=params, scenario=scenario_name)
 
     def sample_typography(self, rng: random.Random) -> Dict[str, Any]:
         return {key: sample_value(spec, rng) for key, spec in self.typography.items()}

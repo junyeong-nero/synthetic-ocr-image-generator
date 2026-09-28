@@ -112,6 +112,9 @@ capture_channels:
 
   scanned:
     weight: 0.70
+    # This is the base range every scanned page samples first; scenarios
+    # below (Task 7) then override a subset per "how was this scan
+    # produced", since real scan artifacts are correlated, not independent.
     dpi: {choices: [150, 200, 300], weights: [0.35, 0.40, 0.25]}
     degradations:
       skew_deg: {normal: [0.0, 0.9], clip: [-4.0, 4.0], round: 2}
@@ -125,18 +128,65 @@ capture_channels:
       binarize: {p: 0.2}
       binarize_method: {choices: [otsu, adaptive, sauvola], weights: [0.5, 0.3, 0.2]}   # [prior]
       jpeg_quality: {normal: [75, 10], clip: [40, 95], round: 0}
-      # [prior] Administrative archives are the classic home of official
-      # seals, hole-punched binders and repeated photocopier wear; every
-      # ratio here is a prior until re-fit against licensed AI Hub images.
-      stamp: {p: 0.30}
-      highlighter: {p: 0.08}
-      fold_lines: {choices: [0, 1, 2], weights: [0.75, 0.18, 0.07]}
-      punch_holes: {p: 0.35}
-      scanner_border: {beta: [1.5, 10], range: [0.0, 0.6], round: 3}
-      toner_streaks: {choices: [0, 0, 1, 2, 3], weights: [0.55, 0.15, 0.15, 0.1, 0.05]}
+    # [prior] Capture scenarios (Task 7): correlated degradation bundles.
+    # Administrative archives skew older/lower-quality than general office
+    # PDFs, so `archive` and `photocopy` carry more weight than in
+    # real_world_v3. Weights sum to 1.0 within the channel. Re-fit with
+    # `distribution measure` against licensed AI Hub images.
+    scenarios:
+      # A recent office scan (ADF): the base range above, plus the seals,
+      # mark-up, binder crease/holes, edge shadow and toner streaks Task 2
+      # added (moved here, unchanged, as the default case).
+      office_adf:
+        weight: 0.30
+        degradations:
+          stamp: {p: 0.30}
+          highlighter: {p: 0.08}
+          fold_lines: {choices: [0, 1, 2], weights: [0.75, 0.18, 0.07]}
+          punch_holes: {p: 0.35}
+          scanner_border: {beta: [1.5, 10], range: [0.0, 0.6], round: 3}
+          toner_streaks: {choices: [0, 0, 1, 2, 3], weights: [0.55, 0.15, 0.15, 0.1, 0.05]}
+      # An older filed/archived record: heavier tint, fade and bleed-through,
+      # lower dpi, and more physical wear from years in a binder.
+      archive:
+        weight: 0.35
+        dpi: {choices: [150, 200], weights: [0.6, 0.4]}
+        degradations:
+          paper_tint: {p: 0.95}
+          ink_fade: {beta: [2.5, 3], range: [0.1, 0.6], round: 3}
+          bleed_through: {beta: [2, 5], range: [0.05, 0.35], round: 3}
+          noise_sigma: {lognormal: [1.7, 0.4], clip: [0.0, 20.0], round: 2}
+          stamp: {p: 0.45}
+          fold_lines: {choices: [0, 1, 2], weights: [0.4, 0.4, 0.2]}
+          punch_holes: {p: 0.5}
+          scanner_border: {beta: [1.6, 8], range: [0.0, 0.65], round: 3}
+      # A photocopy: higher contrast/threshold and toner-roller wear instead
+      # of tint/bleed-through.
+      photocopy:
+        weight: 0.20
+        degradations:
+          skew_deg: {normal: [0.0, 1.3], clip: [-4.5, 4.5], round: 2}
+          grayscale: {p: 1.0}
+          binarize: {p: 0.4}
+          toner_streaks: {choices: [0, 1, 2, 3, 4], weights: [0.25, 0.3, 0.25, 0.12, 0.08]}
+          speckle_density: {beta: [1.8, 150], range: [0.0, 0.025], round: 5}
+          scanner_border: {beta: [1.5, 8], range: [0.0, 0.6], round: 3}
+      # A faxed page: always bitonal, low resolution, heavier speckle/noise.
+      fax:
+        weight: 0.15
+        dpi: {choices: [100, 150], weights: [0.5, 0.5]}
+        degradations:
+          binarize: {p: 1.0}
+          binarize_method: {choices: [otsu, adaptive, sauvola], weights: [0.4, 0.35, 0.25]}
+          speckle_density: {beta: [2.2, 90], range: [0.0, 0.03], round: 5}
+          noise_sigma: {lognormal: [1.3, 0.3], clip: [0.0, 14.0], round: 2}
+          skew_deg: {normal: [0.0, 0.7], clip: [-2.5, 2.5], round: 2}
+          jpeg_quality: {normal: [55, 10], clip: [25, 80], round: 0}
 
   photographed:
     weight: 0.20
+    # Calibrated base; scenarios below (Task 7) override a subset per "how
+    # was this photo taken".
     dpi: {normal: [140, 35], clip: [90, 260], round: 0}
     degradations:
       skew_deg: {normal: [0.0, 3.0], clip: [-10.0, 10.0], round: 2}
@@ -148,8 +198,42 @@ capture_channels:
       noise_sigma: {lognormal: [1.8, 0.4], clip: [0.0, 20.0], round: 2}
       paper_tint: {p: 0.9}
       jpeg_quality: {normal: [70, 10], clip: [30, 92], round: 0}
-      # [prior] A phone photo of a bound administrative file/report.
-      page_curl: {beta: [1.5, 15], range: [0.0, 0.05], round: 4}
-      edge_crop: {beta: [1.5, 15], range: [0.0, 0.09], round: 4}
-      stamp: {p: 0.20}
-      punch_holes: {p: 0.15}
+    # [prior] Capture scenarios (Task 7). Administrative files are more
+    # often photographed bound (in a folder) or under poor office lighting
+    # than laid flat, so `phone_book` and `low_light` carry more weight than
+    # in real_world_v3. Weights sum to 1.0 within the channel.
+    scenarios:
+      # Page laid flat: little book curvature or missed border.
+      phone_flat:
+        weight: 0.35
+        degradations:
+          page_curl: {beta: [1.2, 50], range: [0.0, 0.02], round: 4}
+          edge_crop: {beta: [1.3, 30], range: [0.0, 0.05], round: 4}
+          stamp: {p: 0.15}
+          punch_holes: {p: 0.12}
+      # A bound file/report photographed open: stronger perspective, book
+      # curvature near the spine and a border that is more often clipped.
+      phone_book:
+        weight: 0.40
+        degradations:
+          perspective: {beta: [2, 6], range: [0.0, 0.13], round: 4}
+          page_curl: {beta: [1.8, 6], range: [0.0, 0.11], round: 4}
+          edge_crop: {beta: [1.8, 8], range: [0.0, 0.16], round: 4}
+          shadow_strength: {beta: [1.6, 3.5], range: [0.0, 0.6], round: 3}
+          stamp: {p: 0.25}
+          punch_holes: {p: 0.20}
+      # Dim office/archive-room lighting: more sensor noise, motion blur,
+      # illumination gradient/shadow and lower JPEG quality.
+      low_light:
+        weight: 0.25
+        degradations:
+          illumination: {beta: [2, 2.5], range: [0.0, 0.6], round: 3}
+          shadow_strength: {beta: [2, 3], range: [0.0, 0.65], round: 3}
+          blur_sigma: {lognormal: [0.1, 0.5], clip: [0.0, 3.2], round: 2}
+          motion_blur_px: {choices: [0, 3, 5, 7, 9], weights: [0.25, 0.25, 0.25, 0.15, 0.1]}
+          noise_sigma: {lognormal: [2.1, 0.35], clip: [0.0, 24.0], round: 2}
+          jpeg_quality: {normal: [55, 10], clip: [25, 80], round: 0}
+          page_curl: {beta: [1.5, 20], range: [0.0, 0.06], round: 4}
+          edge_crop: {beta: [1.5, 15], range: [0.0, 0.09], round: 4}
+          stamp: {p: 0.15}
+          punch_holes: {p: 0.12}

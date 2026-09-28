@@ -60,7 +60,10 @@ A profile needs a real text corpus (`data/corpus/<lang>/paragraphs.txt`, see [Re
 | `page.aspect_ratio` | Sheet shape. Short content is padded to a full sheet; content longer than one sheet is cut at a block boundary and re-rendered, like the first page of a multi-page file (`page_trimmed` in metadata). `GT_markdown` always matches the image |
 | `capture_channels.<name>.weight` | Mix of `born_digital` / `scanned` / `photographed` pages |
 | `capture_channels.<name>.dpi` | Target resolution. Playwright renders with a matching device scale factor, so a 300 dpi page is about 2480 px wide |
-| `capture_channels.<name>.degradations` | Per-channel degradation parameters (see below) |
+| `capture_channels.<name>.degradations` | Per-channel degradation parameters (see below). A channel with `scenarios` samples these first as the base, then a scenario overrides a subset |
+| `capture_channels.<name>.scenarios.<scenario>.weight` | Selection weight for this scenario within its channel (`rng.choices` picks one scenario per sample; weights don't need to sum to 1) |
+| `capture_channels.<name>.scenarios.<scenario>.dpi` | Overrides the channel's `dpi` for this scenario. Omit to inherit the channel's `dpi` |
+| `capture_channels.<name>.scenarios.<scenario>.degradations` | Overrides the channel's `degradations` by key for this scenario; keys it doesn't mention keep the channel-level spec. A channel without `scenarios` behaves exactly as before |
 
 When a profile is active, the legacy `--add-noise` / `--add-blur` toggles are ignored and the profile's degradations apply instead.
 
@@ -102,6 +105,45 @@ grayscale/binarize + JPEG.
 | `binarize_method` | Thresholding used when `binarize` is true: `otsu` (default, global), `adaptive` (local mean), or `sauvola` |
 | `jpeg_quality` | JPEG re-encode quality (`null` means none) |
 
+### Capture scenarios
+
+Degradation parameters are correlated in reality (an old archive scan is
+tinted *and* faded *and* bleeds through *and* is low-dpi; a fax is bitonal
+*and* low-dpi *and* speckled), not sampled independently. A channel can add
+`scenarios`: named, weighted sub-distributions that override a subset of the
+channel's `degradations` (and optionally its `dpi`) together.
+
+```yaml
+capture_channels:
+  scanned:
+    weight: 0.40
+    dpi: {choices: [200, 300], weights: [0.3, 0.7]}
+    degradations:
+      skew_deg: {normal: [-0.1, 0.3], clip: [-1.5, 1.5], round: 2}
+      noise_sigma: {lognormal: [0.8, 0.4], clip: [0.0, 8.0], round: 2}
+      # ... rest of the base range, sampled by every scanned page
+    scenarios:
+      office_adf:
+        weight: 0.55            # picked ~55% of the time this channel is sampled
+        degradations:
+          stamp: {p: 0.06}      # added on top of the base range
+      fax:
+        weight: 0.10
+        dpi: {choices: [100, 150], weights: [0.4, 0.6]}   # overrides the channel dpi
+        degradations:
+          binarize: {p: 1.0}    # overrides the channel's own `binarize` spec
+          noise_sigma: {lognormal: [1.0, 0.3], clip: [0.0, 10.0], round: 2}
+```
+
+Sampling picks a channel (as before), then, if it has `scenarios`, picks one
+by weight and merges its `degradations` over the channel's own by key before
+sampling every value. A channel without `scenarios` behaves exactly as
+before. `real_world_v3` and `ko_admin_scan_v1` split their `scanned` channel
+into `office_adf` / `archive` / `photocopy` / `fax` and their `photographed`
+channel into `phone_flat` / `phone_book` / `low_light`; the sampled name is
+recorded in metadata as `capture_scenario` (`""` for a channel with no
+scenarios).
+
 ### Distribution spec syntax
 
 Any value can be a constant or a distribution:
@@ -131,6 +173,7 @@ Profile runs add these per-sample columns, which are uploaded to the Hub and usa
 
 - `distribution_profile`
 - `capture_channel`
+- `capture_scenario` (name of the sampled scenario, or `""` for a channel with no `scenarios`)
 - `target_dpi`
 - `render_scale`
 - `body_font_pt`

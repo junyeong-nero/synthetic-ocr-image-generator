@@ -39,6 +39,7 @@ class ProfileRenderPlan:
         metadata: Dict[str, Any] = {
             "distribution_profile": self.profile_id,
             "capture_channel": self.capture.channel,
+            "capture_scenario": self.capture.scenario,
             "target_dpi": int(self.capture.dpi),
             "render_scale": float(round(self.render_scale, 4)),
             "colored_background": bool(self.typography.get("colored_background", True)),

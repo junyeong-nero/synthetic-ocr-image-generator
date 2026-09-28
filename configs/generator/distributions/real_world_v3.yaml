@@ -194,6 +194,10 @@ capture_channels:
   scanned:
     weight: 0.40
     # [measured] XFUND scans are 300 dpi; keep some 200 dpi office scans.
+    # This is the calibrated real_world_v2 base: every scanned page samples
+    # these first, then one of the scenarios below (Task 7) overrides a
+    # subset of them, since in reality scan artifacts move together (an
+    # archive scan is tinted *and* faded *and* low-dpi, not independently).
     dpi: {choices: [200, 300], weights: [0.3, 0.7]}
     degradations:
       skew_deg: {normal: [-0.1, 0.3], clip: [-1.5, 1.5], round: 2}   # [measured]
@@ -207,18 +211,67 @@ capture_channels:
       binarize: {p: 0.05}      # [measured] XFUND 3%
       binarize_method: {choices: [otsu, adaptive], weights: [0.7, 0.3]}   # [prior] used only when binarize is true
       jpeg_quality: {normal: [85, 6], clip: [60, 95], round: 0}
-      # [prior] Capture artifacts (Task 2): office scans occasionally carry a
-      # seal, a highlighter mark-up, a binder crease/holes, a flatbed edge
-      # shadow or faint toner streaks. Re-fit with `distribution measure`.
-      stamp: {p: 0.06}
-      highlighter: {p: 0.05}
-      fold_lines: {choices: [0, 1], weights: [0.92, 0.08]}
-      punch_holes: {p: 0.10}
-      scanner_border: {beta: [1.2, 20], range: [0.0, 0.5], round: 3}
-      toner_streaks: {choices: [0, 0, 0, 1, 2], weights: [0.7, 0.1, 0.1, 0.06, 0.04]}
+    # [prior] Capture scenarios (Task 7): correlated degradation bundles for
+    # "how was this scan produced", re-weighting and overriding the base
+    # degradations above. Scenario weights sum to 1.0 within the channel.
+    # Re-fit with `distribution measure` once you have a labeled reference set.
+    scenarios:
+      # The unmarked office scan: mostly the base range above, plus the
+      # occasional seal, mark-up, binder crease/holes, edge shadow or toner
+      # streak that Task 2 added (moved here, unchanged, as the default case).
+      office_adf:
+        weight: 0.55
+        degradations:
+          stamp: {p: 0.06}
+          highlighter: {p: 0.05}
+          fold_lines: {choices: [0, 1], weights: [0.92, 0.08]}
+          punch_holes: {p: 0.10}
+          scanner_border: {beta: [1.2, 20], range: [0.0, 0.5], round: 3}
+          toner_streaks: {choices: [0, 0, 0, 1, 2], weights: [0.7, 0.1, 0.1, 0.06, 0.04]}
+      # An older filed/archived scan: heavier tint, fade and bleed-through,
+      # lower dpi, and physical wear (stamps, creases, punch holes) from
+      # having lived in a binder.
+      archive:
+        weight: 0.15
+        dpi: {choices: [150, 200], weights: [0.5, 0.5]}
+        degradations:
+          paper_tint: {p: 0.55}
+          ink_fade: {beta: [2, 6], range: [0.05, 0.5], round: 3}
+          bleed_through: {beta: [1.5, 6], range: [0.02, 0.3], round: 3}
+          noise_sigma: {lognormal: [1.2, 0.4], clip: [0.0, 12.0], round: 2}
+          speckle_density: {beta: [1.5, 300], range: [0.0, 0.01], round: 5}
+          stamp: {p: 0.25}
+          fold_lines: {choices: [0, 1, 2], weights: [0.5, 0.35, 0.15]}
+          punch_holes: {p: 0.30}
+          scanner_border: {beta: [1.5, 10], range: [0.0, 0.6], round: 3}
+      # A photocopy: higher contrast/threshold and toner-roller wear (streaks,
+      # more frequent binarization) instead of tint/bleed-through.
+      photocopy:
+        weight: 0.20
+        degradations:
+          skew_deg: {normal: [-0.2, 0.6], clip: [-2.5, 2.5], round: 2}
+          ink_fade: {beta: [1.2, 6], range: [0.0, 0.2], round: 3}
+          grayscale: {p: 1.0}
+          binarize: {p: 0.35}
+          toner_streaks: {choices: [0, 1, 2, 3], weights: [0.35, 0.30, 0.20, 0.15]}
+          speckle_density: {beta: [1.5, 400], range: [0.0, 0.008], round: 5}
+          scanner_border: {beta: [1.3, 15], range: [0.0, 0.5], round: 3}
+      # A faxed page: always bitonal, low resolution, heavier speckle/noise.
+      fax:
+        weight: 0.10
+        dpi: {choices: [100, 150], weights: [0.4, 0.6]}
+        degradations:
+          binarize: {p: 1.0}
+          binarize_method: {choices: [otsu, adaptive], weights: [0.4, 0.6]}
+          speckle_density: {beta: [2, 120], range: [0.0, 0.02], round: 5}
+          noise_sigma: {lognormal: [1.0, 0.3], clip: [0.0, 10.0], round: 2}
+          skew_deg: {normal: [0.0, 0.6], clip: [-2.0, 2.0], round: 2}
+          jpeg_quality: {normal: [60, 10], clip: [30, 85], round: 0}
 
   photographed:
     weight: 0.15
+    # This is the calibrated real_world_v2 base; scenarios below (Task 7)
+    # override a subset per "how was this photo taken".
     dpi: {normal: [180, 40], clip: [100, 300], round: 0}
     degradations:
       skew_deg: {normal: [0.0, 2.0], clip: [-6.0, 6.0], round: 2}
@@ -230,11 +283,40 @@ capture_channels:
       noise_sigma: {lognormal: [1.4, 0.4], clip: [0.0, 14.0], round: 2}
       paper_tint: {p: 0.7}
       jpeg_quality: {normal: [78, 8], clip: [45, 95], round: 0}
-      # [prior] Capture artifacts (Task 2): a phone photo of a bound/creased
-      # page shows book curvature and often misses part of the border; stamps
-      # and punch holes carry over from the physical page. Re-fit with
-      # `distribution measure`.
-      page_curl: {beta: [1.5, 25], range: [0.0, 0.05], round: 4}
-      edge_crop: {beta: [1.5, 20], range: [0.0, 0.08], round: 4}
-      stamp: {p: 0.04}
-      punch_holes: {p: 0.05}
+    # [prior] Capture scenarios (Task 7). Weights sum to 1.0 within the
+    # channel. Re-fit with `distribution measure`.
+    scenarios:
+      # Page laid flat (desk, scanner-app style overhead shot): little book
+      # curvature or missed border.
+      phone_flat:
+        weight: 0.5
+        degradations:
+          page_curl: {beta: [1.2, 60], range: [0.0, 0.015], round: 4}
+          edge_crop: {beta: [1.2, 40], range: [0.0, 0.04], round: 4}
+          stamp: {p: 0.04}
+          punch_holes: {p: 0.05}
+      # A bound book/report photographed open: stronger perspective, book
+      # curvature near the spine and a border that is more often clipped.
+      phone_book:
+        weight: 0.3
+        degradations:
+          perspective: {beta: [2, 8], range: [0.0, 0.10], round: 4}
+          page_curl: {beta: [2, 8], range: [0.0, 0.09], round: 4}
+          edge_crop: {beta: [2, 10], range: [0.0, 0.14], round: 4}
+          shadow_strength: {beta: [1.5, 5], range: [0.0, 0.5], round: 3}
+          stamp: {p: 0.05}
+          punch_holes: {p: 0.08}
+      # Dim indoor lighting: more sensor noise, motion blur, illumination
+      # gradient/shadow and a lower JPEG quality from the phone's own
+      # low-light compression.
+      low_light:
+        weight: 0.2
+        degradations:
+          illumination: {beta: [2, 3], range: [0.0, 0.55], round: 3}
+          shadow_strength: {beta: [1.8, 4], range: [0.0, 0.6], round: 3}
+          blur_sigma: {lognormal: [0.0, 0.5], clip: [0.0, 3.0], round: 2}
+          motion_blur_px: {choices: [0, 3, 5, 7], weights: [0.3, 0.3, 0.25, 0.15]}
+          noise_sigma: {lognormal: [1.9, 0.35], clip: [0.0, 20.0], round: 2}
+          jpeg_quality: {normal: [65, 10], clip: [35, 85], round: 0}
+          page_curl: {beta: [1.5, 25], range: [0.0, 0.05], round: 4}
+          edge_crop: {beta: [1.5, 20], range: [0.0, 0.08], round: 4}
