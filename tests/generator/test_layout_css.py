@@ -115,3 +115,16 @@ def test_two_columns_without_explicit_gap_uses_a_default() -> None:
     css = columns_css(MarkdownStyle(columns=2))
 
     assert "column-gap: 24px" in css
+
+
+@pytest.mark.parametrize("table_style", list(TABLE_STYLES))
+def test_span_cells_are_centred_in_every_style(table_style: str) -> None:
+    # Merged-cell HTML tables (html_table.py): a group header / 합계 label is
+    # centred across its columns, a row-group label sits mid-height. Pipe
+    # tables never carry span attributes, so their look is unchanged.
+    css = table_style_css(MarkdownStyle(table_style=table_style), "rgb(0, 0, 0)")
+
+    colspan_rule = _css_block(css, ".markdown-body th[colspan], .markdown-body td[colspan]")
+    assert "text-align: center" in colspan_rule
+    rowspan_rule = _css_block(css, ".markdown-body th[rowspan], .markdown-body td[rowspan]")
+    assert "vertical-align: middle" in rowspan_rule
