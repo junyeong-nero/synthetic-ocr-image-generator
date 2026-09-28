@@ -47,6 +47,10 @@ A profile needs a real text corpus (`data/corpus/<lang>/paragraphs.txt`, see [Re
 | `page.margins_mm` | `{top, bottom, left, right}` page margins in millimetres on A4 (210mm wide), converted to CSS padding as `mm / 210 × page width`. Unset sides keep the sampled base style's margin |
 | `page.columns` | `1` or `2` CSS columns for the whole page. May be a plain distribution spec, or `{default: <spec>, by_family: {<family>: <spec>, ...}}` to give some template families (e.g. `academic`) a different two-column share than the rest. The `h1` title spans every column; tables and figures are never split across columns (`break-inside: avoid`). Content still flows in document order, so `GT_markdown` (column-major reading order) is unchanged. HTML renderers only |
 | `page.column_gap_mm` | Gap between columns in millimetres, used only when `page.columns` is `2`. The gap narrows the columns; it does not widen the page |
+| `page.header`, `page.footer` | Probabilities (`{p: ...}` or bare floats), default off. Draw a short running title/organisation/date and footer in the page margins. HTML renderers only; PIL records empty furniture |
+| `page.page_number` | Distribution over `none` (default), `dashed` (`- 3 -`), `plain` (`3`), `of_total` (`3 / 12`), `korean` (`3쪽`; plain outside Korean), `english` (`Page 3`). With furniture, a sheet container uses `page.aspect_ratio` to anchor the footer at the bottom; without an aspect ratio it follows the content height. Overflow grows the container and triggers the existing block trimming, preserving GT |
+| `content.continuation_page` | Probability, default off. Drop the title and randomly selected leading sections. Record `continuation_page`; recompute `merge_order`, block counts and section count. Legacy compositions without a block-level merge order are left intact |
+| `content.start_mid_paragraph` | Probability conditional on a continuation page, default off. Start with a paragraph tail cut at a sentence boundary, when available; record whether applied as `start_mid_paragraph` |
 | `fonts.exclude` | File-name substrings of fonts never used as body font (e.g. hairline weights) |
 | `fonts.body` / `fonts.heading` | Weighted groups of file-name substrings (e.g. `{Myeongjo: 3, batang: 2, Gothic: 2}`): a group is picked by weight, then a file uniformly among its matches. `fonts.exclude` still narrows the candidates. Falls back to the profile's default (unweighted, exclude-filtered) choice when unset or when no group matches any file. HTML renderers emit a separate `@font-face` for the heading font (h1-h3, table headers); the PIL renderer ignores it |
 | `fonts.code` | Same weighted-group syntax (or a bare list, e.g. `[D2Coding]`) for a monospace code/pre font. Not narrowed by `fonts.exclude`, so a face excluded from body text (e.g. the D2Coding monospace font) can still be used here. HTML renderers only |
@@ -186,6 +190,8 @@ Profile runs add these per-sample columns, which are uploaded to the Hub and usa
 - `heading_font_name`, `code_font_name` (only when `fonts.heading` / `fonts.code` matched a file)
 - `table_style` (only when `typography.table_style` is set)
 - `page_columns` (only when `page.columns` samples to `2`)
+- `page_furniture`: `{header, footer, page_number}` strings, empty strings for absent parts; emitted only when furniture keys are configured. Separate header slots are newline-separated. Furniture is drawn outside the body and excluded from `GT_markdown` and `GT_json`. Evaluation removes whole predicted lines matching these annotations after Unicode/whitespace normalization; strings of at least 10 characters allow fuzzy similarity ≥ 0.9, shorter strings require exact matches. Raw predictions remain available. Samples without this metadata retain legacy scoring.
+- `continuation_page`, `start_mid_paragraph`: actual composition outcomes, emitted only when the corresponding content controls are configured
 
 ## Where the Bundled Numbers Come From
 
