@@ -748,6 +748,9 @@ class Generator(BaseGenerator):
                     len(merge_order),
                 )
             ),
+            "heading_numbering": composition_metadata.get("heading_numbering", "none"),
+            "list_style": composition_metadata.get("list_style", "markdown"),
+            "law_articles_used": bool(composition_metadata.get("law_articles_used", False)),
             "template_complexity": selected_template.complexity,
             "template_mode": selected_template.mode,
             "template_version": selected_template.version,

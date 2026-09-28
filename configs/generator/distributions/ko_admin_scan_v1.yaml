@@ -42,6 +42,16 @@ template_weights:
 content:
   similar_char_ratio: 0.0
   table_schemas: {budget: 3, schedule: 3, roster: 2, order: 1, financial: 1}
+  # [prior] Korean public-administration documents are numbered and 개조식
+  # far more consistently than general office documents (see
+  # src/generator/document_conventions.py): heading numbering and itemized
+  # (□/○/·, 1)/가)/①) list markers dominate, and policy/notice text is
+  # commonly written as 제N조 articles. AI Hub does not publish per-attribute
+  # ratios, so these weights are priors, skewed harder towards the Korean
+  # conventions than the general-purpose real_world_v3 profile.
+  heading_numbering: {choices: [korean_admin, arabic, none], weights: [0.6, 0.25, 0.15]}
+  list_style: {choices: [korean_admin, markdown], weights: [0.7, 0.3]}
+  law_articles: {p: 0.7}
 
 block_weights:
   paragraph: 40

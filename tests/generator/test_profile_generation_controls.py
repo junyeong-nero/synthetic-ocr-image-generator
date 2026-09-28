@@ -380,3 +380,44 @@ def test_family_kwarg_is_optional_and_uses_default_share() -> None:
     plan_profile_render(profile, style, random.Random(0))
 
     assert style.columns == 2
+
+
+def test_distribution_profile_content_keys_drive_korean_conventions(tmp_path) -> None:
+    profile_path = _write_profile(
+        tmp_path,
+        "id: t\nfamily_mix: {business: 1.0}\n"
+        "content:\n"
+        "  heading_numbering: korean_admin\n"
+        "  list_style: korean_admin\n"
+        "  law_articles: {p: 1.0}\n",
+    )
+    generator = _generator(tmp_path)
+    generator._configure_generation(
+        seed=1, distribution_profile=profile_path, template="policy_document"
+    )
+
+    spec, _ = generator._select_template_spec()
+    random.seed(2)
+    markdown_text = generator.data_generator.generate_markdown(
+        template_id=spec.template_id, template_spec=spec
+    )
+    metadata = generator.data_generator.pop_composition_metadata()
+
+    assert metadata["heading_numbering"] == "korean_admin"
+    assert metadata["list_style"] == "korean_admin"
+    assert metadata["law_articles_used"] is True
+    assert "제1조(" in markdown_text
+
+
+def test_without_distribution_profile_korean_conventions_stay_legacy(tmp_path) -> None:
+    generator = _generator(tmp_path)
+    generator._configure_generation(seed=1, template="policy_document")
+
+    spec, _ = generator._select_template_spec()
+    random.seed(2)
+    generator.data_generator.generate_markdown(template_id=spec.template_id, template_spec=spec)
+    metadata = generator.data_generator.pop_composition_metadata()
+
+    assert metadata["heading_numbering"] == "none"
+    assert metadata["list_style"] == "markdown"
+    assert metadata["law_articles_used"] is False
