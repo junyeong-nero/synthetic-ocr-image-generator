@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="distribution_command")
     subparsers.required = True
+    from src.cli.capture_fit import configure_parser as configure_capture_fit
+
+    configure_capture_fit(subparsers)
 
     measure = subparsers.add_parser(
         "measure",

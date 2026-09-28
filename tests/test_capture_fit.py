@@ -234,3 +234,16 @@ def test_fit_raises_when_capture_cannot_be_aligned() -> None:
     blank = Image.new("RGB", (PAGE_W, PAGE_H), (255, 255, 255))
     with pytest.raises(ValueError, match="align"):
         fit_capture_pair(clean, blank)
+
+
+def test_fit_is_repeatable_with_seed() -> None:
+    clean = _document_page(seed=9, width=700, height=900)
+    captured = _capture(clean, {'blur_sigma': 0.7, 'noise_sigma': 3}, seed=9)
+    assert fit_capture_pair(clean, captured, seed=19) == fit_capture_pair(clean, captured, seed=19)
+
+
+@pytest.mark.parametrize('dpi', [0, -10, float('nan'), float('inf')])
+def test_fit_rejects_invalid_dpi(dpi) -> None:
+    image = Image.new('RGB', (20, 20), 'white')
+    with pytest.raises(ValueError, match='dpi'):
+        fit_capture_pair(image, image, clean_dpi=dpi)
