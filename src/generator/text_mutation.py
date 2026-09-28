@@ -174,6 +174,12 @@ def _is_table_chunk(lines: list[str]) -> bool:
     return _is_table_separator_line(lines[1])
 
 
+def _is_html_table_chunk(stripped_chunk: str) -> bool:
+    # Merged-cell tables are raw HTML blocks (see html_table.py); they are
+    # tables, so their cell text is never mutated.
+    return stripped_chunk.startswith("<table") and stripped_chunk.endswith("</table>")
+
+
 def _classify_markdown_chunk(chunk: str) -> str | None:
     lines = [line.strip() for line in chunk.splitlines() if line.strip()]
     if not lines:
@@ -188,7 +194,7 @@ def _classify_markdown_chunk(chunk: str) -> str | None:
     stripped_chunk = "\n".join(lines)
     if stripped_chunk.startswith("$$") and stripped_chunk.endswith("$$"):
         return "formula"
-    if _is_table_chunk(lines):
+    if _is_table_chunk(lines) or _is_html_table_chunk(stripped_chunk):
         return "table"
     if len(lines) == 1 and _IMAGE_RE.fullmatch(lines[0]):
         return "image"
