@@ -39,6 +39,12 @@ from src.generator.markdown_content import (
     HARD_CODED_FORMULA_EXPRESSIONS,
     MarkdownDataGenerator,
 )
+from src.generator.page_composition import compose_page
+from src.generator.page_furniture import (
+    apply_page_furniture,
+    furniture_requested,
+    sample_page_furniture,
+)
 from src.generator.markdown_renderers import HtmlMarkdownRenderer, MarkdownRenderer, PlaywrightMarkdownRenderer
 from src.generator.markdown_render_utils import (
     MarkdownStyle,
@@ -675,10 +681,21 @@ class Generator(BaseGenerator):
             if novelty_score < self.novelty_threshold or attempt == self.novelty_max_attempts - 1:
                 break
 
+        # Continuation pages (page_composition): reshape the first page into a
+        # later page per the profile's content specs. Without those keys this
+        # returns None and draws nothing from the RNG (legacy path unchanged).
+        distribution_profile = getattr(self, "distribution_profile", None)
+        content_specs = dict(distribution_profile.content) if distribution_profile is not None else {}
+        composition = compose_page(markdown_text, merge_order, composition_metadata, content_specs, random)
+        if composition is not None:
+            markdown_text = composition.markdown
+            merge_order = composition.merge_order
+            composition_metadata = composition.composition_metadata
+            signature = self._structure_signature(markdown_text)
+
         # Create style with random variations
         style = self._random_style()
         profile_plan = None
-        distribution_profile = getattr(self, "distribution_profile", None)
         if distribution_profile is not None:
             profile_rng = random.Random(random.getrandbits(64))
             profile_plan = plan_profile_render(
@@ -687,6 +704,27 @@ class Generator(BaseGenerator):
         else:
             style.add_noise = random.random() < self.noise_ratio
             style.add_blur = random.random() < self.blur_ratio
+
+        # Page furniture (page_furniture): running header / footer / page
+        # number drawn in the margins by the HTML renderers, never part of GT.
+        # Recorded only when the sampled page settings use furniture keys.
+        furniture_metadata = None
+        if profile_plan is not None and furniture_requested(profile_plan.page):
+            if self.markdown_renderer == "pil":
+                # The PIL renderer cannot draw margin furniture; keep the
+                # legacy page and record absent parts as empty strings.
+                furniture_metadata = {"header": "", "footer": "", "page_number": ""}
+            else:
+                data = getattr(self.data_generator, "data", None)
+                furniture = sample_page_furniture(
+                    profile_plan.page,
+                    data,
+                    profile_plan.rng,
+                    lang=self.lang,
+                    continuation=bool(composition is not None and composition.continuation_page),
+                )
+                furniture_metadata = furniture.metadata()
+                apply_page_furniture(style, furniture, profile_plan.page.get("aspect_ratio"))
 
         # Render markdown. Heading/code fonts are None unless the profile
         # sets fonts.heading / fonts.code groups; the HTML renderers then
@@ -784,6 +822,10 @@ class Generator(BaseGenerator):
                 metadata["heading_font_name"] = Path(heading_font_path).name
             if code_font_path:
                 metadata["code_font_name"] = Path(code_font_path).name
+        if composition is not None:
+            metadata.update(composition.metadata())
+        if furniture_metadata is not None:
+            metadata["page_furniture"] = dict(furniture_metadata)
         return image, metadata
 
     @staticmethod
