@@ -30,7 +30,9 @@ library, per the project's dependency-group rules.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+import json
+from pathlib import Path
+from typing import Any, Dict, List, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -254,17 +256,14 @@ def run_discriminator(
     }
 
 
-def load_rows(path) -> Tuple[List[Dict[str, Any]], str]:
+def load_rows(path: Union[str, Path]) -> Tuple[List[Dict[str, Any]], str]:
     """Load `{"rows": [...]}` from a `distribution measure --save-rows` JSON file.
 
     Raises `ValueError` with an actionable message if the file has no
     (non-empty) `rows` list -- the common cause is measuring without
     `--save-rows`.
     """
-    import json
-    from pathlib import Path as _Path
-
-    data = json.loads(_Path(path).read_text(encoding="utf-8"))
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
     rows = data.get("rows")
     if not rows:
         raise ValueError(
