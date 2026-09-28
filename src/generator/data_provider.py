@@ -57,7 +57,29 @@ class DataProvider:
         "usage_commands": "usage_commands.txt",
         "config_lines": "config_lines.txt",
         "api_endpoints": "api_endpoints.txt",
+        # Genre-specific corpora (Task 11): looked up via `paragraph(genre=...)`
+        # so reports/minutes/notices/... no longer all read like the generic
+        # `paragraphs` (Wikipedia-derived) corpus. See `GENRE_CORPUS_TYPES`.
+        "report_lines": "report_lines.txt",
+        "meeting_notes": "meeting_notes.txt",
+        "notice_paragraphs": "notice_paragraphs.txt",
+        "contract_clauses": "contract_clauses.txt",
+        "academic_abstracts": "academic_abstracts.txt",
+        "financial_commentary": "financial_commentary.txt",
     }
+
+    # Data-type keys from `CORPUS_FILES` that hold genre-flavored prose,
+    # consumed through `paragraph(genre=...)`. Kept as a tuple (not derived
+    # from `CORPUS_FILES` positionally) so it stays correct if `CORPUS_FILES`
+    # is reordered.
+    GENRE_CORPUS_TYPES = (
+        "report_lines",
+        "meeting_notes",
+        "notice_paragraphs",
+        "contract_clauses",
+        "academic_abstracts",
+        "financial_commentary",
+    )
 
     def __init__(
         self,
@@ -430,17 +452,26 @@ class DataProvider:
         """Get multiple random titles."""
         return random.choices(self._data.titles, k=count)
 
-    def paragraph(self) -> str:
-        """Get a random paragraph."""
+    def paragraph(self, genre: Optional[str] = None) -> str:
+        """Get a random paragraph.
+
+        With `genre` set to one of `GENRE_CORPUS_TYPES` (e.g. "report_lines"),
+        prefers that genre's corpus file and falls back to the general
+        `paragraphs` corpus when it is absent or empty. Without `genre`
+        (the default), behavior is unchanged from before genre corpora
+        existed.
+        """
+        if genre and (corpus_item := self._get_from_corpus(genre)):
+            return corpus_item
         if corpus_item := self._get_from_corpus("paragraphs"):
             return corpus_item
         if self._use_faker():
             return self.faker.paragraph(nb_sentences=3)
         return random.choice(self._data.paragraphs)
 
-    def paragraphs(self, count: int = 1) -> List[str]:
-        """Get multiple random paragraphs."""
-        return [self.paragraph() for _ in range(count)]
+    def paragraphs(self, count: int = 1, genre: Optional[str] = None) -> List[str]:
+        """Get multiple random paragraphs, optionally genre-specific."""
+        return [self.paragraph(genre=genre) for _ in range(count)]
 
     def feature(self) -> str:
         """Get a random feature description."""

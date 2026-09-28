@@ -1,6 +1,19 @@
 import re
 from typing import List
 
+# Categories whose LLM output is multi-sentence prose blocks separated by a
+# blank line (like `paragraphs`), as opposed to one short item per line (like
+# `features` or `report_lines`). See `src/corpus_llm/constants.py`.
+PARAGRAPH_STYLE_CATEGORIES = frozenset(
+    {
+        "paragraphs",
+        "meeting_notes",
+        "notice_paragraphs",
+        "contract_clauses",
+        "academic_abstracts",
+        "financial_commentary",
+    }
+)
 
 _LEADING_LIST_MARKER_RE = re.compile(
     r"^\s*(?:\*\*|\*|__|_)?\??\d{1,3}[.)](?:\*\*|\*|__|_)?\s+"
@@ -15,15 +28,13 @@ def _normalize_item_text(text: str) -> str:
 
 
 def normalize_corpus_item(text: str, category: str) -> str:
-    if category == "paragraphs":
-        return _normalize_item_text(text)
     return _normalize_item_text(text)
 
 
 def parse_response(response: str, category: str) -> List[str]:
     lines = response.strip().split("\n")
 
-    if category == "paragraphs":
+    if category in PARAGRAPH_STYLE_CATEGORIES:
         paragraphs: List[str] = []
         current: List[str] = []
         for line in lines:

@@ -6,10 +6,10 @@ import random
 import re
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from src.generator.data_provider import DataProvider
-from src.generator.document_conventions import DocumentConventions
+from src.generator.document_conventions import DocumentConventions, sample_probability_flag
 from src.generator.table_generator import TableGenerator
 
 DEFAULT_BLOCK_TYPES = (
@@ -31,6 +31,23 @@ PROSE_BLOCK_TYPES = frozenset(
 
 _BLOCK_TYPE_ALIASES = {"text": "paragraph"}
 
+# Genre corpus (Task 11): a document's `paragraph` blocks pull from a
+# genre-specific corpus file (see `DataProvider.GENRE_CORPUS_TYPES`) instead
+# of the generic `paragraphs.txt`, when both the template's `document_shape`
+# has an entry here and `content.genre_corpus` samples true. Chosen for
+# document shapes whose blueprint allows `paragraph` blocks at all (a
+# `table_heavy` / `formula_heavy` page never emits one, so mapping those
+# would be a dead entry -- see `configs/generator/templates/default.yaml`);
+# other shapes keep reading the general corpus.
+GENRE_BY_DOCUMENT_SHAPE: Dict[str, str] = {
+    "business_report": "financial_commentary",
+    "meeting_minutes": "meeting_notes",
+    "policy_document": "notice_paragraphs",
+    "academic_note": "academic_abstracts",
+    "form_like": "contract_clauses",
+    "release_note": "report_lines",
+}
+
 
 @dataclass(frozen=True)
 class GeneratedBlock:
@@ -51,6 +68,7 @@ class DocumentCompositionMetadata:
     heading_numbering: str = "none"
     list_style: str = "markdown"
     law_articles_used: bool = False
+    content_genre: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -61,6 +79,7 @@ class DocumentCompositionMetadata:
             "heading_numbering": self.heading_numbering,
             "list_style": self.list_style,
             "law_articles_used": self.law_articles_used,
+            "content_genre": self.content_genre,
         }
 
 
@@ -201,6 +220,7 @@ class DocumentBlockBuilder:
         paragraph_max_chars: int = 320,
         paragraph_parts: int = 1,
         table_schemas: Mapping[str, float] | None = None,
+        genre: Optional[str] = None,
     ) -> None:
         self.data = data
         self.clip_text = clip_text
@@ -210,6 +230,10 @@ class DocumentBlockBuilder:
         self.paragraph_max_chars = max(40, int(paragraph_max_chars))
         self.paragraph_parts = max(1, int(paragraph_parts))
         self.table_generator = TableGenerator(data=data, clip_text=clip_text, table_schemas=table_schemas)
+        # Genre corpus for `paragraph` blocks only (see `GENRE_BY_DOCUMENT_SHAPE`);
+        # `None` means "use the general `paragraphs` corpus", same as before
+        # genre corpora existed.
+        self.genre = genre
 
     def build(
         self,
@@ -227,7 +251,9 @@ class DocumentBlockBuilder:
 
     def _build_paragraph(self, *, block_index: int, section_index: int) -> GeneratedBlock:
         _ = block_index, section_index
-        text = " ".join(self.data.paragraph() for _ in range(self.paragraph_parts))
+        text = " ".join(
+            self.data.paragraph(genre=self.genre) for _ in range(self.paragraph_parts)
+        )
         paragraph = _neutralize_block_markup(self.clip_text(text, self.paragraph_max_chars))
         if not paragraph:
             paragraph = self.clip_text(self.data.sentence(), 160)
@@ -373,6 +399,22 @@ class DocumentComposer:
             return None
         return weights
 
+    def _resolve_content_genre(self, document_shape: str) -> Optional[str]:
+        """Genre corpus for this document's `paragraph` blocks, or `None` to
+        keep reading the general `paragraphs` corpus.
+
+        `content.genre_corpus` is a probability spec ("chance of using a
+        genre corpus when one exists"); with no `content_specs` at all (no
+        distribution profile) this always returns `None`, matching behaviour
+        before genre corpora existed.
+        """
+        genre = GENRE_BY_DOCUMENT_SHAPE.get(document_shape)
+        if not genre or not self.data.has_corpus(genre):
+            return None
+        if sample_probability_flag(self.content_specs.get("genre_corpus")):
+            return genre
+        return None
+
     def compose(
         self,
         blueprint: Mapping[str, Any] | None = None,
@@ -401,6 +443,7 @@ class DocumentComposer:
             section_count = 1
             block_plan = ["paragraph"]
 
+        content_genre = self._resolve_content_genre(parsed.document_shape)
         builder = DocumentBlockBuilder(
             data=self.data,
             clip_text=self.clip_text,
@@ -410,6 +453,7 @@ class DocumentComposer:
             paragraph_max_chars=int(content.get("paragraph_max_chars", 320)),
             paragraph_parts=int(round(content.get("paragraph_parts", 1))),
             table_schemas=self._table_schema_weights(),
+            genre=content_genre,
         )
 
         # Heading numbering / 개조식 list markers / law-article formatting for
@@ -473,6 +517,7 @@ class DocumentComposer:
             heading_numbering=conventions.plan.heading_numbering,
             list_style=conventions.plan.list_style,
             law_articles_used=conventions.plan.law_articles_used,
+            content_genre=content_genre,
         )
         return "\n".join(lines).strip() + "\n", metadata
 

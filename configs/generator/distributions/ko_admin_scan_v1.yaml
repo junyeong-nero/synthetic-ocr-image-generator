@@ -52,6 +52,13 @@ content:
   heading_numbering: {choices: [korean_admin, arabic, none], weights: [0.6, 0.25, 0.15]}
   list_style: {choices: [korean_admin, markdown], weights: [0.7, 0.3]}
   law_articles: {p: 0.7}
+  # [prior] Same genre corpus mechanism as real_world_v3 (see
+  # src/generator/document_blocks.py's `GENRE_BY_DOCUMENT_SHAPE`), weighted
+  # higher: public-administration archives lean even more heavily on
+  # notice/report register (공지, 보고, 회의록) than general office documents,
+  # so a genre-matched corpus (when generated under `data/corpus/<lang>/`)
+  # should win more often here than in real_world_v3's 0.5.
+  genre_corpus: {p: 0.8}
 
 block_weights:
   paragraph: 40
