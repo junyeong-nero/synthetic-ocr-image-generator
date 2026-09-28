@@ -59,3 +59,39 @@ def test_cli_writes_results_and_reports_failed_pairs(tmp_path, monkeypatch):
     assert json.loads((output / 'pair-0001.json').read_text())['params']['dpi'] == 150
     assert 'cannot align' in (output / 'pair-0002.json').read_text()
     assert yaml.safe_load((output / 'profile.yaml').read_text())['capture_channels']['scanned']['dpi']
+
+
+def test_real_cli_fit_outputs_sampleable_specs(tmp_path):
+    import random
+    from PIL import Image, ImageDraw
+    from src.generator.distribution_profile import sample_value
+
+    clean, captured = tmp_path / 'clean', tmp_path / 'captured'
+    clean.mkdir()
+    captured.mkdir()
+    image = Image.new('RGB', (480, 640), 'white')
+    draw = ImageDraw.Draw(image)
+    rng = random.Random(7)
+    for _ in range(100):
+        x, y = rng.randrange(40, 400), rng.randrange(40, 550)
+        draw.rectangle((x, y, x + rng.randrange(3, 30), y + 8), fill='black')
+    image.save(clean / 'page.png')
+    image.save(captured / 'page.png')
+    output = tmp_path / 'output'
+    args = configure_parser(argparse.ArgumentParser()).parse_args([
+        'fit-capture', '--clean-dir', str(clean), '--captured-dir', str(captured),
+        '--output', str(output), '--channel', 'photographed', '--clean-dpi', '200'])
+    assert args.handler(args) == 0
+    row = json.loads((output / 'pair-0001.json').read_text())
+    assert row['params']['dpi'] == pytest.approx(200, abs=1)
+    channel = yaml.safe_load((output / 'profile.yaml').read_text())['capture_channels']['photographed']
+    assert sample_value(channel['dpi'], rng) == pytest.approx(200, abs=1)
+    assert sample_value(channel['degradations']['binarize'], rng) is True
+
+
+@pytest.mark.parametrize('contents', ['', 'clean,captured\n', 'foo,bar\na,b\n', 'clean,captured\na,\n'])
+def test_malformed_or_empty_csv(tmp_path, contents):
+    manifest = tmp_path / 'pairs.csv'
+    manifest.write_text(contents)
+    with pytest.raises(ValueError):
+        collect_pairs(pairs=manifest)
