@@ -24,6 +24,11 @@ logger = logging.getLogger(__name__)
 QUANTILE_POINTS = np.linspace(0.0, 1.0, 101)
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 
+# Row keys that are identifiers, not statistics: never averaged into a metric
+# summary. Shared with `src.realism.discriminator`, which trains on the same
+# per-image rows.
+NON_METRIC_ROW_KEYS = {"path"}
+
 # Metrics that best reflect "how hard does this look" for the compare report.
 KEY_METRICS = (
     "est_dpi_a4",
@@ -114,12 +119,20 @@ def _compute_image_and_layout_stats(image: Image.Image) -> Dict[str, float]:
 
 
 def measure_images(images: Iterable[Image.Image | Path]) -> List[Dict[str, float]]:
+    """Per-image stat rows. A `Path` item also gets a `path` key (str) on its
+    row, so callers such as `distribution measure --save-rows` and
+    `src.realism.discriminator` can trace a row back to its file; streamed
+    sources with no path (e.g. `iter_hf_images`) omit the key. `path` is not
+    a statistic: `summarize_metric_rows` skips it (see `NON_METRIC_ROW_KEYS`).
+    """
     rows: List[Dict[str, float]] = []
     for item in images:
         try:
             if isinstance(item, Path):
                 with Image.open(item) as handle:
-                    rows.append(_compute_image_and_layout_stats(handle))
+                    stats = _compute_image_and_layout_stats(handle)
+                stats["path"] = str(item)
+                rows.append(stats)
             else:
                 rows.append(_compute_image_and_layout_stats(item))
         except Exception as exc:  # pragma: no cover - defensive for bad files
@@ -136,6 +149,8 @@ def summarize_metric_rows(rows: List[Dict[str, float]]) -> Dict[str, Any]:
     metrics: Dict[str, Any] = {}
     if rows:
         for key in rows[0].keys():
+            if key in NON_METRIC_ROW_KEYS:
+                continue
             values = np.array([row[key] for row in rows if key in row], dtype=np.float64)
             if values.size == 0:
                 continue

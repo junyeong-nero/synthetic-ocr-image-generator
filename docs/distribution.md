@@ -199,6 +199,36 @@ Per-page metrics: `chars_per_page`, `line_count`, `mean_line_length`, and a `_sh
 
 **Limitation:** `mean_line_length` is not comparable across sources with different line conventions. `GT_markdown` paragraphs are one long logical line each (breaks only at explicit markdown boundaries), while OCR transcripts and most real reference `.txt` files keep the document's visual line breaks. `distribution compare` will show a large gap on this metric that reflects the convention mismatch, not real content — reformat one side to match, or ignore `mean_line_length` in the comparison.
 
+## Real-vs-Synthetic Discriminator
+
+`distribution compare` reports per-metric gaps one statistic at a time. A discriminator instead asks the sharper question: taking *all* the measured statistics together, can a classifier tell a real page from a synthetic one? This is the standard "classifier two-sample test" (C2ST) trick, implemented with a small numpy-only L2-regularised logistic regression in `src/realism/discriminator.py` (no scikit-learn/torch, per this project's dependency-group rules) — no new dependency was needed since numpy is already a core dependency.
+
+1. **Measure both sides with `--save-rows`**, so the per-image rows (not just aggregated quantiles) are kept, each tagged with its source image path:
+
+   ```bash
+   uv run main.py distribution measure --images /path/to/real --save-rows --output stats/real.json
+   uv run main.py distribution measure --metadata ./pilot/ko/images_markdown/metadata.jsonl --save-rows --output stats/pilot.json
+   ```
+
+2. **Run the discriminator:**
+
+   ```bash
+   uv run main.py distribution discriminate --reference stats/real.json --candidate stats/pilot.json \
+     --top 20 --output stats/discriminate.md
+   ```
+
+Class 0 is the reference (real) set, class 1 the candidate (synthetic) set. Classes are balanced by subsampling the larger side down to the smaller side's count (seeded, so the report is reproducible for the same inputs and `--seed`), then evaluated with stratified k-fold cross-validation (`--folds`, default 5, clamped down to the smaller class size when the sets are tiny).
+
+**How to read the report:**
+
+- **Mean AUC (with fold spread).** AUC ≈ 0.5 means the classifier cannot beat a coin flip — the two sets are statistically indistinguishable on these statistics, which is the goal. AUC → 1.0 means the sets are easy to tell apart; a wide spread across folds (large `auc_std` relative to `auc_mean`) means the estimate itself is noisy, usually because the measured sets are small.
+- **Per-feature coefficients**, ranked by absolute value, from one final model fit on the whole balanced set: which statistics the classifier leans on most, i.e. the biggest gaps to close next in the profile.
+- **Top-N candidate images** (`--top`, default 20): the candidate (synthetic) rows the final model is most confident about, by predicted probability, with their image paths — applied to *every* candidate row, not just the balanced training subsample, so a much larger synthetic set is still fully covered. Open these images directly instead of only reading aggregate numbers.
+
+**Caveat:** like the skew and layout estimators it consumes, the discriminator still runs on photographed pages, but a high AUC driven mostly by `margin_*_frac`, `column_count` or `text_line_*` on a photographed-heavy set may reflect that those specific metrics are unreliable on photographs (perspective distortion, desk background — see [Layout metrics](#layout-metrics-srcrealismlayout_statspy) above) rather than a genuine distribution gap. Check which features dominate the coefficients table before concluding the generator itself needs tuning.
+
+If `--reference` or `--candidate` was measured without `--save-rows`, `distribution discriminate` fails with a message pointing you back to `--save-rows`.
+
 ## Calibration Record: `real_world_v2`
 
 `real_world_v2` was fitted with the loop above against **118 real pages** that are reachable from GitHub:

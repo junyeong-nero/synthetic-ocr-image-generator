@@ -191,6 +191,7 @@ uv run main.py distribution measure (--images DIR | --metadata JSONL | --hf-data
 - `--where key=value`: With `--metadata`, only rows matching the filter (repeatable), e.g. `capture_channel=scanned`.
 - `--max-images`: Limit (default: `500`; `0` = all).
 - `--suggest-yaml`: Also write directly measurable profile specs (DPI and skew histograms, grayscale, binary and coloured-background rates, plus a `margins_mm` histogram derived from layout stats).
+- `--save-rows`: Also write per-image rows (every measured stat plus the image `path`) under a `rows` key in the output JSON. Required input for `distribution discriminate`.
 
 Every row also carries the layout metrics from `src/realism/layout_stats.py` (`text_line_count`, `text_line_height_frac`/`_pt`, `margin_*_frac`, `column_count`, `text_area_frac`, `rule_count`) merged in automatically — see [distribution.md](distribution.md#layout-and-text-statistics).
 
@@ -202,6 +203,23 @@ uv run main.py distribution compare --reference REAL.json --candidate SYN.json [
 ```
 
 Prints a table ranked by normalised Wasserstein distance: under 0.1 is close, 0.1 to 0.3 is noticeable, above 0.3 is different. Works on `distribution measure` output or on `distribution text-stats` output (any two summaries with the same metric keys).
+
+## `distribution discriminate`
+Train a real-vs-synthetic classifier two-sample test (numpy-only L2 logistic regression, stratified k-fold) on the per-image rows from two `distribution measure --save-rows` outputs.
+
+```bash
+uv run main.py distribution discriminate --reference REAL.json --candidate SYN.json [OPTIONS]
+```
+
+### Options
+- `--reference` / `--candidate`: Stats JSON files produced by `distribution measure --save-rows` (must contain a non-empty `rows` list).
+- `--top`: Number of most-confident-synthetic candidate images to report, with paths and probabilities (default: `20`).
+- `--folds`: Stratified k-fold count (default: `5`, clamped down to the smaller class size).
+- `--l2`: L2 regularisation strength (default: `1.0`).
+- `--seed`: RNG seed for class-balancing subsampling and fold shuffling, for a reproducible report (default: `0`).
+- `--output`: Optional markdown report path.
+
+Fails with a clear error (exit code `1`) if either input JSON has no `rows` (i.e. was measured without `--save-rows`). See [distribution.md](distribution.md#real-vs-synthetic-discriminator) for how to read AUC and the top-N list.
 
 ## `distribution text-stats`
 Measure per-page text statistics (character-class shares, symbol usage) of real or generated text.

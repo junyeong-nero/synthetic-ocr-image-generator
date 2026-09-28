@@ -39,6 +39,12 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         default=None,
         help="Also write directly measurable profile specs (dpi, skew, grayscale, ...) as YAML",
     )
+    measure.add_argument(
+        "--save-rows",
+        action="store_true",
+        help="Also write per-image rows (all stats + image path) under a `rows` key, "
+        "needed by `distribution discriminate`",
+    )
     measure.set_defaults(handler=run_measure)
 
     compare = subparsers.add_parser(
@@ -67,6 +73,25 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
     )
     text_stats.add_argument("--output", type=str, required=True, help="Stats JSON output path")
     text_stats.set_defaults(handler=run_text_stats)
+
+    discriminate = subparsers.add_parser(
+        "discriminate",
+        help="Train a real-vs-synthetic classifier two-sample test on measured per-image rows",
+    )
+    discriminate.add_argument(
+        "--reference", type=str, required=True, help="Reference (real) stats JSON from `distribution measure --save-rows`"
+    )
+    discriminate.add_argument(
+        "--candidate", type=str, required=True, help="Candidate (synthetic) stats JSON from `distribution measure --save-rows`"
+    )
+    discriminate.add_argument("--top", type=int, default=20, help="Most-confident-synthetic images to report (default: 20)")
+    discriminate.add_argument(
+        "--folds", type=int, default=5, help="Stratified k-fold count (default: 5, clamped to the smaller class size)"
+    )
+    discriminate.add_argument("--l2", type=float, default=1.0, help="L2 regularisation strength (default: 1.0)")
+    discriminate.add_argument("--seed", type=int, default=0, help="RNG seed for subsampling/fold shuffling (default: 0)")
+    discriminate.add_argument("--output", type=str, default=None, help="Optional markdown report path")
+    discriminate.set_defaults(handler=run_discriminate)
     return parser
 
 
@@ -105,6 +130,8 @@ def run_measure(args: argparse.Namespace) -> int:
         return 1
 
     summary = summarize_stats(rows, source=source)
+    if args.save_rows:
+        summary["rows"] = rows
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -170,6 +197,31 @@ def run_compare(args: argparse.Namespace) -> int:
         reference=reference.get("source") or args.reference,
         candidate=candidate.get("source") or args.candidate,
     )
+    print(report)
+    if args.output:
+        Path(args.output).write_text(report, encoding="utf-8")
+    return 0
+
+
+def run_discriminate(args: argparse.Namespace) -> int:
+    from src.realism.discriminator import format_discriminator_markdown, load_rows, run_discriminator
+
+    try:
+        reference_rows, reference_source = load_rows(args.reference)
+        candidate_rows, candidate_source = load_rows(args.candidate)
+        result = run_discriminator(
+            reference_rows,
+            candidate_rows,
+            n_splits=args.folds,
+            l2=args.l2,
+            top_n=args.top,
+            seed=args.seed,
+        )
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return 1
+
+    report = format_discriminator_markdown(result, reference_source, candidate_source)
     print(report)
     if args.output:
         Path(args.output).write_text(report, encoding="utf-8")
