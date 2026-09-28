@@ -310,3 +310,23 @@ Key options:
 - `--db-path <path>`: Override output DB path (single language only).
 - `--threshold <float>`: Similarity threshold (default: `0.6`).
 - `--top-k <int>`: Max similar chars per character (default: `8`).
+
+## `distribution fit-capture`
+
+```bash
+uv run main.py distribution fit-capture --pairs pairs.csv --output stats/capture-fit [OPTIONS]
+uv run main.py distribution fit-capture --clean-dir clean --captured-dir scans --output stats/capture-fit
+```
+
+- `--pairs`: CSV with `clean,captured` headers. Relative paths resolve beside the CSV.
+- `--clean-dir`, `--captured-dir`: alternative input, matching exact filenames in the two directories (nonrecursive). Supported extensions: PNG, JPEG, TIFF, BMP, WebP. Missing counterparts and empty inputs are errors; use CSV for differing extensions/names.
+- `--output`: required output directory, containing numbered per-pair JSON files and `profile.yaml`. Reusing a directory overwrites matching report names; prefer a fresh directory per run.
+- `--channel`: `scanned` (default) or `photographed`; names the output profile channel.
+- `--clean-dpi`: positive clean-render DPI; omitted means A4 width (210 mm).
+- `--seed`: integer seed for registration and noise calibration (default `0`).
+
+Successful pairs contribute empirical choices to the YAML snippet. Failed pairs
+are recorded in their JSON and excluded; any failure returns exit status 1.
+The command only writes reports, never edits profiles or generates pages.
+See [capture fitting](distribution.md#fit-a-capture-channel-from-printscan-pairs)
+for the physical collection loop, units, model assumptions and review steps.
