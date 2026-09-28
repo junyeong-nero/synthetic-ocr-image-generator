@@ -335,3 +335,11 @@ class MarkdownStyle:
     # Column gap in CSS px, used only when columns > 1. None falls back to a
     # fixed default gap (src/generator/layout_css.py).
     column_gap: Optional[int] = None
+    # Running header / footer / page number drawn in the page margins
+    # (HtmlMarkdownRenderer only; a src/generator/page_furniture.PageFurniture).
+    # None reproduces the previous page without a sheet container exactly.
+    page_furniture: Optional[Any] = None
+    # Height in CSS px of that sheet container (page width x aspect ratio),
+    # which pins the footer to the bottom of the sheet; None lets the sheet
+    # end where its content ends.
+    sheet_height: Optional[int] = None
