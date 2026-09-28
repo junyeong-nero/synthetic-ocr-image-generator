@@ -103,7 +103,7 @@ uv run main.py generate --lang "ko" --size 1000 --seed 42 --distribution-profile
 | `real_world_v1` | First version from published statistics (DocLayNet, scanner skew study) before calibration |
 | `ko_admin_scan_v1` | Scan-heavy Korean administrative documents (forms, notices), lower quality |
 
-A profile adds these metadata columns: `capture_channel`, `target_dpi`, `visual_difficulty` (easy/medium/hard), `degradation_params`, `page_trimmed`, …. Pages are always one sheet (A4/Letter). Overflowing content is cut at a block boundary, and `GT_markdown` always matches the image.
+A profile adds these metadata columns: `capture_channel`, `capture_scenario`, `target_dpi`, `visual_difficulty` (easy/medium/hard), `degradation_params`, `page_trimmed`, …. Pages are always one sheet (A4/Letter). Overflowing content is cut at a block boundary, and `GT_markdown` always matches the image.
 
 #### Calibrate against your own real images
 

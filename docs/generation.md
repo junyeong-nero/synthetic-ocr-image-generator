@@ -89,8 +89,8 @@ Formula generation/rendering notes:
 ### Real-World Distribution Profile
 
 - `--distribution-profile`: profile name under `configs/generator/distributions` (`real_world_v2` (calibrated), `real_world_v1`, `ko_admin_scan_v1`) or a YAML path.
-- Controls family mix, block weights, physical typography, capture channel (born-digital / scanned / photographed), target DPI and degradations (skew, perspective, blur, noise, JPEG, bleed-through, binarization, ...).
-- Adds `capture_channel`, `target_dpi`, `visual_difficulty`, `degradation_params` and related metadata columns.
+- Controls family mix, block weights, physical typography, capture channel (born-digital / scanned / photographed), target DPI and degradations (skew, perspective, blur, noise, JPEG, bleed-through, binarization, ...). A channel can split into named, weighted `scenarios` (e.g. scanned: office_adf/archive/photocopy/fax) that override a correlated subset of its degradations together, since real capture artifacts don't vary independently.
+- Adds `capture_channel`, `capture_scenario`, `target_dpi`, `visual_difficulty`, `degradation_params` and related metadata columns.
 - See [distribution.md](distribution.md) for the profile format, data sources, and the `distribution measure` / `distribution compare` calibration loop.
 
 ### Dataset Split / Upload

@@ -70,6 +70,129 @@ def test_bundled_profiles_load_and_sample(name: str) -> None:
     assert 8.0 <= typography["body_font_pt"] <= 14.0
 
 
+def test_capture_scenarios_are_weighted_and_merge_with_channel_degradations() -> None:
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "capture_channels": {
+                "scanned": {
+                    "weight": 1.0,
+                    "dpi": 300,
+                    "degradations": {"skew_deg": 1.0, "noise_sigma": 2.0},
+                    "scenarios": {
+                        "office_adf": {"weight": 0.8, "degradations": {"stamp": True}},
+                        "fax": {
+                            "weight": 0.2,
+                            "dpi": 150,
+                            "degradations": {"binarize": True, "noise_sigma": 9.0},
+                        },
+                    },
+                }
+            },
+        }
+    )
+    rng = random.Random(3)
+    samples = [profile.sample_capture(rng) for _ in range(2000)]
+    scenario_share = Counter(sample.scenario for sample in samples)
+    assert set(scenario_share) == {"office_adf", "fax"}
+    fax_share = scenario_share["fax"] / len(samples)
+    assert 0.15 < fax_share < 0.25
+
+    office = next(s for s in samples if s.scenario == "office_adf")
+    assert office.dpi == 300  # inherits channel dpi when the scenario omits it
+    assert office.params["skew_deg"] == 1.0  # inherited from channel-level degradations
+    assert office.params["noise_sigma"] == 2.0  # inherited, not overridden
+    assert office.params["stamp"] is True  # scenario-only key
+
+    fax = next(s for s in samples if s.scenario == "fax")
+    assert fax.dpi == 150  # scenario dpi overrides channel dpi
+    assert fax.params["noise_sigma"] == 9.0  # scenario overrides the channel-level value
+    assert fax.params["binarize"] is True
+    assert fax.params["skew_deg"] == 1.0  # still inherited from the channel base
+
+
+def test_channels_without_scenarios_sample_as_before() -> None:
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "capture_channels": {
+                "born_digital": {"weight": 1.0, "dpi": 150, "degradations": {"jpeg_quality": 90}},
+            },
+        }
+    )
+    sample = profile.sample_capture(random.Random(0))
+    assert sample.scenario == ""
+    assert sample.params == {"jpeg_quality": 90}
+
+
+def test_legacy_profiles_still_load_and_sample_without_scenarios() -> None:
+    for name in ("real_world_v1", "real_world_v2"):
+        profile = load_distribution_profile(name)
+        rng = random.Random(2)
+        samples = [profile.sample_capture(rng) for _ in range(50)]
+        assert all(sample.scenario == "" for sample in samples)
+
+
+def test_real_world_v3_scanned_and_photographed_use_named_scenarios() -> None:
+    profile = load_distribution_profile("real_world_v3")
+    channels = {c.name: c for c in profile.capture_channels}
+    assert channels["born_digital"].weight == pytest.approx(0.45)
+    assert channels["scanned"].weight == pytest.approx(0.40)
+    assert channels["photographed"].weight == pytest.approx(0.15)
+    assert not channels["born_digital"].scenarios
+    scanned_names = {s.name for s in channels["scanned"].scenarios}
+    assert scanned_names == {"office_adf", "archive", "photocopy", "fax"}
+    photographed_names = {s.name for s in channels["photographed"].scenarios}
+    assert photographed_names == {"phone_flat", "phone_book", "low_light"}
+    assert sum(s.weight for s in channels["scanned"].scenarios) == pytest.approx(1.0)
+    assert sum(s.weight for s in channels["photographed"].scenarios) == pytest.approx(1.0)
+
+
+def test_ko_admin_scan_v1_scanned_and_photographed_use_named_scenarios() -> None:
+    profile = load_distribution_profile("ko_admin_scan_v1")
+    channels = {c.name: c for c in profile.capture_channels}
+    assert channels["born_digital"].weight == pytest.approx(0.10)
+    assert channels["scanned"].weight == pytest.approx(0.70)
+    assert channels["photographed"].weight == pytest.approx(0.20)
+    scanned_names = {s.name for s in channels["scanned"].scenarios}
+    assert scanned_names == {"office_adf", "archive", "photocopy", "fax"}
+    photographed_names = {s.name for s in channels["photographed"].scenarios}
+    assert photographed_names == {"phone_flat", "phone_book", "low_light"}
+    assert sum(s.weight for s in channels["scanned"].scenarios) == pytest.approx(1.0)
+    assert sum(s.weight for s in channels["photographed"].scenarios) == pytest.approx(1.0)
+
+
+def test_metadata_includes_capture_scenario() -> None:
+    profile = DistributionProfile.from_dict(
+        {
+            "id": "t",
+            "capture_channels": {
+                "scanned": {
+                    "weight": 1.0,
+                    "dpi": 200,
+                    "scenarios": {"archive": {"weight": 1.0, "degradations": {"paper_tint": True}}},
+                }
+            },
+        }
+    )
+    style = MarkdownStyle()
+    plan = plan_profile_render(profile, style, random.Random(0))
+
+    metadata = plan.metadata()
+
+    assert metadata["capture_scenario"] == "archive"
+
+
+def test_metadata_capture_scenario_is_empty_string_without_scenarios() -> None:
+    profile = load_distribution_profile("real_world_v1")
+    style = MarkdownStyle()
+    plan = plan_profile_render(profile, style, random.Random(0))
+
+    metadata = plan.metadata()
+
+    assert metadata["capture_scenario"] == ""
+
+
 def test_channel_mix_follows_weights() -> None:
     profile = DistributionProfile.from_dict(
         {
