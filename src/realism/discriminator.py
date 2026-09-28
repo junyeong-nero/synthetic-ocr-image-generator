@@ -14,7 +14,10 @@ generator. An AUC approaching 1.0 means the sets are easy to tell apart; the
 ranked `coefficients` say *which* statistics the model leans on most (the
 biggest gaps to close), and `top_candidates` lists the synthetic images the
 model is most confident about, so you can look at the worst offenders
-directly instead of only reading aggregate numbers.
+directly instead of only reading aggregate numbers. Every `top_candidates`
+entry is a genuine held-out prediction -- see `score_source` below -- so the
+ranking is not biased towards whichever rows happened to be used for
+training.
 
 **Caveat.** Like the skew and layout estimators it consumes
 (`image_stats.estimate_skew`, `layout_stats.compute_layout_stats`), a high
@@ -166,10 +169,27 @@ def run_discriminator(
     balanced by subsampling the larger side down to the smaller side's count
     (seeded, so the same inputs + seed always draw the same subsample).
     Cross-validated AUC/accuracy come from stratified k-fold on that balanced
-    set; the reported `coefficients` and `top_candidates` come from one
-    final model fit on the whole balanced set and then applied to *every*
-    candidate row (not just the balanced subsample), so a larger candidate
-    set is still fully covered by the top-N ranking.
+    set; `coefficients` come from one final model fit on the whole balanced
+    set.
+
+    Every `top_candidates` probability is a held-out prediction, never a
+    score from a model fit on that same row (`score_source` says which of
+    two ways it was obtained):
+    - A candidate row drawn into the balanced training subsample was, by
+      construction, part of the final model's training data, so its final-
+      model score would be in-sample and inflated. It is instead scored
+      with its cross-validation **out-of-fold** probability (`"cv_out_of_fold"`)
+      -- the prediction from the one fold where that row was held out.
+    - A candidate row *not* drawn into the balanced subsample never touched
+      any training (neither a CV fold nor the final refit), so the final
+      model's prediction on it is a genuine holdout score
+      (`"final_model_holdout"`).
+
+    This avoids ranking `top_candidates` by a mix of honest and in-sample
+    (overconfident) scores, which would otherwise systematically bias the
+    top-N ranking towards whichever candidate rows happened to be drawn into
+    the balanced training subsample -- worse the larger the candidate set is
+    relative to the reference set.
 
     Raises `ValueError` if the two sides share no common numeric feature key,
     or if either side has fewer than 2 rows.
@@ -200,6 +220,12 @@ def run_discriminator(
 
     fold_aucs: List[float] = []
     fold_accuracies: List[float] = []
+    # Out-of-fold probability for every row of the balanced set (filled
+    # exactly once each, since the folds partition `range(2 * n_balanced)`).
+    # Needed below so a candidate row that was drawn into the balanced
+    # training subsample is scored with its held-out CV prediction, never
+    # with the final model that was fit on that very row.
+    oof_proba = np.full(2 * n_balanced, np.nan)
     for k in range(n_splits_eff):
         test_idx = folds[k]
         train_idx = np.concatenate([folds[j] for j in range(n_splits_eff) if j != k])
@@ -208,13 +234,15 @@ def run_discriminator(
 
         weights = fit_logistic_regression(X_train, y_train, l2=l2, n_iter=n_iter)
         proba_test = predict_proba(X_test, weights)
+        oof_proba[test_idx] = proba_test
 
         fold_aucs.append(compute_auc(y_test, proba_test))
         fold_accuracies.append(float(np.mean((proba_test > 0.5).astype(np.float64) == y_test)))
 
     # One final model on the whole balanced set: feature coefficients for the
-    # report, and probabilities for every candidate row (not just the
-    # balanced subsample) for the top-N list.
+    # report, and probabilities for every candidate row that never touched
+    # training (not just the balanced subsample), so a larger candidate set
+    # is still fully covered by the top-N ranking.
     X_balanced_std, X_candidate_std = _standardize(X_balanced, X_candidate)
     final_weights = fit_logistic_regression(X_balanced_std, y_balanced, l2=l2, n_iter=n_iter)
 
@@ -226,15 +254,28 @@ def run_discriminator(
         key=lambda item: -abs(item["coefficient"]),
     )
 
+    # Default: the final model's prediction, which is a genuine holdout
+    # score for any candidate row never drawn into the balanced training
+    # subsample (`cand_idx`). For rows that WERE drawn in, the final model
+    # was fit on them, so that score is in-sample and inflated -- overwrite
+    # those with their cross-validation out-of-fold probability instead,
+    # which is a proper held-out estimate for exactly those rows.
     candidate_proba = predict_proba(X_candidate_std, final_weights)
+    score_source = np.full(n_candidate, "final_model_holdout", dtype=object)
+    candidate_oof = oof_proba[n_balanced:]  # same order as `cand_idx`
+    for position, original_index in enumerate(cand_idx):
+        candidate_proba[original_index] = candidate_oof[position]
+        score_source[original_index] = "cv_out_of_fold"
+
     ranked = sorted(
         (
             {
                 "path": row.get("path"),
                 "probability": round(float(proba), 6),
                 "index": index,
+                "score_source": source,
             }
-            for index, (row, proba) in enumerate(zip(candidate_rows, candidate_proba))
+            for index, (row, proba, source) in enumerate(zip(candidate_rows, candidate_proba, score_source))
         ),
         key=lambda item: -item["probability"],
     )
@@ -314,12 +355,17 @@ def format_discriminator_markdown(
         "",
         f"## Top {len(result['top_candidates'])} candidate images most confidently synthetic",
         "",
-        "| Rank | Probability | Path |",
-        "|---:|---:|---|",
+        "Every probability is a held-out prediction (`Source` column): "
+        "`cv_out_of_fold` for a row drawn into the balanced training "
+        "subsample (scored from the fold where it was held out), "
+        "`final_model_holdout` for a row never used in training.",
+        "",
+        "| Rank | Probability | Source | Path |",
+        "|---:|---:|---|---|",
     ]
     for rank, item in enumerate(result["top_candidates"], start=1):
         path = item["path"] if item["path"] is not None else f"(row {item['index']}, no path saved)"
-        lines.append(f"| {rank} | {item['probability']:.3f} | {path} |")
+        lines.append(f"| {rank} | {item['probability']:.3f} | {item['score_source']} | {path} |")
 
     lines.append("")
     return "\n".join(lines) + "\n"

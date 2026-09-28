@@ -63,6 +63,7 @@ def test_run_discriminate_writes_report(tmp_path) -> None:
     assert "AUC" in report
     assert "feat" in report
     assert "syn_" in report  # top-candidate paths
+    assert "cv_out_of_fold" in report or "final_model_holdout" in report  # score source column
 
 
 def test_run_discriminate_errors_without_saved_rows(tmp_path) -> None:
