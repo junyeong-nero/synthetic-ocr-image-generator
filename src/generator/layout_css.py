@@ -40,7 +40,22 @@ def table_style_css(style: "MarkdownStyle", rule_css: str) -> str:
     table_style = style.table_style or "web"
     if table_style not in TABLE_STYLES:
         table_style = "web"
-    return _TABLE_STYLE_BUILDERS[table_style](rule_css)
+    return _TABLE_STYLE_BUILDERS[table_style](rule_css) + _SPAN_CELL_CSS
+
+
+# Merged-cell HTML tables (html_table.py): a group header or a 합계 label is
+# centred across the columns it spans and a row-group label sits mid-height,
+# as office suites lay them out. Only cells with span attributes match, so
+# markdown pipe tables (which have none) render exactly as before; numeric
+# cells keep their inline right alignment, which outranks these rules.
+_SPAN_CELL_CSS = """
+.markdown-body th[colspan], .markdown-body td[colspan] {
+  text-align: center;
+}
+.markdown-body th[rowspan], .markdown-body td[rowspan] {
+  vertical-align: middle;
+}
+"""
 
 
 def _web_css(rule_css: str) -> str:

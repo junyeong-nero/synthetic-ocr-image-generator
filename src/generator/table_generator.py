@@ -4,6 +4,7 @@ import random
 from typing import Callable, List, Mapping, Optional, Tuple
 
 from src.generator.data_provider import DataProvider
+from src.generator.html_table import build_merged_table, render_html_table
 from src.generator.table_schemas import (
     NUMERIC_COLUMN_TYPES,
     SCHEMAS,
@@ -37,6 +38,7 @@ class TableGenerator:
         data: DataProvider,
         clip_text: Callable[[str, int], str],
         table_schemas: Optional[Mapping[str, float]] = None,
+        merged_table_ratio: float = 0.0,
     ) -> None:
         self.data = data
         self.clip_text = clip_text
@@ -45,6 +47,10 @@ class TableGenerator:
             for name, weight in (table_schemas or {}).items()
             if name in SCHEMAS and float(weight) > 0
         }
+        # Share of schema tables written as a merged-cell HTML <table> (see
+        # html_table.py). Only schema tables have a merged layout, so this
+        # has no effect without `table_schemas`; 0 draws no random numbers.
+        self.merged_table_ratio = min(1.0, max(0.0, float(merged_table_ratio or 0.0)))
 
     # ------------------------------------------------------------------
     # Legacy (no schema) generation - unchanged behaviour.
@@ -140,7 +146,13 @@ class TableGenerator:
         row_count = random.randint(row_min, row_max)
         row_count = max(row_count, SCHEMAS[schema_name].min_rows)
 
-        rows = self._build_rows(schema_name, columns, row_count, lang)
+        row_dicts = self._build_row_dicts(schema_name, row_count, lang)
+        if self.merged_table_ratio > 0 and random.random() < self.merged_table_ratio:
+            merged = build_merged_table(schema_name, columns, row_dicts, lang, self.clip_text)
+            if merged is not None:
+                title = self.clip_text(self.data.title(), 96)
+                return f"## {title}\n\n{render_html_table(merged)}"
+        rows = _project_rows(row_dicts, columns)
 
         headers = [self.clip_text(resolve_header(column, lang), 24) for column in columns]
         separators = [
@@ -169,17 +181,10 @@ class TableGenerator:
             )
         return columns
 
-    def _build_rows(
-        self,
-        schema_name: str,
-        columns: List[TableColumn],
-        row_count: int,
-        lang: str,
-    ) -> List[List[str]]:
+    def _build_row_dicts(self, schema_name: str, row_count: int, lang: str) -> List[dict]:
+        """Rows as ``{column key: cell text}`` dicts, every schema key filled."""
         builder = getattr(self, f"_build_{schema_name}_rows")
-        rows_by_key = builder(row_count, lang)
-        column_keys = [column.key for column in columns]
-        return [[row[key] for key in column_keys] for row in rows_by_key]
+        return builder(row_count, lang)
 
     # -- per-schema row builders (values in schema-declared, unfiltered order) --
 
@@ -300,9 +305,9 @@ class TableGenerator:
 
     def _build_statistics_rows(self, row_count: int, lang: str) -> List[dict]:
         # Always fill every possible year_0.._STATISTICS_MAX_YEAR_COLUMNS-1
-        # key; _build_rows() only reads back the keys the selected columns
-        # actually need, so the exact year count used elsewhere doesn't need
-        # to be threaded through here.
+        # key; _project_rows() (and the merged layout) only reads back the
+        # keys the selected columns actually need, so the exact year count
+        # used elsewhere doesn't need to be threaded through here.
         categories = _sample_unique_cycle(STATISTICS_CATEGORIES[lang], row_count)
         rows: List[dict] = []
         for category in categories:
@@ -335,6 +340,11 @@ class TableGenerator:
                 sections.append(self._generate_legacy_section(row_count, column_count))
 
         return sections
+
+
+def _project_rows(rows_by_key: List[dict], columns: List[TableColumn]) -> List[List[str]]:
+    column_keys = [column.key for column in columns]
+    return [[row[key] for key in column_keys] for row in rows_by_key]
 
 
 def _sample_unique_cycle(pool: List[str], count: int) -> List[str]:

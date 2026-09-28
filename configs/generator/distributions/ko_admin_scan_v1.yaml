@@ -59,6 +59,10 @@ content:
   # so a genre-matched corpus (when generated under `data/corpus/<lang>/`)
   # should win more often here than in real_world_v3's 0.5.
   genre_corpus: {p: 0.8}
+  # [prior] HWP administrative tables routinely merge cells (group headers
+  # over sub-columns, one 구분 label over several rows), so half of the
+  # schema tables are written as merged-cell HTML (src/generator/html_table.py).
+  merged_table_ratio: 0.5
 
 block_weights:
   paragraph: 40

@@ -221,6 +221,7 @@ class DocumentBlockBuilder:
         paragraph_parts: int = 1,
         table_schemas: Mapping[str, float] | None = None,
         genre: Optional[str] = None,
+        merged_table_ratio: float = 0.0,
     ) -> None:
         self.data = data
         self.clip_text = clip_text
@@ -229,7 +230,12 @@ class DocumentBlockBuilder:
         self.table_columns = table_columns
         self.paragraph_max_chars = max(40, int(paragraph_max_chars))
         self.paragraph_parts = max(1, int(paragraph_parts))
-        self.table_generator = TableGenerator(data=data, clip_text=clip_text, table_schemas=table_schemas)
+        self.table_generator = TableGenerator(
+            data=data,
+            clip_text=clip_text,
+            table_schemas=table_schemas,
+            merged_table_ratio=merged_table_ratio,
+        )
         # Genre corpus for `paragraph` blocks only (see `GENRE_BY_DOCUMENT_SHAPE`);
         # `None` means "use the general `paragraphs` corpus", same as before
         # genre corpora existed.
@@ -383,6 +389,8 @@ class DocumentComposer:
             "extra_blocks_per_section": 0,
             "paragraph_max_chars": 320,
             "paragraph_parts": 1,
+            # Share of schema tables written as merged-cell HTML (html_table.py).
+            "merged_table_ratio": 0.0,
         }
         sampled = dict(defaults)
         for key, spec in self.content_specs.items():
@@ -454,6 +462,7 @@ class DocumentComposer:
             paragraph_parts=int(round(content.get("paragraph_parts", 1))),
             table_schemas=self._table_schema_weights(),
             genre=content_genre,
+            merged_table_ratio=content.get("merged_table_ratio", 0.0),
         )
 
         # Heading numbering / 개조식 list markers / law-article formatting for
