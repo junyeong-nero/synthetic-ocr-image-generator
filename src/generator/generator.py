@@ -751,6 +751,7 @@ class Generator(BaseGenerator):
             "heading_numbering": composition_metadata.get("heading_numbering", "none"),
             "list_style": composition_metadata.get("list_style", "markdown"),
             "law_articles_used": bool(composition_metadata.get("law_articles_used", False)),
+            "content_genre": composition_metadata.get("content_genre"),
             "template_complexity": selected_template.complexity,
             "template_mode": selected_template.mode,
             "template_version": selected_template.version,

@@ -248,6 +248,134 @@ Separate each paragraph with a blank line.""",
 प्रत्येक पैराग्राफ को एक रिक्त पंक्ति से अलग करें।""",
         },
     },
+    # ==================== Genre-specific corpora (Task 11) ====================
+    # These replace generic (Wikipedia-derived) `paragraphs` text for
+    # documents whose template family/shape implies a genre, so reports,
+    # meeting minutes and notices no longer read like encyclopedia prose.
+    # `report_lines` is line-based (one 개조식 line per item, like
+    # `features`); the rest are paragraph-style (2-3 sentences per item,
+    # blank-line separated, like `paragraphs`) -- see
+    # `src/corpus_llm/parsing.py`'s `PARAGRAPH_STYLE_CATEGORIES`.
+    "report_lines": {
+        "description": "Report-style 개조식 lines ending in ~함/~임 for business/ops reports",
+        "prompts": {
+            "ko": """업무 보고서, 실적 보고서에 사용할 수 있는 개조식 문장 {count}개를 생성해주세요.
+각 문장은 '~함', '~임', '~하였음', '~됨' 등으로 끝나는 간결한 개조식 문체로 작성해주세요.
+예시: "3분기 매출 목표 대비 108% 달성함", "신규 거래처 5개사 발굴 완료함", "재고 관리 시스템 고도화 진행 중임"
+다양한 업무 영역을 포함해주세요: 영업, 생산, 인사, 재무, 마케팅, 기획 등.
+각 문장은 한 줄에 하나씩, 다른 설명 없이 문장만 출력해주세요.""",
+            "en": """Generate {count} terse, report-style bullet lines for business/operations reports.
+Write each line in a clipped, telegraphic style (drop the subject, favor past participles), similar to military or status reports.
+Examples: "Achieved 108% of Q3 sales target", "Completed onboarding of 5 new vendors", "Inventory system upgrade in progress"
+Include various business areas: sales, production, HR, finance, marketing, planning.
+Output only the lines, one per line, without any other explanation.""",
+            "ja": """業務報告書、実績報告書に使用できる簡潔な報告調の文を{count}個生成してください。
+各文は「〜済み」「〜完了」「〜実施」など体言止め・簡潔な報告調で終えてください。
+例：「第3四半期売上目標比108%達成済み」「新規取引先5社開拓完了」「在庫管理システムの高度化を推進中」
+様々な業務領域を含めてください：営業、生産、人事、財務、マーケティング、企画など。
+文のみを1行に1つずつ、他の説明なしで出力してください。""",
+        },
+    },
+    "meeting_notes": {
+        "description": "Meeting-minutes discussion entries (2-3 sentences per agenda item)",
+        "prompts": {
+            "ko": """회의록에 사용할 수 있는 안건별 논의 내용 {count}개를 생성해주세요.
+각 항목은 2-3문장으로, 논의 배경과 결정 사항을 포함해주세요.
+예시: "차기 프로젝트 일정에 대해 논의함. 2주간 일정을 조정하여 다음 달 초에 착수하기로 결정함."
+다양한 주제를 포함해주세요: 예산, 인력 배치, 일정 조정, 협력 방안, 리스크 관리 등.
+각 항목은 빈 줄로 구분해주세요.""",
+            "en": """Generate {count} meeting-minutes discussion entries.
+Each entry should be 2-3 sentences covering the discussion background and the decision made.
+Example: "The team discussed the timeline for the next project. After a two-week adjustment, it was decided to kick off early next month."
+Include various topics: budget, staffing, scheduling, partnerships, risk management.
+Separate each entry with a blank line.""",
+            "ja": """議事録に使用できる議題ごとの議論内容を{count}個生成してください。
+各項目は2-3文で、議論の背景と決定事項を含めてください。
+例：「次期プロジェクトの日程について議論した。2週間調整し、来月初旬に着手することを決定した。」
+様々なトピックを含めてください：予算、人員配置、日程調整、協力方策、リスク管理など。
+各項目は空行で区切ってください。""",
+        },
+    },
+    "notice_paragraphs": {
+        "description": "Official notice/announcement paragraphs (공지사항)",
+        "prompts": {
+            "ko": """공지사항, 안내문에 사용할 수 있는 문단 {count}개를 생성해주세요.
+각 문단은 2-3문장으로, 안내 대상과 시행 시기, 유의사항을 포함해주세요.
+예시: "본 건물은 3월 15일부터 17일까지 정기 소방 점검을 실시합니다. 점검 시간 동안 일부 출입이 제한될 수 있으니 양해 바랍니다."
+다양한 주제를 포함해주세요: 시설 점검, 휴무 안내, 정책 변경, 행사 공지, 안전 수칙 등.
+각 문단은 빈 줄로 구분해주세요.""",
+            "en": """Generate {count} official notice/announcement paragraphs.
+Each paragraph should be 2-3 sentences covering the audience, effective date, and any caveats.
+Example: "This building will undergo a scheduled fire safety inspection from March 15 to 17. Some entrances may be temporarily restricted during the inspection."
+Include various topics: facility maintenance, holiday notices, policy changes, event announcements, safety guidelines.
+Separate each paragraph with a blank line.""",
+            "ja": """お知らせ、案内文に使用できる段落を{count}個生成してください。
+各段落は2-3文で、対象者・実施時期・注意事項を含めてください。
+例：「本ビルでは3月15日から17日まで定期消防点検を実施します。点検時間中は一部の出入りが制限される場合がありますのでご了承ください。」
+様々なトピックを含めてください：施設点検、休業案内、方針変更、イベント告知、安全規則など。
+各段落は空行で区切ってください。""",
+        },
+    },
+    "contract_clauses": {
+        "description": "Contract/agreement clause paragraphs",
+        "prompts": {
+            "ko": """계약서, 약정서에 사용할 수 있는 조항 문단 {count}개를 생성해주세요.
+각 조항은 2-3문장으로, 당사자의 권리와 의무를 명확히 서술해주세요.
+예시: "갑과 을은 본 계약에서 정한 사항을 성실히 이행하여야 하며, 이를 위반할 경우 상대방에게 발생한 손해를 배상하여야 한다."
+다양한 주제를 포함해주세요: 계약 기간, 대금 지급, 비밀 유지, 손해 배상, 계약 해지, 분쟁 해결 등.
+각 조항은 빈 줄로 구분해주세요.""",
+            "en": """Generate {count} contract/agreement clause paragraphs.
+Each clause should be 2-3 sentences, clearly stating the parties' rights and obligations.
+Example: "The Parties shall faithfully perform their obligations under this Agreement, and a breaching Party shall compensate the other Party for any resulting damages."
+Include various topics: contract term, payment terms, confidentiality, indemnification, termination, dispute resolution.
+Separate each clause with a blank line.""",
+            "ja": """契約書、約定書に使用できる条項段落を{count}個生成してください。
+各条項は2-3文で、当事者の権利と義務を明確に記述してください。
+例：「甲及び乙は本契約に定める事項を誠実に履行しなければならず、これに違反した場合は相手方に生じた損害を賠償しなければならない。」
+様々なトピックを含めてください：契約期間、代金支払、秘密保持、損害賠償、契約解除、紛争解決など。
+各条項は空行で区切ってください。""",
+        },
+    },
+    "academic_abstracts": {
+        "description": "Academic paper abstract paragraphs",
+        "prompts": {
+            "ko": """학술 논문 초록에 사용할 수 있는 문단 {count}개를 생성해주세요.
+각 초록은 2-3문장으로, 연구 배경, 방법, 결과 중 일부를 포함해주세요.
+예시: "본 연구는 딥러닝 기반 모델을 활용하여 한국어 문서 인식 성능을 개선하는 방법을 제안한다. 실험 결과 기존 방법 대비 정확도가 유의미하게 향상되었다."
+다양한 학문 분야를 포함해주세요: 공학, 자연과학, 사회과학, 인문학, 의학 등.
+각 초록은 빈 줄로 구분해주세요.""",
+            "en": """Generate {count} academic paper abstract paragraphs.
+Each abstract should be 2-3 sentences covering the research background, method, or a result.
+Example: "This study proposes a deep learning-based approach to improve Korean document recognition performance. Experimental results show a significant accuracy improvement over existing methods."
+Include various academic fields: engineering, natural sciences, social sciences, humanities, medicine.
+Separate each abstract with a blank line.""",
+            "ja": """学術論文の要旨に使用できる段落を{count}個生成してください。
+各要旨は2-3文で、研究背景・手法・結果のいずれかを含めてください。
+例：「本研究は深層学習に基づくモデルを用いて韓国語文書認識性能を改善する手法を提案する。実験の結果、既存手法と比較して精度が有意に向上した。」
+様々な学問分野を含めてください：工学、自然科学、社会科学、人文学、医学など。
+各要旨は空行で区切ってください。""",
+        },
+    },
+    "financial_commentary": {
+        "description": "Financial performance commentary paragraphs",
+        "prompts": {
+            "ko": """재무 보고서, 실적 발표 자료에 사용할 수 있는 해설 문단 {count}개를 생성해주세요.
+각 문단은 2-3문장으로, 매출·이익·비용 등 재무 지표의 변화와 원인을 서술해주세요.
+예시: "3분기 매출은 전년 동기 대비 12% 증가한 850억원을 기록하였다. 영업이익률은 원가 구조 개선에 힘입어 2.1%p 상승하였다."
+다양한 주제를 포함해주세요: 매출 성장, 비용 절감, 환율 영향, 투자 계획, 리스크 요인 등.
+각 문단은 빈 줄로 구분해주세요.""",
+            "en": """Generate {count} financial performance commentary paragraphs.
+Each paragraph should be 2-3 sentences describing the change in a financial metric (revenue, profit, cost) and its cause.
+Example: "Third-quarter revenue rose 12% year-over-year to $85 million. Operating margin improved by 2.1 percentage points on a leaner cost structure."
+Include various topics: revenue growth, cost reduction, currency effects, investment plans, risk factors.
+Separate each paragraph with a blank line.""",
+            "ja": """財務報告書、決算発表資料に使用できる解説段落を{count}個生成してください。
+各段落は2-3文で、売上・利益・費用などの財務指標の変化とその要因を記述してください。
+例：「第3四半期の売上高は前年同期比12%増の850億ウォンとなった。営業利益率は原価構造の改善により2.1ポイント上昇した。」
+様々なトピックを含めてください：売上成長、コスト削減、為替影響、投資計画、リスク要因など。
+各段落は空行で区切ってください。""",
+        },
+    },
     "features": {
         "description": "Feature descriptions for README/docs",
         "prompts": {

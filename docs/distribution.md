@@ -57,6 +57,7 @@ A profile needs a real text corpus (`data/corpus/<lang>/paragraphs.txt`, see [Re
 | `content.heading_numbering` | `none` (default) / `arabic` (`1.` or `1.1`) / `korean_admin` (`Ⅰ.` / `1.` / `가.`, one pool sampled per document) / `roman` (`I.`, `II.`, ...). Numbers every `## ` section heading in document order. `korean_admin` only applies when `lang` is `ko`; other languages fall back to `arabic`. See `src/generator/document_conventions.py` |
 | `content.list_style` | `markdown` (default: unchanged `- item` / `1. item`) or `korean_admin`: bullet lists render as `□` / `○` / `·` lines (one marker per block) and numbered lists as escaped `1\)`, `가)` or `①` lines (never plain `1)`, since python-markdown and mistune disagree about an unescaped digit + `)`), with an occasional trailing `※ ...` note line. Applies to any document shape. `korean_admin` only applies when `lang` is `ko`; other languages fall back to `markdown` |
 | `content.law_articles` | Probability (bare float or `{p: ...}`) that a `policy_document`-shaped page's `numbered_list` blocks are rewritten as `제N조(제목) ...` articles with `①②...` clauses instead of following `list_style`. Article numbers increment across the whole document. Korean-only (`lang == "ko"`); recorded per sample as `law_articles_used` |
+| `content.genre_corpus` | Probability (bare float or `{p: ...}`) that a page whose `document_shape` has a genre (see [Genre-Specific Corpus](#genre-specific-corpus)) draws its `paragraph` blocks from that genre's corpus file instead of the general `paragraphs` corpus. `0` (default) or a missing genre file both keep the general corpus. Recorded per sample as `content_genre` (the genre name, or `null`) |
 | `page.aspect_ratio` | Sheet shape. Short content is padded to a full sheet; content longer than one sheet is cut at a block boundary and re-rendered, like the first page of a multi-page file (`page_trimmed` in metadata). `GT_markdown` always matches the image |
 | `capture_channels.<name>.weight` | Mix of `born_digital` / `scanned` / `photographed` pages |
 | `capture_channels.<name>.dpi` | Target resolution. Playwright renders with a matching device scale factor, so a 300 dpi page is about 2480 px wide |
@@ -342,6 +343,21 @@ Results are in [`calibration/real_world_v2.md`](calibration/real_world_v2.md). T
 - `--input FILE` imports any local WikiText-format file.
 - The cleaner strips markup debris such as empty `(, )` pairs, wiki list markers (`# item`, `: quote`), namespace titles (`분류:…`), missing spaces after sentence ends, and whole paragraphs containing table markup, URLs or talk-page signatures. Leading markdown markers are also neutralised when paragraphs are built, so corpus text can never turn into a heading.
 - **License:** Wikipedia text is CC BY-SA 3.0. Publish with `--license cc-by-sa-3.0` and credit the source with `--text-source` (written into the card's attribution section).
+
+## Genre-Specific Corpus
+
+A single Wikipedia-derived `paragraphs.txt` makes every template family read like encyclopedia prose -- a `policy_document` page and a `meeting_minutes` page end up with the same generic sentences. `uv run main.py corpus generate --category <name>` (see [`corpus generate`](cli.md#corpus-generate)) also writes these genre-specific categories to `data/corpus/<lang>/<name>.txt`:
+
+| Category | Style | Matched `document_shape` |
+|---|---|---|
+| `report_lines` | One 개조식 line per item, ending in `~함`/`~임`/`~됨` | `release_note` |
+| `meeting_notes` | 2-3 sentence discussion/decision entries | `meeting_minutes` |
+| `notice_paragraphs` | 2-3 sentence official notice/announcement paragraphs | `policy_document` |
+| `contract_clauses` | 2-3 sentence contract/agreement clause paragraphs | `form_like` |
+| `academic_abstracts` | 2-3 sentence paper-abstract paragraphs | `academic_note` |
+| `financial_commentary` | 2-3 sentence financial performance commentary | `business_report` |
+
+`DocumentComposer` (`src/generator/document_blocks.py`, `GENRE_BY_DOCUMENT_SHAPE`) derives the genre from the selected template's `document_shape` and feeds it to `DataProvider.paragraph(genre=...)` (`src/generator/data_provider.py`), which reads `data/corpus/<lang>/<genre>.txt` and falls back to the general `paragraphs` corpus when that file is absent -- so generating only some categories, or none, is always safe. Only `document_shape`s whose blueprint allows `paragraph` blocks at all are mapped (`table_heavy` and `formula_heavy` never emit one); other shapes are unaffected and keep reading the general corpus. Whether the genre corpus is actually used (when both it exists and the shape has a mapping) is controlled by `content.genre_corpus`, off by default -- see the table above.
 
 ## Beyond Visual Realism
 

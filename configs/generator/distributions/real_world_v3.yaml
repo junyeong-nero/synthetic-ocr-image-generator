@@ -120,6 +120,18 @@ content:
   list_style: {choices: [markdown, korean_admin], weights: [0.55, 0.45]}
   # Only affects numbered_list blocks on policy_document-shaped pages.
   law_articles: {p: 0.5}
+  # [prior] Genre-specific corpora (see `GENRE_BY_DOCUMENT_SHAPE` in
+  # src/generator/document_blocks.py): one Wikipedia-derived paragraph corpus
+  # made every family read like encyclopedia prose, so business_report,
+  # meeting_minutes, policy_document, academic_note, form_like and
+  # release_note pages draw `paragraph` blocks from a matching genre corpus
+  # (report_lines / meeting_notes / notice_paragraphs / contract_clauses /
+  # academic_abstracts / financial_commentary under `data/corpus/<lang>/`)
+  # when that file exists, generated with `corpus generate`. No public ratio
+  # of "documents with genre-matched running text" exists; 0.5 is an
+  # engineering prior matching `law_articles`'s weight. Falls back to the
+  # general `paragraphs` corpus whenever the genre file is missing.
+  genre_corpus: {p: 0.5}
 
 # Sheet geometry [measured]: real pages have aspect ~1.41 (A4); Letter 1.29.
 # Margins [prior]: mixes Korean HWP page-setup defaults (top 20mm + 15mm

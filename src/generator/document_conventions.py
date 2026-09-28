@@ -115,7 +115,12 @@ def _sample_choice(spec: Any, default: str, allowed: tuple) -> str:
     return value if value in allowed else default
 
 
-def _sample_probability_flag(spec: Any) -> bool:
+def sample_probability_flag(spec: Any) -> bool:
+    """Sample a Bernoulli flag from a probability spec (bare float or
+    `{p: ...}`); `None` (key unset) is always `False`. Shared with
+    `document_blocks.py`'s `content.genre_corpus` sampling, so both
+    modules accept the same spec shapes for a "probability of doing X" knob.
+    """
     if spec is None:
         return False
     from src.generator.distribution_profile import sample_value
@@ -177,7 +182,7 @@ class DocumentConventions:
         requested_list_style = _sample_choice(
             content_specs.get("list_style"), "markdown", LIST_STYLE_CHOICES
         )
-        requested_law_articles = _sample_probability_flag(content_specs.get("law_articles"))
+        requested_law_articles = sample_probability_flag(content_specs.get("law_articles"))
 
         effective_heading = requested_heading
         if requested_heading == "korean_admin" and not self._is_korean:

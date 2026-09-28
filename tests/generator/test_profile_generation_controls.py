@@ -32,7 +32,12 @@ def _write_profile(tmp_path: Path, body: str) -> str:
     return str(path)
 
 
-def _generator(tmp_path: Path, *, with_corpus: bool = True) -> Generator:
+def _generator(
+    tmp_path: Path,
+    *,
+    with_corpus: bool = True,
+    extra_corpus_files: dict[str, str] | None = None,
+) -> Generator:
     font_dir = tmp_path / "fonts"
     font_dir.mkdir()
     (font_dir / "Body.ttf").write_bytes(b"")
@@ -43,6 +48,8 @@ def _generator(tmp_path: Path, *, with_corpus: bool = True) -> Generator:
             "첫 번째 문단입니다. 두 번째 문장입니다.\n세 번째 문단입니다.\n",
             encoding="utf-8",
         )
+    for filename, content in (extra_corpus_files or {}).items():
+        (corpus_dir / "ko" / filename).write_text(content, encoding="utf-8")
     generator = Generator(output_dir=str(tmp_path / "out"), font_dir=str(font_dir), lang="ko")
     generator.data_generator = MarkdownDataGenerator(
         "ko", data_provider=DataProvider(lang="ko", corpus_dir=corpus_dir)
@@ -421,3 +428,44 @@ def test_without_distribution_profile_korean_conventions_stay_legacy(tmp_path) -
     assert metadata["heading_numbering"] == "none"
     assert metadata["list_style"] == "markdown"
     assert metadata["law_articles_used"] is False
+
+
+def test_profile_genre_corpus_key_uses_genre_corpus_for_mapped_shape(tmp_path) -> None:
+    profile_path = _write_profile(
+        tmp_path,
+        "id: t\nfamily_mix: {business: 1.0}\n"
+        "content:\n"
+        "  genre_corpus: {p: 1.0}\n",
+    )
+    generator = _generator(
+        tmp_path,
+        extra_corpus_files={"notice_paragraphs.txt": "공지 코퍼스 문장입니다.\n"},
+    )
+    generator._configure_generation(
+        seed=1, distribution_profile=profile_path, template="policy_document"
+    )
+
+    spec, _ = generator._select_template_spec()
+    random.seed(2)
+    markdown_text = generator.data_generator.generate_markdown(
+        template_id=spec.template_id, template_spec=spec
+    )
+    metadata = generator.data_generator.pop_composition_metadata()
+
+    assert metadata["content_genre"] == "notice_paragraphs"
+    assert "공지 코퍼스 문장입니다" in markdown_text
+
+
+def test_without_distribution_profile_genre_corpus_stays_legacy(tmp_path) -> None:
+    generator = _generator(
+        tmp_path,
+        extra_corpus_files={"notice_paragraphs.txt": "공지 코퍼스 문장입니다.\n"},
+    )
+    generator._configure_generation(seed=1, template="policy_document")
+
+    spec, _ = generator._select_template_spec()
+    random.seed(2)
+    generator.data_generator.generate_markdown(template_id=spec.template_id, template_spec=spec)
+    metadata = generator.data_generator.pop_composition_metadata()
+
+    assert metadata["content_genre"] is None

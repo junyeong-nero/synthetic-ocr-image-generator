@@ -1,9 +1,11 @@
 import random
 from collections import Counter
+from pathlib import Path
 
 from generator.data_provider import DataProvider
 from generator.document_blocks import (
     DEFAULT_BLOCK_TYPES,
+    GENRE_BY_DOCUMENT_SHAPE,
     DocumentComposer,
     normalize_block_types,
 )
@@ -170,6 +172,97 @@ def test_content_specs_without_table_schemas_keeps_legacy_table_output() -> None
     )
 
     assert baseline_markdown == scaled_markdown
+
+
+def _write_corpus_file(corpus_dir: Path, lang: str, filename: str, lines: list) -> None:
+    lang_dir = corpus_dir / lang
+    lang_dir.mkdir(parents=True, exist_ok=True)
+    (lang_dir / filename).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+_GENRE_BLUEPRINT = {
+    "section_count": [1, 1],
+    "blocks_per_section": [1, 1],
+    "allowed_blocks": ["paragraph"],
+    "required_blocks": ["paragraph"],
+}
+
+
+def test_composer_uses_genre_corpus_when_mapped_shape_and_probability_hit(tmp_path) -> None:
+    document_shape, genre = next(iter(GENRE_BY_DOCUMENT_SHAPE.items()))
+    _write_corpus_file(tmp_path, "ko", "paragraphs.txt", ["일반 위키 문단입니다."])
+    _write_corpus_file(tmp_path, "ko", f"{genre}.txt", ["장르 코퍼스 문장입니다."])
+
+    random.seed(1)
+    composer = DocumentComposer(
+        data=DataProvider(lang="ko", mix_ratio=0.0, corpus_dir=tmp_path),
+        clip_text=_clip,
+        formula_supplier=lambda: "x=y",
+        content_specs={"genre_corpus": {"p": 1.0}},
+    )
+    markdown, metadata = composer.compose({**_GENRE_BLUEPRINT, "document_shape": document_shape})
+    body_lines = [line for line in markdown.splitlines() if not line.startswith("#")]
+
+    assert any("장르 코퍼스 문장입니다" in line for line in body_lines)
+    assert not any("일반 위키 문단입니다" in line for line in body_lines)
+    assert metadata.content_genre == genre
+
+
+def test_composer_falls_back_to_general_corpus_when_genre_file_absent(tmp_path) -> None:
+    document_shape, genre = next(iter(GENRE_BY_DOCUMENT_SHAPE.items()))
+    _write_corpus_file(tmp_path, "ko", "paragraphs.txt", ["일반 위키 문단입니다."])
+
+    random.seed(1)
+    composer = DocumentComposer(
+        data=DataProvider(lang="ko", mix_ratio=0.0, corpus_dir=tmp_path),
+        clip_text=_clip,
+        formula_supplier=lambda: "x=y",
+        content_specs={"genre_corpus": {"p": 1.0}},
+    )
+    markdown, metadata = composer.compose({**_GENRE_BLUEPRINT, "document_shape": document_shape})
+
+    assert "일반 위키 문단입니다" in markdown
+    assert metadata.content_genre is None
+
+
+def test_composer_without_content_specs_never_uses_genre_corpus(tmp_path) -> None:
+    """Legacy unchanged: no `content_specs` at all (no profile) must behave
+    exactly as before genre corpora existed, even when a genre file exists
+    for a mapped document shape."""
+    document_shape, genre = next(iter(GENRE_BY_DOCUMENT_SHAPE.items()))
+    _write_corpus_file(tmp_path, "ko", "paragraphs.txt", ["일반 위키 문단입니다."])
+    _write_corpus_file(tmp_path, "ko", f"{genre}.txt", ["장르 코퍼스 문장입니다."])
+
+    random.seed(1)
+    composer = DocumentComposer(
+        data=DataProvider(lang="ko", mix_ratio=0.0, corpus_dir=tmp_path),
+        clip_text=_clip,
+        formula_supplier=lambda: "x=y",
+    )
+    markdown, metadata = composer.compose({**_GENRE_BLUEPRINT, "document_shape": document_shape})
+
+    assert "일반 위키 문단입니다" in markdown
+    assert metadata.content_genre is None
+
+
+def test_composer_ignores_genre_corpus_for_unmapped_document_shape(tmp_path) -> None:
+    _write_corpus_file(tmp_path, "ko", "paragraphs.txt", ["일반 위키 문단입니다."])
+    for genre in set(GENRE_BY_DOCUMENT_SHAPE.values()):
+        _write_corpus_file(tmp_path, "ko", f"{genre}.txt", ["장르 코퍼스 문장입니다."])
+
+    random.seed(1)
+    composer = DocumentComposer(
+        data=DataProvider(lang="ko", mix_ratio=0.0, corpus_dir=tmp_path),
+        clip_text=_clip,
+        formula_supplier=lambda: "x=y",
+        content_specs={"genre_corpus": {"p": 1.0}},
+    )
+    markdown, metadata = composer.compose(
+        {**_GENRE_BLUEPRINT, "document_shape": "technical_manual"}
+    )
+
+    assert "일반 위키 문단입니다" in markdown
+    assert metadata.content_genre is None
 
 
 def test_composer_output_is_deterministic_with_seed() -> None:
