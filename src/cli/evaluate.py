@@ -22,13 +22,17 @@ MAIN_SCRIPT = PROJECT_ROOT / "main.py"
 
 def get_api_key(backend: str) -> Optional[str]:
     key_map = {
-        "openai": "OPENAI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "google": "GOOGLE_API_KEY",
-        "upstage": "UPSTAGE_API_KEY",
+        "openai": ("OPENAI_API_KEY",),
+        "anthropic": ("ANTHROPIC_API_KEY",),
+        # google-genai also documents GEMINI_API_KEY; GOOGLE_API_KEY wins when both are set.
+        "google": ("GOOGLE_API_KEY", "GEMINI_API_KEY"),
+        "upstage": ("UPSTAGE_API_KEY",),
     }
-    env_var = key_map.get(backend)
-    return None if env_var is None else __import__("os").environ.get(env_var)
+    environ = __import__("os").environ
+    for env_var in key_map.get(backend, ()):
+        if environ.get(env_var):
+            return environ[env_var]
+    return None
 
 
 def _resolve_execution_mode(args: argparse.Namespace) -> EvaluationMode:
