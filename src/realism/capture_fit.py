@@ -60,6 +60,18 @@ def _optical_fit(clean: np.ndarray, captured: np.ndarray, valid: np.ndarray,
     best = (float('inf'), 0., 1., 0., reference)
     for sigma in np.arange(0, 3.01, .1):
         blurred = cv2.GaussianBlur(reference, (0, 0), float(sigma)) if sigma > 0 else reference
+        if quality is not None:
+            # JPEG softens edges on the captured side; forward-simulate it on
+            # the candidate so the minimum sits at the optical blur, not at
+            # optical + compression blur. RGB roundtrip matches files saved
+            # from RGB images with Pillow defaults.
+            rgb = np.stack([np.clip(blurred, 0, 255).astype(np.uint8)] * 3, axis=-1)
+            buffer = io.BytesIO()
+            Image.fromarray(rgb).save(buffer, format='JPEG', quality=int(quality))
+            buffer.seek(0)
+            with Image.open(buffer) as image:
+                packet = np.asarray(image).astype(np.float32)
+            blurred = packet.mean(axis=-1) if packet.ndim == 3 else packet.astype(np.float32)
         x = blurred[region]
         slope = float(np.mean((x - x.mean()) * (target - target.mean())) / max(float(x.var()), 1e-6))
         offset = float(target.mean() - slope * x.mean())
