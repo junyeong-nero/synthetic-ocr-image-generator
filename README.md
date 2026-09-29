@@ -172,7 +172,27 @@ All metrics are markdown-aware and computed per-block:
 
 ## Leaderboards
 
-### Korean OCR (ko)
+> **Dataset revisions.** The two tables under "February 2026 snapshot" were measured on 2026-02-20/21
+> against the original dataset revisions (test split fingerprint `56f4f274c377d96c` for ko,
+> `d1d330ead82d454f` for ja). The Hub datasets were re-uploaded on 2026-06-02 (new fingerprints and
+> extra metadata columns), so those scores are **not comparable** with the re-measured table below.
+
+### Re-measured on the current datasets (2026-09-29)
+
+Full `test` split (100 samples per language), `scripts/evaluate/run.sh <config> --batch-size 8`.
+
+| Lang | Model | Backend | Overall | Text | Table | Formula | Order | Success | Dataset fingerprint |
+|---|---|---|---:|---:|---:|---:|---:|---|---|
+| ko | gpt-5-mini | openai | 0.9332 | 0.9081 | 0.9996 | 0.8852 | 0.9399 | 100/100 | `ff753a33af04cfcc` |
+| ja | gpt-5-mini | openai | 0.9024 | 0.8696 | 0.9893 | 0.8546 | 0.8963 | 100/100 | `8bdfc0c54646ebc0` |
+
+Only API models have been re-measured so far. `gemini-3-flash-preview` and the Upstage
+`document-parse` row were not re-run (no usable API credits/key at run time), and the local GPU
+models still carry their February numbers below.
+
+### February 2026 snapshot (previous dataset revision)
+
+#### Korean OCR (ko)
 
 | Rank | Model | Backend | Overall | Text | Table | Formula | Success |
 |---:|---|---|---:|---:|---:|---:|---|
@@ -182,7 +202,7 @@ All metrics are markdown-aware and computed per-block:
 | 4 | nanonets/Nanonets-OCR2-3B | transformers | 0.9201 | 0.9025 | 0.9988 | 0.8341 | 100/100 |
 | 5 | Qwen/Qwen3-VL-4B-Instruct | transformers | 0.8639 | 0.7141 | 1.0000 | 0.8860 | 100/100 |
 
-### Japanese OCR (ja)
+#### Japanese OCR (ja)
 
 | Rank | Model | Backend | Overall | Text | Table | Formula | Success |
 |---:|---|---|---:|---:|---:|---:|---|
