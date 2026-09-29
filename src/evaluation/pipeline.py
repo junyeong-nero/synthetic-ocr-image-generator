@@ -123,8 +123,10 @@ class EvaluationPipeline:
         return base_prompt, base_system_prompt, source or "default"
 
     def _extract_ground_truths(self, dataset: Dataset) -> List[Any]:
-        evaluator = MarkdownEvaluator()
-        return evaluator.extract_ground_truths(dataset, self.config.target_column)
+        self._page_furniture = {i: dataset[i].get("page_furniture") for i in range(len(dataset))}
+        # Same extraction as MarkdownEvaluator (which ignores target_column),
+        # but duck-typed so it also works on plain row lists in tests.
+        return [dataset[i].get("GT_markdown", dataset[i].get("markdown", "")) for i in range(len(dataset))]
 
     def _compute_metrics(
         self, results: List[InferenceResult]
@@ -141,7 +143,13 @@ class EvaluationPipeline:
             self.metric_views = {"normalized": {}}
             return {}
 
-        predictions = [str(r.prediction) for r in valid_results]
+        from src.evaluation.page_furniture import strip_page_furniture
+
+        furniture = getattr(self, "_page_furniture", {})
+        predictions = [
+            strip_page_furniture(str(r.prediction), furniture.get(r.index))
+            for r in valid_results
+        ]
         ground_truths = [r.ground_truth for r in valid_results]
 
         evaluator = MarkdownEvaluator()

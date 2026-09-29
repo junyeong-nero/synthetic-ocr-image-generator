@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 from src.generator.layout_css import columns_css, table_style_css
+from src.generator.page_furniture import page_sheet_css, page_sheet_html
 from src.generator.markdown_render_utils import (
     MarkdownStyle,
     image_to_data_uri,
@@ -904,6 +905,11 @@ html, body {{
   margin: 0 auto;
 }}
 """
+        # Running header / footer / page number: a sheet container around
+        # the markdown body (src/generator/page_furniture.py). Without
+        # furniture both helpers are no-ops and the document is unchanged.
+        css += page_sheet_css(self.style)
+        body_html = page_sheet_html(self.style, f'<div class="markdown-body">{rendered_html}</div>')
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -911,7 +917,7 @@ html, body {{
   <style>{css}</style>
 </head>
 <body>
-  <div class="markdown-body">{rendered_html}</div>
+  {body_html}
 </body>
 </html>"""
 
@@ -956,7 +962,8 @@ html, body {{
             ) from exc
 
         width = self.style.margin_left + self.style.content_width + self.style.margin_right
-        height = self._estimate_viewport_height(markdown_text)
+        # html2image captures the viewport, so it must hold a full sheet.
+        height = max(self._estimate_viewport_height(markdown_text), int(self.style.sheet_height or 0))
         html_doc = self._build_html_document(markdown_text, image_assets=image_assets)
 
         with tempfile.TemporaryDirectory(prefix="markdown-html2image-") as temp_dir:
@@ -992,6 +999,17 @@ class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
                 "Install with: uv sync --group generate && uv run playwright install chromium"
             ) from exc
 
+    @staticmethod
+    def _wrap_capture_shell(html_doc: str, width: int, capture_padding: int) -> str:
+        """Wrap the body's top-level element (markdown body or page sheet) in the capture shell."""
+        shell = (
+            f'  <div class="capture-shell" style="padding: {capture_padding}px; '
+            f'width: {width + (capture_padding * 2)}px; overflow: visible;">\n'
+        )
+        return html_doc.replace("<body>\n  ", "<body>\n" + shell + "    ", 1).replace(
+            "</div>\n</body>", "</div>\n  </div>\n</body>", 1
+        )
+
     def render(
         self,
         markdown_text: str,
@@ -1004,16 +1022,11 @@ class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
         capture_padding = self._CAPTURE_PADDING_PX
         viewport_height = max(720, min(1600, self._estimate_viewport_height(markdown_text) + (capture_padding * 2)))
         render_scale = max(0.5, min(4.0, float(getattr(self.style, "render_scale", 1.0) or 1.0)))
-        html_doc = self._build_html_document(markdown_text, image_assets=image_assets)
-        html_doc = html_doc.replace(
-            '<body>\n  <div class="markdown-body">',
-            (
-                '<body>\n'
-                f'  <div class="capture-shell" style="padding: {capture_padding}px; width: {width + (capture_padding * 2)}px; overflow: visible;">\n'
-                '    <div class="markdown-body">'
-            ),
-            1,
-        ).replace("</div>\n</body>", "</div>\n  </div>\n</body>", 1)
+        html_doc = self._wrap_capture_shell(
+            self._build_html_document(markdown_text, image_assets=image_assets),
+            width,
+            capture_padding,
+        )
 
         with tempfile.TemporaryDirectory(prefix="markdown-playwright-") as temp_dir:
             html_path = Path(temp_dir) / "rendered.html"

@@ -91,6 +91,8 @@ block_weights:
 # coverage of v1 output (ink_ratio 5-11% vs 2.5%), so documents get more
 # sections, extra blocks and longer paragraphs.
 content:
+  continuation_page: {p: 0.6}  # [prior] Later pages in multi-page documents.
+  start_mid_paragraph: {p: 0.3}  # [prior] Conditional on continuation pages.
   # [measured] v2 pilots: one `##` heading per short block left pages mostly
   # whitespace; real pages have fewer headings and long running text.
   section_count_scale: {uniform: [0.7, 1.2]}
@@ -147,6 +149,12 @@ content:
 # 4-7% margins; real A4 pages run 8-14%, which these values land in.
 # Re-fit the split once you have a labeled reference set.
 page:
+  header: {p: 0.45}  # [prior] Running title, organisation or date.
+  footer: {p: 0.2}  # [prior] Short administrative/document footer.
+  # [prior] Mix of printed page-number conventions, including unnumbered pages.
+  page_number:
+    choices: [none, dashed, plain, of_total, korean, english]
+    weights: [0.2, 0.25, 0.2, 0.15, 0.15, 0.05]
   aspect_ratio: {choices: [1.414, 1.294], weights: [0.85, 0.15]}
   margins_mm:
     top: {choices: [35, 25.4], weights: [0.55, 0.45]}

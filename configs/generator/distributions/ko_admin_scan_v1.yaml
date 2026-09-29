@@ -40,6 +40,8 @@ template_weights:
 # execution tables, meeting/event schedules and staff rosters rather than
 # financial statements, so those three schemas get most of the weight.
 content:
+  continuation_page: {p: 0.7}  # [prior] Later pages in multi-page documents.
+  start_mid_paragraph: {p: 0.3}  # [prior] Conditional on continuation pages.
   similar_char_ratio: 0.0
   table_schemas: {budget: 3, schedule: 3, roster: 2, order: 1, financial: 1}
   # [prior] Korean public-administration documents are numbered and 개조식
@@ -99,6 +101,12 @@ typography:
 # 15mm, left/right 30mm) dominate since these are administrative archives;
 # Word's 1-inch (25.4mm) "Normal" margins get a smaller share.
 page:
+  header: {p: 0.55}  # [prior] Running title, organisation or date.
+  footer: {p: 0.3}  # [prior] Short administrative/document footer.
+  # [prior] Mix of printed page-number conventions, including unnumbered pages.
+  page_number:
+    choices: [none, dashed, plain, of_total, korean, english]
+    weights: [0.2, 0.25, 0.2, 0.15, 0.15, 0.05]
   margins_mm:
     top: {choices: [35, 25.4], weights: [0.75, 0.25]}
     bottom: {choices: [15, 25.4], weights: [0.75, 0.25]}
