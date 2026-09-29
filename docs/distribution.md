@@ -320,6 +320,65 @@ Class 0 is the reference (real) set, class 1 the candidate (synthetic) set. Clas
 
 If `--reference` or `--candidate` was measured without `--save-rows`, `distribution discriminate` fails with a message pointing you back to `--save-rows`.
 
+## Fit a capture channel from print–scan pairs
+
+Keep the exact clean render, print it at a known physical width, then scan or
+photograph the same page. Collect several pages per device/settings combination,
+including text and tables. Keep the full page visible and use a flat sheet;
+curled pages, shadows, stamps and printer halftones are not modeled by this fitter.
+
+Create a CSV (paths are relative to the CSV):
+
+```csv
+clean,captured
+clean/page-01.png,scans/page-01.jpg
+clean/page-02.png,scans/page-02.jpg
+```
+
+```bash
+uv run main.py distribution fit-capture --pairs pairs.csv --output stats/capture-fit \
+  --channel scanned --clean-dpi 150
+# Or match exact filenames in two directories:
+uv run main.py distribution fit-capture --clean-dir clean --captured-dir scans \
+  --output stats/capture-fit --channel photographed
+```
+
+Inspect `pair-0001.json`, etc. for fitted parameters, clean-to-capture homography,
+correlation, RANSAC inliers, whether ECC refinement converged, paper RGB and
+estimated black-ink level. Failed pairs have an `error` instead; the command
+returns nonzero if any pair fails. `profile.yaml` contains empirical `choices`
+specs from successful pairs under `capture_channels.<channel>`, with `dpi` beside
+`degradations`. Merge the reviewed snippet into your own profile, retaining its
+channel weight. Existing scenarios override channel defaults, so update the
+intended scenario instead when appropriate. No shipped profile is modified.
+
+The estimates use the existing degradation keys:
+
+| Estimate | Interpretation |
+|---|---|
+| `dpi` | Similarity scale × clean DPI; default clean DPI assumes a 210 mm A4 width. Supply `--clean-dpi` for other sizes. Perspective foreshortening also affects scale. |
+| `skew_deg` | Rotation in the generator/OpenCV sign convention. |
+| `perspective` | Moment-matched magnitude for the generator's inward corner jitter; approximate across a collection, not a unique inverse for one page. |
+| `ink_fade`, `paper_tint` | Fitted ink offset relative to paper, and a warm/dark-paper flag; tint is a boolean, not an exact recovered colour. |
+| `blur_sigma` | Gaussian sigma in captured pixels, grid searched from 0 to 3 in steps of 0.1 with fitted intensity gain/offset. |
+| `noise_sigma` | Flat-paper high-pass residual matched to seeded Gaussian noise, including clipping and JPEG suppression (0–25 in steps of 0.25). |
+| `jpeg_quality` | Nearest standard IJG/Pillow quality from file quantization tables; custom tables are approximate, lossless files yield null. |
+| `grayscale`, `binarize` | Pixel-based flags, including tolerance for JPEG ringing on bitonal pages. |
+
+Thresholding makes blur/noise/fade unidentifiable, so these are null for bitonal
+captures and omitted from aggregation. Other null estimates are also omitted.
+The snippet describes independent marginal distributions; it does not recover
+correlations or scenario weights. Group captures by device/settings first.
+Blur and noise at a grid boundary deserve review. Registration error, resizing,
+lighting gradients and scanner denoising can bias optical estimates. JPEG noise
+recovery assumes the fitted Gaussian model; it cannot undo arbitrary processing.
+
+Generate a pilot with the reviewed profile and compare it with held-out captures
+using `distribution measure` / `compare`. Repeat the print → capture → fit loop
+when changing printer, paper, scanner settings or camera conditions. The seed
+controls RANSAC and noise calibration; identical inputs and seed are repeatable
+within the same OpenCV environment. Generation without a profile is unchanged.
+
 ## Calibration Record: `real_world_v2`
 
 `real_world_v2` was fitted with the loop above against **118 real pages** that are reachable from GitHub:
