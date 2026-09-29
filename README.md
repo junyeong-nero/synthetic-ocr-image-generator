@@ -180,15 +180,19 @@ All metrics are markdown-aware and computed per-block:
 ### Re-measured on the current datasets (2026-09-29)
 
 Full `test` split (100 samples per language), `scripts/evaluate/run.sh <config> --batch-size 8`.
+LightOnOCR-2-1B ran on a Lightning AI T4 (torch 2.13.0, transformers 5.17.0, `bfloat16` wrapper
+unchanged); gpt-5-mini ran through the OpenAI API.
 
 | Lang | Model | Backend | Overall | Text | Table | Formula | Order | Success | Dataset fingerprint |
 |---|---|---|---:|---:|---:|---:|---:|---|---|
+| ko | lightonai/LightOnOCR-2-1B | transformers | 0.9808 | 0.9556 | 0.9982 | 0.9750 | 0.9943 | 100/100 | `ff753a33af04cfcc` |
 | ko | gpt-5-mini | openai | 0.9332 | 0.9081 | 0.9996 | 0.8852 | 0.9399 | 100/100 | `ff753a33af04cfcc` |
+| ja | lightonai/LightOnOCR-2-1B | transformers | 0.9709 | 0.9578 | 0.9709 | 0.9863 | 0.9685 | 100/100 | `8bdfc0c54646ebc0` |
 | ja | gpt-5-mini | openai | 0.9024 | 0.8696 | 0.9893 | 0.8546 | 0.8963 | 100/100 | `8bdfc0c54646ebc0` |
 
-Only API models have been re-measured so far. `gemini-3-flash-preview` and the Upstage
-`document-parse` row were not re-run (no usable API credits/key at run time), and the local GPU
-models still carry their February numbers below.
+Only these two models have been re-measured so far. `gemini-3-flash-preview` and the Upstage
+`document-parse` row were not re-run (no usable API credits/key at run time), and the other local
+GPU models still carry their February numbers below.
 
 ### February 2026 snapshot (previous dataset revision)
 
