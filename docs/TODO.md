@@ -1,6 +1,6 @@
 # Real-Distribution Work: Status and TODO
 
-Last updated: 2026-09-28.
+Last updated: 2026-09-29.
 
 Goal: make synthetic pages closer to real OCR data (content, layout, capture) and measure how close they are. The full task list, global constraints and rulings are in [`docs/superpowers/plans/2026-09-27-real-distribution-gaps.md`](superpowers/plans/2026-09-27-real-distribution-gaps.md). New knobs are switched on in `configs/generator/distributions/real_world_v3.yaml` (and `ko_admin_scan_v1.yaml` where they fit); `real_world_v2` stays the calibrated record. Runs without a profile behave as before.
 
@@ -19,19 +19,16 @@ Goal: make synthetic pages closer to real OCR data (content, layout, capture) an
 | #10 | 6 | Korean conventions: `content.heading_numbering`, `list_style` (□ ○ · / 1) 가) ①), `law_articles` (제N조) |
 | #11 | 8 | `distribution measure --save-rows` and `distribution discriminate` (classifier two-sample test, out-of-fold ranking of the most synthetic-looking pages) |
 | #12 | 7 | Capture scenarios: `capture_channels.<ch>.scenarios` (scanned: office_adf, archive, photocopy, fax; photographed: phone_flat, phone_book, low_light) |
+| (direct) | 10 | Merged-cell tables: HTML `<table>` with rowspan/colspan in GT (`content.merged_table_ratio`), centred span cells |
+| (direct) | 11 | Genre-specific corpus: LLM categories + genre-aware `DataProvider` (`content.genre_corpus`) |
+| #13 | 12 | Page furniture (header, footer, page number; excluded from GT, stripped in evaluation) + continuation pages (`page.header/footer/page_number`, `content.continuation_page/start_mid_paragraph`) |
+| #14 | 14 | Capture parameter fitting from print-scan pairs (`distribution fit-capture`: ORB+RANSAC+ECC alignment, blur/noise/JPEG/dpi estimates, profile YAML snippet) |
 
 The full suite passes on `main` except the 12 known stale tests listed below.
 
 ## In progress (not merged)
 
-Implementers were interrupted by account usage limits. All four branches are pushed to `origin` with their WIP; no PR is open yet. Uncommitted leftovers, if any, are in the local worktrees under `.claude/worktrees/agent-*`.
-
-| Plan task | Branch | State |
-|---|---|---|
-| 10. Merged-cell tables (HTML `<table>` with rowspan/colspan in GT) | `feat/merged-cell-tables-2` | Implementation done; visual check, full suite and PR left |
-| 11. Genre-specific corpus (LLM categories + genre-aware `DataProvider`) | `feat/genre-corpus` | Implementation done; report and PR left |
-| 12. Page furniture (header, footer, page number; excluded from GT, stripped in evaluation) + continuation pages | `feat/page-furniture-2` | Modules done; wiring into `Generator.generate_single`, visual check and PR left |
-| 14. Capture parameter fitting from print-scan pairs (`distribution fit-capture`) | `feat/capture-fit` | Just started |
+None. All worktree branches are merged and their worktrees/branches (local and remote) are deleted. One unreviewed stash remains: `post-PR local JPEG tweak` on top of `feat/capture-fit` (forward-simulates JPEG compression inside the blur search in `src/realism/capture_fit.py`); promote it to a follow-up PR or drop it with `git stash drop`.
 
 ## Not started
 
@@ -58,7 +55,6 @@ Implementers were interrupted by account usage limits. All four branches are pus
 - `real_world_v3` scanned pages spend 45% on archive/photocopy/fax scenarios, so its scan statistics drift from the XFUND calibration by design. Re-measure once a reference set exists.
 - `column_count` is unreliable on table-dominated pages and on photographed pages (documented in `src/realism/layout_stats.py`).
 - Runs without a profile now also carry `heading_numbering`, `list_style` and `law_articles_used` metadata columns (legacy values).
-- Two empty local branches, `feat/merged-cell-tables` and `feat/page-furniture`, can be deleted.
 
 ## How to continue
 
