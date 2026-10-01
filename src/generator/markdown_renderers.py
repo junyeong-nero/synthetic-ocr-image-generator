@@ -1,7 +1,9 @@
+import contextlib
 import importlib
 import logging
 import random
 import tempfile
+from collections import OrderedDict
 from html import escape
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -986,6 +988,87 @@ html, body {{
         return self._apply_effects(image)
 
 
+def _chromium_args(render_scale: float) -> List[str]:
+    return ["--hide-scrollbars", "--disable-gpu", f"--force-device-scale-factor={render_scale}"]
+
+
+class PlaywrightSession:
+    """Headless Chromium pages kept open across renders.
+
+    Every new page starts a renderer process, which costs about 2 s on macOS, while
+    navigating a page that already exists takes about 0.1 s. Pages are kept per
+    ``render_scale`` (it is a browser launch flag) and replaced every
+    ``recycle_after`` renders and after any error, so a wedged renderer cannot
+    spoil later samples.
+    """
+
+    def __init__(self, recycle_after: int = 500, max_scales: int = 2):
+        self._recycle_after = recycle_after
+        self._max_scales = max_scales
+        self._playwright: Any = None
+        self._slots: "OrderedDict[float, Dict[str, Any]]" = OrderedDict()
+
+    def page(self, sync_playwright: Any, render_scale: float, viewport: Dict[str, int]) -> Any:
+        slot = self._slots.pop(render_scale, None)
+        if slot is not None and slot["uses"] >= self._recycle_after:
+            self._close_slot(slot)
+            slot = None
+        if slot is None:
+            while len(self._slots) >= self._max_scales:
+                self._close_slot(self._slots.popitem(last=False)[1])
+            slot = self._open_slot(sync_playwright, render_scale, viewport)
+        else:
+            slot["page"].set_viewport_size(viewport)
+        slot["uses"] += 1
+        self._slots[render_scale] = slot
+        return slot["page"]
+
+    def discard(self, render_scale: float) -> None:
+        slot = self._slots.pop(render_scale, None)
+        if slot is not None:
+            self._close_slot(slot)
+
+    def close(self) -> None:
+        while self._slots:
+            self._close_slot(self._slots.popitem()[1])
+        if self._playwright is not None:
+            try:
+                self._playwright.stop()
+            except Exception as exc:
+                logger.debug("Ignoring error while stopping Playwright: %s", exc)
+            self._playwright = None
+
+    def _open_slot(self, sync_playwright: Any, render_scale: float, viewport: Dict[str, int]) -> Dict[str, Any]:
+        if self._playwright is None:
+            self._playwright = sync_playwright().start()
+        browser = self._playwright.chromium.launch(headless=True, args=_chromium_args(render_scale))
+        page = browser.new_page(viewport=viewport, device_scale_factor=render_scale)
+        return {"browser": browser, "page": page, "uses": 0}
+
+    @staticmethod
+    def _close_slot(slot: Dict[str, Any]) -> None:
+        try:
+            slot["browser"].close()
+        except Exception as exc:
+            logger.debug("Ignoring error while closing browser: %s", exc)
+
+
+_active_session: Optional[PlaywrightSession] = None
+
+
+@contextlib.contextmanager
+def playwright_session(recycle_after: int = 500):
+    """Reuse one headless Chromium across ``PlaywrightMarkdownRenderer.render`` calls in this block."""
+    global _active_session
+    previous, session = _active_session, PlaywrightSession(recycle_after=recycle_after)
+    _active_session = session
+    try:
+        yield session
+    finally:
+        _active_session = previous
+        session.close()
+
+
 class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
     _CAPTURE_PADDING_PX = 8
 
@@ -1010,6 +1093,16 @@ class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
             "</div>\n</body>", "</div>\n  </div>\n</body>", 1
         )
 
+    @staticmethod
+    def _capture_page(page: Any, html_path: Path, screenshot_path: Path) -> None:
+        page.goto(html_path.as_uri(), wait_until="load")
+        page.wait_for_function("() => Array.from(document.images).every((img) => img.complete)")
+        page.evaluate("() => document.fonts ? document.fonts.ready.then(() => true) : true")
+        page.locator(".capture-shell").screenshot(
+            path=str(screenshot_path),
+            animations="disabled",
+        )
+
     def render(
         self,
         markdown_text: str,
@@ -1022,6 +1115,7 @@ class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
         capture_padding = self._CAPTURE_PADDING_PX
         viewport_height = max(720, min(1600, self._estimate_viewport_height(markdown_text) + (capture_padding * 2)))
         render_scale = max(0.5, min(4.0, float(getattr(self.style, "render_scale", 1.0) or 1.0)))
+        viewport = {"width": width + (capture_padding * 2), "height": viewport_height}
         html_doc = self._wrap_capture_shell(
             self._build_html_document(markdown_text, image_assets=image_assets),
             width,
@@ -1033,31 +1127,20 @@ class PlaywrightMarkdownRenderer(HtmlMarkdownRenderer):
             screenshot_path = Path(temp_dir) / "rendered.png"
             html_path.write_text(html_doc, encoding="utf-8")
 
+            session = _active_session
             try:
-                with sync_playwright() as playwright:
-                    browser = playwright.chromium.launch(
-                        headless=True,
-                        args=[
-                            "--hide-scrollbars",
-                            "--disable-gpu",
-                            f"--force-device-scale-factor={render_scale}",
-                        ],
-                    )
-                    page = browser.new_page(
-                        viewport={"width": width + (capture_padding * 2), "height": viewport_height},
-                        device_scale_factor=render_scale,
-                    )
-                    page.goto(html_path.as_uri(), wait_until="load")
-                    page.wait_for_function("() => Array.from(document.images).every((img) => img.complete)")
-                    page.evaluate(
-                        "() => document.fonts ? document.fonts.ready.then(() => true) : true"
-                    )
-                    page.locator(".capture-shell").screenshot(
-                        path=str(screenshot_path),
-                        animations="disabled",
-                    )
-                    browser.close()
+                if session is not None:
+                    page = session.page(sync_playwright, render_scale, viewport)
+                    self._capture_page(page, html_path, screenshot_path)
+                else:
+                    with sync_playwright() as playwright:
+                        browser = playwright.chromium.launch(headless=True, args=_chromium_args(render_scale))
+                        page = browser.new_page(viewport=viewport, device_scale_factor=render_scale)
+                        self._capture_page(page, html_path, screenshot_path)
+                        browser.close()
             except Exception as exc:
+                if session is not None:
+                    session.discard(render_scale)
                 raise RuntimeError(
                     "Headless Playwright markdown rendering failed. "
                     "Ensure Chromium is installed with: uv run playwright install chromium"
