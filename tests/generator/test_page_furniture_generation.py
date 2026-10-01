@@ -1,5 +1,6 @@
 """Page furniture and continuation pages through Generator.generate_single."""
 
+import random
 from pathlib import Path
 from typing import List
 
@@ -32,6 +33,9 @@ def _write_profile(tmp_path: Path, body: str) -> str:
 
 
 def _generator(tmp_path: Path, name: str = "gen") -> Generator:
+    # DataProvider shuffles its corpus with the global RNG when it is built, so
+    # equal generators need an equal RNG state (the determinism test relies on it).
+    random.seed(0)
     root = tmp_path / name
     font_dir = root / "fonts"
     font_dir.mkdir(parents=True)
