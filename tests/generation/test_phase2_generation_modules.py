@@ -79,8 +79,7 @@ def test_build_dataset_readme_contains_expected_sections(monkeypatch) -> None:
     assert "multilinguality: monolingual" in readme
     assert "task_categories:" in readme
     assert "- image-to-text" in readme
-    assert "task_ids:" in readme
-    assert "- optical-character-recognition" in readme
+    assert "task_ids:" not in readme  # "optical-character-recognition" is not an official Hub task id
     assert "annotations_creators:" in readme
     assert "- machine-generated" in readme
     assert "size_categories:" in readme

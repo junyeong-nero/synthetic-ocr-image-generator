@@ -159,8 +159,6 @@ def build_dataset_readme(
             f"- {size_category}",
             "task_categories:",
             "- image-to-text",
-            "task_ids:",
-            "- optical-character-recognition",
             "annotations_creators:",
             "- machine-generated",
             "language_creators:",
