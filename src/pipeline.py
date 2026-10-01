@@ -6,6 +6,7 @@ from src.env_utils import set_global_seed
 from src.generation.hub_upload import upload_generated_dataset
 from src.generation.markdown_dataset import MarkdownDatasetGenerator
 from src.generation.options import GenerationTaskContext
+from src.generation.shard_runner import StreamUploadOptions, publish_shards_streaming
 from src.generation.sharding import (
     RunManifest,
     ensure_resume_state,
@@ -107,6 +108,7 @@ def pipeline(
     max_shards: Optional[int] = None,
     resume: bool = False,
     upload: bool = False,
+    stream_upload: Optional[StreamUploadOptions] = None,
 ) -> None:
     logger.info("=" * 80)
     set_global_seed(context.generation.seed)
@@ -125,6 +127,9 @@ def pipeline(
 
     if abs((context.publish.train_ratio + context.publish.test_ratio) - 1.0) > 1e-9:
         raise ValueError("train_ratio and test_ratio must sum to 1.0")
+
+    if stream_upload is not None and upload:
+        raise ValueError("upload and stream_upload are mutually exclusive")
 
     base_dir = Path(output_dir) / context.lang
     font_dir = Path(f"fonts/{context.lang}")
@@ -145,6 +150,31 @@ def pipeline(
         context=context,
     )
     manifest.initialize_shards(shard_specs)
+
+    if stream_upload is not None:
+        failed_shards = publish_shards_streaming(
+            manifest=manifest,
+            shard_specs=shard_specs,
+            total_shards=len(plan_shards(context.size, resolved_shard_size)),
+            context=context,
+            task_dir=task_output_dir.resolve(),
+            font_dir=str(font_dir.resolve()),
+            options=stream_upload,
+            resume=resume,
+        )
+        if failed_shards:
+            raise RuntimeError(
+                f"{len(failed_shards)} shard(s) failed: {', '.join(failed_shards)}. "
+                "Fix the cause and rerun with --resume to retry them."
+            )
+        manifest.mark_finished()
+        if stream_upload.dry_run:
+            logger.info("\n" + " Dry run completed; shards staged locally ".center(80, "="))
+            logger.info(f"Staged shards: {task_output_dir / 'shards'}")
+        else:
+            logger.info("\n" + " Pipeline completed! ".center(80, "="))
+            logger.info(f"Dataset: https://huggingface.co/datasets/{context.publish.repo_id}")
+        return
 
     for shard in shard_specs:
         shard_dir = task_output_dir / "shards" / shard.name

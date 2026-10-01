@@ -116,6 +116,31 @@ Local-first behavior:
 - `--text-source` adds a text attribution section to the card (required for CC BY-SA corpora).
 - `--dry-run` writes `DATASET_CARD.md` next to the data and reports split sizes without uploading.
 
+### Large Runs: Upload Each Shard
+
+`--upload` needs the whole dataset on disk. For a dataset larger than the free disk, `--upload-each-shard` publishes each shard as soon as it is generated and deletes it locally, so disk use stays at a few shards.
+
+```bash
+caffeinate -i uv run main.py generate --lang ko --size 1000000 --shard-size 5000 --seed 42 \
+  --repo-id you/your-dataset --upload-each-shard --workers 4
+# after an interruption, rerun the same command with --resume
+```
+
+Per shard: generate, write `data/train-XXXXXX.parquet` and `data/test-XXXXXX.parquet` (images embedded, zstd), push both in **one commit**, compare the remote file sizes with the local ones, and only then delete the local images, `metadata.jsonl` and parquet. `shard_summary.json` and the `_SUCCESS` marker stay.
+
+- The repo is created **private** when it does not exist (`--public` creates it public); an existing repo keeps its visibility. A free account has 100 GB of private storage in total, while public repos are free on a best-effort basis, so a dataset larger than that needs a public repo. Switching a repo to public on the Hub lifts the private limit for the rest of the run.
+- Each shard is split into train and test on its own (`--train-ratio`, shuffled with the shard index as seed), so the ratio holds for every shard.
+- The column schema comes from the first shard to finish and is saved as `features.json` in the dataset root. Later shards follow it; metadata keys that are not columns are dropped and counted under `dropped_keys` in that shard's summary.
+- `--resume` lists the Hub and only runs shards that are not there. A failed shard does not stop the others; the run exits non-zero at the end and names the failed shards. If a shard's parquet was written but its upload failed, the rerun uploads it again without regenerating.
+- After 3 shard failures in a row (network down, Hub quota exceeded, revoked token) no new shard is started, so failed shards cannot pile up on disk. Fix the cause and rerun with `--resume`.
+- A sample that fails to render is retried 3 times with the same seed. After that, up to `max(5, 1% of the shard)` samples per shard are skipped and listed under `skipped_samples` in the manifest; beyond that the shard fails.
+- The dataset card is uploaded once every shard is on the Hub. Its license is `unknown`; edit the README on the Hub to set one.
+- `--workers N` runs N shards at once, each with its own headless Chromium and about 0.5 GB of RAM. Rendering waits on Chromium for most of a sample's time, so a few workers overlap that wait, but more than about 3 stop helping on an 8 GB machine (measured on a MacBook Air M2: 1 worker 4 images/s, 3 workers 5-8 images/s depending on background load, 6 workers slower). Starting a shard waits while less than 10 GB of disk is free.
+- Within a run, one headless Chromium page is reused for every render (`playwright_session`) and replaced every 500 renders. A new page costs about 2 s on macOS; navigating an existing one about 0.1 s. The images are byte-identical to the ones a fresh browser per sample produces.
+- Progress is logged after each shard with an ETA, plus a heartbeat with per-shard image counts whenever 10 minutes pass without a shard finishing.
+- `--upload-dry-run` writes the parquet files under each shard's `upload/` directory and skips every Hub call and deletion, to check a configuration locally.
+- The root `metadata.jsonl` and `realism_stats.json` are not rebuilt in this mode, and `publish` does not apply to such a run.
+
 ## Pipeline Workflow (Detailed)
 
 1. Configuration and seed setup

@@ -148,7 +148,13 @@ class RunManifest:
         self.data["status"] = "running"
         self.save()
 
-    def mark_completed(self, shard: ShardSpec, output_dir: str, generated_count: int) -> None:
+    def mark_completed(
+        self,
+        shard: ShardSpec,
+        output_dir: str,
+        generated_count: int,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> None:
         entry = self.data.setdefault("shards", {}).setdefault(shard.name, {})
         entry.update(
             {
@@ -158,6 +164,7 @@ class RunManifest:
                 "generated_count": generated_count,
                 "output_dir": output_dir,
                 "status": "completed",
+                **(extra or {}),
             }
         )
         completed = set(self.data.setdefault("completed_shards", []))

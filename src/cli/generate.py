@@ -74,6 +74,47 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         help="Upload to Hugging Face Hub after generation completes",
     )
     parser.add_argument(
+        "--upload-each-shard",
+        action="store_true",
+        default=False,
+        help=(
+            "Publish every shard to --repo-id as soon as it is generated (one commit of parquet "
+            "files), verify it on the Hub, then delete it locally, so disk use stays at a few "
+            "shards. Creates the repo as private if missing. Rerun with --resume after an "
+            "interruption. Use with --shard-size; excludes --upload"
+        ),
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Shards generated in parallel with --upload-each-shard (each worker runs its own Chromium)",
+    )
+    parser.add_argument(
+        "--keep-uploaded-shards",
+        action="store_true",
+        default=False,
+        help="With --upload-each-shard, keep each shard's images and parquet locally after upload",
+    )
+    parser.add_argument(
+        "--public",
+        action="store_true",
+        default=False,
+        help=(
+            "With --upload-each-shard, create the dataset repo as public instead of private "
+            "(an existing repo keeps its visibility). Free accounts get 100 GB of private storage"
+        ),
+    )
+    parser.add_argument(
+        "--upload-dry-run",
+        action="store_true",
+        default=False,
+        help=(
+            "With --upload-each-shard, write each shard's parquet files locally and skip every "
+            "Hub call and deletion"
+        ),
+    )
+    parser.add_argument(
         "--template",
         type=str,
         default=None,
@@ -207,6 +248,19 @@ def add_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         "Enable or disable blur effect (default: generator setting)",
     )
     parser.add_argument(
+        "--license",
+        default=None,
+        help="Dataset card license id (default: unknown), e.g. cc-by-sa-3.0 when the corpus comes from Wikipedia",
+    )
+    parser.add_argument(
+        "--text-source",
+        default=None,
+        help=(
+            "Attribution for the corpus text on the dataset card, e.g. "
+            '"Korean WikiText (https://github.com/lovit/kowikitext), CC BY-SA 3.0"'
+        ),
+    )
+    parser.add_argument(
         "--train-ratio",
         type=float,
         default=0.9,
@@ -250,6 +304,8 @@ def build_context_from_args(args: argparse.Namespace) -> GenerationTaskContext:
         repo_id=args.repo_id,
         train_ratio=args.train_ratio,
         test_ratio=args.test_ratio,
+        license=getattr(args, "license", None) or "unknown",
+        text_source=getattr(args, "text_source", None),
     )
     return GenerationTaskContext(
         lang=args.lang,
@@ -257,6 +313,25 @@ def build_context_from_args(args: argparse.Namespace) -> GenerationTaskContext:
         generation=generation,
         publish=publish,
     )
+
+
+def build_stream_upload_options(args: argparse.Namespace):
+    from src.generation.shard_runner import StreamUploadOptions
+
+    workers = getattr(args, "workers", 1)
+    keep_local = getattr(args, "keep_uploaded_shards", False)
+    dry_run = getattr(args, "upload_dry_run", False)
+    public = getattr(args, "public", False)
+    if not getattr(args, "upload_each_shard", False):
+        if workers != 1 or keep_local or dry_run or public:
+            raise ValueError(
+                "--workers, --keep-uploaded-shards, --upload-dry-run and --public "
+                "require --upload-each-shard"
+            )
+        return None
+    if workers < 1:
+        raise ValueError("--workers must be at least 1")
+    return StreamUploadOptions(workers=workers, keep_local=keep_local, dry_run=dry_run, private=not public)
 
 
 def run_with_args(args: argparse.Namespace) -> None:
@@ -269,4 +344,5 @@ def run_with_args(args: argparse.Namespace) -> None:
         max_shards=args.max_shards,
         resume=args.resume,
         upload=args.upload,
+        stream_upload=build_stream_upload_options(args),
     )

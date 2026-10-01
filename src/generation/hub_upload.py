@@ -23,9 +23,13 @@ def count_metadata_rows(output_dir: Path) -> int:
     return count
 
 
-def plan_split_indices(record_count: int, train_ratio: float) -> dict[str, set[int]]:
+def plan_split_indices(
+    record_count: int,
+    train_ratio: float,
+    seed: int = 42,
+) -> dict[str, set[int]]:
     shuffled_indices = list(range(record_count))
-    random.Random(42).shuffle(shuffled_indices)
+    random.Random(seed).shuffle(shuffled_indices)
     split_index = int(record_count * train_ratio)
     if record_count > 1:
         split_index = min(max(split_index, 1), record_count - 1)

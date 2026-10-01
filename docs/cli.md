@@ -67,6 +67,11 @@ uv run main.py generate [OPTIONS]
 - `--max-shards`: Limit generation to the first N planned shards.
 - `--resume`: Resume a previous sharded generation run.
 - `--upload`: Upload to Hugging Face Hub after generation completes.
+- `--upload-each-shard`: Publish every shard to `--repo-id` right after it is generated (one commit of parquet files), verify it on the Hub, then delete it locally. For datasets larger than the free disk. Creates the repo as private if it is missing. Excludes `--upload`. See [generation.md](generation.md#large-runs-upload-each-shard).
+- `--workers`: Shards generated in parallel with `--upload-each-shard` (default: `1`).
+- `--keep-uploaded-shards`: With `--upload-each-shard`, keep each shard's images and parquet locally after upload.
+- `--public`: With `--upload-each-shard`, create the dataset repo as public instead of private. An existing repo keeps its visibility.
+- `--upload-dry-run`: With `--upload-each-shard`, write each shard's parquet locally and skip every Hub call and deletion.
 - `--template`: Optional generation template name.
 - `--template-family`: Optional template family filter.
 - `--min-template-complexity`: Minimum template complexity filter (`1-5`).
@@ -83,6 +88,8 @@ uv run main.py generate [OPTIONS]
 - `--add-noise`, `--no-add-noise`: Enable/disable noise effect.
 - `--add-blur`, `--no-add-blur`: Enable/disable blur effect.
 - `--distribution-profile`: Real-world distribution profile name (`real_world_v2`, `real_world_v1`, `ko_admin_scan_v1`) or YAML path. See [distribution.md](distribution.md).
+- `--license`: Dataset card license id (default: `unknown`), e.g. `cc-by-sa-3.0` when the corpus comes from Wikipedia.
+- `--text-source`: Text attribution written into the dataset card.
 - `--train-ratio`: Train split ratio for dataset publishing (default: `0.9`).
 - `--test-ratio`: Test split ratio for dataset publishing (default: `0.1`).
 
